@@ -1,0 +1,31 @@
+from Compiler.library import print_ln
+from Compiler.types import Matrix, sint
+from Compiler.compilerLib import Compiler
+
+
+usage = "usage: %prog [options] [args]"
+compiler = Compiler(usage=usage)
+compiler.parser.add_option("--rows", dest="rows")
+compiler.parser.add_option("--columns", dest="columns")
+compiler.parse_args()
+if not compiler.options.rows:
+    compiler.parser.error("--rows required")
+if not compiler.options.columns:
+    compiler.parser.error("--columns required")
+
+
+@compiler.register_function('testmpc')
+def main():
+    numrows = int(compiler.options.rows)
+    numcolumns = int(compiler.options.columns)
+    rows = range(numrows)
+    reports = Matrix(numrows, numcolumns, sint)
+    reports.assign_vector(
+        sint.get_input_from(0, size=numrows * numcolumns)
+    )
+    for row in rows:
+        print_ln("report[{}]: %s".format(row), reports[row].reveal())
+
+
+if __name__ == "__main__":
+    compiler.compile_func()

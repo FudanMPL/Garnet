@@ -1,0 +1,49 @@
+# this trains a dense neural network on MNIST
+# see https://github.com/csiro-mlai/mnist-mpc for data preparation
+
+program.options_from_args()
+
+training_samples = sfix.Tensor([60000, 28, 28])
+training_labels = sint.Tensor([60000, 10])
+
+test_samples = sfix.Tensor([10000, 28, 28])
+test_labels = sint.Tensor([10000, 10])
+
+training_labels.input_from(0)
+training_samples.input_from(0)
+
+test_labels.input_from(0)
+test_samples.input_from(0)
+
+from Compiler import ml
+tf = ml
+
+layers = [
+    tf.keras.layers.Flatten(),
+    tf.keras.layers.Dense(128, activation='relu'),
+    tf.keras.layers.Dense(128),
+    tf.keras.layers.Activation('relu'),
+    tf.keras.layers.Dense(10,  activation='softmax')
+]
+
+model = tf.keras.models.Sequential(layers)
+
+optim = tf.keras.optimizers.SGD(momentum=0.9, learning_rate=0.01)
+
+model.compile(optimizer=optim)
+
+opt = model.fit(
+    training_samples,
+    training_labels,
+    epochs=1,
+    batch_size=128,
+    validation_data=(test_samples, test_labels)
+)
+
+guesses = model.predict(test_samples)
+
+print_ln('guess %s', guesses.reveal_nested()[:3])
+print_ln('truth %s', test_labels.reveal_nested()[:3])
+
+for var in model.trainable_variables:
+    var.write_to_file()

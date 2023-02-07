@@ -1,0 +1,45 @@
+# this trains LeNet on MNIST with a dropout layer
+# see https://github.com/csiro-mlai/mnist-mpc for data preparation
+
+program.options_from_args()
+
+training_samples = MultiArray([50000, 32, 32, 3], sfix)
+training_labels = MultiArray([50000, 10], sint)
+
+test_samples = MultiArray([10000, 32, 32, 3], sfix)
+test_labels = MultiArray([10000, 10], sint)
+
+training_labels.input_from(0)
+training_samples.input_from(0)
+
+test_labels.input_from(0)
+test_samples.input_from(0)
+
+from Compiler import ml
+tf = ml
+ml.set_n_threads(36)
+
+layers = [
+    tf.keras.layers.Conv2D(20, 5, 1, 'valid', activation='relu'),
+    tf.keras.layers.MaxPooling2D(2),
+    tf.keras.layers.Conv2D(50, 5, 1, 'valid', activation='relu'),
+    tf.keras.layers.MaxPooling2D(2),
+    tf.keras.layers.Flatten(),
+    tf.keras.layers.Dropout(0.5),
+    tf.keras.layers.Dense(500, activation='relu'),
+    tf.keras.layers.Dense(10, activation='softmax')
+]
+
+model = tf.keras.models.Sequential(layers)
+
+optim = tf.keras.optimizers.Adam(amsgrad=True)
+
+model.compile(optimizer=optim)
+
+opt = model.fit(
+    training_samples,
+    training_labels,
+    epochs=10,
+    batch_size=128,
+    validation_data=(test_samples, test_labels)
+)

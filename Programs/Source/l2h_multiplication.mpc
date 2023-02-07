@@ -1,0 +1,1 @@
+(sint.load_mem(0) * sint.load_mem(1)).store_in_mem(2)

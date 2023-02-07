@@ -1,0 +1,35 @@
+# c5.9xlarge has 36 cores
+n_threads = 36
+
+# S, Z, bit length
+# using sfloat for secret floats and sint for secret int
+p1 = squant_params(sfloat(.001), sint(1), 8)
+p2 = squant_params(sfloat(.002), sint(2), 8)
+p3 = squant_params(sfloat(.003), sint(3), 8)
+
+# precompute multiplication of p1 and p2 to p3
+p3.precompute(p1, p2)
+
+# need to this to have arrays with specific parameters
+class squant1(squant):
+    params = p1
+class squant2(squant):
+    params = p2
+
+# fixed number of terms to be 512
+a = Array(512, squant1)
+b = Array(512, squant2)
+a.assign_all(0)
+b.assign_all(0)
+
+# 50000, 100000, 150000, 200000
+n = int(program.args[1])
+
+# parallelization for optimization
+@for_range_multithread(n_threads, 1000, n)
+def _(i):
+    # only for optimization
+    aa = a.get_vector()
+    bb = b.get_vector()
+    # store in memory to prevent dead code elimination
+    squant.dot_product(aa, bb, res_params=p3).store_in_mem(regint(0))

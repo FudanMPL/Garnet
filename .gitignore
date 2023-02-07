@@ -1,0 +1,125 @@
+# Offline data, runtime logs #
+##############################
+Player-Data
+Player-Data/*
+Prep-Data/*
+logs/*
+Language-Definition/main.pdf
+keys/*
+
+# Personal CONFIG file #
+##############################
+CONFIG.mine
+config_mine.py
+
+# Temporary files #
+###################
+*.bak
+*.orig
+*.rej
+*.tmp
+callgrind.out.*
+HOSTS*
+
+# Vim
+.*.swp
+tags
+
+# Eclipse #
+###########
+.project
+.cproject
+.settings
+.pydevproject
+
+# VS Code IDE #
+###############
+.vscode/**
+
+# Temporary files #
+###################
+*.bak
+*.orig
+*.rej
+*.tmp
+callgrind.out.*
+
+# Compiled source #
+###################
+Programs/Bytecode/*
+Programs/Schedules/*
+Programs/Public-Input/*
+*.com
+*.class
+*.dll
+*.exe
+*.x
+*.o
+*.so
+*.pyc
+*.bc
+*.sch
+*.a
+*.static
+*.d
+local/
+*.map
+*.gch
+
+# Packages #
+############
+# it's better to unpack these files and commit the raw source
+# git has its own built in compression methods
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Latex #
+#########
+*.aux
+*.lof
+*.log
+*.lot
+*.fls
+*.out
+*.toc
+*.fmt
+*.bbl
+*.bcf
+*.blg
+
+
+# Logs and databases #
+######################
+*.log
+*.sql
+*.sqlite
+*.data
+Persistence/*
+
+# OS generated files #
+######################
+*~
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+**/*.x.dSYM/**
+
+# Sphinx build
+_build/
+
+# environment
+.env
+
+# temp doc files
+doc/readme.md
+doc/xml

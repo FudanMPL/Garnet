@@ -1,0 +1,30 @@
+prog = program
+
+prog.options.binary = -1
+
+from Compiler.GC.types import *
+from Compiler.GC.instructions import *
+
+bits.unit = 64
+
+from Compiler.circuit_oram import *
+from Compiler import circuit_oram
+
+import oram
+oram.n_threads = 1
+oram.n_threads_for_tree = 1
+
+# ORAM/array size
+n = 1000000
+
+# some parameters 
+oram.max_demux_bits = 0
+circuit_oram.threshold = 128
+
+# Circuit ORAM
+oram_type = AtLeastOneRecursionPackedCircuitORAM
+
+# linear scan (no ORAM)
+#oram_type = LinearORAM
+
+oram = test_oram(oram_type, n, value_type=sbits, iterations=3)

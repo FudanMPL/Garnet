@@ -1,0 +1,106 @@
+ROOT = .
+
+OPTIM= -O3
+#PROF = -pg
+#DEBUG = -DDEBUG
+GDEBUG = -g
+
+# set this to your preferred local storage directory
+PREP_DIR = '-DPREP_DIR="Player-Data/"'
+
+# directory to store SSL keys
+SSL_DIR = '-DSSL_DIR="Player-Data/"'
+
+# set for SHE preprocessing (SPDZ and Overdrive)
+USE_NTL = 0
+
+# set for using GF(2^128)
+# unset for GF(2^40)
+USE_GF2N_LONG = 1
+
+# set to -march=<architecture> for optimization
+# SSE4.2 is required homomorphic encryption in GF(2^n) when compiling with clang
+# AES-NI and PCLMUL are not required
+# AVX is required for oblivious transfer (OT)
+# AVX2 support (Haswell or later) is used to optimize OT
+# AVX/AVX2 is required for replicated binary secret sharing
+# BMI2 is used to optimize multiplication modulo a prime
+# ADX is used to optimize big integer additions
+# delete the second line to compile for a platform that supports everything
+ARCH = -mtune=native -msse4.1 -msse4.2 -maes -mpclmul -mavx -mavx2 -mbmi2 -madx
+ARCH = -march=native
+
+MACHINE := $(shell uname -m)
+ARM := $(shell uname -m | grep x86; echo $$?)
+OS := $(shell uname -s)
+ifeq ($(MACHINE), x86_64)
+ifeq ($(OS), Linux)
+AVX_OT = 1
+else
+AVX_OT = 0
+endif
+else
+ARCH =
+AVX_OT = 0
+endif
+
+USE_KOS = 0
+
+# allow to set compiler in CONFIG.mine
+CXX = g++
+
+# use CONFIG.mine to overwrite DIR settings
+-include CONFIG.mine
+
+ifeq ($(USE_GF2N_LONG),1)
+GF2N_LONG = -DUSE_GF2N_LONG
+endif
+
+ifeq ($(AVX_OT), 0)
+CFLAGS += -DNO_AVX_OT
+endif
+
+# MAX_MOD_SZ (for FHE) must be least and GFP_MOD_SZ (for computation)
+# must be exactly ceil(len(p)/len(word)) for the relevant prime p
+# GFP_MOD_SZ only needs to be set for primes of bit length more that 256.
+# Default for MAX_MOD_SZ is 10, which suffices for all Overdrive protocols
+# MOD = -DMAX_MOD_SZ=10 -DGFP_MOD_SZ=5
+
+LDLIBS = -lmpirxx -lmpir -lsodium $(MY_LDLIBS)
+LDLIBS +=  -Wl,-rpath -Wl,$(CURDIR)/local/lib -L$(CURDIR)/local/lib
+LDLIBS += -lboost_system -lssl -lcrypto
+
+CFLAGS += -I./local/include
+
+ifeq ($(USE_NTL),1)
+CFLAGS += -DUSE_NTL
+LDLIBS := -lntl $(LDLIBS)
+endif
+
+ifeq ($(OS), Linux)
+LDLIBS += -lrt
+endif
+
+ifeq ($(OS), Darwin)
+BOOST = -lboost_thread-mt $(MY_BOOST)
+else
+BOOST = -lboost_thread $(MY_BOOST)
+endif
+
+CFLAGS += $(ARCH) $(MY_CFLAGS) $(GDEBUG) -Wextra -Wall $(OPTIM) -I$(ROOT) -I$(ROOT)/deps -pthread $(PROF) $(DEBUG) $(MOD) $(GF2N_LONG) $(PREP_DIR) $(SSL_DIR) $(SECURE) -std=c++11 -Werror
+CPPFLAGS = $(CFLAGS)
+LD = $(CXX)
+
+ifeq ($(OS), Darwin)
+# for boost with OpenSSL 3
+CFLAGS += -Wno-error=deprecated-declarations
+ifeq ($(USE_NTL),1)
+CFLAGS += -Wno-error=unused-parameter -Wno-error=deprecated-copy
+endif
+endif
+
+ifeq ($(USE_KOS),1)
+CFLAGS += -DUSE_KOS
+else
+CFLAGS += -std=c++17
+endif
