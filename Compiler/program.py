@@ -88,6 +88,10 @@ class Program(object):
         self._security = 40
         self.prime = None
         self.tapes = []
+        self.globalbuildingblock = "initial"
+        self.buildingblock_store = defaultdict(lambda: -1)
+        self.buildingblock_cost_store = defaultdict(lambda: -1)
+        self.is_profiling = False     
         if sum(x != 0 for x in (options.ring, options.field, options.binary)) > 1:
             raise CompilerError("can only use one out of -B, -R, -F")
         if options.prime and (options.ring or options.binary):
@@ -451,6 +455,12 @@ class Program(object):
         for tape in self.tapes:
             tape.optimize(self.options)
 
+        #insert profiling module here
+        for key, value in self.buildingblock_store.items():
+            print(key)
+            for tmp in value:
+                print(tmp)
+                
         if self.tapes:
             self.update_req(self.curr_tape)
 
@@ -718,7 +728,16 @@ class Tape:
             self.exit_block = exit_true
             for reg in condition.get_used():
                 reg.can_eliminate = False
-
+                
+        def is_sub(self, block):
+            for subblock in block.children:
+                if subblock.name == self.name:
+                    return True
+            res = False
+            for subblock in block.children:
+                res = res or self.is_sub(subblock)
+            return res
+            
         def add_jump(self):
             """Add the jump for this block's exit condition to list of
             instructions (must be done after merging)"""
@@ -795,7 +814,12 @@ class Tape:
         self.basicblocks.append(sub)
         self.active_basicblock = sub
         self.req_node.add_block(sub)
-        # print 'Compiling basic block', sub.name
+        if self.program.is_profiling:
+            if  self.program.buildingblock_store[self.program.globalbuildingblock] == -1:
+                self.program.buildingblock_store[self.program.globalbuildingblock] = [sub]
+            else:
+                self.program.buildingblock_store[self.program.globalbuildingblock].append(sub)
+            # print 'Compiling basic block', sub.name
 
     def init_registers(self):
         self.reg_counter = RegType.create_dict(lambda: 0)

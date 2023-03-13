@@ -303,6 +303,7 @@ class Output(NoVariableLayer):
     def divisor(self, divisor, size):
         return cfix(1.0 / divisor, size=size)
 
+    @buildingblock("Output")
     def _forward(self, batch):
         if self.approx == 5:
             self.l.write(999)
@@ -331,7 +332,8 @@ class Output(NoVariableLayer):
         else:
             return sigmoid_from_e_x(self.X.get_vector(base, size),
                                     self.e_x.get_vector(base, size))
-
+    
+    @buildingblock("Output")
     def backward(self, batch):
         N = len(batch)
         @multithread(self.n_threads, N)
@@ -475,6 +477,7 @@ class MultiOutput(MultiOutputBase):
         return '%s(%s, %s, approx=%s)' % \
             (type(self).__name__, self.N, self.d_out, self.approx)
 
+    @buildingblock("MultiOutput")
     def _forward(self, batch):
         N = len(batch)
         d_out = self.X.sizes[1]
@@ -532,6 +535,7 @@ class MultiOutput(MultiOutputBase):
             res[i].assign_vector(e / sum(e).expand_to_vector(d_out))
         return res
 
+    @buildingblock("MultiOutput")
     def backward(self, batch):
         d_out = self.X.sizes[1]
         if self.approx:
@@ -599,6 +603,7 @@ class ReluMultiOutput(MultiOutputBase):
     def forward(self, batch, training=None):
         self.l.write(999)
 
+    @buildingblock("ReluMultiOutput")
     def backward(self, batch):
         N = len(batch)
         d_out = self.X.sizes[1]
@@ -794,6 +799,7 @@ class Dense(DenseBase):
                     self.f_input[i].assign_vector(v)
         progress('f input')
 
+    @buildingblock("Dense")
     def _forward(self, batch=None):
         if batch is None:
             batch = regint.Array(self.N)
@@ -820,7 +826,8 @@ class Dense(DenseBase):
                         print_ln('X %s', self.X[i].reveal_nested())
                         print_ln('W %s',
                                  [self.W[k][j].reveal() for k in range(self.d_in)])
-
+    
+    @buildingblock("Dense")
     def backward(self, compute_nabla_X=True, batch=None):
         N = len(batch)
         d = self.d
@@ -887,6 +894,7 @@ class QuantizedDense(DenseBase):
                 self.W[i][j] = sfix.get_random(-1, 1)
         self.b.assign_all(0)
 
+    @buildingblock("QuantizedDense")
     def _forward(self):
         @for_range_opt(self.d_in)
         def _(i):
@@ -904,7 +912,8 @@ class QuantizedDense(DenseBase):
             self.Y[i][0][0] = self.b[0] + self.H * sfix._new(
                 sint.dot_product([self.T[j][0] for j in range(self.d_in)],
                                  [self.X[i][0][j].v for j in range(self.d_in)]))
-
+    
+    @buildingblock("QuantizedDense")
     def backward(self, compute_nabla_X=False):
         assert not compute_nabla_X
         self.backward_params(self.nabla_Y)
@@ -930,7 +939,8 @@ class Dropout(NoVariableLayer):
     def __repr__(self):
         return '%s(%s, %s, alpha=%s)' % \
             (type(self).__name__, self.N, self.d1, self.alpha)
-
+    
+    @buildingblock("Dropout")
     def forward(self, batch, training=False):
         if training:
             n_bits = -math.log(self.alpha, 2)
@@ -954,6 +964,7 @@ class Dropout(NoVariableLayer):
             print_ln('dropout X %s', self.X.reveal_nested())
             print_ln('dropout Y %s', self.Y.reveal_nested())
 
+    @buildingblock("Dropout")
     def backward(self, compute_nabla_X=True, batch=None):
         if compute_nabla_X:
             @for_range_opt_multithread(self.n_threads, len(batch))
@@ -980,6 +991,7 @@ class ElementWiseLayer(NoVariableLayer):
     def f_prime_part(self, base, size):
         return self.f_prime(self.Y.get_part_vector(base, size))
 
+    @buildingblock("Activation")
     def _forward(self, batch=[0]):
         n_per_item = reduce(operator.mul, self.X.sizes[1:])
         @multithread(self.n_threads, len(batch), max(1, 1000 // n_per_item))
@@ -993,6 +1005,7 @@ class ElementWiseLayer(NoVariableLayer):
                 print_ln('%s X %s %s', name, i, self.X[i].reveal_nested())
                 print_ln('%s Y %s %s', name, i, self.Y[i].reveal_nested())
 
+    @buildingblock("Activation")
     def backward(self, batch):
         f_prime_bit = MultiArray(self.X.sizes, self.prime_type)
         n_elements = len(batch) * reduce(operator.mul, f_prime_bit.sizes[1:])
@@ -1088,6 +1101,7 @@ class MaxPool(NoVariableLayer):
             (type(self).__name__, self.X.sizes, self.strides,
              self.ksize, self.padding)
 
+    @buildingblock("MaxPool")
     def forward(self, batch=None, training=False):
         if batch is None:
             batch = Array.create_from(regint(0))
@@ -1104,6 +1118,7 @@ class MaxPool(NoVariableLayer):
                 self.comparisons[bi][k][i][j][ii] = x
         self.traverse(batch, process)
 
+    @buildingblock("MaxPool")
     def backward(self, compute_nabla_X=True, batch=None):
         if compute_nabla_X:
             self.nabla_X.alloc()
@@ -1162,7 +1177,7 @@ class Argmax(NoVariableLayer):
         assert len(shape) == 2
         self.X = MultiArray(shape, sfix)
         self.Y = Array(shape[0], sint)
-
+    @buildingblock("Argmax")
     def _forward(self, batch=[0]):
         assert len(batch) == 1
         self.Y[batch[0]] = argmax(self.X[batch[0]])
@@ -1188,7 +1203,7 @@ class Concat(NoVariableLayer):
                 assert shapes[0][i] == shapes[1][i]
                 shape.append(shapes[0][i])
         self.Y = Tensor(shape, sfix)
-
+    @buildingblock("Concat")
     def _forward(self, batch=[0]):
         assert len(batch) == 1
         @for_range_multithread(self.n_threads, 1, self.Y.sizes[1:3])
@@ -1211,7 +1226,7 @@ class Add(NoVariableLayer):
             assert inp.shape == shape
         self.Y = Tensor(shape, sfix)
         self.inputs = inputs
-
+    @buildingblock("Add")
     def _forward(self, batch=[0]):
         assert len(batch) == 1
         @multithread(self.n_threads, self.Y[0].total_size())
@@ -1239,7 +1254,8 @@ class FusedBatchNorm(Layer):
         tmp = sfix.Array(len(self.bias))
         tmp.input_from(player, raw=raw)
         tmp.input_from(player, raw=raw)
-
+        
+    @buildingblock("FusedBatchNorm")
     def _forward(self, batch=[0]):
         assert len(batch) == 1
         @for_range_opt_multithread(self.n_threads, self.X.sizes[1:3])
@@ -1300,7 +1316,8 @@ class BatchNorm(Layer):
         def _(i, j):
             tmp = self.weights[:] * (self.X[i][j][:] - self.mu[:]) * factor[:]
             self.Y[i][j][:] = self.bias[:] + tmp
-
+            
+    @buildingblock("BatchNorm")
     def forward(self, batch, training=False):
         if training:
             d = self.X.sizes[1]
@@ -1339,6 +1356,7 @@ class BatchNorm(Layer):
         else:
             self._output(batch, self.mu_hat, self.var_hat)
 
+    @buildingblock("BatchNorm")
     def backward(self, batch, compute_nabla_X=True):
         factor = Array.create_from(
             self.InvertSqrt(self.var[:] + self.epsilon))
@@ -1586,6 +1604,7 @@ class Conv2d(ConvBase):
         _, inputs_h, inputs_w, n_channels_in = self.input_shape
         return weights_h * weights_w * n_channels_in
 
+    @buildingblock("Conv2d")
     def _forward(self, batch):
         if self.tf_weight_format:
             assert(self.weight_shape[3] == self.output_shape[-1])
@@ -1711,6 +1730,7 @@ class FixConv2d(Conv2d, FixBase):
             sfix.get_random(-r, r, size=self.weights.total_size()))
         self.bias.assign_all(0)
 
+    @buildingblock("Conv2d")
     def backward(self, compute_nabla_X=True, batch=None):
         assert self.use_conv2ds
 
@@ -1819,6 +1839,7 @@ class QuantDepthwiseConv2d(QuantConvBase, Conv2d):
         _, weights_h, weights_w, _ = self.weight_shape
         return weights_h * weights_w
 
+    @buildingblock("QuantConv2d")
     def _forward(self, batch):
         assert len(batch) == 1
         assert(self.weight_shape[-1] == self.output_shape[-1])
@@ -1908,6 +1929,7 @@ class AveragePool2d(BaseLayer):
     def input_from(self, player, raw=False):
         self.input_params_from(player)
 
+    @buildingblock("AveragePool")
     def _forward(self, batch=[0]):
         assert len(batch) == 1
 
@@ -1970,7 +1992,7 @@ class QuantReshape(QuantBase, BaseLayer):
             s.set_params(sfloat.get_input_from(player), sint.get_input_from(player))
         for i in range(2):
             sint.get_input_from(player)
-
+    @buildingblock("QuantReshape")
     def _forward(self, batch):
         assert len(batch) == 1
         # reshaping is implicit
@@ -1981,7 +2003,8 @@ class QuantSoftmax(QuantBase, BaseLayer):
         print('WARNING: assuming that input and output quantization parameters are the same')
         for s in self.input_squant, self.output_squant:
             s.set_params(sfloat.get_input_from(player), sint.get_input_from(player))
-
+   
+    @buildingblock("QuantSoftmax")
     def _forward(self, batch):
         assert len(batch) == 1
         assert(len(self.input_shape) == 2)
@@ -2450,6 +2473,7 @@ class Adam(Optimizer):
 
         super(Adam, self).__init__()
 
+    @buildingblock("Update")
     def update(self, i_epoch, batch):
         self.beta1_power *= self.beta1
         self.beta2_power *= self.beta2
@@ -2531,7 +2555,8 @@ class SGD(Optimizer):
         for y in self.delta_thetas:
             y.assign_all(0)
         super(SGD, self).reset()
-
+        
+    @buildingblock("Update")
     def update(self, i_epoch, batch):
         for nabla, theta, delta_theta in zip(self.nablas, self.thetas,
                                              self.delta_thetas):

@@ -1163,7 +1163,7 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
         break;
       case TIME:
         Proc.machine.time();
-	break;
+	      break;
       case START:
         Proc.machine.set_thread_comm(Proc.P.total_comm());
         Proc.machine.start(n);

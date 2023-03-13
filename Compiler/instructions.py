@@ -841,8 +841,8 @@ class addci(base.ClearImmediate):
 class addsi(base.SharedImmediate):
     """ Addition of secret register (vector)  and (constant) immediate value.
 
-    :param: result (cint)
-    :param: summand (cint)
+    :param: result (sint)
+    :param: summand (sint)
     :param: summand (int)
     """
     __slots__ = []

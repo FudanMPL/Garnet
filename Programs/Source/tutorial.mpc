@@ -5,6 +5,7 @@
 a = sint(1)
 b = sint(2)
 
+@buildingblock("test")
 def test(actual, expected):
 
     # you can reveal a number in order to print it
@@ -47,10 +48,11 @@ test((a < b).if_else(b, a), 2)
 # arrays and loops work as follows
 
 a = Array(100, sint)
-
+x = sint(0)
 @for_range(100)
 def f(i):
     a[i] = sint(i) * sint(i - 1)
+    x.update(x+1)
 
 test(a[99], 99 * 98)
 

@@ -334,11 +334,11 @@ class Function:
             for i,arg in enumerate(args):
                 type_args[get_reg_type(arg)].append(i)
             def wrapped_function(*compile_args):
-                base = get_arg()
+                base = get_arg()  # obtain the start address of function parameters
                 bases = dict((t, regint.load_mem(base + i)) \
                                  for i,t in enumerate(sorted(type_args,
                                                              key=lambda x:
-                                                             x.reg_type)))
+                                                             x.reg_type))) # obtain the start addresses for different types of data
                 runtime_args = [None] * len(args)
                 for t in sorted(type_args, key=lambda x: x.reg_type):
                     i = 0
@@ -1193,7 +1193,7 @@ def multithread(n_threads, n_items=None, max_size=None):
 def map_reduce(n_threads, n_parallel, n_loops, initializer, reducer, \
                    thread_mem_req={}, looping=True):
     assert(n_threads != 0)
-    if isinstance(n_loops, (list, tuple)):
+    if isinstance(n_loops, (list, tuple)): # handle cases where n_loops is list or tuple
         split = n_loops
         n_loops = reduce(operator.mul, n_loops)
         def decorator(loop_body):
@@ -1206,8 +1206,8 @@ def map_reduce(n_threads, n_parallel, n_loops, initializer, reducer, \
             return new_body
         new_dec = map_reduce(n_threads, n_parallel, n_loops, initializer, reducer, thread_mem_req)
         return lambda loop_body: new_dec(decorator(loop_body))
-    n_loops = MemValue.if_necessary(n_loops)
-    if n_threads == None or util.is_one(n_loops):
+    n_loops = MemValue.if_necessary(n_loops) # handle the case where n_loops is int
+    if n_threads == None or util.is_one(n_loops): # handle the case where n_threads or n_loops is 1
         if not looping:
             return lambda loop_body: loop_body(0, n_loops)
         dec = map_reduce_single(n_parallel, n_loops, initializer, reducer)
@@ -1216,7 +1216,7 @@ def map_reduce(n_threads, n_parallel, n_loops, initializer, reducer, \
             return lambda loop_body: dec(lambda i: loop_body(i, thread_mem))
         else:
             return dec
-    def decorator(loop_body):
+    def decorator(loop_body): # handle the case where n_loops is more than 1
         thread_rounds = MemValue.if_necessary(n_loops // n_threads)
         if util.is_constant(thread_rounds):
             remainder = n_loops % n_threads
@@ -1225,15 +1225,15 @@ def map_reduce(n_threads, n_parallel, n_loops, initializer, reducer, \
         for t in thread_mem_req:
             if t != regint:
                 raise CompilerError('Not implemented for other than regint')
-        args = Matrix(n_threads, 2 + thread_mem_req.get(regint, 0), 'ci')
+        args = Matrix(n_threads, 2 + thread_mem_req.get(regint, 0), 'ci')# create args for each thread
         state = initializer()
         if len(state) == 0:
             state_type = cint
         elif isinstance(state, (tuple, list)):
             state_type = type(state[0])
         else:
-            state_type = type(state)
-        def f(inc):
+            state_type = type(state) # decide the type of state
+        def f(inc): # the function run by each thread
             base = args[get_arg()][0]
             if not util.is_constant(thread_rounds):
                 i = base / thread_rounds
@@ -1250,7 +1250,7 @@ def map_reduce(n_threads, n_parallel, n_loops, initializer, reducer, \
                                    initializer, reducer, mem_state)
             def f(i):
                 if thread_mem_req:
-                    return loop_body(base + i, thread_mem)
+                    return loop_body(base + i, thread_mem)  # might be the new_body from the upper level call
                 else:
                     return loop_body(base + i)
         prog = get_program()
@@ -1258,7 +1258,7 @@ def map_reduce(n_threads, n_parallel, n_loops, initializer, reducer, \
         if prog.curr_tape == prog.tapes[0]:
             prog.n_running_threads = n_threads
         if not util.is_zero(thread_rounds):
-            tape = prog.new_tape(f, (0,), 'multithread')
+            tape = prog.new_tape(f, (0,), 'multithread')  # creating the new tape to be run
             for i in range(n_threads - remainder):
                 mem_state = make_array(initializer())
                 args[remainder + i][0] = i * thread_rounds
@@ -1290,6 +1290,9 @@ def map_reduce(n_threads, n_parallel, n_loops, initializer, reducer, \
             return untuplify(state)
         return returner
     return decorator
+
+def build_block():
+    return 1
 
 def map_sum(n_threads, n_parallel, n_loops, n_items, value_types):
     value_types = tuplify(value_types)
@@ -1968,3 +1971,26 @@ def Norm(b, k, f, kappa, simplex_flag=False):
     signed_acc = sign * acc
 
     return part_reciprocal, signed_acc
+
+def set_global_buildingblock(name):
+    instructions.program.globalbuildingblock = name
+
+def buildingblock(name):
+    def decorator(func):
+        def wrapper(*args, **kw):
+            set_global_buildingblock(name)
+            get_tape().start_new_basicblock(name = name+"-start")
+            res = func(*args, **kw)
+            get_tape().start_new_basicblock(name = name + "-close")
+            set_global_buildingblock("initial")
+        copy_doc(wrapper, func)
+        return wrapper
+    return decorator
+
+def start_profiling():
+    break_point()
+    instructions.program.is_profiling = True
+    
+def stop_profiling():
+    break_point()
+    instructions.program.is_profiling = False    
