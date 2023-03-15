@@ -44,6 +44,8 @@ class Memory
   static void check_index(const vector<U>& M, size_t i)
     {
       (void) M, (void) i;
+//// for use big domain, we set NO_CHECK_INDEX
+//#define NO_CHECK_INDEX
 #ifndef NO_CHECK_INDEX
       if (i >= M.size())
         throw overflow(U::type_string() + " memory", i, M.size());
@@ -61,7 +63,40 @@ class Memory
       return MS[i];
     }
 
-  void write_C(size_t i,const typename T::clear& x)
+  CheckVector<T>& get_S()
+  {
+    return MS;
+  }
+
+  CheckVector<typename T::clear>& get_C()
+  {
+    return MC;
+  }
+
+  template<class T2>
+  void assign_S(CheckVector<T2>& s2){
+    int size = s2.size();
+    MS.resize(size);
+    // only work when T is Rep3Share and one of the domain size is smaller than 2^32
+    for (int i = 0 ; i < size; i++){
+      MS[i].v[0] = s2.at(i).v[0].get_limb(0);
+      MS[i].v[1] = s2.at(i).v[1].get_limb(0);
+    }
+  }
+
+    template<class T2>
+    void assign_C(CheckVector<typename T2::clear>& c2){
+      int size = c2.size();
+      MC.resize(size);
+      // only work when T is Rep3Share
+      for (int i = 0 ; i < size; i++){
+        MC[i] = c2.at(i).get_limb(0);
+      }
+    }
+
+
+
+    void write_C(size_t i,const typename T::clear& x)
     {
       check_index(MC, i);
       MC[i]=x;

@@ -2077,6 +2077,7 @@ class _secret(_arithmetic_register, _secret_structure):
             return NotImplemented
         return res
 
+
     def add(self, other):
         """ Secret addition.
 
@@ -2233,6 +2234,20 @@ class sint(_secret, _int):
     PreOp = staticmethod(floatingpoint.PreOpL)
     PreOR = staticmethod(floatingpoint.PreOR)
     get_type = staticmethod(lambda n: sint)
+
+
+    def change_domain_from_to(self, k1, k2):
+        """ change to another domain  """
+        if k1 < k2:
+            temp = self + 2 ** (k1 - 1)
+            b1 = temp >= (2 ** k1)
+            b2 = temp >= (2 ** (k1 + 1))
+            b3 = temp >= (3 * (2 ** k1))
+            res = self - b1 * (2 ** k1) - b2 * (2 ** k1) -  b3 ** (2 ** k1)
+            return res
+        else:
+            res = self + 0
+            return res
 
     @staticmethod
     def require_bit_length(n_bits):
@@ -2862,6 +2877,8 @@ class sintbit(sint):
             movs(self, other)
         else:
             super(sintbit, self).load_other(other)
+
+
 
     @vectorize
     def __and__(self, other):
@@ -4462,6 +4479,12 @@ class sfix(_fix):
     get_type = staticmethod(lambda n: sint)
     default_type = sint
 
+    def change_domain_from_to(self, k1, k2):
+        temp = self.v.change_domain_from_to(k1, k2)
+        res = sfix(size=temp.size)
+        res.v = temp
+        return res
+
     @vectorized_classmethod
     def get_input_from(cls, player):
         """ Secret fixed-point input.
@@ -4573,6 +4596,9 @@ class sfix(_fix):
     def prefix_sum(self):
         return self._new(self.v.prefix_sum(), k=self.k, f=self.f)
 
+    def change_domain(self, k):
+        pass
+
 class unreduced_sfix(_single):
     int_type = sint
 
@@ -4608,6 +4634,9 @@ sfix.unreduced_type = unreduced_sfix
 
 sfix.set_precision(16, 31)
 cfix.set_precision(16, 31)
+
+# sfix.set_precision(20, 54)
+# cfix.set_precision(20, 54)
 
 class squant(_single):
     """ Quantization as in ArXiv:1712.05877v1 """
@@ -5359,6 +5388,9 @@ class Array(_vectorizable):
         self.sink = None
         if alloc:
             self.alloc()
+
+    def change_domain(self, k):
+        return self.get_vector().change_domain(k)
 
     def alloc(self):
         if self.address is None:

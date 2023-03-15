@@ -13,6 +13,7 @@
 #include "Tools/parse.h"
 #include "GC/Instruction.h"
 #include "GC/instructions.h"
+#include "Processor/Instructions_for_big_domain.h"
 
 #include "Processor/Binary_File_IO.hpp"
 #include "Processor/PrivateOutput.hpp"
@@ -264,6 +265,7 @@ void BaseInstruction::parse_operands(istream& s, int pos, int file_pos)
       case START:
       case STOP:
       case PRINTFLOATPREC:
+      case CMD:
         n = get_int(s);
         break;
       // instructions with no operand
@@ -411,7 +413,8 @@ void BaseInstruction::parse_operands(istream& s, int pos, int file_pos)
         break;
       case REQBL:
         n = get_int(s);
-        BaseMachine::s().reqbl(n);
+      // for computing on big domain, we delete the following checking code
+//        BaseMachine::s().reqbl(n);
         break;
       case GREQBL:
         n = get_int(s);
@@ -488,6 +491,7 @@ void BaseInstruction::parse_operands(istream& s, int pos, int file_pos)
         get_ints(r, s, 1);
         get_vector(num_var_args, start, s);
         break;
+
       default:
         ostringstream os;
         os << "Invalid instruction " << showbase << hex << opcode << " at " << dec
@@ -862,14 +866,95 @@ bool BaseInstruction::is_direct_memory_access() const
 
 
 template<class sint, class sgf2n>
+inline void Instruction::execute_big_domain_instructions(Processor<sint, sgf2n>& Proc) const
+{
+  auto& Procp = *Proc.Procp_2;
+  switch (opcode) {
+    case LDMINT:
+      cout << "LDMINT" << endl;
+      throw not_implemented();
+      // todo
+      break;
+    case GLDMC:
+      cout << "GLDMC" << endl;
+      throw not_implemented();
+      // todo
+      break;
+    case GLDMS:
+      cout << "GLDMC" << endl;
+      throw not_implemented();
+      // todo
+      break;
+
+
+    case BITDECINT:
+      bitdecint(Proc);
+      break;
+    case PRINTCHR:
+      Proc.out << string((char*)&this->n,1) << flush;
+      break;
+    case PRINTSTR:
+      Proc.out << string((char*)&this->n,4) << flush;
+      break;
+    case LDMC:
+    case REQBL:
+    case USE:
+    case MULS:
+    case OPEN:
+    case PRINTREGPLAIN:
+      execute(Proc);
+      break;
+    case PRINTFLOATPLAIN:
+      print(Proc.out, &Proc.Procp_2->C[start[0]], &Proc.Procp_2->C[start[1]],
+            &Proc.Procp_2->C[start[2]], &Proc.Procp_2->C[start[3]],
+            &Proc.Procp_2->C[start[4]]);
+      return;
+    case CONVMODP:
+      if (n == 0)
+      {
+        for (int i = 0; i < size; i++)
+          Proc.write_Ci(r[0] + i,
+                        Proc.sync(
+                                Integer::convert_unsigned(Proc.Procp_2->C[r[1] + i]).get()));
+      }
+      else if (n <= 64)
+        for (int i = 0; i < size; i++)
+          Proc.write_Ci(r[0] + i,
+                        Proc.sync(Integer(Proc.Procp_2->C[r[1] + i], n).get()));
+      else
+        throw Processor_Error(to_string(n) + "-bit conversion impossible; "
+                                             "integer registers only have 64 bits");
+      return;
+    case BIT:
+      {
+
+       auto dest = &Procp.get_S()[r[0]];
+        for (int i = 0; i < size; i++) {
+          Procp.DataF.get_one(DATA_BIT, *dest++);
+        }
+      }
+      break;
+#define X(NAME, PRE, CODE) \
+        case NAME: { PRE; for (int i = 0; i < size; i++) { CODE; } } break;
+      ARITHMETIC_INSTRUCTIONS_FOR_BIG_DOMAIN
+#undef X
+    default:
+      cout << "instruction with code " << opcode << "  is not impletementd by big domain" << endl;
+      throw not_implemented();
+  }
+}
+
+template<class sint, class sgf2n>
 inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
 {
+
   auto& Procp = Proc.Procp;
   auto& Proc2 = Proc.Proc2;
 
   // optimize some instructions
   switch (opcode)
   {
+
     case CONVMODP:
       if (n == 0)
         {
@@ -893,8 +978,12 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
   for (int i = 0; i < size; i++) 
   { switch (opcode)
     {
+
       case LDMC:
-        Proc.write_Cp(r[0],Proc.machine.Mp.read_C(n));
+        if (!Proc.change_domain)
+          Proc.write_Cp(r[0],Proc.machine.Mp.read_C(n));
+        else
+          Proc.Procp_2->C[r[0]] = Proc.machine.Mp.read_C(n);
         n++;
         break;
       case LDMCI:
@@ -911,19 +1000,23 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
         Proc.write_Cp(r[0],Proc.read_Cp(r[1]));
         break;
       case DIVC:
-        Proc.write_Cp(r[0], Proc.read_Cp(r[1]) / sanitize(Proc.Procp, r[2]));
+          Proc.write_Cp(r[0], Proc.read_Cp(r[1]) / sanitize(Proc.Procp, r[2]));
+
         break;
       case GDIVC:
         Proc.write_C2(r[0], Proc.read_C2(r[1]) / sanitize(Proc.Proc2, r[2]));
         break;
       case FLOORDIVC:
         Proc.temp.aa.from_signed(Proc.read_Cp(r[1]));
-        Proc.temp.aa2.from_signed(sanitize(Proc.Procp, r[2]));
+          Proc.temp.aa2.from_signed(sanitize(Proc.Procp, r[2]));
+
         Proc.write_Cp(r[0], bigint(Proc.temp.aa / Proc.temp.aa2));
         break;
       case MODC:
         to_bigint(Proc.temp.aa, Proc.read_Cp(r[1]));
-        to_bigint(Proc.temp.aa2, sanitize(Proc.Procp, r[2]));
+
+          to_bigint(Proc.temp.aa2, sanitize(Proc.Procp, r[2]));
+
         mpz_fdiv_r(Proc.temp.aa.get_mpz_t(), Proc.temp.aa.get_mpz_t(), Proc.temp.aa2.get_mpz_t());
         Proc.temp.ansp.convert_destroy(Proc.temp.aa);
         Proc.write_Cp(r[0],Proc.temp.ansp);
@@ -967,26 +1060,29 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
         Proc.write_Cp(r[0],Proc.temp.ansp);
         break;
       case SQUARE:
-        Procp.DataF.get_two(DATA_SQUARE, Proc.get_Sp_ref(r[0]),Proc.get_Sp_ref(r[1]));
+          Procp.DataF.get_two(DATA_SQUARE, Proc.get_Sp_ref(r[0]),Proc.get_Sp_ref(r[1]));
         break;
       case GSQUARE:
         Proc2.DataF.get_two(DATA_SQUARE, Proc.get_S2_ref(r[0]),Proc.get_S2_ref(r[1]));
         break;
       case INV:
-        Procp.DataF.get_two(DATA_INVERSE, Proc.get_Sp_ref(r[0]),Proc.get_Sp_ref(r[1]));
+          Procp.DataF.get_two(DATA_INVERSE, Proc.get_Sp_ref(r[0]),Proc.get_Sp_ref(r[1]));
         break;
       case GINV:
         Proc2.DataF.get_two(DATA_INVERSE, Proc.get_S2_ref(r[0]),Proc.get_S2_ref(r[1]));
         break;
       case RANDOMS:
-        Procp.protocol.randoms_inst(Procp.get_S(), *this);
+          Procp.protocol.randoms_inst(Procp.get_S(), *this);
         return;
       case INPUTMASKREG:
+
         Procp.DataF.get_input(Proc.get_Sp_ref(r[0]), Proc.temp.rrp, Proc.sync_Ci(r[2]));
         Proc.write_Cp(r[1], Proc.temp.rrp);
         break;
       case INPUTMASK:
-        Procp.DataF.get_input(Proc.get_Sp_ref(r[0]), Proc.temp.rrp, n);
+
+         Procp.DataF.get_input(Proc.get_Sp_ref(r[0]), Proc.temp.rrp, n);
+
         Proc.write_Cp(r[1], Proc.temp.rrp);
         break;
       case GINPUTMASK:
@@ -994,38 +1090,50 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
         Proc.write_C2(r[1], Proc.temp.ans2);
         break;
       case INPUT:
-        sint::Input::template input<IntInput<typename sint::clear>>(Proc.Procp, start, size);
+          sint::Input::template input<IntInput<typename sint::clear>>(Proc.Procp, start, size);
         return;
       case GINPUT:
         sgf2n::Input::template input<IntInput<typename sgf2n::clear>>(Proc.Proc2, start, size);
         return;
       case INPUTFIX:
-        sint::Input::template input<FixInput>(Proc.Procp, start, size);
+          sint::Input::template input<FixInput>(Proc.Procp, start, size);
+
         return;
       case INPUTFLOAT:
-        sint::Input::template input<FloatInput>(Proc.Procp, start, size);
+          sint::Input::template input<FloatInput>(Proc.Procp, start, size);
+
         return;
       case INPUTMIXED:
-        sint::Input::input_mixed(Proc.Procp, start, size, false);
+
+          sint::Input::input_mixed(Proc.Procp, start, size, false);
+
         return;
       case INPUTMIXEDREG:
-        sint::Input::input_mixed(Proc.Procp, start, size, true);
+
+          sint::Input::input_mixed(Proc.Procp, start, size, true);
         return;
       case RAWINPUT:
-        Proc.Procp.input.raw_input(Proc.Procp, start, size);
+
+          Proc.Procp.input.raw_input(Proc.Procp, start, size);
+
         return;
       case GRAWINPUT:
         Proc.Proc2.input.raw_input(Proc.Proc2, start, size);
         return;
       case INPUTPERSONAL:
-        Proc.Procp.input_personal(start);
+
+          Proc.Procp.input_personal(start);
+
         return;
       case SENDPERSONAL:
-        Proc.Procp.send_personal(start);
+          Proc.Procp.send_personal(start);
+
         return;
       case PRIVATEOUTPUT:
-        Proc.Procp.check();
-        Proc.Procp.private_output(start);
+
+          Proc.Procp.check();
+          Proc.Procp.private_output(start);
+
         return;
       // Note: Fp version has different semantics for NOTC than GNOTC
       case NOTC:
@@ -1038,65 +1146,88 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
         Proc.write_Cp(r[0],Proc.temp.ansp);
         break;
       case SHRSI:
-        sint::shrsi(Procp, *this);
+          sint::shrsi(Procp, *this);
         return;
       case GSHRSI:
         sgf2n::shrsi(Proc2, *this);
         return;
       case OPEN:
-        Proc.Procp.POpen(*this);
+          if (!Proc.change_domain)
+            Proc.Procp.POpen(*this);
+          else
+            Proc.Procp_2->POpen(*this);
+
         return;
       case GOPEN:
         Proc.Proc2.POpen(*this);
         return;
       case MULS:
-        Proc.Procp.muls(start, size);
+        if (!Proc.change_domain)
+          Proc.Procp.muls(start, size);
+        else
+          Proc.Procp_2->muls(start, size);
         return;
       case GMULS:
         Proc.Proc2.protocol.muls(start, Proc.Proc2, Proc.MC2, size);
         return;
       case MULRS:
-        Proc.Procp.mulrs(start);
+
+          Proc.Procp.mulrs(start);
+
         return;
       case GMULRS:
         Proc.Proc2.protocol.mulrs(start, Proc.Proc2);
         return;
       case DOTPRODS:
-        Proc.Procp.dotprods(start, size);
+
+          Proc.Procp.dotprods(start, size);
+
         return;
       case GDOTPRODS:
         Proc.Proc2.dotprods(start, size);
         return;
       case MATMULS:
-        Proc.Procp.matmuls(Proc.Procp.get_S(), *this, r[1], r[2]);
+
+          Proc.Procp.matmuls(Proc.Procp.get_S(), *this, r[1], r[2]);
+
         return;
       case MATMULSM:
-        Proc.Procp.protocol.matmulsm(Proc.Procp, Proc.machine.Mp.MS, *this,
-            Proc.sync_Ci(r[1]), Proc.sync_Ci(r[2]));
+
+         Proc.Procp.protocol.matmulsm(Proc.Procp, Proc.machine.Mp.MS, *this,
+                                       Proc.sync_Ci(r[1]), Proc.sync_Ci(r[2]));
+
         return;
       case CONV2DS:
-        Proc.Procp.protocol.conv2ds(Proc.Procp, *this);
+
+          Proc.Procp.protocol.conv2ds(Proc.Procp, *this);
+
         return;
       case TRUNC_PR:
-        Proc.Procp.protocol.trunc_pr(start, size, Proc.Procp);
+          Proc.Procp.protocol.trunc_pr(start, size, Proc.Procp);
         return;
       case SECSHUFFLE:
-        Proc.Procp.secure_shuffle(*this);
+          Proc.Procp.secure_shuffle(*this);
         return;
       case GSECSHUFFLE:
         Proc.Proc2.secure_shuffle(*this);
         return;
       case GENSECSHUFFLE:
-        Proc.write_Ci(r[0], Proc.Procp.generate_secure_shuffle(*this));
+
+          Proc.write_Ci(r[0], Proc.Procp.generate_secure_shuffle(*this));
+
         return;
       case APPLYSHUFFLE:
-        Proc.Procp.apply_shuffle(*this, Proc.read_Ci(start.at(3)));
+          Proc.Procp.apply_shuffle(*this, Proc.read_Ci(start.at(3)));
         return;
       case DELSHUFFLE:
-        Proc.Procp.delete_shuffle(Proc.read_Ci(r[0]));
+
+          Proc.Procp.delete_shuffle(Proc.read_Ci(r[0]));
+
         return;
       case INVPERM:
-        Proc.Procp.inverse_permutation(*this);
+
+          Proc.Procp.inverse_permutation(*this);
+
         return;
       case CHECK:
         {
@@ -1129,7 +1260,10 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
            }
         break;
       case PRINTREGPLAIN:
-        print(Proc.out, &Proc.read_Cp(r[0]));
+        if (!Proc.change_domain)
+          print(Proc.out, &Proc.read_Cp(r[0]));
+        else
+          print(Proc.out, &Proc.Procp_2->C[r[0]]);
         return;
       case CONDPRINTPLAIN:
         if (not Proc.read_Cp(r[0]).is_zero())
@@ -1277,13 +1411,17 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
           }
         break;
       case PREP:
-        Procp.DataF.get(Proc.Procp.get_S(), r, start, size);
+
+          Procp.DataF.get(Proc.Procp.get_S(), r, start, size);
+
         return;
       case GPREP:
         Proc2.DataF.get(Proc.Proc2.get_S(), r, start, size);
         return;
       case CISC:
-        Procp.protocol.cisc(Procp, *this);
+
+          Procp.protocol.cisc(Procp, *this);
+
         return;
       default:
         printf("Case of opcode=0x%x not implemented yet\n",opcode);
@@ -1318,7 +1456,7 @@ void Program::execute(Processor<sint, sgf2n>& Proc) const
 
   auto& Procp = Proc.Procp;
   auto& Proc2 = Proc.Proc2;
-
+  auto& Procp_for_big_domain = *(Proc.Procp_2);
   // binary instructions
   typedef typename sint::bit_type T;
   auto& processor = Proc.Procb;
@@ -1347,7 +1485,27 @@ void Program::execute(Processor<sint, sgf2n>& Proc) const
 #endif
 
       Proc.PC++;
+      if (instruction.get_opcode() == CMD){
+        // only work when T is Rep3Share and one of the small domain size is smaller than 2^32
+        if (!Proc.change_domain){
+          Proc.change_domain = true;
+          Proc.Mp->template assign_S<sint>(Proc.machine.Mp.get_S());
+          Proc.Mp->template assign_C<sint>(Proc.machine.Mp.get_C());
+          Procp_for_big_domain.template assign_S<sint>(Procp.get_S());
+          Procp_for_big_domain.template assign_C<sint>(Procp.get_C());
 
+        }
+        else{
+          Proc.change_domain = false;
+          Procp.template assign_S<Rep3Share128>(Procp_for_big_domain.get_S());
+          Procp.template assign_C<Rep3Share128>(Procp_for_big_domain.get_C());
+        }
+        continue;
+      }
+      if (Proc.change_domain){
+        instruction.execute_big_domain_instructions(Proc);
+        continue;
+      }
       switch(instruction.get_opcode())
         {
 #define X(NAME, PRE, CODE) \
@@ -1374,6 +1532,9 @@ void Program::execute(Processor<sint, sgf2n>& Proc) const
 #endif
     }
 }
+
+
+
 
 template<class T>
 void Instruction::print(SwitchableOutput& out, T* v, T* p, T* s, T* z, T* nan) const

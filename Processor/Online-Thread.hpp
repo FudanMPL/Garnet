@@ -1,4 +1,6 @@
 
+
+#include "Protocols/Rep3Share2k.h"
 #include "Processor/Program.h"
 #include "Processor/Online-Thread.h"
 #include "Tools/time-func.h"

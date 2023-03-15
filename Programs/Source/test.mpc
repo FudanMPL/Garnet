@@ -1,0 +1,7 @@
+a = sint.Array(5)
+@for_range(5)
+def _(i):
+   a[i] = i
+
+
+print_ln("a = %s", a.reveal())

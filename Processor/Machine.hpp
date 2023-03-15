@@ -162,7 +162,6 @@ void Machine<sint, sgf2n>::prepare(const string& progname_str)
   threads.resize(nthreads);
   queues.resize(nthreads);
   join_timer.resize(nthreads);
-
   for (int i = old_n_threads; i < nthreads; i++)
     {
       queues[i] = new ThreadQueue;

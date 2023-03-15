@@ -1,0 +1,21 @@
+a = sint(10)
+
+b = sint(20)
+
+
+change_machine_domain(128)
+
+b = a < 0
+c = b == 0
+
+
+print_ln("a = %s", a.reveal())
+print_ln("b = %s", b.reveal())
+print_ln("c = %s", c.reveal())
+
+
+
+change_machine_domain(32)
+print_ln("a = %s", a.reveal())
+print_ln("b = %s", b.reveal())
+print_ln("c = %s", c.reveal())

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="VcsDirectoryMappings">
+    <mapping directory="" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/deps/SimplestOT_C" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/deps/libOTe" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/deps/libOTe/cryptoTools" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/deps/libOTe/cryptoTools/thirdparty/simde" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/deps/libOTe/cryptoTools/thirdparty/simde/test/munit" vcs="Git" />
+  </component>
+</project>

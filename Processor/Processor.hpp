@@ -67,6 +67,11 @@ Processor<sint, sgf2n>::Processor(int thread_num,Player& P,
   external_clients(P.my_num()),
   binary_file_io(Binary_File_IO())
 {
+
+  Preprocessing<Rep3Share128>* datafp = Preprocessing<Rep3Share128>::get_new(machine, DataF.usage, this->Procp_2);
+  Rep3Share128::MAC_Check* temp_mcp = new Rep3Share128::MAC_Check({}, 0, 0);
+    this->Procp_2 = new SubProcessor<Rep3Share128>(*this, *temp_mcp, *datafp,P);
+  this->Mp = new Memory<Rep3Share128>();
   reset(program,0);
 
   public_input_filename = get_filename("Programs/Public-Input/",false);
