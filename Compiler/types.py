@@ -6253,6 +6253,7 @@ class SubMultiArray(_vectorizable):
             other_sizes = other.sizes
             assert len(other.sizes) == 2
         assert self.sizes[1] == other_sizes[0]
+        assert self.value_type == other.value_type
         return self.value_type.direct_matrix_mul(self.address, other.address,
                                                  self.sizes[0], *other_sizes,
                                                  reduce=reduce, indices=indices)
