@@ -1,7 +1,6 @@
-a = sint.Array(5)
-@for_range(5)
-def _(i):
-   a[i] = i
+program.use_trunc_pr=True
+a = sint(100000)
 
+b = a.round(32, 5)
 
-print_ln("a = %s", a.reveal())
+print_ln("b = %s", b.reveal())

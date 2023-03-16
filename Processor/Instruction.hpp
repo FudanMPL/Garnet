@@ -902,6 +902,8 @@ inline void Instruction::execute_big_domain_instructions(Processor<sint, sgf2n>&
     case MULS:
     case OPEN:
     case PRINTREGPLAIN:
+    case START:
+    case STOP:
       execute(Proc);
       break;
     case PRINTFLOATPLAIN:
@@ -1489,8 +1491,8 @@ void Program::execute(Processor<sint, sgf2n>& Proc) const
         // only work when T is Rep3Share and one of the small domain size is smaller than 2^32
         if (!Proc.change_domain){
           Proc.change_domain = true;
-          Proc.Mp->template assign_S<sint>(Proc.machine.Mp.get_S());
-          Proc.Mp->template assign_C<sint>(Proc.machine.Mp.get_C());
+//          Proc.Mp->template assign_S<sint>(Proc.machine.Mp.get_S());
+//          Proc.Mp->template assign_C<sint>(Proc.machine.Mp.get_C());
           Procp_for_big_domain.template assign_S<sint>(Procp.get_S());
           Procp_for_big_domain.template assign_C<sint>(Procp.get_C());
 

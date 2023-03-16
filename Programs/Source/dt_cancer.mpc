@@ -1,18 +1,15 @@
-import poplar, util
-
-m = 6
-n_train = 32561
-n_test = 16281
+program.use_trunc_pr=True
+m = 30
+n_train = 512
+n_test = 56
 attr_lengths = None
-
 
 try:
    n_threads = int(program.args[2])
 except:
    n_threads = None
 
-if n_threads == 1:
-    poplar.single_thread = True
+
 
 
 train = sint.Array(n_train), sint.Matrix(m, n_train)
@@ -22,11 +19,12 @@ for x in train + test:
     x.input_from(0)
 
 
+import decision_tree, util
 
 
 
 
-trainer = poplar.PoplarTrainner(
+trainer = decision_tree.TreeTrainer(
    train[1], train[0], int(program.args[1]), attr_lengths=attr_lengths,
    n_threads=n_threads)
 trainer.debug_selection = 'debug_selection' in program.args

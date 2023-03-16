@@ -59,6 +59,7 @@ class Machine : public BaseMachine
   Memory<sgf2n> M2;
 
   Memory<sint> Mp;
+  Memory<Rep3Share128>* Mp_2;
   Memory<Integer> Mi;
   GC::Memories<typename sint::bit_type> bit_memories;
 

@@ -11,9 +11,9 @@
     X(LDSI, auto dest = &Procp.get_S()[r[0]]; \
             auto tmp = Rep3Share128::constant(int(n), Proc.P.my_num(), Procp.MC.get_alphai()), \
             *dest++ = tmp)                     \
-    X(LDMS, auto dest = &Procp.get_S()[r[0]]; auto source = &Proc.Mp->MS[n], \
+    X(LDMS, auto dest = &Procp.get_S()[r[0]]; auto source = &Proc.machine.Mp_2->MS[n], \
             *dest++ = *source++) \
-    X(STMS, auto source = &Procp.get_S()[r[0]]; auto dest = &Proc.Mp->MS[n], \
+    X(STMS, auto source = &Procp.get_S()[r[0]]; auto dest = &Proc.machine.Mp_2->MS[n], \
             *dest++ = *source++) \
     X(MOVS, auto dest = &Procp.get_S()[r[0]]; auto source = &Procp.get_S()[r[1]], \
             *dest++ = *source++)\

@@ -6,10 +6,15 @@ from Compiler import util, oram
 from itertools import accumulate
 import math
 
+
+program.use_trunc_pr=True
+
 debug = False
 debug_split = False
 debug_layers = False
 max_leaves = None
+label_number = 2
+single_thread = False
 
 def get_type(x):
     if isinstance(x, (Array, SubMultiArray)):
@@ -135,7 +140,41 @@ def GroupMax(g, keys, *x):
                  util.reveal(t), util.reveal(keys), util.reveal(x))
     return [GroupSum(g, t[:] * xx) for xx in [keys] + x]
 
+
+# def ModifiedGini(g, y, debug=False):
+#     start_timer(1)
+#     assert len(g) == len(y)
+#     y =
+#     for i in range(label_number):
+#
+#     y = [y.get_vector().bit_not(), y]
+#     u = [GroupPrefixSum(g, yy) for yy in y]
+#     s = [GroupSum(g, yy) for yy in y]
+#     w = [ss - uu for ss, uu in zip(s, u)]
+#     us = sum(u)
+#     ws = sum(w)
+#     change_machine_domain(128)
+#     u0_128 = u[0].change_domain_from_to(32, 128)
+#     u1_128 = u[1].change_domain_from_to(32, 128)
+#     w0_128 = w[0].change_domain_from_to(32, 128)
+#     w1_128 = w[1].change_domain_from_to(32, 128)
+#     us_128 = us.change_domain_from_to(32, 128)
+#     ws_128 = ws.change_domain_from_to(32, 128)
+#     uqs = u0_128 ** 2 + u1_128 ** 2
+#     wqs = w0_128 ** 2 + w1_128 ** 2
+#     start_timer(2)
+#     res = sfix(uqs) / us_128 + sfix(wqs) / ws_128
+#     stop_timer(2)
+#     n = len(y)
+#     res = res * 2 ** (31 - sfix.f - math.ceil(math.log(n)))
+#     res = res.v.round(128, sfix.f)
+#     change_machine_domain(32)
+#     res = res.change_domain_from_to(128, 32)
+#     stop_timer(1)
+#     return res
+
 def ModifiedGini(g, y, debug=False):
+
     assert len(g) == len(y)
     y = [y.get_vector().bit_not(), y]
     u = [GroupPrefixSum(g, yy) for yy in y]
@@ -144,6 +183,8 @@ def ModifiedGini(g, y, debug=False):
     us = sum(u)
     ws = sum(w)
     change_machine_domain(128)
+    if single_thread:
+        start_timer(1)
     u0_128 = u[0].change_domain_from_to(32, 128)
     u1_128 = u[1].change_domain_from_to(32, 128)
     w0_128 = w[0].change_domain_from_to(32, 128)
@@ -152,14 +193,34 @@ def ModifiedGini(g, y, debug=False):
     ws_128 = ws.change_domain_from_to(32, 128)
     uqs = u0_128 ** 2 + u1_128 ** 2
     wqs = w0_128 ** 2 + w1_128 ** 2
+    if single_thread:
+        start_timer(2)
     res = sfix(uqs) / us_128 + sfix(wqs) / ws_128
+    if single_thread:
+        stop_timer(2)
     n = len(y)
     res = res * 2 ** (31 - sfix.f - math.ceil(math.log(n)))
+    if single_thread:
+        stop_timer(1)
     res = res.v.round(128, sfix.f)
     change_machine_domain(32)
     res = res.change_domain_from_to(128, 32)
 
     return res
+
+# def ModifiedGini(g, y, debug=False):
+#     assert len(g) == len(y)
+#     y = [y.get_vector().bit_not(), y]
+#     u = [GroupPrefixSum(g, yy) for yy in y]
+#     s = [GroupSum(g, yy) for yy in y]
+#     w = [ss - uu for ss, uu in zip(s, u)]
+#     us = sum(u)
+#     ws = sum(w)
+#     uqs = u[0] ** 2 + u[1] ** 2
+#     wqs = w[0] ** 2 + w[1] ** 2
+#     res = sfix(uqs) / us + sfix(wqs) / ws
+#
+#     return res
 
 
 
@@ -255,16 +316,9 @@ class PoplarTrainner:
                 g, u[j], v[j], time=single, debug=self.debug_selection)
         n = len(g)
         a, tt = [sint.Array(n) for i in range(2)]
-        # if self.debug_gini:
-        #     print_ln('Gini indices ' + ' '.join(str(i) + ':%s' for i in range(m)),
-        #              *(ss[0].reveal() for ss in s))
-        #     print_ln('Gini indices 2' + ' '.join(str(i) + ':%s' for i in range(m)),
-        #              *(ss[-1].reveal() for ss in s))
-        start_timer(4)
         a[:], tt[:] = VectMax((s[j][:] for j in range(m)), range(m),
                               (t[j][:] for j in range(m)))
 
-        stop_timer(4)
         return a[:], tt[:]
 
     def TrainInternalNodes(self, k, x, y, g, NID):

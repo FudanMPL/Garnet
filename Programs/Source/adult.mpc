@@ -1,5 +1,3 @@
-program.use_trunc_pr = True
-program.use_split(3)
 m = 6
 n_train = 32561
 n_test = 16281
@@ -35,7 +33,6 @@ test = sint.Array(n_test), sint.Matrix(m, n_test)
 
 for x in train + test:
     x.input_from(0)
-
 
 import decision_tree, util
 

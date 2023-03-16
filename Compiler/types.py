@@ -2240,10 +2240,14 @@ class sint(_secret, _int):
         """ change to another domain  """
         if k1 < k2:
             temp = self + 2 ** (k1 - 1)
-            b1 = temp >= (2 ** k1)
-            b2 = temp >= (2 ** (k1 + 1))
-            b3 = temp >= (3 * (2 ** k1))
+            b1 = temp.__ge__(2 ** k1, bit_length=34)
+            b2 = temp.__ge__(2 ** (k1 + 1), bit_length=34)
+            b3 = temp.__ge__(3 * (2 ** k1), bit_length=34)
+            # b1 = temp >= (2 ** k1)
+            # b2 = temp >= (2 ** (k1 + 1))
+            # b3 = temp >= (3 * (2 ** k1))
             res = self - b1 * (2 ** k1) - b2 * (2 ** k1) -  b3 ** (2 ** k1)
+            # res = self + 0
             return res
         else:
             res = self + 0

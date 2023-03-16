@@ -32,7 +32,6 @@ class SubProcessor
 {
 
 
-
   DataPositions bit_usage;
 
   typename T::Protocol::Shuffler shuffler;
@@ -229,7 +228,9 @@ class Processor : public ArithmeticProcessor
   SubProcessor<sgf2n> Proc2;
   SubProcessor<sint>  Procp;
   SubProcessor<Rep3Share128>*  Procp_2;
-  Memory<Rep3Share128>* Mp;
+  Preprocessing<Rep3Share128>* datafp;
+  void* temp_mcp;
+//  Memory<Rep3Share128>* Mp;
   unsigned int PC;
   TempVars<sint, sgf2n> temp;
 

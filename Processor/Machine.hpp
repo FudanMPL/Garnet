@@ -110,6 +110,9 @@ Machine<sint, sgf2n>::Machine(Names& playerNames, bool use_encryption,
        inpf.open(memory_filename(), ios::in | ios::binary);
        if (inpf.fail()) { throw file_error(memory_filename()); }
        inpf >> M2 >> Mp >> Mi;
+       this->Mp_2 = new Memory<Rep3Share128>();
+       this->Mp_2->template assign_S<sint>(Mp.get_S());
+       this->Mp_2->template assign_C<sint>(Mp.get_C());
        if (inpf.get() != 'M')
          {
            cerr << "Invalid memory file. Run with '-m empty'." << endl;
@@ -193,6 +196,7 @@ Machine<sint, sgf2n>::~Machine()
   sgf2n::MAC_Check::teardown();
 
   delete P;
+  delete this->Mp_2;
   for (auto& queue : queues)
     delete queue;
 }
