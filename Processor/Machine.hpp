@@ -196,7 +196,8 @@ Machine<sint, sgf2n>::~Machine()
   sgf2n::MAC_Check::teardown();
 
   delete P;
-  delete this->Mp_2;
+
+//  delete this->Mp_2; delete will cause bus error
   for (auto& queue : queues)
     delete queue;
 }

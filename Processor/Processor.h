@@ -229,8 +229,9 @@ class Processor : public ArithmeticProcessor
   SubProcessor<sint>  Procp;
   SubProcessor<Rep3Share128>*  Procp_2;
   Preprocessing<Rep3Share128>* datafp;
-  void* temp_mcp;
-//  Memory<Rep3Share128>* Mp;
+  ReplicatedMC<Rep3Share128>* temp_mcp;
+
+
   unsigned int PC;
   TempVars<sint, sgf2n> temp;
 
@@ -303,6 +304,8 @@ class Processor : public ArithmeticProcessor
   long sync_Ci(size_t i) const;
   long sync(long x) const;
 
+  void start_subprocessor_for_big_domain();
+  void stop_subprocessor_for_big_domain();
   private:
 
   template<class T> friend class SPDZ;

@@ -873,20 +873,15 @@ inline void Instruction::execute_big_domain_instructions(Processor<sint, sgf2n>&
     case LDMINT:
       cout << "LDMINT" << endl;
       throw not_implemented();
-      // todo
       break;
     case GLDMC:
       cout << "GLDMC" << endl;
       throw not_implemented();
-      // todo
       break;
     case GLDMS:
       cout << "GLDMC" << endl;
       throw not_implemented();
-      // todo
       break;
-
-
     case BITDECINT:
       bitdecint(Proc);
       break;
@@ -904,6 +899,7 @@ inline void Instruction::execute_big_domain_instructions(Processor<sint, sgf2n>&
     case PRINTREGPLAIN:
     case START:
     case STOP:
+    case TRUNC_PR:
       execute(Proc);
       break;
     case PRINTFLOATPLAIN:
@@ -1033,7 +1029,6 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
       {
         octetStream o;
         to_bigint(Proc.temp.aa, Proc.read_Cp(r[1]));
-
         to_gfp(Proc.temp.ansp, Proc.temp.aa);
         Proc.temp.ansp.pack(o);
         // keep first n bytes
@@ -1077,14 +1072,11 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
           Procp.protocol.randoms_inst(Procp.get_S(), *this);
         return;
       case INPUTMASKREG:
-
         Procp.DataF.get_input(Proc.get_Sp_ref(r[0]), Proc.temp.rrp, Proc.sync_Ci(r[2]));
         Proc.write_Cp(r[1], Proc.temp.rrp);
         break;
       case INPUTMASK:
-
-         Procp.DataF.get_input(Proc.get_Sp_ref(r[0]), Proc.temp.rrp, n);
-
+        Procp.DataF.get_input(Proc.get_Sp_ref(r[0]), Proc.temp.rrp, n);
         Proc.write_Cp(r[1], Proc.temp.rrp);
         break;
       case GINPUTMASK:
@@ -1099,43 +1091,31 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
         return;
       case INPUTFIX:
           sint::Input::template input<FixInput>(Proc.Procp, start, size);
-
         return;
       case INPUTFLOAT:
           sint::Input::template input<FloatInput>(Proc.Procp, start, size);
-
         return;
       case INPUTMIXED:
-
           sint::Input::input_mixed(Proc.Procp, start, size, false);
-
         return;
       case INPUTMIXEDREG:
-
           sint::Input::input_mixed(Proc.Procp, start, size, true);
         return;
       case RAWINPUT:
-
           Proc.Procp.input.raw_input(Proc.Procp, start, size);
-
         return;
       case GRAWINPUT:
         Proc.Proc2.input.raw_input(Proc.Proc2, start, size);
         return;
       case INPUTPERSONAL:
-
           Proc.Procp.input_personal(start);
-
         return;
       case SENDPERSONAL:
           Proc.Procp.send_personal(start);
-
         return;
       case PRIVATEOUTPUT:
-
           Proc.Procp.check();
           Proc.Procp.private_output(start);
-
         return;
       // Note: Fp version has different semantics for NOTC than GNOTC
       case NOTC:
@@ -1158,7 +1138,6 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
             Proc.Procp.POpen(*this);
           else
             Proc.Procp_2->POpen(*this);
-
         return;
       case GOPEN:
         Proc.Proc2.POpen(*this);
@@ -1173,39 +1152,34 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
         Proc.Proc2.protocol.muls(start, Proc.Proc2, Proc.MC2, size);
         return;
       case MULRS:
-
           Proc.Procp.mulrs(start);
-
         return;
       case GMULRS:
         Proc.Proc2.protocol.mulrs(start, Proc.Proc2);
         return;
       case DOTPRODS:
-
           Proc.Procp.dotprods(start, size);
-
         return;
       case GDOTPRODS:
         Proc.Proc2.dotprods(start, size);
         return;
       case MATMULS:
-
           Proc.Procp.matmuls(Proc.Procp.get_S(), *this, r[1], r[2]);
-
         return;
       case MATMULSM:
-
          Proc.Procp.protocol.matmulsm(Proc.Procp, Proc.machine.Mp.MS, *this,
                                        Proc.sync_Ci(r[1]), Proc.sync_Ci(r[2]));
-
         return;
       case CONV2DS:
-
           Proc.Procp.protocol.conv2ds(Proc.Procp, *this);
-
         return;
       case TRUNC_PR:
+        if (!Proc.change_domain)
           Proc.Procp.protocol.trunc_pr(start, size, Proc.Procp);
+        else
+          Proc.Procp_2->protocol.trunc_pr(start, size, *Proc.Procp_2);
+        return;
+//          Proc.Procp.protocol.trunc_pr(start, size, Proc.Procp);
         return;
       case SECSHUFFLE:
           Proc.Procp.secure_shuffle(*this);
@@ -1458,7 +1432,7 @@ void Program::execute(Processor<sint, sgf2n>& Proc) const
 
   auto& Procp = Proc.Procp;
   auto& Proc2 = Proc.Proc2;
-  auto& Procp_for_big_domain = *(Proc.Procp_2);
+
   // binary instructions
   typedef typename sint::bit_type T;
   auto& processor = Proc.Procb;
@@ -1491,16 +1465,18 @@ void Program::execute(Processor<sint, sgf2n>& Proc) const
         // only work when T is Rep3Share and one of the small domain size is smaller than 2^32
         if (!Proc.change_domain){
           Proc.change_domain = true;
-//          Proc.Mp->template assign_S<sint>(Proc.machine.Mp.get_S());
-//          Proc.Mp->template assign_C<sint>(Proc.machine.Mp.get_C());
+//          Proc.start_subprocessor_for_big_domain();
+          auto& Procp_for_big_domain = *(Proc.Procp_2);
           Procp_for_big_domain.template assign_S<sint>(Procp.get_S());
           Procp_for_big_domain.template assign_C<sint>(Procp.get_C());
 
         }
         else{
           Proc.change_domain = false;
+          auto& Procp_for_big_domain = *(Proc.Procp_2);
           Procp.template assign_S<Rep3Share128>(Procp_for_big_domain.get_S());
           Procp.template assign_C<Rep3Share128>(Procp_for_big_domain.get_C());
+//          Proc.stop_subprocessor_for_big_domain();
         }
         continue;
       }

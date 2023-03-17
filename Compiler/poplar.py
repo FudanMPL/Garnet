@@ -7,7 +7,7 @@ from itertools import accumulate
 import math
 
 
-program.use_trunc_pr=True
+
 
 debug = False
 debug_split = False

@@ -2246,7 +2246,7 @@ class sint(_secret, _int):
             # b1 = temp >= (2 ** k1)
             # b2 = temp >= (2 ** (k1 + 1))
             # b3 = temp >= (3 * (2 ** k1))
-            res = self - b1 * (2 ** k1) - b2 * (2 ** k1) -  b3 ** (2 ** k1)
+            res = self - b1 * (2 ** k1) - b2 * (2 ** k1) - b3 ** (2 ** k1)
             # res = self + 0
             return res
         else:
