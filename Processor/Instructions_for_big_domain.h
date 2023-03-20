@@ -58,6 +58,9 @@
             *dest++ = *op1++ >> n)             \
     X(CONVINT, auto dest = &Procp.get_C()[r[0]]; auto source = &Proc.get_Ci()[r[1]], \
             *dest++ = *source++) \
+    X(MULC, auto dest = &Procp.get_C()[r[0]]; auto op1 = &Procp.get_C()[r[1]]; \
+            auto op2 = &Procp.get_C()[r[2]], \
+            *dest++ = *op1++ * *op2++) \
 
 //    X(BIT, auto dest = &Procp.get_S()[r[0]],
 //            Procp.DataF.get_one(DATA_BIT, *dest++))

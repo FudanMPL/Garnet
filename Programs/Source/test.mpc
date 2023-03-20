@@ -1,6 +1,13 @@
 program.use_trunc_pr=True
-a = sint(100000)
+a = sint.get_input_from(0)
+b = sint.get_input_from(0)
 
-b = a.round(32, 5)
 
-print_ln("b = %s", b.reveal())
+print_ln("a = %s", a.reveal())
+
+for i in range(36):
+    c1 = a.TruncPr(40, i)
+    c2 = b.TruncPr(40, i)
+    print_ln("i=%s c1 = %s c2=%s", i, c1.reveal(),c2.reveal())
+
+

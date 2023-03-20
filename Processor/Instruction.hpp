@@ -160,6 +160,7 @@ void BaseInstruction::parse_operands(istream& s, int pos, int file_pos)
       case CLOSECLIENTCONNECTION:
       case CRASH:
       case DELSHUFFLE:
+      case CSD:
         r[0]=get_int(s);
         break;
       // instructions with 2 registers + 1 integer operand
@@ -900,6 +901,7 @@ inline void Instruction::execute_big_domain_instructions(Processor<sint, sgf2n>&
     case START:
     case STOP:
     case TRUNC_PR:
+    case CSD:
       execute(Proc);
       break;
     case PRINTFLOATPLAIN:
@@ -976,7 +978,13 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
   for (int i = 0; i < size; i++) 
   { switch (opcode)
     {
-
+      case CSD:
+        if (!Proc.change_domain){
+          Proc.Procp.S[r[0]] = Proc.Procp_2->S[r[0]];
+        }else{
+          Proc.Procp_2->S[r[0]] = Proc.Procp.S[r[0]];
+        }
+        break;
       case LDMC:
         if (!Proc.change_domain)
           Proc.write_Cp(r[0],Proc.machine.Mp.read_C(n));
@@ -1465,6 +1473,8 @@ void Program::execute(Processor<sint, sgf2n>& Proc) const
         // only work when T is Rep3Share and one of the small domain size is smaller than 2^32
         if (!Proc.change_domain){
           Proc.change_domain = true;
+//          Proc.Procp_2->S.resize(Procp.S.size());
+//          Proc.Procp_2->C.resize(Procp.C.size());
 //          Proc.start_subprocessor_for_big_domain();
           auto& Procp_for_big_domain = *(Proc.Procp_2);
           Procp_for_big_domain.template assign_S<sint>(Procp.get_S());

@@ -778,6 +778,8 @@ void Processor<sint, sgf2n>::start_subprocessor_for_big_domain(){
   this->datafp = Preprocessing<Rep3Share128>::get_new(machine, DataF.usage, this->Procp_2);
   this->temp_mcp = new ReplicatedMC<Rep3Share128>({}, 0, 0);
   this->Procp_2 = new SubProcessor<Rep3Share128>(*this, *temp_mcp, *datafp,P);
+//  this->Procp_2->S.resize(Procp.S.size());
+//  this->Procp_2->C.resize(Procp.C.size());
 };
 
 

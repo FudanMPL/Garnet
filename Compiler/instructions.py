@@ -43,7 +43,7 @@ class csd(base.Instruction):
     """
     __slots__ = []
     code = base.opcodes['CSD']
-    arg_format = ['sw', 's']
+    arg_format = ['s']
 
 
 class cmd(base.Instruction):
