@@ -110,6 +110,7 @@ void BaseMachine::print_compiler()
     cerr << "Compiler: " << compiler << endl;
 }
 
+
 size_t BaseMachine::load_program(const string& threadname,
     const string& filename)
 {

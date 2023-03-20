@@ -98,7 +98,6 @@ template<class T>
 class Preprocessing : public PrepBase
 {
 protected:
-  static const bool use_part = false;
 
   DataPositions& usage;
 
@@ -123,6 +122,8 @@ protected:
   T get_random_from_inputs(int nplayers);
 
 public:
+  static const bool use_part = false;
+
   template<class U, class V>
   static Preprocessing<T>* get_new(Machine<U, V>& machine, DataPositions& usage,
       SubProcessor<T>* proc);

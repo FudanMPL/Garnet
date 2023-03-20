@@ -67,6 +67,8 @@ Processor<sint, sgf2n>::Processor(int thread_num,Player& P,
   external_clients(P.my_num()),
   binary_file_io(Binary_File_IO())
 {
+
+  start_subprocessor_for_big_domain();
   reset(program,0);
 
   public_input_filename = get_filename("Programs/Public-Input/",false);
@@ -91,6 +93,7 @@ Processor<sint, sgf2n>::Processor(int thread_num,Player& P,
 template<class sint, class sgf2n>
 Processor<sint, sgf2n>::~Processor()
 {
+  stop_subprocessor_for_big_domain();
   share_thread.post_run();
 #ifdef VERBOSE
   if (sent)
@@ -769,5 +772,22 @@ long Processor<sint, sgf2n>::sync(long x) const
 
   return x;
 }
+
+template<class sint, class sgf2n>
+void Processor<sint, sgf2n>::start_subprocessor_for_big_domain(){
+  this->datafp = Preprocessing<Rep3Share128>::get_new(machine, DataF.usage, this->Procp_2);
+  this->temp_mcp = new ReplicatedMC<Rep3Share128>({}, 0, 0);
+  this->Procp_2 = new SubProcessor<Rep3Share128>(*this, *temp_mcp, *datafp,P);
+//  this->Procp_2->S.resize(Procp.S.size());
+//  this->Procp_2->C.resize(Procp.C.size());
+};
+
+
+template<class sint, class sgf2n>
+void Processor<sint, sgf2n>::stop_subprocessor_for_big_domain(){
+  delete this->Procp_2;
+  delete this->datafp;
+  delete this->temp_mcp;
+};
 
 #endif

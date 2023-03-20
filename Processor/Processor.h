@@ -5,6 +5,7 @@
 /* This is a representation of a processing element
  */
 
+#include "Protocols/Rep3Share128.h"
 #include "Math/Integer.h"
 #include "Tools/Exceptions.h"
 #include "Networking/Player.h"
@@ -21,14 +22,15 @@
 #include "GC/Processor.h"
 #include "GC/ShareThread.h"
 #include "Protocols/SecureShuffle.h"
+#include "Processor/Memory.h"
 
 class Program;
+
 
 template <class T>
 class SubProcessor
 {
-  CheckVector<typename T::clear> C;
-  CheckVector<T> S;
+
 
   DataPositions bit_usage;
 
@@ -44,6 +46,8 @@ class SubProcessor
   typedef typename T::bit_type::part_type BT;
 
 public:
+  CheckVector<typename T::clear> C;
+  CheckVector<T> S;
   ArithmeticProcessor* Proc;
   typename T::MAC_Check& MC;
   Player& P;
@@ -84,6 +88,32 @@ public:
   void input_personal(const vector<int>& args);
   void send_personal(const vector<int>& args);
   void private_output(const vector<int>& args);
+
+
+
+
+  template<class T2>
+  void assign_S(CheckVector<T2>& s2){
+    int size = s2.size();
+    S.resize(size);
+    // only work when T is Rep3Share and one of the domain size is smaller than 2^32
+    for (int i = 0 ; i < size; i++){
+        S[i].v[0] = s2.at(i).v[0].get_limb(0);
+        S[i].v[1] = s2.at(i).v[1].get_limb(0);
+    }
+
+  }
+
+  template<class T2>
+  void assign_C(CheckVector<typename T2::clear>& c2){
+    int size = c2.size();
+    C.resize(size);
+    // only work when T is Rep3Share
+    for (int i = 0 ; i < size; i++){
+      C[i] = c2.at(i).get_limb(0);
+    }
+  }
+
 
   CheckVector<T>& get_S()
   {
@@ -172,6 +202,8 @@ public:
   void bitdecint(const Instruction& instruction);
 };
 
+
+class Rep3Share128;
 template<class sint, class sgf2n>
 class Processor : public ArithmeticProcessor
 {
@@ -184,6 +216,7 @@ class Processor : public ArithmeticProcessor
   vector<cint> inverses2m;
 
   public:
+  bool change_domain = false;
   Data_Files<sint, sgf2n> DataF;
   Player& P;
   typename sgf2n::MAC_Check& MC2;
@@ -194,6 +227,10 @@ class Processor : public ArithmeticProcessor
   GC::Processor<typename sint::bit_type> Procb;
   SubProcessor<sgf2n> Proc2;
   SubProcessor<sint>  Procp;
+  SubProcessor<Rep3Share128>*  Procp_2;
+  Preprocessing<Rep3Share128>* datafp;
+  ReplicatedMC<Rep3Share128>* temp_mcp;
+
 
   unsigned int PC;
   TempVars<sint, sgf2n> temp;
@@ -267,6 +304,8 @@ class Processor : public ArithmeticProcessor
   long sync_Ci(size_t i) const;
   long sync(long x) const;
 
+  void start_subprocessor_for_big_domain();
+  void stop_subprocessor_for_big_domain();
   private:
 
   template<class T> friend class SPDZ;

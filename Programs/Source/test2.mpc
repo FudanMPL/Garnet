@@ -1,0 +1,14 @@
+program.use_trunc_pr=True
+a = sint.get_input_from(0)
+
+print_ln("a = %s", a.reveal())
+
+
+change_machine_domain(128)
+print_ln("a = %s", a.reveal())
+
+b = a.change_domain_from_to(32, 128)
+
+print_ln("b = %s", b.reveal())
+
+change_machine_domain(32)

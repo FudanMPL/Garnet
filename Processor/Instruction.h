@@ -25,6 +25,11 @@ class SwitchableOutput;
  */
 enum
 {
+
+    // Change domain
+    CSD = 0xf8,
+    CMD = 0xf9,
+
     CISC = 0,
     // Load/store
     LDI = 0x1,
@@ -380,6 +385,9 @@ public:
   // and streams pointing to the triples etc
   template<class sint, class sgf2n>
   void execute(Processor<sint, sgf2n>& Proc) const;
+
+  template<class sint, class sgf2n>
+  void execute_big_domain_instructions(Processor<sint, sgf2n>& Proc) const;
 
   template<class cgf2n>
   void execute_clear_gf2n(vector<cgf2n>& registers, vector<cgf2n>& memory,

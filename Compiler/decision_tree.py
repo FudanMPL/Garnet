@@ -150,6 +150,7 @@ def GroupMax(g, keys, *x):
     return [GroupSum(g, t[:] * xx) for xx in [keys] + x]
 
 def ModifiedGini(g, y, debug=False):
+
     assert len(g) == len(y)
     y = [y.get_vector().bit_not(), y]
     u = [GroupPrefixSum(g, yy) for yy in y]
@@ -174,6 +175,7 @@ def ModifiedGini(g, y, debug=False):
                  util.reveal(s))
     if debug:
         print_ln('gini %s %s', str(res), util.reveal(res))
+
     return res
 
 MIN_VALUE = -10000

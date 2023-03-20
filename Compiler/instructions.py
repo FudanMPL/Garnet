@@ -29,6 +29,31 @@ import Compiler.instructions_base as base
 # avoid naming collision with input instruction
 _python_input = input
 
+
+###
+### Change domain instructions
+###
+
+@base.vectorize
+class csd(base.Instruction):
+    """ change secret value to another ring domain 2^i.
+    :param: result secret value (sint)
+    :param: secret value (sint)
+    :param: domain size 2^i (int)
+    """
+    __slots__ = []
+    code = base.opcodes['CSD']
+    arg_format = ['s']
+
+
+class cmd(base.Instruction):
+    """ Change machine to execute on another ring domain 2^i
+    :param: domain size 2^i (int)
+    """
+    __slots__ = []
+    code = base.opcodes['CMD']
+    arg_format = ['int']
+
 ###
 ### Load and store instructions
 ###
