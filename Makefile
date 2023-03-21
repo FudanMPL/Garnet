@@ -66,7 +66,7 @@ vm: arithmetic binary
 doc:
 	cd doc; $(MAKE) html
 
-arithmetic: rep-ring rep-field shamir semi2k-party.x semi-party.x mascot sy dealer-ring-party.x
+arithmetic: rep-ring rep-field shamir semi2k-party.x semi-party.x sml-party.x mascot sy dealer-ring-party.x
 binary: rep-bin yao semi-bin-party.x tinier-party.x tiny-party.x ccd-party.x malicious-ccd-party.x real-bmr
 
 all: overdrive she-offline
@@ -221,6 +221,7 @@ spdz2k-party.x: $(TINIER) $(patsubst %.cpp,%.o,$(wildcard Machines/SPDZ2*.cpp))
 static/spdz2k-party.x: $(patsubst %.cpp,%.o,$(wildcard Machines/SPDZ2*.cpp))
 semi-party.x: $(OT)  $(GC_SEMI)
 semi2k-party.x: $(OT) $(GC_SEMI)
+sml-party.x: $(OT) $(GC_SEMI) 
 hemi-party.x: $(FHEOFFLINE) $(GC_SEMI) $(OT)
 temi-party.x: $(FHEOFFLINE) $(GC_SEMI) $(OT)
 soho-party.x: $(FHEOFFLINE) $(GC_SEMI) $(OT)
