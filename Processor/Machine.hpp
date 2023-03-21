@@ -110,9 +110,11 @@ Machine<sint, sgf2n>::Machine(Names& playerNames, bool use_encryption,
        inpf.open(memory_filename(), ios::in | ios::binary);
        if (inpf.fail()) { throw file_error(memory_filename()); }
        inpf >> M2 >> Mp >> Mi;
+#ifdef BIG_DOMAIN_FOR_RSS
        this->Mp_2 = new Memory<Rep3Share128>();
        this->Mp_2->template assign_S<sint>(Mp.get_S());
        this->Mp_2->template assign_C<sint>(Mp.get_C());
+#endif
        if (inpf.get() != 'M')
          {
            cerr << "Invalid memory file. Run with '-m empty'." << endl;

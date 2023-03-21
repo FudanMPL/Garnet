@@ -383,4 +383,31 @@ void Replicated<T>::trunc_pr(const vector<int>& regs, int size,
     trunc_pr(regs, size, proc, T::clear::characteristic_two);
 }
 
+template<class T>
+template<class U>
+void Replicated<T>::change_domain(const vector<int>& regs, U& proc){
+  cout << regs.size() << " "  << proc.S.size() << endl;
+//  assert(regs.size() % 3 == 0);
+//  assert(proc.P.num_players() == 3);
+//  assert(proc.Proc != 0);
+//  int n = regs.size() / 3;
+//  typedef typename T::clear value_type;
+//  value_type small_ring_size = 1 << regs[2];
+//  if (P.my_num() == 0){
+//    for (int i = 0; i < n; i++){
+//      auto temp_0 = proc.S[regs[3 * i + 0]].sum() % small_ring_size;
+//      auto a0 = temp_0 >> small_ring_size;
+//      auto b0 = temp_0 >> (small_ring_size - 1);
+//    }
+//  }
+//  if (P.my_num() == 1){
+//    for (int i = 0; i < n; i++){
+//      auto temp_1 = proc.S[regs[3 * i + 0]][0] % small_ring_size;
+//      auto a1 = temp_1 >> small_ring_size;
+//      auto b1 = temp_1 >> (small_ring_size - 1);
+//    }
+//
+//  }
+}
+
 #endif

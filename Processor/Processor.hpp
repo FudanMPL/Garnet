@@ -68,7 +68,7 @@ Processor<sint, sgf2n>::Processor(int thread_num,Player& P,
   binary_file_io(Binary_File_IO())
 {
 
-  start_subprocessor_for_big_domain();
+
   reset(program,0);
 
   public_input_filename = get_filename("Programs/Public-Input/",false);
@@ -93,7 +93,7 @@ Processor<sint, sgf2n>::Processor(int thread_num,Player& P,
 template<class sint, class sgf2n>
 Processor<sint, sgf2n>::~Processor()
 {
-  stop_subprocessor_for_big_domain();
+
   share_thread.post_run();
 #ifdef VERBOSE
   if (sent)
@@ -773,6 +773,7 @@ long Processor<sint, sgf2n>::sync(long x) const
   return x;
 }
 
+#ifdef BIG_DOMAIN_FOR_RSS
 template<class sint, class sgf2n>
 void Processor<sint, sgf2n>::start_subprocessor_for_big_domain(){
   this->datafp = Preprocessing<Rep3Share128>::get_new(machine, DataF.usage, this->Procp_2);
@@ -789,5 +790,6 @@ void Processor<sint, sgf2n>::stop_subprocessor_for_big_domain(){
   delete this->datafp;
   delete this->temp_mcp;
 };
+#endif
 
 #endif

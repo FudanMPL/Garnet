@@ -2239,7 +2239,8 @@ class sint(_secret, _int):
     def change_domain_from_to(self, k1, k2):
         """ change to another domain  """
         if k1 < k2:
-            csd(self)
+            # res = sint()
+            # csd(res, self, k1)
             temp = self + 2 ** (k1 - 1)
             b1 = temp.__ge__(2 ** k1, bit_length=34)
             b2 = temp.__ge__(2 ** (k1 + 1), bit_length=34)
