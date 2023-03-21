@@ -1,14 +1,20 @@
 program.use_trunc_pr=True
-a = sint.get_input_from(0)
 
-print_ln("a = %s", a.reveal())
+a = sint(10, 2)
+b = sint(20, 3)
 
 
 change_machine_domain(128)
+
+c = a.change_domain_from_to(32, 128)
+d = b.change_domain_from_to(32, 128)
+e = a * a
+f = b * b
 print_ln("a = %s", a.reveal())
-
-b = a.change_domain_from_to(32, 128)
-
 print_ln("b = %s", b.reveal())
 
 change_machine_domain(32)
+
+print_ln("a = %s", a.reveal())
+print_ln("b = %s", b.reveal())
+

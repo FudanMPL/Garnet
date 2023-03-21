@@ -70,6 +70,7 @@ public:
 
     void muls(const vector<int>& reg, SubProcessor<T>& proc, typename T::MAC_Check& MC,
             int size);
+
     void mulrs(const vector<int>& reg, SubProcessor<T>& proc);
 
     void multiply(vector<T>& products, vector<pair<T, T>>& multiplicands,
@@ -181,6 +182,9 @@ public:
 
     void start_exchange();
     void stop_exchange();
+
+    template<class U>
+    void change_domain(const vector<int>& reg,  U& proc);
 };
 
 #endif /* PROTOCOLS_REPLICATED_H_ */

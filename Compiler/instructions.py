@@ -35,7 +35,7 @@ _python_input = input
 ###
 
 @base.vectorize
-class csd(base.Instruction):
+class csd(base.VarArgsInstruction):
     """ change secret value to another ring domain 2^i.
     :param: result secret value (sint)
     :param: secret value (sint)
@@ -43,7 +43,8 @@ class csd(base.Instruction):
     """
     __slots__ = []
     code = base.opcodes['CSD']
-    arg_format = ['s']
+    arg_format = tools.cycle(['sw','s','int'])
+
 
 
 class cmd(base.Instruction):

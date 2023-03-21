@@ -2239,12 +2239,13 @@ class sint(_secret, _int):
     def change_domain_from_to(self, k1, k2):
         """ change to another domain  """
         if k1 < k2:
-            csd(self)
-            temp = self + 2 ** (k1 - 1)
-            b1 = temp.__ge__(2 ** k1, bit_length=34)
-            b2 = temp.__ge__(2 ** (k1 + 1), bit_length=34)
-            b3 = temp.__ge__(3 * (2 ** k1), bit_length=34)
-            res = self - b1 * (2 ** k1) - b2 * (2 ** k1) - b3 ** (2 ** k1)
+            res = sint()
+            csd(res, self, k1)
+            # temp = self + 2 ** (k1 - 1)
+            # b1 = temp.__ge__(2 ** k1, bit_length=34)
+            # b2 = temp.__ge__(2 ** (k1 + 1), bit_length=34)
+            # b3 = temp.__ge__(3 * (2 ** k1), bit_length=34)
+            # res = self - b1 * (2 ** k1) - b2 * (2 ** k1) - b3 ** (2 ** k1)
             # wrap = temp.TruncPr(40, 32)
             # library.print_ln("wrap = %s", wrap.reveal())
             # res = self - wrap * (2 ** k1)
