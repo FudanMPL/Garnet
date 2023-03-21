@@ -7,7 +7,7 @@ logs/*
 Language-Definition/main.pdf
 keys/*
 Data/*
-
+.idea/*
 # Personal CONFIG file #
 ##############################
 CONFIG.mine
