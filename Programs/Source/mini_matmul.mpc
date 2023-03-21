@@ -1,0 +1,41 @@
+def test(actual, expected):
+
+    # you can reveal a number in order to print it
+
+    actual = actual.reveal()
+    print_ln('expected %s, got %s', expected, actual)
+
+# private inputs are read from Player-Data/Input-P<i>-0
+# or from standard input if using command-line option -I
+
+data = Matrix(3, 2, sfix)
+
+# use @for_range_opt for balanced optimization
+# but use Python loops if compile-time numbers are need (e.g., for players)
+
+@for_range_opt(3)
+def _(i):
+    for j in range(2):
+        data[i][j] = sfix.get_input_from(j)
+
+# permutation matrix
+
+M = Matrix(2, 2, sfix)
+M[0][0] = 0
+M[1][0] = 1
+M[0][1] = 1
+M[1][1] = 0
+
+# matrix multiplication
+
+N = data * M
+test(N[0][0], data[0][1].reveal())
+test(N[1][1], data[1][0].reveal())
+
+N = N * M
+test(N[0][0], data[0][0].reveal())
+test(N[1][1], data[1][1].reveal())
+
+N = N * M
+test(N[0][0], data[0][1].reveal())
+test(N[1][1], data[1][0].reveal())
