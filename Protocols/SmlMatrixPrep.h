@@ -12,8 +12,6 @@
 #include "Processor/BaseMachine.h"
 
 
-
-
 // template<class T> class HemiPrep;
 template<class V>
 class MatrixRandMulJob : public ThreadJob
@@ -53,7 +51,7 @@ inline void matrix_rand_mul(ThreadJob job, true_type = {})
 }
 
 /**
- * Semi-honest matrix triple generation using semi-homomorphic encryption
+ * matrix triple generation using OT
  */
 template<class T>
 class SmlMatrixPrep : public BufferPrep<ShareMatrix<T>>

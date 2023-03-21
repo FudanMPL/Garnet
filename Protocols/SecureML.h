@@ -11,10 +11,10 @@
 #include "HemiOptions.h"
 
 #include "SmlMatrixPrep.h"
-#include "HemiPrep.hpp"
+// #include "HemiPrep.hpp"
 
 /**
- * Matrix multiplication optimized with semi-homomorphic encryption
+ * Matrix multiplication
  */
 template<class T>
 class SecureML : public Semi<T>
@@ -24,21 +24,12 @@ class SecureML : public Semi<T>
 
     MatrixMC<T> mc;
 
-    // ShareMatrix<T> matrix_multiply(const ShareMatrix<T>& A, const ShareMatrix<T>& B,
-    //         SubProcessor<T>& processor);
-
 public:
     SecureML(Player& P) :
             Semi<T>(P)
     {
     }
     // ~SecureML();
-
-//     typename T::MatrixPrep& get_matrix_prep(const array<int, 3>& dimensions,
-//             SubProcessor<T>& processor);
-
-    // void matmulsm(SubProcessor<T>& processor, CheckVector<T>& source,
-    //         const Instruction& instruction, int a, int b);
 
     void matmulsm(SubProcessor<T> & processor, CheckVector<T>& source,
             const Instruction& instruction, int a, int b)

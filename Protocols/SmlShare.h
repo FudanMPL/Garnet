@@ -9,7 +9,7 @@
 #include "SemiShare.h"
 #include "SecureML.h"
 #include "OT/Rectangle.h"
-// #include "GC/SemiSecret.h"
+#include "GC/SemiSecret.h"
 #include "GC/square64.h"
 #include "Processor/Instruction.h"
 
@@ -69,48 +69,48 @@ public:
     //     assign(other, my_num);
     // }
 
-    // template<class U>
-    // static void split(vector<U>& dest, const vector<int>& regs, int n_bits,
-    //         const SmlShare* source, int n_inputs,
-    //         typename U::Protocol& protocol)
-    // {
-    //     auto& P = protocol.P;
-    //     int my_num = P.my_num();
-    //     int unit = GC::Clear::N_BITS;
-    //     for (int k = 0; k < DIV_CEIL(n_inputs, unit); k++)
-    //     {
-    //         int start = k * unit;
-    //         int m = min(unit, n_inputs - start);
-    //         int n = regs.size() / n_bits;
-    //         if (P.num_players() != n)
-    //             throw runtime_error(
-    //                     to_string(n) + "-way split not working with "
-    //                             + to_string(P.num_players()) + " parties");
+    template<class U>
+    static void split(vector<U>& dest, const vector<int>& regs, int n_bits,
+            const SmlShare* source, int n_inputs,
+            typename U::Protocol& protocol)
+    {
+        auto& P = protocol.P;
+        int my_num = P.my_num();
+        int unit = GC::Clear::N_BITS;
+        for (int k = 0; k < DIV_CEIL(n_inputs, unit); k++)
+        {
+            int start = k * unit;
+            int m = min(unit, n_inputs - start);
+            int n = regs.size() / n_bits;
+            if (P.num_players() != n)
+                throw runtime_error(
+                        to_string(n) + "-way split not working with "
+                                + to_string(P.num_players()) + " parties");
 
-    //         for (int l = 0; l < n_bits; l += unit)
-    //         {
-    //             int base = l;
-    //             int n_left = min(n_bits - base, unit);
-    //             for (int i = base; i < base + n_left; i++)
-    //                 for (int j = 0; j < n; j++)
-    //                     dest.at(regs.at(n * i + j) + k) = {};
+            for (int l = 0; l < n_bits; l += unit)
+            {
+                int base = l;
+                int n_left = min(n_bits - base, unit);
+                for (int i = base; i < base + n_left; i++)
+                    for (int j = 0; j < n; j++)
+                        dest.at(regs.at(n * i + j) + k) = {};
 
-    //             square64 square;
+                square64 square;
 
-    //             for (int j = 0; j < m; j++)
-    //                 square.rows[j] = source[j + start].get_limb(l / unit);
+                for (int j = 0; j < m; j++)
+                    square.rows[j] = source[j + start].get_limb(l / unit);
 
-    //             square.transpose(m, n_left);
+                square.transpose(m, n_left);
 
-    //             for (int j = 0; j < n_left; j++)
-    //             {
-    //                 auto& dest_reg = dest.at(
-    //                         regs.at(n * (base + j) + my_num) + k);
-    //                 dest_reg = square.rows[j];
-    //             }
-    //         }
-    //     }
-    // }
+                for (int j = 0; j < n_left; j++)
+                {
+                    auto& dest_reg = dest.at(
+                            regs.at(n * (base + j) + my_num) + k);
+                    dest_reg = square.rows[j];
+                }
+            }
+        }
+    }
 };
 
 #endif /* PROTOCOLS_SmlShare_H_ */

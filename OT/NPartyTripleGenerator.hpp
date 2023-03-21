@@ -547,64 +547,64 @@ void OTTripleGenerator<T>::generateMixedTriples()
     }
 }
 
-template<class U>
-void OTTripleGenerator<U>::generateMatrixTriples(int row, int inner, int col, 
-        ShareMatrix<U> A, ShareMatrix<U> B, ShareMatrix<U> C)
-{
-    typedef typename U::open_type T;
+// template<class U>
+// void OTTripleGenerator<U>::generateMatrixTriples(int row, int inner, int col, 
+//         ShareMatrix<U> A, ShareMatrix<U> B, ShareMatrix<U> C)
+// {
+//     typedef typename U::open_type T;
 
-    machine.set_passive();
-    machine.output = false;
-    signal_multipliers(DATA_TRIPLE);
+//     machine.set_passive();
+//     machine.output = false;
+//     signal_multipliers(DATA_TRIPLE);
 
-    // this->nPreampTriplesPerLoop = 1;
-    // int nPreampTriplesPerLoop = row * col * inner;
+//     // this->nPreampTriplesPerLoop = 1;
+//     // int nPreampTriplesPerLoop = row * col * inner;
 
-    valueBits.resize(3);
-    for (int i = 0; i < 3; i++)
-        valueBits[i].resize(field_size * nPreampTriplesPerLoop);
+//     valueBits.resize(3);
+//     for (int i = 0; i < 3; i++)
+//         valueBits[i].resize(field_size * nPreampTriplesPerLoop);
 
-    start_progress();
+//     start_progress();
 
-    if (not (machine.amplify or machine.output))
-        plainTriples.resize(nPreampTriplesPerLoop);
+//     if (not (machine.amplify or machine.output))
+//         plainTriples.resize(nPreampTriplesPerLoop);
 
     
 
-    for (int i = 0; i < row; i++){
-        for (int j = 0; j < col; j++){
-            for (int k = 0; k < inner; k++){
+//     for (int i = 0; i < row; i++){
+//         for (int j = 0; j < col; j++){
+//             for (int k = 0; k < inner; k++){
                 
-                for (int h = 0; h < 2; h++)
-                    valueBits[h].template randomize_blocks<T>(share_prg);
-                // valueBits[0].set(A[{i,k}]);
-                // valueBits[1].set(B[{k,j}]);
+//                 for (int h = 0; h < 2; h++)
+//                     valueBits[h].template randomize_blocks<T>(share_prg);
+//                 // valueBits[0].set(A[{i,k}]);
+//                 // valueBits[1].set(B[{k,j}]);
 
-                cout<<"==============1"<<endl;
+//                 cout<<"==============1"<<endl;
 
-                timers["OTs"].start();
-                for (int p = 0; p < nparties-1; p++)
-                    ot_multipliers[p]->inbox.push({});
-                this->wait_for_multipliers();
-                timers["OTs"].stop();
+//                 timers["OTs"].start();
+//                 for (int p = 0; p < nparties-1; p++)
+//                     ot_multipliers[p]->inbox.push({});
+//                 this->wait_for_multipliers();
+//                 timers["OTs"].stop();
 
-                cout<<"==============2"<<endl;
+//                 cout<<"==============2"<<endl;
 
-                T c = C[{i,j}];
-                timers["Triple computation"].start();
-                for (int p = 0; p < nparties-1; p++)
-                {
-                    c += ot_multipliers[p]->c_output[0];
-                }
-                timers["Triple computation"].stop();
+//                 T c = C[{i,j}];
+//                 timers["Triple computation"].start();
+//                 for (int p = 0; p < nparties-1; p++)
+//                 {
+//                     c += ot_multipliers[p]->c_output[0];
+//                 }
+//                 timers["Triple computation"].stop();
                 
-                cout<<"==============3"<<endl;
-                plainTriples[0] = {{c, c, c}};
-            }
-        }
-    }
+//                 cout<<"==============3"<<endl;
+//                 plainTriples[0] = {{c, c, c}};
+//             }
+//         }
+//     }
 
-}
+// }
 
 template<class U>
 void OTTripleGenerator<U>::generateMyTriples( typename U::open_type a, 
