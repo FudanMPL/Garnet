@@ -1,0 +1,59 @@
+program.options_from_args()
+
+from Compiler import ml_ft
+ft = ml_ft
+ft.set_n_threads(5)
+
+training_samples = MultiArray([882, 32, 32, 3], sfix)
+training_labels = MultiArray([882, 7], sint)
+test_samples = MultiArray([99, 32, 32, 3], sfix)
+test_labels = MultiArray([99, 7], sint)
+training_labels.input_from(0)
+training_samples.input_from(0)
+test_labels.input_from(0)
+test_samples.input_from(0)
+
+import torch
+import torch.nn as nn
+
+net=None
+load_flag=True
+if load_flag:
+    # Load checkpoint.
+    print('==> Resuming from checkpoint..')
+    assert os.path.isdir('checkpoint'), 'Error: no checkpoint directory found!'
+    tmpnet=torch.load('./checkpoint/ckpt_ferplus_lenet.pth')
+    mydict=tmpnet.state_dict()
+    print(mydict.keys())
+    namelist=['0.weight', '0.bias', '3.weight', '3.bias', '8.weight', '8.bias', '10.weight', '10.bias']
+    net=nn.Sequential(
+        nn.Conv2d(3, 20, 5),
+        nn.ReLU(),
+        nn.MaxPool2d(2),
+        nn.Conv2d(20, 50, 5),
+        nn.ReLU(),
+        nn.MaxPool2d(2),
+        nn.Flatten(),
+        nn.ReLU(),
+        nn.Linear(1250, 500),
+        nn.ReLU(),
+        nn.Linear(500, 7)
+    )
+    tmpdict=net.state_dict()
+    for i in range(len(namelist)):
+        name=namelist[i]
+        if('10.' not in name):
+            tmpdict[name]=mydict[name]
+    net.load_state_dict(tmpdict)
+layers = ft.layers_from_torch(net, training_samples.shape, 256, input_via=0)
+optimizer = ft.SGD(layers)
+optimizer.fit(
+    training_samples,
+    training_labels,
+    epochs=10,
+    batch_size=256,
+    validation_data=(test_samples, test_labels),
+    program=program,
+    reset=False,
+    print_accuracy=True
+)
