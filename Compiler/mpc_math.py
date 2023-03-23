@@ -398,6 +398,17 @@ def exp2_fx(a, zero_output=False, as19=False):
         d = b.pow2(a.k - a.f)
         g = exp_from_parts(d, c)
         return s.if_else(1 / g, g)
+    
+
+@types.vectorize
+@instructions_base.sfix_cisc
+def exp_fx(x,iter=9):
+    n=1<<iter
+    a=1+x/n
+    for i in range(0,iter):
+        a=a*a
+    return a
+
 
 
 def mux_exp(x, y, block_size=8):
@@ -471,6 +482,12 @@ def log2_fx(x, use_division=True):
     # the log is returned by adding the result of the division plus p.
     a = approx + (vlen + p)
     return a  # *(1-(f.z))*(1-f.s)*(1-f.error)
+
+# @types.vectorize
+# @instructions_base.sfix_cisc
+# def log_fx(x):
+#     return log2_fx(x,False)*0.4343
+
 
 
 def pow_fx(x, y):
@@ -938,3 +955,53 @@ def InvertSqrt(x, old=False):
     u, z = Sep(x)
     c = 3.14736 + u * (4.63887 * u - 5.77789)
     return c * SqrtComp(z, old=old)
+
+@types.vectorize
+def ltz(x):
+    return x<0
+
+def argmax(x):
+    len=x.length
+    len2=(int)(len*(len-1)/2)
+    temp=type(x[0]).Array(len2)
+    count=0
+    for i in range(len-1):
+        for j in range(i+1,len):
+            temp[count]=x[i]-x[j]
+            count=count+1
+    temp2=ltz(temp.get_vector())
+    count=0
+    acc=type(x[0]).Array(len)
+    for i in range(len-1):
+        for j in range(i+1,len):
+            acc[i]=acc[i]+temp2[count]
+            acc[j]=acc[j]+1-temp2[count]
+            count=count+1
+        acc[i]=acc[i]-1
+    acc[len-1]=acc[len-1]-1
+    return ltz(acc.get_vector())
+
+def max(x):
+    arg=argmax(x)
+    return type(x[0]).dot_product(x,arg)
+
+def logsum(x):
+    maximum=max(x)
+    l=len(x)
+    for i in range(l):
+        x[i]=x[i]-maximum
+    temp=exp_fx(x.get_vector())
+    acc=0
+    for i in range(l):
+        acc=acc+temp[i]
+    return log_fx(acc,math.e)+maximum
+    
+
+
+
+
+
+
+
+
+
