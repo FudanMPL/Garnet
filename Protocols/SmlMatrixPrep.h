@@ -92,47 +92,57 @@ public:
         AddableVector<ValueMatrix<Dtype>> C(n_matrices, {n_rows, n_cols});
         SeededPRNG G;
 
-        cout<<"========== mattriple-1 local_mul ========="<<endl;
-        MatrixRandMulJob<Dtype> job(C, A, B, T::local_mul);
-        if (BaseMachine::thread_num == 0 and BaseMachine::has_singleton())
-        {
-            auto& queues = BaseMachine::s().queues;
-            int start = queues.distribute(job, n_matrices);
-            job.begin = start;
-            job.end = n_matrices;
-            matrix_rand_mul<Dtype>(job);
-            if (start)
-                queues.wrap_up(job);
-        }
-        else
-        {
-            job.begin = 0;
-            job.end = n_matrices;
-            matrix_rand_mul<Dtype>(job);
-        }
-        
+        // cout<<"========== mattriple-1 local_mul ========="<<endl;
+        // MatrixRandMulJob<Dtype> job(C, A, B, T::local_mul);
+        // if (BaseMachine::thread_num == 0 and BaseMachine::has_singleton())
+        // {
+        //     auto& queues = BaseMachine::s().queues;
+        //     int start = queues.distribute(job, n_matrices);
+        //     job.begin = start;
+        //     job.end = n_matrices;
+        //     matrix_rand_mul<Dtype>(job);
+        //     if (start)
+        //         queues.wrap_up(job);
+        // }
+        // else
+        // {
+        //     job.begin = 0;
+        //     job.end = n_matrices;
+        //     matrix_rand_mul<Dtype>(job);
+        // }
 
-        for (int i=0; i<n_matrices; i++)
-            for (int j=0; j<n_rows; j++)
-                for (int k=0; k<n_cols; k++)
-                    C[i][{j,k}]=0;
+        for (int i=0; i<n_matrices; i++){
+            A[i].randomize(G);
+            B[i].randomize(G);
+            C[i].randomize(G);
+        }
                 
         cout<<"========== mattriple generating ========="<<endl;
         for (int i = 0; i < n_matrices; i++){
             assert(prep);
+            // // native generating
+            // for (int r = 0; r < n_rows; r++){
+            //     for (int c = 0; c < n_cols; c++){
+            //         for (int k = 0; k < n_inner; k++){
+            //             prep->triple_generator->generateMyTriples(
+            //                     A[i][{r,k}], B[i][{k,c}]);
+            //             prep->triple_generator->unlock();
+            //             for (auto x:prep->triple_generator->plainTriples){
+            //                 C[i][{r,c}]+=x[2];
+            //             }
+            //         }
+            //     }
+            // }
+
+            // vectorisze generating
             for (int r = 0; r < n_rows; r++){
                 for (int c = 0; c < n_cols; c++){
-                    for (int k = 0; k < n_inner; k++){
-                        prep->triple_generator->generateMyTriples(
-                                A[i][{r,k}], B[i][{k,c}]);
+                        C[i][{r,c}] = prep->triple_generator->generateMatrixTriples(r, n_inner, c, A[i], B[i]);
                         prep->triple_generator->unlock();
-                        for (auto x:prep->triple_generator->plainTriples){
-                            C[i][{r,c}]+=x[2];
-                        }
-                    }
                 }
             }
-
+            
+            
             cout<<"========== mattriple debug A ========="<<endl;
                 for (int j=0; j<n_rows; j++){
                     cout<<"[";

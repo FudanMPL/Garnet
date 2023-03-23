@@ -116,8 +116,8 @@ public:
     void generate() { throw not_implemented(); }
 
     void generatePlainTriples();
-    // void generateMatrixTriples(int row, int inner, int col,
-    //         ShareMatrix<T> A, ShareMatrix<T> B, ShareMatrix<T> C);
+    typename T::open_type generateMatrixTriples(int row, int inner, int col,
+            ShareMatrix<T> A, ShareMatrix<T> B);
     void generateMyTriples(typename T::open_type a, typename T::open_type b);
     void plainTripleRound(int k = 0);
 
