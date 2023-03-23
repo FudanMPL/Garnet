@@ -550,17 +550,14 @@ void OTTripleGenerator<T>::generateMixedTriples()
 #include "Math/FixedVec.h"
 
 template<class U>
-typename U::open_type OTTripleGenerator<U>::generateMatrixTriples(int row, int inner, int col, 
-        ShareMatrix<U> A, ShareMatrix<U> B)
+ShareMatrix<U> OTTripleGenerator<U>::generateMatrixTriples(int k, int n_rows, int n_inner, int n_cols,
+        ShareMatrix<U> A, ShareMatrix<U> B, ShareMatrix<U> C)
 {
     typedef typename U::open_type T;
 
     machine.set_passive();
     machine.output = false;
     signal_multipliers(DATA_TRIPLE);
-
-    // this->nPreampTriplesPerLoop = 1;
-    // int nPreampTriplesPerLoop = row * col * inner;
 
     valueBits.resize(3);
     for (int i = 0; i < 3; i++)
@@ -571,11 +568,17 @@ typename U::open_type OTTripleGenerator<U>::generateMatrixTriples(int row, int i
     if (not (machine.amplify or machine.output))
         plainTriples.resize(nPreampTriplesPerLoop);
 
-    cout<<"==============-1"<<endl;
     FixedVec<T, 1000> vA,vB;
-
-    for (int k = 0; k < inner; k++) vA[k] = A[{row,k}];
-    for (int k = 0; k < inner; k++) vB[k] = B[{k,col}];
+    for (int i = 0; i < nPreampTriplesPerLoop; i++){
+        int id = k * nPreampTriplesPerLoop + i;
+        if (id >= n_rows * n_cols * n_inner) break;
+        int xid = id / (n_cols * n_inner);
+        int yid = id % (n_cols * n_inner) / n_inner;
+        int kid = id % (n_inner);
+        // cout<<"xyzid: "<<xid<<' '<<yid<<' '<<kid<<endl;
+        vA[i] = A[{xid,kid}];
+        vB[i] = B[{kid,yid}];
+    }
     valueBits[0].set<T, 1000>(vA);
     valueBits[1].set<T, 1000>(vB);
 
@@ -587,16 +590,19 @@ typename U::open_type OTTripleGenerator<U>::generateMatrixTriples(int row, int i
     timers["OTs"].stop();
     
     timers["Triple computation"].start();
-    T c;
-    c.assign(0);
     for (int p = 0; p < nparties-1; p++)
     {
-        for (int k = 0; k < inner; k++)
-            c += vA[k]*vB[k] + ot_multipliers[p]->c_output[k];
+        for (int i = 0; i < nPreampTriplesPerLoop; i++){
+            int id = k * nPreampTriplesPerLoop + i;
+            if (id >= n_rows * n_cols * n_inner) break;
+            int xid = id / (n_cols * n_inner);
+            int yid = id % (n_cols * n_inner) / n_inner;
+            int kid = id % (n_inner);
+            C[{xid,yid}] += A[{xid,kid}]*B[{kid,yid}] + ot_multipliers[p]->c_output[i];
+        }
     }
     timers["Triple computation"].stop();
-
-    return c;
+    return C;
 }
 
 template<class U>
