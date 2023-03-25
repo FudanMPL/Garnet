@@ -1,15 +1,167 @@
 # Garnet
 
-Garnet是基于MP-SPDZ开发的一个实用化安全多方学习框架，支持SecureML协议、预训练模型的微调、XGBoost以及决策树模型的安全训练。
+Garnet是复旦大学数据安全与治理研究组基于MP-SPDZ开发的一个实用化安全多方学习框架，支持SecureML协议、预训练模型的微调、XGBoost模型的安全训练。
 
 ## 部署
-当前Garnet支持Linux 2014以及MACOS  High Sierra之后的操作系统版本。
+当前Garnet支持Linux 2014以及MacOS  High Sierra之后的操作系统版本。
 
 ### 源码下载
+```
+git clone git@github.com:FudanMPL/Garnet.git
+```
 
 ### 外部库准备
 
+#### Linux
+```
+sudo apt-get install automake build-essential cmake git libboost-dev libboost-thread-dev libntl-dev libsodium-dev libssl-dev libtool m4 python3 texinfo yasm
+```
+
+#### MacOS
+
+```
+brew install automake build-essential cmake git libboost-dev libboost-thread-dev libntl-dev libsodium-dev libssl-dev libtool m4 python3 texinfo yasm
+```
+
 ### 编译
+
+```
+make -j 8 tldr
+```
+
+## SecureML协议使用
+
+SecureML是在Payman Mohassel和Yupeng Zhang发表于IEEE S&P'17的文章中提出的一个隐私保护机器学习框架。
+
+其主要的特征为为线性回归、逻辑回归、神经网络等模型的训练过程设计了高效的安全计算协议；设计了定点数截断计算方案；引入了MPC友好的激活函数；引入了面向秘密共享的向量化计算。
+
+在Garnet中SecureML框架对应的虚拟机是sml-party。sml-party虚拟机基于MP-SPDZ原生的semi-party和hemi-party。在两个参与方之间，将数据以加法秘密共享的形式分享。sml-party实现了基于OT的矩阵形式beaver三元组生成，和使用矩阵三元组的矩阵乘法和卷积操作。
+
+## 基础设置
+首次运行Garnet虚拟机时需要进行如下配置，如已成功运行过其他的两方虚拟机则可跳过此步。
+
+安装必要的库
+
+```
+make -j8 tldr
+```
+
+ 设置ssl
+
+```
+Scripts/setup-ssl.sh 2
+```
+
+##  编译运行sml-party虚拟机
+
+以tutorial.mpc的测试程序为例
+
+ 设置输入、编辑mpc程序、设置环参数
+
+```
+echo 1 2 3 4 > Player-Data/Input-P0-0
+echo 1 2 3 4 > Player-Data/Input-P1-0
+./compile.py -R 64 tutorial
+```
+
+ 编译虚拟机
+
+```
+make -j 8 sml-party.x
+```
+
+ 在两个终端分别运行
+
+```
+./sml-party.x -I 0 tutorial
+./sml-party.x -I 1 tutorial
+```
+
+ 或使用脚本
+
+```
+Scripts/sml.sh tutorial
+```
+
+## 运行预训练模型安全微调
+
+  以LeNet和CK+48[1]数据集为例，若只希望载入自己的预训练模型进行安全微调，只需依次执行下列脚本即可：
+
+1. 环境配置
+首先修改CONFIG.mine文件，在开头加入如下一行代码。
+```
+MOD = -DRING_SIZE=32
+```
+之后，依次在控制台上输入以下三个命令进行虚拟机编译:
+```
+make clean
+make -j 8 tldr
+make -j 8 replicated-ring-party.x
+```
+下一步，在控制台上输入以下命令，生成证书及密钥
+```
+./Scripts/setup-ssl.sh 3
+```
+最后使用Script/ring.sh 运行样例程序(tutorial.mpc)，确保能够正常运行。
+
+2. 获取预训练模型
+```
+python LeNet-Ferplus.py
+```
+3. 获取适用于Garnet的训练数据
+```
+python ./CK-plus-48-data-full.py
+```
+4. 编译安全微调的mpc文件
+```
+./compile.py -R 64 Lenet-fine-tuning.mpc
+```
+5. 创建证书和密钥并编译RSS虚拟机
+```
+Scripts/setup-ssl.sh 3
+make -j 8 replicated-ring-party.x
+```
+6. 在虚拟机中运行编译好的文件，进行微调
+```
+Scripts/ring.sh Lenet-fine-tuning  
+```
+  
+若希望在Garnet中使用带有安全模型选择协议的安全微调，则可以通过执行下列脚本完成，在这里我们展示从两个预训练模型权重中选取最适合于CK+48数据集微调的权重的例子，权重对应的数据集分别为FER+[2]和CIFAR100[3]：
+
+
+1. 获取一批预训练模型
+```
+python LeNet-Ferplus.py
+python LeNet-CIFAR100.py
+```
+2. 获取适用于Garnet的训练数据
+```
+python ./CK+48-data-full.py
+```
+3. 获取预训练数据与用于微调的数据的平均特征
+```
+python ./VGG16-GetAll-Feature.py
+```
+4. 编译带有安全模型选择协议的安全微调的mpc文件
+```
+./compile.py -R 64 Lenet-fine-tuning-with-selection.mpc
+```
+5. 创建证书和密钥并编译RSS虚拟机
+```
+Scripts/setup-ssl.sh 3
+make -j 8 replicated-ring-party.x
+```
+6. 在虚拟机中运行编译好的文件，完成模型选择并进行微调
+```
+Scripts/ring.sh Lenet-fine-tuning-with-selection
+```
+
+
+[1] https://github.com/WuJie1010/Facial-Expression-Recognition.Pytorch/tree/master/CK+48
+
+[2] https://github.com/microsoft/FERPlus
+
+[3] http://www.cs.toronto.edu/~kriz/cifar.html
 
 
 
@@ -132,3 +284,5 @@ program.use_split(3)
 |  5  | Cancer | 100% | 94.64% |
 |  6  | Tic-tac-toe | 90.95% | 88.42% |
 
+## 联系我们
+如果您对项目有任何疑问，请在GitHub仓库上创建issue或者发送邮件到dsglab@fudan.edu.cn。
