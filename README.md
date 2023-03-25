@@ -173,19 +173,13 @@ Scripts/ring.sh Lenet-fine-tuning-with-selection
 用户首先需要在Data目录下存放csv格式的训练集和测试集。命名格式例如：训练集 IRIS_train.csv 测试集 IRIS_test.csv， 即使用 [数据集名]_train.csv 和 [数据集名]_test.csv 来命名。csv文件无需表头，每一行代表一个样本，最后一列代表标签。需要注意的是，本算法在读入小数时，会自动将小数部分截断，因此如果小数部分的数值有意义，请提前对小数部分乘上一个合适的系数并转化为整数。
 在准备好csv格式的数据集后，运行python Script/data_prepare_for_xgboost [数据集名] 从而生成符合框架的数据格式，生成的文件为Player-Data/Input-P0-0。运行该脚本后，控制台会输出训练集所包含的训练样本数，特征数，测试集所包含的样本数，特征数。例如:
 ```
-Garnet % python ./compile.py xgboost -R 32
-...
-控制台输出
-...
-Writing to .../xgboost.sch
-Writing to .../xgboost-0.bc
-Program requires at most:
-     3335730 integer inputs from player 0
-    24960385 integer bits
-    58387325 integer triples
-         inf bit inverses
-     3334980 integer inputs from player 1
-       71918 virtual machine rounds
+Garnet % python ./Scripts/data_prepare_for_decision_tree.py IRIS
+file: ./Data/IRIS_train.csv
+items: 135
+attributes: 4
+file: ./Data/IRIS_test.csv
+items: 15
+attributes: 4
 ```
 ### 脚本配置
 在准备好上述数据后，根据需要修改Programs/xgboost.mpc。所需修改的信息为前六行。其中其三行根据上个步骤所输出的信息进行修改。
