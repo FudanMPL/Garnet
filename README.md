@@ -97,12 +97,15 @@ pip install -r ./requirements.txt
 ```
 conda env create -f finetuning.yaml
 ```
+在Compiler/DL文件夹下添加三个空文件夹data，checkpoint以及AvgFeature-All
 
+### 代码运行
   以LeNet和CK+48[1]数据集为例，若只希望载入自己的预训练模型进行安全fine-tuning，只需依次执行下列脚本即可：
 
 
 1. 获取预训练模型，在Garnet主目录运行如下命令
 ```
+cd Compiler/DL
 python LeNet-Ferplus.py
 ```
 2. 获取适用于Garnet的训练数据
@@ -111,8 +114,7 @@ python ./CK+48-data-full.py
 ```
 3. 编译安全fine-tuning的mpc文件
 ```
-cd ./Garnet
-./compile.py -R 64 torch_lenet_fine-tuning
+python compile.py -R 64 torch_lenet_fine-tuning
 ```
 4. 创建证书和密钥并编译RSS虚拟机
 ```
