@@ -11,52 +11,9 @@ from Compiler import ml
 tf = ml
 ml.set_n_threads(5)
 
-def PairwiseDistance(f,flen,num):
-    ans=sfix(0.0)
-    a=f[0]
-    b=f[num]
-    for i in range(flen):
-        ans+=(a[i]-b[i])*(a[i]-b[i])
-    return ans
-
-def func(f1,f2):
-    dis=0.0
-    for i in range(len(f1)):
-        dis+=(f1[i]-f2[i])*(f1[i]-f2[i])
-    return dis
-
-def ReadFeature(path):
-    f=open(path,'r')
-    data=f.readline().split()
-    feature=[]
-    for i in range(len(data)):
-        feature.append(float(data[i]))
-    f.close()
-    return feature
-
 os.system('pwd')
-filelist=['ck_plus_48_feature.txt','cifar100_feature.txt','ferplus_feature.txt']
-modellist=['./Compiler/DL/checkpoint/ckpt_cifar100_lenet.pth','./Compiler/DL/checkpoint/ckpt_ferplus_lenet.pth']
+modellist=['./Compiler/DL/checkpoint/ckpt_ferplus_lenet.pth']
 namelist=['0.weight', '0.bias', '3.weight', '3.bias', '8.weight', '8.bias', '10.weight', '10.bias']
-featurepath='./Compiler/DL/Avgfeature-All/'
-f1=ReadFeature(featurepath+filelist[0])
-modelnum=len(filelist)-1
-for i in range(modelnum):
-    f2=ReadFeature(featurepath+filelist[i+1])
-    print(func(f1,f2))
-featurelen=512
-features = MultiArray([len(filelist),featurelen], sfix)
-features.input_from(1)
-
-k=Array(modelnum,sfix)
-v=Array(modelnum,sint)
-
-for i in range(modelnum):
-    k[i]=PairwiseDistance(features,featurelen,i+1)
-    print_ln("%s",k[i].reveal())
-    v[i]=i
-
-sorting.radix_sort(k,v)
 
 training_samples = MultiArray([882, 32, 32, 3], sfix)
 training_labels = MultiArray([882, 7], sint)
@@ -95,7 +52,7 @@ for i in range(len(modellist)):
         if ('10.' not in name):
             mydict[name] = tmpdict[name]
     mynet.load_state_dict(mydict)
-    flag=sfix.from_sint((v[0]-i)!=0)
+    flag=sfix.from_sint(1)
     net=ml.layers_from_torch_select(mynet,net,str(i),flag,training_samples.shape, 256, input_via=2)
 
 print_ln("%s",net[0].bias.reveal())

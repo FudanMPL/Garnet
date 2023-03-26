@@ -1,4 +1,3 @@
-'''Train CIFAR10 with PyTorch.'''
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -64,10 +63,10 @@ print('==> Building model..')
 net = nn.Sequential(
     nn.Conv2d(3, 20, 5),
     nn.ReLU(),
-    nn.AvgPool2d(2),
+    nn.MaxPool2d(2),
     nn.Conv2d(20, 50, 5),
     nn.ReLU(),
-    nn.AvgPool2d(2),
+    nn.MaxPool2d(2),
     nn.Flatten(),
     nn.ReLU(),
     nn.Linear(1250, 500),
