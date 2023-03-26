@@ -186,7 +186,8 @@ make -j 8 replicated-ring-party.x
 ```
 ./Scripts/setup-ssl.sh 3
 ```
-最后使用Scripts/ring.sh 运行样例程序(tutorial.mpc)，确保能够正常运行。
+
+
 
 ### 数据准备
 为了使用该算法进行训练，用户需要提供统一格式的训练数据并使用框架中所提供的脚本对数据进行处理。
