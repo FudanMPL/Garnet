@@ -103,7 +103,6 @@ conda env create -f finetuning.yaml
 
 1. 获取预训练模型，在Garnet主目录运行如下命令
 ```
-cd ./Compiler/DL
 python LeNet-Ferplus.py
 ```
 2. 获取适用于Garnet的训练数据
