@@ -83,12 +83,25 @@ make -j 8 sml-party.x
 Scripts/sml.sh tutorial
 ```
 
+
 ## 运行预训练模型安全微调
+
+### 环境配置
+
+在主目录（/Garnet）下提供了requirements.txt和fine-tuning.yaml用于配置环境，可以在主目录下执行下面两条命令之一完成环境配置
+
+```
+pip install -r ./requirements.txt 
+```
+或
+```
+conda env create -f finetuning.yaml
+```
 
   以LeNet和CK+48[1]数据集为例，若只希望载入自己的预训练模型进行安全fine-tuning，只需依次执行下列脚本即可：
 
 
-1. 获取预训练模型
+1. 获取预训练模型，在Garnet主目录运行如下命令
 ```
 cd ./Compiler/DL
 python LeNet-Ferplus.py
