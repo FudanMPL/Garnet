@@ -37,7 +37,7 @@ trainloader = DataLoader(trainset,batch_size=1,shuffle=False,drop_last=False)
 
 testset = CK(split = 'Testing', fold = 1, transform=transform_test,path='./data/CK_data.h5')
 testloader = DataLoader(testset,batch_size=1,shuffle=False,drop_last=False,)
-myfile=open('./Player-Data/Input-P0-0.txt','w')
+myfile=open('../../Player-Data/Input-P0-0.txt','w')
 
 num_class=7
 imglist=[]
