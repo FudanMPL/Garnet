@@ -9,16 +9,7 @@ import random
 import torch
 from torchvision import transforms
 
-def set_seed(seed=0):
-    random.seed(seed)
-    os.environ['PYTHONHASHSEED'] = str(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed) # if you are using multi-GPU.
-    torch.backends.cudnn.benchmark = False
-    torch.backends.cudnn.deterministic = True
-set_seed(0)
+
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print('==> Preparing data..')
 
@@ -176,9 +167,12 @@ for i in range(n_classes1):
     wlist1[i] = cntlist1[i] / total
 flist.append(('ferplus_feature.txt',O))
 
+myfile=open('../../Player-Data/Input-P1-0','w')
 for i in range(len(flist)):
-    f=open('./Avgfeature-All/'+flist[i][0],'w')
+    f=open('./AvgFeature-All/'+flist[i][0],'w')
     tmpo=flist[i][1].tolist()
     for j in range(featurelen):
         f.write(str(tmpo[j])+' ')
+        myfile.write(str(tmpo[j])+' ')
     f.close()
+myfile.close()

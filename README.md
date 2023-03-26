@@ -93,11 +93,10 @@ Scripts/sml.sh tutorial
 ```
 pip install -r ./requirements.txt 
 ```
-或
-```
-conda env create -f finetuning.yaml
-```
-在Compiler/DL文件夹下添加三个空文件夹data，checkpoint以及AvgFeature-All
+
+### 数据准备
+生成的模型和数据可以从https://drive.google.com/file/d/1OOBGQroO4YmlBAPqEbz1VUHNiKBTDXGB/view?usp=sharing得到。其中数据来自于[1], [2]和[3]。下载后解压将三个文件夹及其内容拷贝至/Garnet/Compiler/DL目录下即可
+
 
 ### 代码运行
   以LeNet和CK+48[1]数据集为例，若只希望载入自己的预训练模型进行安全fine-tuning，只需依次执行下列脚本即可：
