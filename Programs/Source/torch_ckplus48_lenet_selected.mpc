@@ -103,7 +103,7 @@ optimizer = ml.SGD(net)
 optimizer.fit(
     training_samples,
     training_labels,
-    epochs=10,
+    epochs=9,
     batch_size=256,
     validation_data=(test_samples, test_labels),
     program=program,
