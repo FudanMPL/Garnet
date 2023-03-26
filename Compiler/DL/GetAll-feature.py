@@ -10,7 +10,7 @@ import torch
 from torchvision import transforms
 
 
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
+device = 'cpu'
 print('==> Preparing data..')
 
 transform_train3 = transforms.Compose([
@@ -42,7 +42,7 @@ transform_test1 = transforms.Compose([
 ])
 
 print('==> Building model..')
-net=torch.load('./checkpoint/ckpt_vgg16.pth')
+net=torch.load('./checkpoint/ckpt_vgg16.pth',map_location='cpu')
 # net=torch.load('./checkpoint/ckpt_imagenet.pth')
 net = net.to(device)
 

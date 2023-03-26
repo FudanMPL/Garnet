@@ -127,5 +127,5 @@ doc/xml
 
 #ignore model and data
 Compiler/DL/data/*
-Compiler/DL/Avgfeature-All/*
+Compiler/DL/AvgFeature-All/*
 Compiler/DL/checkpoint/*
