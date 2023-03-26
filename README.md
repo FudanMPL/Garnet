@@ -201,7 +201,9 @@ pip install pandas
 
 在准备好csv格式的数据集后，运行python Scripts/data_prepare_for_xgboost [数据集名] 从而生成符合框架的数据格式，生成的文件为Player-Data/Input-P0-0。运行该脚本后，控制台会输出训练集所包含的训练样本数，特征数，测试集所包含的样本数，特征数。例如:
 ```
-Garnet % python ./Scripts/data_prepare_for_decision_tree.py IRIS
+python ./Scripts/data_prepare_for_decision_tree.py IRIS
+
+以下为控制台输出
 file: ./Data/IRIS_train.csv
 items: 135
 attributes: 4
@@ -225,10 +227,11 @@ n_threads = 4 # 最大线程数
 配置好上述脚本后，即可运行python ./compile.py xgboost -R 32获得编译后的二进制文件，该过程需要花费几分钟时间，且控制台显示的warning可以忽略。之后运行./Scripts/ring.sh xgboost 获得最后的运行结果。
 
 ```
-Garnet % python ./compile.py xgboost -R 32
-...
-控制台输出
-...
+python ./compile.py xgboost -R 32
+
+
+以下为控制台输出
+......
 Writing to .../xgboost.sch
 Writing to .../xgboost-0.bc
 Program requires at most:
@@ -242,7 +245,9 @@ Program requires at most:
 
 ```
 
-Garnet % ./Scripts/ring.sh xgboost
+./Scripts/ring.sh xgboost
+
+以下为控制台输出
 Using security parameter 40
 Trying to run 32-bit computation
 Training the 0-th tree
