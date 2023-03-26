@@ -128,9 +128,9 @@ Scripts/ring.sh torch_lenet_fine-tuning
   若希望在Garnet中使用带有安全模型选择协议的安全fine-tuning，则可以通过执行下列脚本完成，在这里我们展示从两个预训练模型权重中选取最适合于CK+48数据集fine-tuning的权重的例子，权重对应的数据集分别为FER+[2]和CIFAR100[3]：
 
 
-1. 获取一批预训练模型
+1. 获取一批预训练模型,，在Garnet主目录运行如下命令
 ```
-cd ./Garnet/Compiler/DL
+cd ./Compiler/DL
 python LeNet-Ferplus.py
 python LeNet-CIFAR100.py
 ```
@@ -144,8 +144,7 @@ python ./GetAll-feature.py
 ```
 4. 编译带有安全模型选择协议的安全fine-tuning的mpc文件
 ```
-cd ./Garnet
-./compile.py -R 64 torch_ckplus48_lenet_selected
+python compile.py -R 64 torch_ckplus48_lenet_selected
 ```
 5. 创建证书和密钥并编译RSS虚拟机
 ```
