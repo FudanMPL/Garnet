@@ -174,14 +174,14 @@ make -j 8 replicated-ring-party.x
 ```
 ./Scripts/setup-ssl.sh 3
 ```
-最后使用Script/ring.sh 运行样例程序(tutorial.mpc)，确保能够正常运行。
+最后使用Scripts/ring.sh 运行样例程序(tutorial.mpc)，确保能够正常运行。
 
 ### 数据准备
 为了使用该算法进行训练，用户需要提供统一格式的训练数据并使用框架中所提供的脚本对数据进行处理。
 
 用户首先需要在Data目录（没有的话需要新建一个）下存放csv格式的训练集和测试集。命名格式例如：训练集 IRIS_train.csv 测试集 IRIS_test.csv， 即使用 [数据集名]_train.csv 和 [数据集名]_test.csv 来命名。csv文件无需表头，每一行代表一个样本，最后一列代表标签。需要注意的是，本算法在读入小数时，会自动将小数部分截断，因此如果小数部分的数值有意义，请提前对小数部分乘上一个合适的系数并转化为整数。
 
-在准备好csv格式的数据集后，运行python Script/data_prepare_for_xgboost [数据集名] 从而生成符合框架的数据格式，生成的文件为Player-Data/Input-P0-0。运行该脚本后，控制台会输出训练集所包含的训练样本数，特征数，测试集所包含的样本数，特征数。例如:
+在准备好csv格式的数据集后，运行python Scripts/data_prepare_for_xgboost [数据集名] 从而生成符合框架的数据格式，生成的文件为Player-Data/Input-P0-0。运行该脚本后，控制台会输出训练集所包含的训练样本数，特征数，测试集所包含的样本数，特征数。例如:
 ```
 Garnet % python ./Scripts/data_prepare_for_decision_tree.py IRIS
 file: ./Data/IRIS_train.csv
@@ -192,7 +192,7 @@ items: 15
 attributes: 4
 ```
 ### 脚本配置
-在准备好上述数据后，根据需要修改Programs/xgboost.mpc。所需修改的信息为前六行。其中其三行根据上个步骤所输出的信息进行修改。
+在准备好上述数据后，根据需要修改Programs/Source/xgboost.mpc。所需修改的信息为前六行。其中其三行根据上个步骤所输出的信息进行修改。
 
 ```
 m = 4 # 特征数
@@ -204,7 +204,7 @@ n_threads = 4 # 最大线程数
 ```
 
 ### 运行
-配置好上述脚本后，即可运行python ./compile.py xgboost -R 32获得编译后的二进制文件，该过程需要花费几分钟时间，且控制台显示的warning可以忽略。之后运行./Script/ring.sh xgboost 获得最后的运行结果。
+配置好上述脚本后，即可运行python ./compile.py xgboost -R 32获得编译后的二进制文件，该过程需要花费几分钟时间，且控制台显示的warning可以忽略。之后运行./Scripts/ring.sh xgboost 获得最后的运行结果。
 
 ```
 Garnet % python ./compile.py xgboost -R 32
