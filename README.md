@@ -167,10 +167,30 @@ Scripts/ring.sh Lenet-fine-tuning-with-selection
 
 ## 运行XGBoost模型安全训练与预测
 ### 环境配置
-首先要求已经按照本框架的安装说明配置好本框架的运行环境，并确保能够使用Script/ring.sh 运行样例程序(tutorial.mpc)。
+首先修改CONFIG.mine文件（没有的话需要新建一个），在开头加入如下一行代码。
+```
+MOD = -DRING_SIZE=32
+```
+
+之后，依次在控制台上输入以下三个命令进行虚拟机编译:
+```
+make clean
+make -j 8 tldr
+make -j 8 replicated-ring-party.x
+```
+
+下一步，在控制台上输入以下命令，生成证书及密钥
+
+```
+./Scripts/setup-ssl.sh 3
+```
+最后使用Script/ring.sh 运行样例程序(tutorial.mpc)，确保能够正常运行。
+
 ### 数据准备
 为了使用该算法进行训练，用户需要提供统一格式的训练数据并使用框架中所提供的脚本对数据进行处理。
-用户首先需要在Data目录下存放csv格式的训练集和测试集。命名格式例如：训练集 IRIS_train.csv 测试集 IRIS_test.csv， 即使用 [数据集名]_train.csv 和 [数据集名]_test.csv 来命名。csv文件无需表头，每一行代表一个样本，最后一列代表标签。需要注意的是，本算法在读入小数时，会自动将小数部分截断，因此如果小数部分的数值有意义，请提前对小数部分乘上一个合适的系数并转化为整数。
+
+用户首先需要在Data目录（没有的话需要新建一个）下存放csv格式的训练集和测试集。命名格式例如：训练集 IRIS_train.csv 测试集 IRIS_test.csv， 即使用 [数据集名]_train.csv 和 [数据集名]_test.csv 来命名。csv文件无需表头，每一行代表一个样本，最后一列代表标签。需要注意的是，本算法在读入小数时，会自动将小数部分截断，因此如果小数部分的数值有意义，请提前对小数部分乘上一个合适的系数并转化为整数。
+
 在准备好csv格式的数据集后，运行python Script/data_prepare_for_xgboost [数据集名] 从而生成符合框架的数据格式，生成的文件为Player-Data/Input-P0-0。运行该脚本后，控制台会输出训练集所包含的训练样本数，特征数，测试集所包含的样本数，特征数。例如:
 ```
 Garnet % python ./Scripts/data_prepare_for_decision_tree.py IRIS
