@@ -90,7 +90,7 @@ Scripts/sml.sh tutorial
 
 1. 获取预训练模型
 ```
-cd ./Garnet/Compiler/DL
+cd ./Compiler/DL
 python LeNet-Ferplus.py
 ```
 2. 获取适用于Garnet的训练数据
