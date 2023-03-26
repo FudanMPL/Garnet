@@ -69,7 +69,7 @@ from Compiler.util import is_zero, tree_reduce
 from Compiler.comparison import CarryOutRawLE
 from Compiler.GC.types import sbitint
 from functools import reduce
-
+bs_num=256
 def log_e(x):
     return mpc_math.log_fx(x, math.e)
 
@@ -230,7 +230,7 @@ class Layer:
     input_bias = True
     thetas = lambda self: ()
     debug_output = False
-    back_batch_size = 128
+    back_batch_size = bs_num
     print_random_update = False
 
     @property
@@ -2363,7 +2363,7 @@ class Optimizer:
             self.stopped_on_low_loss.write(1 - res)
             return res
 
-    def reveal_correctness(self, data, truth, batch_size=128, running=False):
+    def reveal_correctness(self, data, truth, batch_size=bs_num, running=False):
         """ Test correctness by revealing results.
 
         :param data: test sample data
@@ -2540,7 +2540,7 @@ class Optimizer:
         if 'model_output' in program.args:
             self.output_weights()
 
-    def fit(self, X, Y, epochs=1, batch_size=128, validation_data=(None, None),
+    def fit(self, X, Y, epochs=1, batch_size=bs_num, validation_data=(None, None),
             program=None, reset=True, print_accuracy=False, print_loss=False):
         """ Train model.
 
@@ -2866,7 +2866,7 @@ class keras:
             def summary(self):
                 self.opt.summary()
 
-            def build(self, input_shape, batch_size=128):
+            def build(self, input_shape, batch_size=bs_num):
                 data_input_shape = input_shape
                 if self.opt != None and \
                    input_shape == self.opt.layers[0].X.sizes and \
