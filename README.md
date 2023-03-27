@@ -113,6 +113,7 @@ python ./CK+48-data-full.py
 ```
 3. 编译安全fine-tuning的mpc文件
 ```
+cd ../../
 python compile.py -R 64 torch_lenet_fine-tuning
 ```
 4. 创建证书和密钥并编译RSS虚拟机
@@ -144,6 +145,7 @@ python ./GetAll-feature.py
 ```
 4. 编译带有安全模型选择协议的安全fine-tuning的mpc文件
 ```
+cd ../../
 python compile.py -R 64 torch_ckplus48_lenet_selected
 ```
 5. 创建证书和密钥并编译RSS虚拟机
