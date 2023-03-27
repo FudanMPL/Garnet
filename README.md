@@ -168,7 +168,7 @@ Scripts/ring.sh torch_ckplus48_lenet_selected
 
 ## 运行XGBoost模型安全训练与预测
 ### 环境配置
-首先修改CONFIG.mine文件（没有的话需要新建一个），在开头加入如下一行代码。
+首先修改CONFIG.mine文件（没有的话需要新建一个，请注意不是CONFIG文件），在开头加入如下一行代码。
 ```
 MOD = -DRING_SIZE=32
 ```
