@@ -88,7 +88,7 @@ Scripts/sml.sh tutorial
 
 ### 环境配置
 
-在主目录（/Garnet）下提供了requirements.txt和fine-tuning.yaml用于配置环境，可以在主目录下执行下面两条命令之一完成环境配置
+在主目录（/Garnet）下提供了requirements.txt和fine-tuning.yaml用于配置环境，可以在主目录下执行以下命令完成环境配置
 
 ```
 pip install -r ./requirements.txt 
