@@ -1,4 +1,6 @@
-# Garnet
+# <center> Garnet 
+<div align=center><img width = '130' height ='130' src="fig/Garnet.jpeg"/></div>
+<br><br>
 
 Garnet是复旦大学数据安全与治理研究组基于MP-SPDZ开发的一个实用化安全多方学习框架，支持SecureML协议、预训练模型的微调、XGBoost模型的安全训练。
 

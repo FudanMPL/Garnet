@@ -15,12 +15,6 @@ test = sfix.Array(n_test), sint.Matrix(m, n_test)
 for x in train + test:
     x.input_from(0)
 
-
-
-
-
-
-
 trainer = xgboost.XGBoost(
    train[1], train[0], h=h, n_estimators=n_estimators, attr_lengths=None,
    n_threads=n_threads)

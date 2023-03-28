@@ -1,5 +1,6 @@
 # Offline data, runtime logs #
 ##############################
+Data
 Player-Data
 Player-Data/*
 Prep-Data/*
@@ -22,6 +23,7 @@ config_mine.py
 *.tmp
 callgrind.out.*
 HOSTS*
+*.csv
 
 # Vim
 .*.swp

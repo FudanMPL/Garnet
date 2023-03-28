@@ -2,4 +2,4 @@ a = sfix.Matrix(100, 100)
 b = sfix.Matrix(100, 100)
 a.input_from(0)
 b.input_from(0)
-c = a * b
+c = a * b 

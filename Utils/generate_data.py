@@ -6,7 +6,7 @@ parser.add_argument("--row", "-r", default=100, type=int, help="Rows of the Matr
 parser.add_argument("--col", "-c", default=100, type=int, help="Cols of the Matrix")
 parser.add_argument("--range", "-R", default=100, type=int, help="Range of the number in Matrix")
 parser.add_argument("--add", "-a", default=True, type=bool, help="Whether to add data or Overwrite it")
-parser.add_argument("--filename", "-f", default="../Player-Data/Input-P0-0", type=str, help="The location to save the matrix, .txt file is recommended")
+parser.add_argument("--filename", "-f", default="Player-Data/Input-P0-0", type=str, help="The location to save the matrix, .txt file is recommended")
 args = parser.parse_args()
 
 
