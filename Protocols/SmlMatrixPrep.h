@@ -39,12 +39,8 @@ inline void matrix_rand_mul(ThreadJob job, true_type = {})
     SeededPRNG G;
     for (int i = job.begin; i < job.end; i++)
     {
-        cout<<"vsize:"<<A[i].entries.v.size()<<endl;
-        cout<<"vsize:"<<B[i].entries.v.size()<<endl;
         A[i].randomize(G);
         B[i].randomize(G);
-        
-        cout<<"random finished!"<<endl;
         if (job.length)
             C[i] = A[i] * B[i];
     }
@@ -83,33 +79,12 @@ public:
     }
 
     void buffer_triples(){
-        std::cout<<"## this uses buffer_triples"<<endl;
-
         int n_matrices = 1;
 
         AddableVector<ValueMatrix<Dtype>> A(n_matrices, {n_rows, n_inner});
         AddableVector<ValueMatrix<Dtype>> B(n_matrices, {n_inner, n_cols});
         AddableVector<ValueMatrix<Dtype>> C(n_matrices, {n_rows, n_cols});
         SeededPRNG G;
-
-        // cout<<"========== mattriple-1 local_mul ========="<<endl;
-        // MatrixRandMulJob<Dtype> job(C, A, B, T::local_mul);
-        // if (BaseMachine::thread_num == 0 and BaseMachine::has_singleton())
-        // {
-        //     auto& queues = BaseMachine::s().queues;
-        //     int start = queues.distribute(job, n_matrices);
-        //     job.begin = start;
-        //     job.end = n_matrices;
-        //     matrix_rand_mul<Dtype>(job);
-        //     if (start)
-        //         queues.wrap_up(job);
-        // }
-        // else
-        // {
-        //     job.begin = 0;
-        //     job.end = n_matrices;
-        //     matrix_rand_mul<Dtype>(job);
-        // }
 
         for (int i=0; i<n_matrices; i++){
             A[i].randomize(G);
@@ -120,7 +95,8 @@ public:
                     C[i][{j,k}]=0;
         }
                 
-        cout<<"========== mattriple generating ========="<<endl;
+        // TRIPLE FOR MAT GENERATING
+        
         for (int i = 0; i < n_matrices; i++){
             assert(prep);
             auto& nTriplesPerLoop = prep->triple_generator->nPreampTriplesPerLoop;
@@ -147,31 +123,30 @@ public:
                 prep->triple_generator->unlock();
             }
 
-            cout<<"========== matTriple debug A ========="<<endl;
-                for (int j=0; j<n_rows; j++){
-                    cout<<"[";
-                    for (int k=0; k<n_inner; k++){
-                        cout<<A[i][{j,k}]<<',';
-                    }
-                    cout<<"],"<<endl;
-                }
-            cout<<"========== matTriple debug B ========="<<endl;
-                for (int j=0; j<n_inner; j++){
-                    cout<<"[";
-                    for (int k=0; k<n_cols; k++){
-                        cout<<B[i][{j,k}]<<',';
-                    }
-                    cout<<"],"<<endl;
-                }
-            cout<<"========== matTriple debug C ========="<<endl;
-
-                for (int j=0; j<n_rows; j++){
-                    cout<<"[";
-                    for (int k=0; k<n_cols; k++){
-                        cout<<C[i][{j,k}]<<',';
-                    }
-                    cout<<"],"<<endl;
-                } 
+            // cout<<"========== matTriple debug A ========="<<endl;
+            //     for (int j=0; j<n_rows; j++){
+            //         cout<<"[";
+            //         for (int k=0; k<n_inner; k++){
+            //             cout<<A[i][{j,k}]<<',';
+            //         }
+            //         cout<<"],"<<endl;
+            //     }
+            // cout<<"========== matTriple debug B ========="<<endl;
+            //     for (int j=0; j<n_inner; j++){
+            //         cout<<"[";
+            //         for (int k=0; k<n_cols; k++){
+            //             cout<<B[i][{j,k}]<<',';
+            //         }
+            //         cout<<"],"<<endl;
+            //     }
+            // cout<<"========== matTriple debug C ========="<<endl;
+            //     for (int j=0; j<n_rows; j++){
+            //         cout<<"[";
+            //         for (int k=0; k<n_cols; k++){
+            //             cout<<C[i][{j,k}]<<',';
+            //         }
+            //         cout<<"],"<<endl;
+            //     } 
 
 
             if (swapped)
@@ -180,9 +155,6 @@ public:
             else
                 this->triples.push_back({{A[i], B[i], C[i]}});
         }
-             
-
-        std::cout<<"## triples size: "<<this->triples.size()<<endl;
     }
 
     

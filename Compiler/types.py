@@ -577,7 +577,8 @@ class _secret_structure(_structure):
         return res
 
     @classmethod
-    def input_tensor_via(cls, player, content):
+    def input_tensor_via(cls, player, content=None, shape=None, binary=False,
+                         one_hot=False):
         """
         Input tensor-like data via a player. This overwrites the input
         file for the relevant player. The following returns an
@@ -586,35 +587,77 @@ class _secret_structure(_structure):
           M = [[1, 2], [3, 4]]
           sint.input_tensor_via(0, M)
 
-        Make sure to copy ``Player-Data/Input-P<player>-0`` if running
+        Make sure to copy ``Player-Data/Input-P<player>-0`` or
+        ``Player-Data/Input-Binary-P<player>-0`` if running
         on another host.
+
+        :param player: player to input via (int)
+        :param content: nested Python list or numpy array (binary mode only) or
+          left out if not available
+        :param shape: shape if content not given
+        :param binary: binary mode (bool)
+        :param one_hot: one-hot encoding (bool)
 
         """
         if program.curr_tape != program.tapes[0]:
             raise CompilerError('only available in main thread')
-        shape = []
-        tmp = content
-        while True:
-            try:
-                shape.append(len(tmp))
-                tmp = tmp[0]
-            except:
-                break
-        if not program.input_files.get(player, None):
-            program.input_files[player] = open(
-                'Player-Data/Input-P%d-0' % player, 'w')
-        f = program.input_files[player]
-        def traverse(content, level):
-            assert len(content) == shape[level]
-            if level == len(shape) - 1:
-                for x in content:
-                    f.write(' ')
-                    f.write(str(x))
+        if content is not None:
+            requested_shape = shape
+            if binary:
+                import numpy
+                content = numpy.array(content)
+                if issubclass(cls, _fix):
+                    min_k = \
+                        math.ceil(math.log(abs(content).max(), 2)) + cls.f + 1
+                    if cls.k < min_k:
+                        raise CompilerError(
+                            "data outside fixed-point range, "
+                            "use 'sfix.set_precision(%d, %d)'" % (cls.f, min_k))
+                    if binary == 2:
+                        t = numpy.double
+                    else:
+                        t = numpy.single
+                else:
+                    t = numpy.int64
+                if one_hot:
+                    content = numpy.eye(content.max() + 1)[content]
+                content = content.astype(t)
+                f = program.get_binary_input_file(player)
+                f.write(content.tobytes())
+                f.flush()
+                shape = content.shape
             else:
-                for x in content:
-                    traverse(x, level + 1)
-        traverse(content, 0)
-        f.write('\n')
+                shape = []
+                tmp = content
+                while True:
+                    try:
+                        shape.append(len(tmp))
+                        tmp = tmp[0]
+                    except:
+                        break
+                if not program.input_files.get(player, None):
+                    print('ALice')
+                    program.input_files[player] = open(
+                        'Player-Data/Input-P%d-0' % player, 'w')
+                f = program.input_files[player]
+
+                def traverse(content, level):
+                    assert len(content) == shape[level]
+                    if level == len(shape) - 1:
+                        for x in content:
+                            f.write(' ')
+                            f.write(str(x))
+                    else:
+                        for x in content:
+                            traverse(x, level + 1)
+
+                traverse(content, 0)
+                f.write('\n')
+                f.flush()
+                # f.close()
+            if requested_shape is not None and \
+                    list(shape) != list(requested_shape):
+                raise CompilerError('content contradicts shape')
         res = cls.Tensor(shape)
         res.input_from(player)
         return res
@@ -5402,6 +5445,10 @@ class Array(_vectorizable):
             self.address = self.value_type.malloc(self.length,
                                                   self.creator_tape)
 
+    @property
+    def shape(self):
+        return [self.length]
+
     def delete(self):
         self.value_type.free(self.address)
         self.address = None
@@ -5652,7 +5699,7 @@ class Array(_vectorizable):
     def get_mem_value(self, index):
         return MemValue(self[index], self.get_address(index))
 
-    def input_from(self, player, budget=None, raw=False):
+    def input_from(self, player, budget=None, raw=False, **kwargs):
         """ Fill with inputs from player if supported by type.
 
         :param player: public (regint/cint/int) """
@@ -5661,12 +5708,16 @@ class Array(_vectorizable):
         else:
             input_from = self.value_type.get_input_from
         try:
-            self.assign(input_from(player, size=len(self)))
+            @library.multithread(None, len(self),
+                                 max_size=budget or program.budget)
+            def _(base, size):
+                self.assign(input_from(player, size=size, **kwargs), base)
         except (TypeError, CompilerError):
-            print (budget)
+            print(budget)
+
             @library.for_range_opt(self.length, budget=budget)
             def _(i):
-                self[i] = input_from(player)
+                self[i] = input_from(player, **kwargs)
 
     def read_from_file(self, start):
         """ Read content from ``Persistence/Transactions-P<playerno>.data``.
@@ -5899,6 +5950,10 @@ class SubMultiArray(_vectorizable):
         res = self.sub_cache[key]
         res.check_indices = self.check_indices
         return res
+
+    @property
+    def shape(self):
+        return list(self.sizes)
 
     def __setitem__(self, index, other):
         """ Part assignment.
