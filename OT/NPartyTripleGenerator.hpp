@@ -570,8 +570,6 @@ typename U::open_type OTTripleGenerator<U>::generateMatrixTriples(int row, int i
 
     if (not (machine.amplify or machine.output))
         plainTriples.resize(nPreampTriplesPerLoop);
-
-    cout<<"==============-1"<<endl;
     FixedVec<T, 1000> vA,vB;
 
     for (int k = 0; k < inner; k++) vA[k] = A[{row,k}];
