@@ -8,7 +8,7 @@ Language-Definition/main.pdf
 keys/*
 Data/*
 .idea/*
-Compiler/DL/*
+Compiler/DL/data*
 # Personal CONFIG file #
 ##############################
 CONFIG.mine
