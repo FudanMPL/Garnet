@@ -33,8 +33,6 @@ make -j 8 tldr
 
 SecureML是在Payman Mohassel和Yupeng Zhang发表于IEEE S&P'17的文章中提出的一个隐私保护机器学习框架。
 
-其主要的特征为为线性回归、逻辑回归、神经网络等模型的训练过程设计了高效的安全计算协议；设计了定点数截断计算方案；引入了MPC友好的激活函数；引入了面向秘密共享的向量化计算。
-
 在Garnet中SecureML框架对应的虚拟机是sml-party。sml-party虚拟机基于MP-SPDZ原生的semi-party和hemi-party。在两个参与方之间，将数据以加法秘密共享的形式分享。sml-party实现了基于OT的矩阵形式beaver三元组生成，和使用矩阵三元组的矩阵乘法和卷积操作。
 
 ### 基础设置

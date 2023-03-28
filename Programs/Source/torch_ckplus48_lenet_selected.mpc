@@ -38,7 +38,7 @@ os.system('pwd')
 filelist=['ck_plus_48_feature.txt','cifar100_feature.txt','ferplus_feature.txt']
 modellist=['./Compiler/DL/checkpoint/ckpt_cifar100_lenet.pth','./Compiler/DL/checkpoint/ckpt_ferplus_lenet.pth']
 namelist=['0.weight', '0.bias', '3.weight', '3.bias', '8.weight', '8.bias', '10.weight', '10.bias']
-featurepath='./Compiler/DL/Avgfeature-All/'
+featurepath='./Compiler/DL/AvgFeature-All/'
 f1=ReadFeature(featurepath+filelist[0])
 modelnum=len(filelist)-1
 for i in range(modelnum):
