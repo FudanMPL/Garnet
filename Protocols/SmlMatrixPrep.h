@@ -90,12 +90,19 @@ public:
             A[i].randomize(G);
             B[i].randomize(G);
             C[i].randomize(G);
+            for (int j=0; j<n_rows; j++)
+                for (int k=0; k<n_cols; k++)
+                    C[i][{j,k}]=0;
         }
                 
         // TRIPLE FOR MAT GENERATING
         
         for (int i = 0; i < n_matrices; i++){
             assert(prep);
+            auto& nTriplesPerLoop = prep->triple_generator->nPreampTriplesPerLoop;
+            cout<<"nTriplesPerLoop: "<<nTriplesPerLoop<<endl;
+            int Loops =  DIV_CEIL(n_rows * n_inner * n_cols , nTriplesPerLoop);
+            cout<<"Loops: "<<Loops<<endl;
             // // native generating
             // for (int r = 0; r < n_rows; r++){
             //     for (int c = 0; c < n_cols; c++){
@@ -111,16 +118,12 @@ public:
             // }
 
             // vectorisze generating
-            for (int r = 0; r < n_rows; r++){
-                for (int c = 0; c < n_cols; c++){
-                        C[i][{r,c}] = prep->triple_generator->generateMatrixTriples(r, n_inner, c, A[i], B[i]);
-                        prep->triple_generator->unlock();
-                }
+            for (int k = 0; k < Loops; k++){
+                C[i] = prep->triple_generator->generateMatrixTriples(k, n_rows, n_inner, n_cols, A[i], B[i], C[i]);
+                prep->triple_generator->unlock();
             }
-            
-            // DEBUG ONLY
 
-            // cout<<"========== mattriple debug A ========="<<endl;
+            // cout<<"========== matTriple debug A ========="<<endl;
             //     for (int j=0; j<n_rows; j++){
             //         cout<<"[";
             //         for (int k=0; k<n_inner; k++){
@@ -128,7 +131,7 @@ public:
             //         }
             //         cout<<"],"<<endl;
             //     }
-            // cout<<"========== mattriple debug B ========="<<endl;
+            // cout<<"========== matTriple debug B ========="<<endl;
             //     for (int j=0; j<n_inner; j++){
             //         cout<<"[";
             //         for (int k=0; k<n_cols; k++){
@@ -136,8 +139,7 @@ public:
             //         }
             //         cout<<"],"<<endl;
             //     }
-            // cout<<"========== mattriple debug C ========="<<endl;
-
+            // cout<<"========== matTriple debug C ========="<<endl;
             //     for (int j=0; j<n_rows; j++){
             //         cout<<"[";
             //         for (int k=0; k<n_cols; k++){
