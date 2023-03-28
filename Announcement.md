@@ -1,4 +1,4 @@
-Garnet是继SecMML（Queqiao）后，由复旦大学数据安全与治理研究组开发并开源的又一个安全多方学习（MPL：Multi-party Learning）框架，其深度优化并扩展自MP-SPDZ（CCS 2020），并适配安全多方学习的特定功能需求。相较前一个版本SecMML（Queqiao），Garnet是一个高效、易用、功能多样的安全多方学习框架。当前，Garnet支持多种安全多方计算协议如SecureML（Garnet新增）、SPDZ（MP-SPDZ已有）、Atlas（MP-SPDZ已有）等。用户可以使用类Python的脚本语言使用XGBoost（Garnet新增）、逻辑回归（MP-SPDZ已有）、神经网络（MP-SPDZ已有）等机器学习模型的安全训练功能。此外，Garnet还支持预训练模型的安全微调（Garnet新增）功能。
+Garnet是继SecMML（Queqiao）后，由复旦大学数据安全与治理研究组开发并开源的又一个安全多方学习（MPL：Multi-party Learning）框架，其深度优化并扩展自MP-SPDZ（CCS 2020），并适配安全多方学习的特定功能需求。相较前一个版本SecMML（Queqiao），Garnet是一个高效、易用、功能多样的安全多方学习框架。当前，Garnet支持多种安全多方计算协议如SecureML（Garnet新增）、SPDZ（MP-SPDZ已有）、Atlas（MP-SPDZ已有）等。用户可以使用类Python的脚本语言调用XGBoost（Garnet新增）、逻辑回归（MP-SPDZ已有）、神经网络（MP-SPDZ已有）等机器学习模型的安全训练功能。此外，Garnet还支持预训练模型的安全微调（Garnet新增）功能。
 
 项目贡献说明：韩伟力教授牵头启动并规划了Garnet项目。阮雯强统筹规划了项目的具体内容与开发，林国鹏实现了XGBoost模型的安全训练，严峥翔实现了预训练模型的安全微调，姜子丰优化了多个关键算子的实现，林鑫新增了SecureML协议的实现。
 
