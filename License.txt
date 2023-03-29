@@ -107,7 +107,7 @@ Enquiries about further applications and development opportunities are welcome. 
 __________________________________________________________________________________
 
 Any use of the software for commercial purposes should be reported to
-dsg@fudan.edu.cn. This is for impact and usage monitoring purposes only.
+dsglab@fudan.edu.cn. This is for impact and usage monitoring purposes only.
 
 Enquiries about further applications and development opportunities are welcome.
 Please contact dsglab@fudan.edu.cn.
