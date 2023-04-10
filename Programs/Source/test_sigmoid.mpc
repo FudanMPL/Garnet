@@ -1,0 +1,25 @@
+import Compiler.mpc_math
+from non_linear_app import nlf_app
+
+
+def test(actual, expected):
+
+    # you can reveal a number in order to print it
+
+    actual = actual.reveal()
+    print_ln('expected %s, got %s', expected, actual)
+
+
+sfix.set_precision(63, 127)
+a = sfix.Array(5)
+a[0] = -2
+a[1] = -1
+a[2] = 0
+a[3] = 1
+a[4] = 2
+
+test(nlf_app('sigmoid', a[0]), 0.119)
+test(nlf_app('sigmoid', a[1]), 0.269)
+test(nlf_app('sigmoid', a[2]), 0.500)
+test(nlf_app('sigmoid', a[3]), 0.731)
+test(nlf_app('sigmoid', a[4]) ,0.880)
