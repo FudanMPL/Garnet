@@ -1095,10 +1095,9 @@ class Tape:
         print("Writing to", filename)
         f = open(filename, "wb")
 
-        temp = self._get_instructions()
+        # temp = self._get_instructions()
         # s = set()
         # for k in temp:
-        #     print(hex(k.code))
         #     s.add(k.code)
         # s = list(s)
         # s.sort()

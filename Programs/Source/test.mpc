@@ -1,15 +1,6 @@
+import poplar
+a = sfix(10.23, size=100)
+b = sfix(5.34, size=100)
 
-a = sint.get_input_from(0)
-
-change_machine_domain(128)
-
-b = a.change_domain_from_to(32, 128)
-c = a.change_domain_from_to(32, 128)
-print_ln("a = %s", a.reveal())
-print_ln("b = %s", a.reveal())
-
-change_machine_domain(32)
-
-print_ln("a = %s", a.reveal())
-print_ln("b = %s", a.reveal())
-
+c = a/ b
+print_ln("c = %s", c.reveal())

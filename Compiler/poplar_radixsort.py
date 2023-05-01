@@ -12,7 +12,8 @@ debug_layers = False
 max_leaves = None
 label_number = 2
 single_thread = False
-
+tree_h = 4
+n_threads = 4
 
 def get_type(x):
     if isinstance(x, (Array, SubMultiArray)):
@@ -34,9 +35,9 @@ def PrefixSum(x):
 def PrefixSumR(x):
     tmp = get_type(x).Array(len(x))
     tmp.assign_vector(x)
-    break_point()
+
     tmp[:] = tmp.get_reverse_vector().prefix_sum()
-    break_point()
+
     return tmp.get_reverse_vector()
 
 
@@ -120,7 +121,7 @@ def GroupMax(g, keys, *x):
     for d in range(m):
         w = 2 ** d
         g_old[:] = g_new[:]
-        break_point()
+
         vsize = n - w
         g_new.assign_vector(g_old.get_vector(size=vsize).bit_or(
             g_old.get_vector(size=vsize, base=w)), base=w)
@@ -130,7 +131,7 @@ def GroupMax(g, keys, *x):
                           xx.get_vector(size=vsize, base=w))
             xx.assign_vector(g_old.get_vector(size=vsize, base=w).if_else(
                 xx.get_vector(size=vsize, base=w), a), base=w)
-        break_point()
+
         if debug:
             print_ln('group max w=%s b=%s a=%s keys=%s x=%s g=%s', w, b.reveal(),
                      util.reveal(a), util.reveal(keys),
@@ -144,77 +145,32 @@ def GroupMax(g, keys, *x):
     return [GroupSum(g, t[:] * xx) for xx in [keys] + x]
 
 
-# def ModifiedGini(g, y, debug=False):
-#     if single_thread:
-#         start_timer(1)
-#     assert len(g) == len(y)
-#     y = [y.get_vector().bit_not(), y]
-#     u = [GroupPrefixSum(g, yy) for yy in y]
-#     s = [GroupSum(g, yy) for yy in y]
-#     w = [ss - uu for ss, uu in zip(s, u)]
-#     us = sum(u)
-#     ws = sum(w)
-#     change_machine_domain(128)
-#     u0_128 = u[0].change_domain_from_to(32, 128)
-#     u1_128 = u[1].change_domain_from_to(32, 128)
-#     w0_128 = w[0].change_domain_from_to(32, 128)
-#     w1_128 = w[1].change_domain_from_to(32, 128)
-#     us_128 = us.change_domain_from_to(32, 128)
-#     ws_128 = ws.change_domain_from_to(32, 128)
-#     uqs = u0_128 ** 2 + u1_128 ** 2
-#     wqs = w0_128 ** 2 + w1_128 ** 2
-#     if single_thread:
-#         start_timer(1)
-#     res = sfix(uqs) / us_128 + sfix(wqs) / ws_128
-#     if single_thread:
-#         stop_timer(1)
-#     n = len(y)
-#     res = res * 2 ** (31 - sfix.f - math.ceil(math.log(n)))
-#
-#     res = res.v.round(128, sfix.f)
-#     change_machine_domain(32)
-#     res = res.change_domain_from_to(128, 32)
-#     if single_thread:
-#         stop_timer(1)
-#     return res
+def GroupMax2(node_size, g, keys, x):
+    ones = sint(1, size=len(g))
+    gid = PrefixSum(g) - ones
+    ones = Array.create_from(ones)
+    gid = Array.create_from(gid)
+    max_key, max_x = sint.Array(2 ** tree_h), sint.Array(2 ** tree_h)
+    eq = sint.Matrix(2 ** tree_h, len(g))
+    res_keys = sint.Array(size=len(g))
+    res_x = sint.Array(size=len(g))
 
-# def ModifiedGini(g, y, debug=False):
-#     if single_thread:
-#         start_timer(1)
-#     assert len(g) == len(y)
-#     y = y.get_vector()
-#     g = g.get_vector()
-#     change_machine_domain(128)
-#     y_bit = math.ceil(math.log2(label_number)) + 1
-#     y_128 = y.change_domain_from_to(32, 128, bit_length=y_bit)
-#     g_128 = g.change_domain_from_to(32, 128, bit_length=1)
-#     ones = sint(1, size=len(y))
-#     total_count = GroupSum(g_128, ones)
-#     total_prefix_count = GroupPrefixSum(g_128, ones)
-#     total_surfix_count = total_count - total_prefix_count
-#     temp_left = sint(0, size=len(y))
-#     temp_right = sint(0, size=len(y))
-#     for i in range(label_number):
-#         y_i = y_128.get_vector().__eq__(ones * i, bit_length=y_bit)
-#         label_count = GroupSum(g_128, y_i)
-#         label_prefix_count = GroupPrefixSum(g_128, y_i)
-#         label_surfix_count = label_count - label_prefix_count
-#         temp_left = label_prefix_count * label_prefix_count + temp_left
-#         temp_right = label_surfix_count * label_surfix_count + temp_right
-#
-#     if single_thread:
-#         start_timer(1)
-#     res = sfix(temp_left) / total_prefix_count + sfix(temp_right) / total_surfix_count
-#     if single_thread:
-#         stop_timer(1)
-#     n = len(y)
-#     res = res * 2 ** (31 - sfix.f - math.ceil(math.log(n)))
-#     res = res.v.round(128, sfix.f)
-#     change_machine_domain(32)
-#     res = res.change_domain_from_to(128, 32)
-#     if single_thread:
-#         stop_timer(1)
-#     return res
+    @for_range(node_size)
+    def _(j):
+        eq.assign_part_vector(gid.get_vector().__eq__(ones * j, bit_length=tree_h), j)
+        tmp_key = keys * eq[j]
+        tmp_x = x * eq[j]
+        max_key[j], max_x[j] = VectMax(tmp_key, tmp_key, tmp_x)
+
+    @for_range(node_size)
+    def _(i):
+        nonlocal res_keys, res_x
+        res_keys = res_keys + eq[i] * max_key[i]
+        res_x = res_x + eq[i] * max_x[i]
+
+    return res_keys, res_x
+
+
 
 
 def newton_div(x, y):
@@ -223,6 +179,7 @@ def newton_div(x, y):
     for i in range(util.log2(n) + 3):
         z = 2 * z - y * z * z
     return x * z
+
 
 
 def ModifiedGini(g, y, debug=False):
@@ -236,50 +193,26 @@ def ModifiedGini(g, y, debug=False):
     total_surfix_count = (total_count - total_prefix_count).get_vector()
     label_prefix_count = [None for i in range(label_number)]
     label_surfix_count = [None for i in range(label_number)]
+    temp_left = sint(0, size=len(y))
+    temp_right = sint(0, size=len(y))
+    n = len(y)
+    f = 2 * util.log2(n)
+    sfix.set_precision(f)
+    cfix.set_precision(f)
     for i in range(label_number):
         y_i = y.get_vector().__eq__(ones * i, bit_length=y_bit)
         label_count = GroupSum(g, y_i)
         label_prefix_count[i] = GroupPrefixSum(g, y_i)
         label_surfix_count[i] = label_count - label_prefix_count[i]
-        label_prefix_count[i] = label_prefix_count[i].get_vector()
-        label_surfix_count[i] = label_surfix_count[i].get_vector()
-    change_machine_domain(128)
-    n = len(y)
-    f = 2 * util.log2(n)
-    sfix.set_precision(f)
-    cfix.set_precision(f)
-    temp_left = sint(0, size=len(y))
-    temp_right = sint(0, size=len(y))
-    for i in range(label_number):
-        label_prefix_count_128 = label_prefix_count[i].change_domain_from_to(32, 128)
-        label_surfix_count_128 = label_surfix_count[i].change_domain_from_to(32, 128)
-        temp_left = label_prefix_count_128 * label_prefix_count_128 + temp_left
-        temp_right = label_surfix_count_128 * label_surfix_count_128 + temp_right
-
-    total_prefix_count_128 = total_prefix_count.change_domain_from_to(32, 128)
-    total_surfix_count_128 = total_surfix_count.change_domain_from_to(32, 128)
-
+        temp_left = label_prefix_count[i] * label_prefix_count[i] + temp_left
+        temp_right = label_surfix_count[i] * label_surfix_count[i] + temp_right
     if single_thread:
         start_timer(30)
-    # res = sfix(temp_left * total_surfix_count_128 + temp_right * total_prefix_count_128) / (total_prefix_count_128 * total_surfix_count_128)
 
-    res = newton_div(temp_left, sfix(total_prefix_count_128)) + newton_div(temp_right, sfix(total_surfix_count_128))
-    # print_ln("res1 = %s", res.reveal())
+    res = newton_div(temp_left, sfix(total_prefix_count)) + newton_div(temp_right, sfix(total_surfix_count))
+    res = res.v
     if single_thread:
         stop_timer(30)
-    n = len(y)
-
-    remove_bits = max(sfix.f + util.log2(n) - 31, 0)
-    if remove_bits > 0:
-        res = res.v.round(128, remove_bits)
-    else:
-        res = res.v
-    # print_ln("res2 = %s", res.reveal())
-    change_machine_domain(32)
-    sfix.set_precision(16, 31)
-    cfix.set_precision(16, 31)
-    res = res.change_domain_from_to(128, 32)
-    # print_ln("res2 = %s", res.reveal())
     if single_thread:
         stop_timer(20)
     return res
@@ -308,17 +241,11 @@ def CropLayer(k, *v):
     return [vv[:min(n, len(vv))] for vv in v]
 
 
-#
-# def TrainLeafNodes(h, g, y, NID):
-#     assert len(g) == len(y)
-#     assert len(g) == len(NID)
-#     Label = GroupSum(g, y.bit_not()) < GroupSum(g, y)
-#     return FormatLayer(h, g, NID, Label)
+
 
 def TrainLeafNodes(h, g, y, NID):
     assert len(g) == len(y)
     assert len(g) == len(NID)
-
     Label = sint(0, len(g))
     y_bit = util.log2(label_number)
     ones = sint(1, size=len(y))
@@ -326,12 +253,9 @@ def TrainLeafNodes(h, g, y, NID):
     for i in range(label_number):
         y_i = y.get_vector().__eq__(ones * i, bit_length=y_bit)
         count = GroupSum(g, y_i)
-
         comp = max_count < count
         Label = comp * i + (1 - comp) * Label
-
         max_count = comp * count + (1 - comp) * max_count
-
     return FormatLayer(h, g, NID, Label)
 
 
@@ -351,7 +275,6 @@ def GroupFirstOne(g, b):
 
 class PoplarTrainner:
     def ApplyTests(self, x, AID, Threshold):
-        start_timer(101)
         m = len(x)
         n = len(AID)
         assert len(AID) == len(Threshold)
@@ -362,15 +285,12 @@ class PoplarTrainner:
 
         @for_range_multithread(self.n_threads, 1, m)
         def _(j):
-            e[j][:] = AID[:] == j
+            e[j][:] = AID[:].get_vector().__eq__(j, util.log2(m))
 
         xx = sum(x[j] * e[j] for j in range(m))
-        res = 2 * xx > Threshold
-        stop_timer(101)
-        return res
+        return 2 * xx > Threshold
 
-    def AttributeWiseTestSelection(self, g, x, y, time=False, debug=False):
-        start_timer(102)
+    def AttributeWiseTestSelection(self, g, x, y, node_size):
         assert len(g) == len(x)
         assert len(g) == len(y)
         s = ModifiedGini(g, y, debug=debug)
@@ -385,19 +305,26 @@ class PoplarTrainner:
         p.assign_vector(gg.get_vector(base=1, size=len(x) - 1).bit_or(
             xx.get_vector(size=len(x) - 1) == \
             xx.get_vector(size=len(x) - 1, base=1)))
-        break_point()
+
         s = p[:].if_else(MIN_VALUE, s)
         t = p[:].if_else(MIN_VALUE, t[:])
         if single_thread:
             start_timer(3)
+        # s, t = GroupMax(gg, s, t)
+
+        tmp = util.log2(self.n)
+        condition = tmp > node_size
+        if_then(condition)
+        s, t = GroupMax2(node_size, Array.create_from(g), Array.create_from(s), Array.create_from(t))
+        end_if()
+        if_then(1 - condition)
         s, t = GroupMax(gg, s, t)
+        end_if()
         if single_thread:
             stop_timer(3)
-        stop_timer(102)
         return t, s
 
-    def GlobalTestSelection(self, x, y, g):
-        start_timer(103)
+    def GlobalTestSelection(self, x, y, g, node_size):
         assert len(y) == len(g)
         for xx in x:
             assert (len(xx) == len(g))
@@ -418,31 +345,26 @@ class PoplarTrainner:
             if single_thread:
                 stop_timer(1)
             t[j][:], s[j][:] = self.AttributeWiseTestSelection(
-                g, u[j], v[j], time=single, debug=self.debug_selection)
+                g, u[j], v[j], node_size)
 
         n = len(g)
         a, tt = [sint.Array(n) for i in range(2)]
         a[:], tt[:] = VectMax((s[j][:] for j in range(m)), range(m),
                               (t[j][:] for j in range(m)))
-        stop_timer(103)
+
         return a[:], tt[:]
 
     def TrainInternalNodes(self, k, x, y, g, NID):
-        start_timer(104)
         assert len(g) == len(y)
         for xx in x:
             assert len(xx) == len(g)
-        AID, Threshold = self.GlobalTestSelection(x, y, g)
-        # s = GroupSame(g[:], y[:])
-        # AID, Threshold = s.if_else(0, AID), s.if_else(MIN_VALUE, Threshold)
-        res = FormatLayer_without_crop(g[:], NID, AID, Threshold), AID, Threshold
-        stop_timer(104)
-        return res
+        node_size = 2 ** k
+        AID, Threshold = self.GlobalTestSelection(x, y, g, MemValue(node_size))
+        return FormatLayer_without_crop(g[:], NID, AID, Threshold), AID, Threshold
 
     @method_block
     def train_layer(self, k):
         print_ln("training %s-th layer", k)
-        start_timer(105)
         self.layer_matrix[k], AID, Threshold = \
             self.TrainInternalNodes(k, self.x, self.y, self.g, self.NID)
         if single_thread:
@@ -469,7 +391,6 @@ class PoplarTrainner:
         # self.g = perm.apply(self.g)
         # self.NID = perm.apply(self.NID)
         self.update_perm_for_attrbutes(b)
-        stop_timer(105)
 
     def __init__(self, x, y, h, binary=False, attr_lengths=None,
                  n_threads=None):

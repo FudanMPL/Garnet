@@ -41,6 +41,9 @@ ServerSocket::ServerSocket(int Portnum) : portnum(Portnum), thread(0)
 
   /* disable Nagle's algorithm */
   fl= setsockopt(main_socket, IPPROTO_TCP, TCP_NODELAY, (char*)&one,sizeof(int));
+//  const int socket_buffer_size = 4194304;
+//  setsockopt(main_socket, SOL_SOCKET, SO_RCVBUF, (const char*)&socket_buffer_size, sizeof(int));
+//  setsockopt(main_socket, SOL_SOCKET, SO_SNDBUF, (const char*)&socket_buffer_size, sizeof(int));
   if (fl<0) { error("set_up_socket:setsockopt");  }
 
   octet my_name[512];

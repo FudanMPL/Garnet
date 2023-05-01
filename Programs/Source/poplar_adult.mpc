@@ -1,4 +1,5 @@
 import poplar, util
+program.use_trunc_pr=True
 
 m = 6
 n_train = 32561

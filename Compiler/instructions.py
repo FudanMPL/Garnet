@@ -40,10 +40,11 @@ class csd(base.VarArgsInstruction):
     :param: result secret value (sint)
     :param: secret value (sint)
     :param: domain size 2^i (int)
+    :param: bit length 2^i (int)
     """
     __slots__ = []
     code = base.opcodes['CSD']
-    arg_format = tools.cycle(['sw','s','int'])
+    arg_format = tools.cycle(['sw','s','int', 'int'])
 
 
 

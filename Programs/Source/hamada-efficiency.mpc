@@ -1,0 +1,73 @@
+import hamada, util
+
+attr_lengths = None
+hamada.n_threads = 1
+hamada.tree_h = 1 # 树高
+
+program.use_trunc_pr=True
+
+dataset = program.args[1]
+if dataset == "IRIS":
+    m = 4
+    n_train = 100
+    hamada.label_number = 3
+elif dataset == "cancer":
+    m = 30
+    n_train = 381
+    hamada.label_number = 2
+elif dataset == "diagnosis":
+    m = 6
+    n_train = 120
+    hamada.label_number = 2
+elif dataset == "adult":
+    m = 14
+    n_train = 48842
+    hamada.label_number = 2
+elif dataset == "kohkiloyeh":
+    m = 5
+    n_train = 100
+    hamada.label_number = 2
+elif dataset == "tic-tac-toe":
+    m = 9
+    n_train = 958
+    hamada.label_number = 2
+elif dataset == "digits":
+    m = 64
+    n_train = 1203
+    hamada.label_number = 10
+elif dataset == "wine":
+    m = 13
+    n_train = 119
+    hamada.label_number = 4
+elif dataset == "Skin":
+    m = 3
+    n_train = 245057
+    hamada.label_number = 2
+else:
+    print("please include %s in hamada.mpc", dataset)
+
+
+if hamada.n_threads == 1:
+    hamada.single_thread = True
+
+train = sint.Array(n_train), sint.Matrix(m, n_train)
+
+for x in train:
+    x.input_from(0)
+
+
+
+
+
+
+
+
+
+
+
+
+trainer = hamada.TreeTrainer(
+   train[1], train[0], hamada.tree_h, attr_lengths=None,
+   n_threads=hamada.n_threads)
+layers = trainer.train()
+

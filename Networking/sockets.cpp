@@ -119,6 +119,9 @@ void set_up_client_socket(int& mysocket,const char* hostname,int Portnum)
   /* disable Nagle's algorithm */
   int one=1;
   fl= setsockopt(mysocket, IPPROTO_TCP, TCP_NODELAY, (char*)&one, sizeof(int));
+//  const int socket_buffer_size = 4194304;
+//  setsockopt(mysocket, SOL_SOCKET, SO_RCVBUF, (const char*)&socket_buffer_size, sizeof(int));
+//  setsockopt(mysocket, SOL_SOCKET, SO_SNDBUF, (const char*)&socket_buffer_size, sizeof(int));
   if (fl<0) { error("set_up_socket:setsockopt");  }
 
 #ifdef __APPLE__

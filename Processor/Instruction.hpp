@@ -1465,6 +1465,15 @@ inline void Instruction::execute_big_domain_instructions(Processor<sint, sgf2n>&
     case STOP:
     case TRUNC_PR:
     case CSD:
+    case STMC:
+    case LDMCI:
+    case USE_INP:
+    case CRASH:
+    case GENSECSHUFFLE:
+    case APPLYSHUFFLE:
+    case DELSHUFFLE:
+    case CONDPRINTSTR:
+    case STMCI:
       execute(Proc);
       break;
     case PRINTFLOATPLAIN:
@@ -1547,7 +1556,7 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
           break;
         }else{
 //          Proc.Procp_2->S[r[1]] = Proc.Procp.S[r[0]];
-          Proc.Procp_2->protocol.change_domain(start,  *Proc.Procp_2);
+          Proc.Procp_2->protocol.change_domain(start, size,  *Proc.Procp_2);
           return;
         }
       case LDMC:
@@ -1558,14 +1567,25 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
         n++;
         break;
       case LDMCI:
-        Proc.write_Cp(r[0], Proc.machine.Mp.read_C(Proc.sync_Ci(r[1])));
+        if (!Proc.change_domain)
+          Proc.write_Cp(r[0], Proc.machine.Mp.read_C(Proc.sync_Ci(r[1])));
+        else
+          Proc.Procp_2->C[r[0]] =  Proc.machine.Mp_2->read_C(Proc.sync_Ci(r[1]));
         break;
       case STMC:
-        Proc.machine.Mp.write_C(n,Proc.read_Cp(r[0]));
+        if (!Proc.change_domain)
+          Proc.machine.Mp.write_C(n,Proc.read_Cp(r[0]));
+        else
+          Proc.machine.Mp_2->write_C(n, Proc.Procp_2->C[r[0]]);
+
         n++;
         break;
       case STMCI:
-        Proc.machine.Mp.write_C(Proc.sync_Ci(r[1]), Proc.read_Cp(r[0]));
+        if (!Proc.change_domain)
+           Proc.machine.Mp.write_C(Proc.sync_Ci(r[1]), Proc.read_Cp(r[0]));
+        else
+           Proc.machine.Mp_2->write_C(Proc.sync_Ci(r[1]), Proc.Procp_2->C[r[0]]);
+
         break;
       case MOVC:
         Proc.write_Cp(r[0],Proc.read_Cp(r[1]));
@@ -1752,8 +1772,7 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
         else
           Proc.Procp_2->protocol.trunc_pr(start, size, *Proc.Procp_2);
         return;
-//          Proc.Procp.protocol.trunc_pr(start, size, Proc.Procp);
-        return;
+
       case SECSHUFFLE:
           Proc.Procp.secure_shuffle(*this);
         return;
@@ -1761,17 +1780,22 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
         Proc.Proc2.secure_shuffle(*this);
         return;
       case GENSECSHUFFLE:
-
+        if (!Proc.change_domain)
           Proc.write_Ci(r[0], Proc.Procp.generate_secure_shuffle(*this));
-
+        else
+          Proc.write_Ci(r[0], Proc.Procp_2->generate_secure_shuffle(*this));
         return;
       case APPLYSHUFFLE:
+        if (!Proc.change_domain)
           Proc.Procp.apply_shuffle(*this, Proc.read_Ci(start.at(3)));
+        else
+          Proc.Procp_2->apply_shuffle(*this, Proc.read_Ci(start.at(3)));
         return;
       case DELSHUFFLE:
-
+        if (!Proc.change_domain)
           Proc.Procp.delete_shuffle(Proc.read_Ci(r[0]));
-
+        else
+          Proc.Procp_2->delete_shuffle(Proc.read_Ci(r[0]));
         return;
       case INVPERM:
 
@@ -1826,14 +1850,27 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
             &Proc.read_Cp(start[4]));
         return;
       case CONDPRINTSTR:
-          if (not Proc.read_Cp(r[0]).is_zero())
-            {
-              string str = {(char*)&n, 4};
-              size_t n = str.find('\0');
-              if (n < 4)
-                str.erase(n);
-              Proc.out << str << flush;
-            }
+        if (!Proc.change_domain)
+          {
+            if (not Proc.read_Cp(r[0]).is_zero())
+              {
+                string str = {(char*)&n, 4};
+                size_t n = str.find('\0');
+                if (n < 4)
+                  str.erase(n);
+                Proc.out << str << flush;
+              }
+          }
+        else {
+          if (not Proc.Procp_2->C[r[0]].is_zero())
+              {
+                string str = {(char*)&n, 4};
+                size_t n = str.find('\0');
+                if (n < 4)
+                  str.erase(n);
+                Proc.out << str << flush;
+              }
+        }
         break;
       case REQBL:
       case GREQBL:
@@ -2042,6 +2079,8 @@ void Program::execute(Processor<sint, sgf2n>& Proc) const
           auto& Procp_for_big_domain = *(Proc.Procp_2);
           Procp_for_big_domain.template assign_S<sint>(Procp.get_S());
           Procp_for_big_domain.template assign_C<sint>(Procp.get_C());
+//          cout << "Proc.machine.Mp.MS.size() = " << Proc.machine.Mp.MS.size() << endl;
+//          cout << "Proc.machine.Mp_2->MS.size() = " << Proc.machine.Mp_2->MS.size() << endl;
         }
         else{
           Proc.change_domain = false;

@@ -7,6 +7,8 @@ data_name = sys.argv[1]
 
 
 output_data = []
+label = 0
+attribute = 0
 for suffix in 'train', 'test':
     file_name = './Data/%s_%s.csv' % (data_name, suffix)
     data = pd.read_csv(file_name, header=None)
@@ -17,13 +19,14 @@ for suffix in 'train', 'test':
     y = y.astype("int")
     output_data = output_data + y.values.tolist()
     output_data = output_data + x.values.tolist()
-
-
+    max_y = max(max(y.values.tolist()))
+    label = max(max_y, label)
+    attribute = len(data) - 1
     print("file:", file_name)
     print('items:', len(x.columns))
-    print('attributes:', len(data) - 1)
 
-
+print('attributes:', len(data) - 1)
+print('label:', label + 1)
 
 output_file = open("./Player-Data/Input-P0-0", 'w')
 

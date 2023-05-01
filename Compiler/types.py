@@ -2236,19 +2236,21 @@ class sint(_secret, _int):
     get_type = staticmethod(lambda n: sint)
 
 
-    def change_domain_from_to(self, k1, k2):
+    @set_instruction_type
+    @read_mem_value
+    @vectorize
+    def change_domain_from_to(self, k1, k2, bit_length=None):
         """ change to another domain  """
         if k1 < k2:
-            # res = sint()
-            # csd(res, self, k1)
-            temp = self + 2 ** (k1 - 1)
-            b1 = temp.__ge__(2 ** k1, bit_length=34)
-            b2 = temp.__ge__(2 ** (k1 + 1), bit_length=34)
-            b3 = temp.__ge__(3 * (2 ** k1), bit_length=34)
-            res = self - b1 * (2 ** k1) - b2 * (2 ** k1) - b3 ** (2 ** k1)
-            # wrap = temp.TruncPr(40, 32)
-            # library.print_ln("wrap = %s", wrap.reveal())
-            # res = self - wrap * (2 ** k1)
+            res = self.prep_res(self)
+            if bit_length is None:
+                bit_length = k1
+            csd(res, self, k1, bit_length)
+            # temp = self + 2 ** (k1 - 1)
+            # b1 = temp.__ge__(2 ** k1, bit_length=34)
+            # b2 = temp.__ge__(2 ** (k1 + 1), bit_length=34)
+            # b3 = temp.__ge__(3 * (2 ** k1), bit_length=34)
+            # res = self - b1 * (2 ** k1) - b2 * (2 ** k1) - b3 ** (2 ** k1)
             return res
         else:
             res = self + 0
@@ -4484,8 +4486,8 @@ class sfix(_fix):
     get_type = staticmethod(lambda n: sint)
     default_type = sint
 
-    def change_domain_from_to(self, k1, k2):
-        temp = self.v.change_domain_from_to(k1, k2)
+    def change_domain_from_to(self, k1, k2, bit_length=None):
+        temp = self.v.change_domain_from_to(k1, k2, bit_length)
         res = sfix(size=temp.size)
         res.v = temp
         return res
@@ -5356,6 +5358,9 @@ class Array(_vectorizable):
     """
     check_indices = True
 
+    def change_domain_from_to(self, k1, k2, bit_length=None):
+        return self.get_vector().change_domain_from_to(k1, k2, bit_length)
+
     @classmethod
     def create_from(cls, l):
         """ Convert Python iterator or vector to array. Basic type will be taken
@@ -5765,6 +5770,7 @@ class Array(_vectorizable):
         """ Reveal the whole array.
 
         :returns: Array of relevant clear type. """
+        library.break_point()
         return Array.create_from(self.get_vector().reveal())
 
     def reveal_list(self):

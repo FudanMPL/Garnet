@@ -1,0 +1,9 @@
+python3 ./compile.py -R 128 poplar-radixsort-efficiency IRIS
+python3 ./compile.py -R 128 poplar-radixsort-efficiency wine
+python3 ./compile.py -R 128 poplar-radixsort-efficiency cancer
+python3 ./compile.py -R 128 poplar-radixsort-efficiency tic-tac-toe
+python3 ./compile.py -R 128 poplar-radixsort-efficiency kohkiloyeh
+python3 ./compile.py -R 128 poplar-radixsort-efficiency diagnosis
+python3 ./compile.py -R 128 poplar-radixsort-efficiency digits
+python3 ./compile.py -R 128 poplar-radixsort-efficiency adult
+#python3 ./compile.py -R 128 hamada-efficiency Skin_NonSkin

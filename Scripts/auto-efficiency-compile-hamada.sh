@@ -1,0 +1,9 @@
+python3 ./compile.py -R 128 hamada-efficiency IRIS
+python3 ./compile.py -R 128 hamada-efficiency wine
+python3 ./compile.py -R 128 hamada-efficiency cancer
+python3 ./compile.py -R 128 hamada-efficiency tic-tac-toe
+python3 ./compile.py -R 128 hamada-efficiency kohkiloyeh
+python3 ./compile.py -R 128 hamada-efficiency diagnosis
+python3 ./compile.py -R 128 hamada-efficiency digits
+python3 ./compile.py -R 128 hamada-efficiency adult
+#python3 ./compile.py -R 128 hamada-efficiency Skin_NonSkin

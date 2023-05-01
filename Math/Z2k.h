@@ -302,6 +302,17 @@ public:
     }
 
     void output(ostream& s, bool human = true) const;
+
+  SignedZ2<K> arith_right_shift(int a) const
+  {
+    SignedZ2<K> res;
+    res = *this >> a;
+    Z2<K> sign_bit = *this >> (K - a - 1);
+    for (int i = 0; i < a; i++){
+      res = res | (sign_bit << (K - i - 1));
+    }
+    return res;
+  }
 };
 
 template<int K>
@@ -473,6 +484,8 @@ void Z2<K>::unpack(octetStream& o, int n)
 	(void) n;
 	o.consume((octet*)a, N_BYTES);
 }
+
+
 
 template<int K>
 SignedZ2<K> abs(const SignedZ2<K>& x)
