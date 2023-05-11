@@ -1,5 +1,6 @@
 # Offline data, runtime logs #
 ##############################
+Data
 Player-Data
 Player-Data/*
 Prep-Data/*
@@ -8,6 +9,7 @@ Language-Definition/main.pdf
 keys/*
 Data/*
 .idea/*
+Compiler/DL/data*
 # Personal CONFIG file #
 ##############################
 CONFIG.mine
@@ -21,6 +23,7 @@ config_mine.py
 *.tmp
 callgrind.out.*
 HOSTS*
+*.csv
 
 # Vim
 .*.swp
