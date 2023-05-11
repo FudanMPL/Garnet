@@ -13,10 +13,11 @@
 #include "Machines/MalRep.hpp"
 #include "Machines/ShamirMachine.hpp"
 #include "Machines/Semi2k.hpp"
+#include "Machines/Vss2k.hpp"
 #include "Protocols/CowGearShare.h"
 #include "Protocols/CowGearPrep.hpp"
 #include "Protocols/ProtocolSet.h"
-
+#include <typeinfo>
 template<class T>
 void run(char** argv, int prime_length);
 
@@ -49,6 +50,8 @@ int main(int argc, char** argv)
         run<Spdz2kShare<64, 64>>(argv, 0);
     else if (protocol == "Semi2k")
         run<Semi2kShare<64>>(argv, 0);
+    else if (protocol == "Vss2k")
+        run<Vss2kShare<64>>(argv, 0);
     else if (protocol == "Shamir" or protocol == "MalShamir")
     {
         int nparties = (atoi(argv[2]));
@@ -87,36 +90,38 @@ void run(char** argv, int prime_length)
     // set of protocols (input, multiplication, output)
     ProtocolSet<T> set(P, setup);
     auto& input = set.input;
-    auto& protocol = set.protocol;
+    // auto& protocol = set.protocol;
     auto& output = set.output;
+    // int n = 1;
+    T a ,b;
 
-    int n = 1000;
-    vector<T> a(n), b(n);
+    // vector<T> a(n), b(n);
     T c;
     typename T::clear result;
 
     input.reset_all(P);
-    for (int i = 0; i < n; i++)
-        input.add_from_all(i);
+    input.add_from_all(20);
+    // for (int i = 0; i < n; i++)
+    //     input.add_from_all(i);
     input.exchange();
-    for (int i = 0; i < n; i++)
-    {
-        a[i] = input.finalize(0);
-        b[i] = input.finalize(1);
-    }
+    a = input.finalize(0);
+    // for (int i = 0; i < n; i++)
+    // {
+    //     a[i] = input.finalize(0);
+    //     b[i] = input.finalize(1);
+    // }
 
-    protocol.init_dotprod();
-    for (int i = 0; i < n; i++)
-        protocol.prepare_dotprod(a[i], b[i]);
-    protocol.next_dotprod();
-    protocol.exchange();
-    c = protocol.finalize_dotprod(n);
+    // protocol.init_dotprod();
+    // for (int i = 0; i < n; i++)
+    //     protocol.prepare_dotprod(a[i], b[i]);
+    // protocol.next_dotprod();
+    // protocol.exchange();
+    // c = protocol.finalize_dotprod(n);
 
     // protocol check before revealing results
     set.check();
-
     output.init_open(P);
-    output.prepare_open(c);
+    output.prepare_open(a);
     output.exchange(P);
     result = output.finalize_open();
 

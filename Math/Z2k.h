@@ -10,6 +10,7 @@
 #include <string>
 using namespace std;
 
+#include "Networking/Player.h"
 #include "Tools/avx_memcpy.h"
 #include "bigint.h"
 #include "field_types.h"
@@ -126,6 +127,7 @@ public:
 
 	Z2<K> operator*(bool other) const { return other ? *this : Z2<K>(); }
 	Z2<K> operator*(int other) const { return *this * Z2<K>(other); }
+	Z2<K> operator*(long unsigned int other) const { return *this * Z2<K>(other); }
 
 	Z2<K> operator/(const Z2& other) const { (void) other; throw division_by_zero(); }
 
@@ -136,7 +138,7 @@ public:
 
 	Z2<K>& operator+=(const Z2<K>& other);
 	Z2<K>& operator-=(const Z2<K>& other);
-  Z2<K>& operator*=(const Z2<K>& other);
+  	Z2<K>& operator*=(const Z2<K>& other);
 	Z2<K>& operator&=(const Z2<K>& other);
 	Z2<K>& operator<<=(int other);
 	Z2<K>& operator>>=(int other);
@@ -150,6 +152,11 @@ public:
 	bool operator!=(const Z2<K>& other) const { return not (*this == other); }
 
 	void add(octetStream& os) { *this += (os.consume(size())); }
+	void vss_add(octetStream& os, const Player& P, int sender){
+		octet* adr = os.consume(size());
+		mp_limb_t value = *((unsigned long*) adr);
+		*this += P.inv[sender] * value;
+	}
 
 	Z2 lazy_add(const Z2& x) const;
 	Z2 lazy_mul(const Z2& x) const;
@@ -283,6 +290,11 @@ public:
     SignedZ2 operator-(const SignedZ2& other) const
     {
         return Z2<K>::operator-(other);
+    }
+
+	SignedZ2<K> operator*(long unsigned int other) const
+    {
+        return operator*(SignedZ2<64>(other));
     }
 
     SignedZ2<K> operator*(const SignedZ2<K>& other) const
