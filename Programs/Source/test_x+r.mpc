@@ -1,0 +1,18 @@
+import Compiler.mpc_math
+
+
+sfix.set_precision(16, 32)
+cfix.set_precision(31, 63)
+a, b, c = 11, 17, 13
+
+X = sfix(10)
+r = sfix(-107300)
+
+x = X
+res1 = a*x*x + b*x + c
+
+x = (X - r).reveal()
+res2 = a*x*x + (2*r*a+b)*x + (a*r*r+b*r+c)
+
+print_ln('%s', res1.reveal())
+print_ln('%s', res2.reveal())

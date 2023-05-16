@@ -523,13 +523,11 @@ def generate_nonlinear_config(config_dict):
         'scaler': scale_list.tolist()
     }
 
-    import json
-    polysFile = "./%s.json"%(save_name)
-    with open(polysFile, "w") as f:
-        json.dump(kmconfig, f, indent=4)
 
     print(">>>>> FINAL KM: ",
           (len(kmconfig['coeffA'][0]), len(kmconfig['breaks'])))
+
+    return kmconfig
     # cg.code_generate(kmconfig,
     #                  mk_profiler,
     #                  func,

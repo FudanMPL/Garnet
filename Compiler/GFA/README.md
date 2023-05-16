@@ -30,14 +30,13 @@ Global data sent = 2.15237 MB (all parties)
 
 在GFA模块中，生成所需函数的多项式，以非线性激活函数sigmoid为例
 
-首先进入GFA目录
-```
-cd Compiler/GFA
-```
+1. 在Programs/Source中在新建mpc代码，导入GFA模块并在计算前设置好定点数精度
 
-创建sigmoid.py，在其中配置NFGen的相关参数
-
-定义原始非线性函数的表达式
+```
+from gfapp import GFA
+sfix.set_precision(31, 63)
+```
+2. mpc代码中创建原始非线性函数的表达式，并在最终的目标函数前加上GFA装饰器。在装饰器中可修改GFA参数，最大段数k、定点数位数n和f、函数定义域等。（不设置将默认为10，31，63，（-10，10））
 ```
 # fundenmental functions, indicating they are cipher-text non-linear operations.
 def func_reciprocal(x):
@@ -47,70 +46,49 @@ def func_exp(x, lib=sp):
     return lib.exp(x)
 
 # target function.
-def sigmoid(x):
+@GFA(10, 31, 63, (-10,10))
+def mysigmoid(x):
     return 1 * func_reciprocal((1 + func_exp(-x)))
 ```
 
-设置函数名、定义域、定点数位数n和f等参数，其他可保持默认
+3. 在后续代码中即可直接使用原函数计算，将自动具有GFA优化
 ```
-# define NFD
-sigmoid_config = {
-    "function": sigmoid, # function config.
-    "range": (-10, 10),
-    "k_max": 10, # set the maximum order.
-    "tol": 1e-3, # percision config.
-    "ms": 1000, # maximum samples.
-    "zero_mask": 1e-6,
-    "n": n, # <n, f> fixed-point config.
-    "f": f,
-    "profiler": profiler_file, # profiler model source file.
-    "code_templet": temp.templet_spdz, # spdz templet.
-    "code_language": "python", # indicating the templet language.
-    "config_file": "./sigmoig_spdz.py", # generated code file.
-    "time_dict": to.basic_time[platform], # basic operation time cost.
-    # "test_graph": "./graph/" # (optional, need mkdir for this folder first), whether generate the graph showing the approximation and the real function.
-}
-```
-
-运行该函数配置，将基于NFGen初始化多项式数据
-```
-python3 sigmoid.py
-```
-若控制台输出如下，说明函数近似多项式创建成功
-```
->>>>> FINAL KM:  (6, 8)
-```
-
-在Programs/Source中编写mpc代码，导入NLA模块
-```
-from non_linear_app import appFunc
-```
-
-设置定点数精度，整数位和小数位位数。
-```
-sfix.set_precision(32, 64)
-```
-从appFunc库中获取函数f
-
-使用f.At(x)即可计算f(x)
-```
-mysigmoid = appFunc('sigmoid')
+print_ln('using GFA sigmoid')
 for i in range(0, 5):
-    test(mysigmoid.At(sfix(i-2)) ,a[i])
+    test(mysigmoid(sfix(i-2)) ,a[i])
 ```
-以rss虚拟机运行test_sigmoid.mpc进行测试
+
+以rss虚拟机运行test_gfa.mpc进行测试
 ```
 ./Scripts/setup-ssl.sh 3
+make -j 8 tldr
 make -j 8 replicated-ring-party.x
 ./compile.py -R 128 test_sigmoid
 ./Scripts/ring.sh test_sigmoid
 ```
-终端输出如下
+终端输出如下，计算结果与迭代法所获得的精度相近
 ```
+Using security parameter 40
 Trying to run 128-bit computation
-expected 0.119, got 0.119173
-expected 0.269, got 0.268871
+using original sigmoid
+expected 0.119, got 0.119203
+expected 0.269, got 0.268941
 expected 0.5, got 0.5
-expected 0.731, got 0.731129
-expected 0.88, got 0.880899
+expected 0.731, got 0.731059
+expected 0.88, got 0.880797
+using GFA sigmoid
+expected 0.119, got 0.119202
+expected 0.269, got 0.268889
+expected 0.5, got 0.5
+expected 0.731, got 0.731111
+expected 0.88, got 0.880866
+Significant amount of unused dabits of replicated Z2^128. For more accurate benchmarks, consider reducing the batch size with -b.
+The following benchmarks are including preprocessing (offline phase).
+Time = 0.07801 seconds 
+Data sent = 1.34877 MB in ~139 rounds (party 0)
+Global data sent = 4.0463 MB (all parties)
+This program might benefit from some protocol options.
+Consider adding the following at the beginning of 'test_gfa.mpc':
+        program.use_trunc_pr = True
+        program.use_split(3)
 ```
