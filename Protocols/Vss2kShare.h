@@ -6,11 +6,14 @@
 #ifndef PROTOCOLS_Vss2KSHARE_H_
 #define PROTOCOLS_Vss2KSHARE_H_
 
-#include "Semi.h"
+#include "Vss.h"
+#include "SecureML.h"
+#include "VssMC.h"
 #include "SemiShare.h"
 #include "OT/Rectangle.h"
 #include "GC/SemiSecret.h"
 #include "VssInput.h"
+#include "VssPrep.h"
 #include "GC/square64.h"
 #include "Processor/Instruction.h"
 
@@ -20,22 +23,23 @@ template<class T> class SemiPrep2k;
 template <int K>
 class Vss2kShare : public SemiShare<SignedZ2<K>>
 {
-    typedef SignedZ2<K> T;
 
 public:
+    typedef SignedZ2<K> Dtype;
     typedef VssMC<Vss2kShare> MAC_Check;
     typedef DirectVssMC<Vss2kShare> Direct_MC;
     typedef VssInput<Vss2kShare> Input;
     typedef ::PrivateOutput<Vss2kShare> PrivateOutput;
-    typedef Semi<Vss2kShare> Protocol;
-    typedef SemiPrep<Vss2kShare> LivePrep;
+    typedef Vss<Vss2kShare> Protocol;
+    typedef VssPrep<Vss2kShare> LivePrep;
 
     typedef Vss2kShare prep_type;
     typedef SemiMultiplier<Vss2kShare> Multiplier;
     typedef OTTripleGenerator<prep_type> TripleGenerator;
     typedef Z2kSquare<K> Rectangle;
 
-    static const bool has_split = true;
+    // static const bool has_split = true;
+    static const bool local_mul = true;
 
     Vss2kShare()
     {
@@ -44,7 +48,7 @@ public:
     Vss2kShare(const U& other) : SemiShare<SignedZ2<K>>(other)
     {
     }
-    Vss2kShare(const T& other, int my_num, const T& alphai = {})
+    Vss2kShare(const Dtype& other, int my_num, const Dtype& alphai = {})
     {
         (void) alphai;
         assign(other, my_num);

@@ -1,60 +1,52 @@
 /*
- * Hemi.h
+ * Vss.h
  *
  */
 
-#ifndef PROTOCOLS_SML_H_
-#define PROTOCOLS_SML_H_
+#ifndef PROTOCOLS_VSS_H_
+#define PROTOCOLS_VSS_H_
 
 #include "Semi.h"
 #include "ShareMatrix.h"
 #include "HemiOptions.h"
+#include "VssMatrixPrep.h"
 
-#include "SmlMatrixPrep.h"
-// #include "HemiPrep.hpp"
-
-/**
- * Matrix multiplication
- */
-template<class T>
-class SecureML : public Semi<T>
+template <class T>
+class Vss : public Semi<T>
 {
-    map<array<int, 3>, SmlMatrixPrep<T>*> matrix_preps;
+    typedef typename T::MAC_Check MAC_Check;
+    map<array<int, 3>, VssMatrixPrep<T> *> matrix_preps;
     DataPositions matrix_usage;
-
     MatrixMC<T> mc;
 
 public:
-    SecureML(Player& P) :
-            Semi<T>(P)
+    Vss(Player &P) : Semi<T>(P)
     {
     }
-    // ~SecureML();
 
-    void matmulsm(SubProcessor<T> & processor, CheckVector<T>& source,
-            const Instruction& instruction, int a, int b)
+    void matmulsm(SubProcessor<T> &processor, CheckVector<T> &source,
+                  const Instruction &instruction, int a, int b)
     {
-        if (HemiOptions::singleton.plain_matmul
-            or not OnlineOptions::singleton.live_prep)
+        if (HemiOptions::singleton.plain_matmul or not OnlineOptions::singleton.live_prep)
         {
             processor.matmulsm(source, instruction, a, b);
             return;
         }
-        
-        cout<<"this uses matmulsm"<<endl;
+        cout << "this uses matmulsm" << endl;
 
-        auto& dim = instruction.get_start();
-        auto& S = processor.get_S();
+        auto &dim = instruction.get_start();
+        auto &S = processor.get_S();
 
         auto C = S.begin() + (instruction.get_r(0));
         assert(C + dim[0] * dim[2] <= S.end());
 
         auto Proc = processor.Proc;
         assert(Proc);
-        
+
         ShareMatrix<T> A(dim[0], dim[1]), B(dim[1], dim[2]);
 
-        for (int i = 0; i < dim[0]; i++){
+        for (int i = 0; i < dim[0]; i++)
+        {
             for (int k = 0; k < dim[1]; k++)
             {
                 auto kk = Proc->get_Ci().at(dim[4] + k);
@@ -62,9 +54,9 @@ public:
                 A.entries.v.push_back(source.at(a + ii * dim[7] + kk));
             }
         }
-            
 
-        for (int k = 0; k < dim[1]; k++){
+        for (int k = 0; k < dim[1]; k++)
+        {
             for (int j = 0; j < dim[2]; j++)
             {
                 auto jj = Proc->get_Ci().at(dim[6] + j);
@@ -72,23 +64,27 @@ public:
                 B.entries.v.push_back(source.at(b + ll * dim[8] + jj));
             }
         }
-            
 
         auto res = matrix_multiply(A, B, processor);
+        cout << __LINE__ << endl;
 
         for (int i = 0; i < dim[0]; i++)
             for (int j = 0; j < dim[2]; j++)
             {
                 *(C + i * dim[2] + j) = res[{i, j}];
                 cout << res[{i, j}] << endl;
+                MAC_Check mac;
+                mac.init_open(this->P);
+                mac.prepare_open(res[{i, j}]);
+                mac.exchange(this->P);
+                cout << "res:" << mac.finalize_open() << endl;
             }
+        cout << __LINE__ << endl;
         // processor.matmulsm(source, instruction, a, b);
-
-        
     }
 
-    ShareMatrix<T> matrix_multiply(const ShareMatrix<T>& A,
-            const ShareMatrix<T>& B, SubProcessor<T>& processor)
+    ShareMatrix<T> matrix_multiply(const ShareMatrix<T> &A,
+                                   const ShareMatrix<T> &B, SubProcessor<T> &processor)
     {
         Beaver<ShareMatrix<T>> beaver(this->P);
         array<int, 3> dims = {{A.n_rows, A.n_cols, B.n_cols}};
@@ -96,6 +92,8 @@ public:
 
         int max_inner = OnlineOptions::singleton.batch_size;
         int max_cols = OnlineOptions::singleton.batch_size;
+        cout << "A.n_cols" << A.n_cols << endl;
+        cout << "B.n_cols" << B.n_cols << endl;
         for (int i = 0; i < A.n_cols; i += max_inner)
         {
             for (int j = 0; j < B.n_cols; j += max_cols)
@@ -104,46 +102,47 @@ public:
                 subdim[1] = min(max_inner, A.n_cols - i);
                 subdim[2] = min(max_cols, B.n_cols - j);
 
-                auto& prep = get_matrix_prep(subdim, processor);
+                auto &prep = get_matrix_prep(subdim, processor);
                 beaver.init(prep, mc);
-                
+
                 beaver.init_mul();
 
                 bool for_real = T::real_shares(processor.P);
                 beaver.prepare_mul(A.from(0, i, subdim.data(), for_real),
-                        B.from(i, j, subdim.data() + 1, for_real));
-
+                                   B.from(i, j, subdim.data() + 1, for_real));
+                cout << __LINE__<<endl;
                 if (for_real)
                 {
                     beaver.exchange();
+                    cout << __LINE__ <<endl;
                     C.add_from_col(j, beaver.finalize_mul());
+                    cout << __LINE__<<endl;
                 }
             }
         }
         return C;
     }
 
-    SmlMatrixPrep<T>& get_matrix_prep(const array<int, 3>& dims,
-            SubProcessor<T>& processor)
+    VssMatrixPrep<T> &get_matrix_prep(const array<int, 3> &dims,
+                                      SubProcessor<T> &processor)
     {
         if (matrix_preps.find(dims) == matrix_preps.end())
             matrix_preps.insert({dims,
-                new SmlMatrixPrep<T>(dims[0], dims[1], dims[2],
-                        dynamic_cast<typename T::LivePrep&>(processor.DataF),
-                        matrix_usage)});
+                                 new VssMatrixPrep<T>(dims[0], dims[1], dims[2],
+                                                      dynamic_cast<typename T::LivePrep &>(processor.DataF),
+                                                      matrix_usage)});
         return *matrix_preps.at(dims);
     }
 
-    void conv2ds(SubProcessor<T>& processor, const Instruction& instruction)
+    void conv2ds(SubProcessor<T> &processor, const Instruction &instruction)
     {
-        if (HemiOptions::singleton.plain_matmul
-                or not OnlineOptions::singleton.live_prep)
+        if (HemiOptions::singleton.plain_matmul or not OnlineOptions::singleton.live_prep)
         {
             processor.conv2ds(instruction);
             return;
         }
 
-        auto& args = instruction.get_start();
+        auto &args = instruction.get_start();
         int output_h = args[0], output_w = args[1];
         int inputs_h = args[2], inputs_w = args[3];
         int weights_h = args[4], weights_w = args[5];
@@ -168,7 +167,7 @@ public:
             stride_w = 1;
         }
 
-        auto& S = processor.get_S();
+        auto &S = processor.get_S();
         array<int, 3> dim({{1, weights_h * weights_w * n_channels_in, batch_size * output_h * output_w}});
         ShareMatrix<T> A(dim[0], dim[1]), B(dim[1], dim[2]);
 
@@ -181,11 +180,11 @@ public:
         A.entries.init();
         B.entries.init();
 
-        for (int i_batch = 0; i_batch < batch_size; i_batch ++)
+        for (int i_batch = 0; i_batch < batch_size; i_batch++)
         {
             size_t base = r1 + i_batch * inputs_w * inputs_h * n_channels_in;
             assert(base + inputs_w * inputs_h * n_channels_in <= S.size());
-            T* input_base = &S[base];
+            T *input_base = &S[base];
             for (int out_y = 0; out_y < output_h; out_y++)
                 for (int out_x = 0; out_x < output_w; out_x++)
                 {
@@ -201,14 +200,11 @@ public:
                                 int in_x = in_x_origin + filter_x * filter_stride_w;
                                 if ((0 <= in_x) and (in_x < inputs_w))
                                 {
-                                    T* pixel_base = &input_base[(in_y * inputs_w
-                                            + in_x) * n_channels_in];
-                                    T* weight_base = &S[r2
-                                            + (filter_y * weights_w + filter_x)
-                                                    * n_channels_in];
+                                    T *pixel_base = &input_base[(in_y * inputs_w + in_x) * n_channels_in];
+                                    T *weight_base = &S[r2 + (filter_y * weights_w + filter_x) * n_channels_in];
                                     for (int in_c = 0; in_c < n_channels_in; in_c++)
-    //                                    protocol.prepare_dotprod(pixel_base[in_c],
-    //                                            weight_base[in_c])
+                                    //                                    protocol.prepare_dotprod(pixel_base[in_c],
+                                    //                                            weight_base[in_c])
                                     {
                                         int i_inner = n_channels_in * (filter_x * weights_h + filter_y) + in_c;
                                         B[{i_inner, output_h * (output_w * i_batch + out_x) + out_y}] = pixel_base[in_c];
@@ -217,28 +213,27 @@ public:
                                 }
                             }
                     }
-    //
-    //                protocol.next_dotprod();
+                    //
+                    //                protocol.next_dotprod();
                 }
         }
 
         auto C = matrix_multiply(A, B, processor);
 
-        for (int i_batch = 0; i_batch < batch_size; i_batch ++)
+        for (int i_batch = 0; i_batch < batch_size; i_batch++)
         {
             size_t base = r0 + i_batch * output_h * output_w;
             assert(base + output_h * output_w <= S.size());
-            T* output_base = &S[base];
+            T *output_base = &S[base];
             for (int out_y = 0; out_y < output_h; out_y++)
                 for (int out_x = 0; out_x < output_w; out_x++)
                 {
                     output_base[out_y * output_w + out_x] = C[{0, output_h * (output_w * i_batch + out_x) + out_y}];
-    //                        protocol.finalize_dotprod(
-    //                                lengths[i_batch][out_y][out_x]);
+                    //                        protocol.finalize_dotprod(
+                    //                                lengths[i_batch][out_y][out_x]);
                 }
         }
-
     }
 };
 
-#endif /* PROTOCOLS_SML_H_ */
+#endif

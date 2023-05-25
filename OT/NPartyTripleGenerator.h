@@ -116,10 +116,14 @@ public:
     void generate() { throw not_implemented(); }
 
     void generatePlainTriples();
+    void generatePlainTriples(bool Vss_flag);
     ShareMatrix<T> generateMatrixTriples(int k, int n_rows, int n_inner, int n_cols,
+        ShareMatrix<T> A, ShareMatrix<T> B, ShareMatrix<T> C);
+    ShareMatrix<T> VssgenerateMatrixTriples(int k, int n_rows, int n_inner, int n_cols,
         ShareMatrix<T> A, ShareMatrix<T> B, ShareMatrix<T> C);
     void generateMyTriples(typename T::open_type a, typename T::open_type b);
     void plainTripleRound(int k = 0);
+    void VssplainTripleRound(int k = 0);
 
     void generatePlainBits();
     void generateMixedTriples();

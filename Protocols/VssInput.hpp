@@ -49,7 +49,7 @@ template <class T>
 void VssInput<T>::add_mine(const typename T::clear &input, int)
 {
     auto &P = this->P;
-    typename T::open_type sum, share1, share2;
+    typename T::open_type sum;
     std::vector<typename T::open_type> shares(P.num_players());
     for (int i = 0; i < P.num_players(); i++)
     {
@@ -59,7 +59,11 @@ void VssInput<T>::add_mine(const typename T::clear &input, int)
             // sum += this->send_prngs[i].template get<typename T::open_type>();
         }
     }
-    this->shares.push_back(input - sum);
+    bigint temp = input - sum;
+    stringstream ss;
+    ss << temp;
+    long value = stol(ss.str()) / P.inv[P.my_num()];
+    this->shares.push_back(value);
 }
 
 template <class T>

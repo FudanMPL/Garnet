@@ -26,6 +26,7 @@ SemiPrep<T>::SemiPrep(SubProcessor<T>* proc, DataPositions& usage) :
 template<class T>
 void SemiPrep<T>::buffer_triples()
 {
+    cout << "In buffer_triples" << endl;
     assert(this->triple_generator);
     this->triple_generator->generatePlainTriples();
     for (auto& x : this->triple_generator->plainTriples)

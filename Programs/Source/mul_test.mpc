@@ -1,5 +1,9 @@
-a = sfix.Matrix(100, 100)
-b = sfix.Matrix(100, 100)
+a = sfix.Matrix(2, 2)
+b = sfix.Matrix(2, 2)
 a.input_from(0)
 b.input_from(0)
-c = a * b 
+c = a * b
+print_ln("c = %s", c[0][0].reveal())
+print_ln("c = %s", c[0][1].reveal())
+print_ln("c = %s", c[1][0].reveal())
+print_ln("c = %s", c[1][1].reveal())

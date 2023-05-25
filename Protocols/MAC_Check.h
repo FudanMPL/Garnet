@@ -471,7 +471,7 @@ void add_Vss_openings(vector<T>& values, const Player& P, int sum_players, int l
       MC.timers[SUM].start();
       for (unsigned int i=0; i<values.size(); i++)
         {
-          values[i].vss_add(oss[j], P, j + 1);
+          values[i].vss_add(oss[j], P, j);
         }
       MC.timers[SUM].stop();
     }

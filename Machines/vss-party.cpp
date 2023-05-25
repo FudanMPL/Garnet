@@ -16,5 +16,6 @@
 int main(int argc, const char** argv)
 {
     ez::ezOptionParser opt;
-    HonestMajorityRingMachine<Vss2kShare, SemiShare>(argc, argv, opt, 4);
+    
+    HonestMajorityRingMachine<Vss2kShare, SemiShare>(argc, argv, opt);
 }

@@ -14,6 +14,7 @@
 #include "Machines/ShamirMachine.hpp"
 #include "Machines/Semi2k.hpp"
 #include "Machines/Vss2k.hpp"
+#include "Protocols/SmlShare.h"
 #include "Protocols/CowGearShare.h"
 #include "Protocols/CowGearPrep.hpp"
 #include "Protocols/ProtocolSet.h"
@@ -52,6 +53,8 @@ int main(int argc, char** argv)
         run<Semi2kShare<64>>(argv, 0);
     else if (protocol == "Vss2k")
         run<Vss2kShare<64>>(argv, 0);
+    else if(protocol == "Sml")
+        run<SmlShare<64>>(argv, 0);
     else if (protocol == "Shamir" or protocol == "MalShamir")
     {
         int nparties = (atoi(argv[2]));
@@ -90,7 +93,7 @@ void run(char** argv, int prime_length)
     // set of protocols (input, multiplication, output)
     ProtocolSet<T> set(P, setup);
     auto& input = set.input;
-    // auto& protocol = set.protocol;
+    auto& protocol = set.protocol;
     auto& output = set.output;
     // int n = 1;
     T a ,b;
@@ -105,13 +108,18 @@ void run(char** argv, int prime_length)
     //     input.add_from_all(i);
     input.exchange();
     a = input.finalize(0);
+    input.add_from_all(10);
+    b = input.finalize(0);
     // for (int i = 0; i < n; i++)
     // {
     //     a[i] = input.finalize(0);
     //     b[i] = input.finalize(1);
     // }
-
-    // protocol.init_dotprod();
+    protocol.init_mul();
+    protocol.prepare_mul(a, b);
+    protocol.exchange();
+    c = protocol.finalize_mul();
+    
     // for (int i = 0; i < n; i++)
     //     protocol.prepare_dotprod(a[i], b[i]);
     // protocol.next_dotprod();
@@ -121,7 +129,7 @@ void run(char** argv, int prime_length)
     // protocol check before revealing results
     set.check();
     output.init_open(P);
-    output.prepare_open(a);
+    output.prepare_open(c);
     output.exchange(P);
     result = output.finalize_open();
 

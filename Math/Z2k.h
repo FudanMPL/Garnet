@@ -155,7 +155,14 @@ public:
 	void vss_add(octetStream& os, const Player& P, int sender){
 		octet* adr = os.consume(size());
 		mp_limb_t value = *((unsigned long*) adr);
-		*this += P.inv[sender] * value;
+		if(sender < P.my_num())
+		{
+			*this += P.inv[sender] * value;
+		}
+		else
+		{
+			*this += P.inv[sender + 1] * value;
+		}
 	}
 
 	Z2 lazy_add(const Z2& x) const;

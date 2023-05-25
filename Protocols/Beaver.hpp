@@ -32,6 +32,7 @@ void Beaver<T>::init(Preprocessing<T>& prep, typename T::MAC_Check& MC)
 template<class T>
 void Beaver<T>::init_mul()
 {
+    cout << "In init_mul" <<endl;
     assert(this->prep);
     assert(this->MC);
     shares.clear();
@@ -43,6 +44,7 @@ void Beaver<T>::init_mul()
 template<class T>
 void Beaver<T>::prepare_mul(const T& x, const T& y, int n)
 {
+    cout << "In prepare_mul" <<endl;
     (void) n;
     triples.push_back({{}});
     auto& triple = triples.back();
@@ -55,7 +57,9 @@ void Beaver<T>::prepare_mul(const T& x, const T& y, int n)
 template<class T>
 void Beaver<T>::exchange()
 {
+    cout << "In exchange" <<endl;
     assert(shares.size() == 2 * lengths.size());
+    cout << "shares.size():" << shares.size() << endl;
     MC->init_open(P, shares.size());
     for (size_t i = 0; i < shares.size(); i++)
         MC->prepare_open(shares[i], lengths[i / 2]);
@@ -83,6 +87,7 @@ void Beaver<T>::stop_exchange()
 template<class T>
 T Beaver<T>::finalize_mul(int n)
 {
+    cout << "In finalize_mul" << endl;
     (void) n;
     typename T::open_type masked[2];
     T& tmp = (*triple)[2];
