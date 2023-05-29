@@ -623,63 +623,6 @@ ShareMatrix<U> OTTripleGenerator<U>::generateMatrixTriples(int k, int n_rows, in
 }
 
 template<class U>
-ShareMatrix<U> OTTripleGenerator<U>::VssgenerateMatrixTriples(int k, int n_rows, int n_inner, int n_cols,
-        ShareMatrix<U> A, ShareMatrix<U> B, ShareMatrix<U> C)
-{
-    typedef typename U::open_type T;
-
-    machine.set_passive();
-    machine.output = false;
-    signal_multipliers(DATA_TRIPLE);
-
-    valueBits.resize(3);
-    for (int i = 0; i < 3; i++)
-        valueBits[i].resize(field_size * nPreampTriplesPerLoop);
-
-    start_progress();
-
-    if (not (machine.amplify or machine.output))
-        plainTriples.resize(nPreampTriplesPerLoop);
-
-    FixedVec<T, 1000> vA,vB;
-    for (int i = 0; i < nPreampTriplesPerLoop; i++){
-        int id = k * nPreampTriplesPerLoop + i;
-        if (id >= n_rows * n_cols * n_inner) break;
-        int xid = id / (n_cols * n_inner);
-        int yid = id % (n_cols * n_inner) / n_inner;
-        int kid = id % (n_inner);
-        // cout<<"xyzid: "<<xid<<' '<<yid<<' '<<kid<<endl;
-        vA[i] = A[{xid,kid}];
-        vB[i] = B[{kid,yid}];
-    }
-    valueBits[0].set<T, 1000>(vA);
-    valueBits[1].set<T, 1000>(vB);
-
-
-    timers["OTs"].start();
-    for (int p = 0; p < nparties-1; p++)
-        ot_multipliers[p]->inbox.push({});
-    this->wait_for_multipliers();
-    timers["OTs"].stop();
-    
-    timers["Triple computation"].start();
-    for (int p = 0; p < nparties-1; p++)
-    {
-        for (int i = 0; i < nPreampTriplesPerLoop; i++){
-            int id = k * nPreampTriplesPerLoop + i;
-            if (id >= n_rows * n_cols * n_inner) break;
-            int xid = id / (n_cols * n_inner);
-            int yid = id % (n_cols * n_inner) / n_inner;
-            int kid = id % (n_inner);
-            C[{xid,yid}] += A[{xid,kid}]*B[{kid,yid}] + ot_multipliers[p]->c_output[i];
-            C[{xid,yid}] = 0;
-        }
-    }
-    timers["Triple computation"].stop();
-    return C;
-}
-
-template<class U>
 void OTTripleGenerator<U>::generateMyTriples( typename U::open_type a, 
         typename U::open_type b)
 {

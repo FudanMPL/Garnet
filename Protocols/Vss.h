@@ -130,7 +130,7 @@ public:
             matrix_preps.insert({dims,
                                  new VssMatrixPrep<T>(dims[0], dims[1], dims[2],
                                                       dynamic_cast<typename T::LivePrep &>(processor.DataF),
-                                                      matrix_usage)});
+                                                      matrix_usage, this->P)});
         return *matrix_preps.at(dims);
     }
 
