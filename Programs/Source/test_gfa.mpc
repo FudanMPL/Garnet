@@ -29,7 +29,7 @@ def func_exp(x, lib=sp):
     return lib.exp(x)
 
 # target function.
-@GFA(10, 31, 63, (-10,10))
+@GFA(15, 31, 63, (-10,10))
 def mysigmoid(x):
     return 1 * func_reciprocal((1 + func_exp(-x)))
 

@@ -5,6 +5,7 @@ from Compiler.oram import *
 import json
 import sys
 import os
+import hashlib
 
 sys.path.append("Compiler/GFA/")
 from NFGen.main import generate_nonlinear_config
@@ -18,8 +19,16 @@ def getFile(path):
         js = json.load(f)
         return js
 
-def getFuncName(func):
-    return str(func).split(" ")[1]
+def getFuncName(func, kmax, f, n, range):
+    fstr = str(func).split(" ")[1]
+    paramHASH = hashToStr([range, kmax, n, f])[:10]
+    return fstr + '_' + paramHASH
+
+def hashToStr(data):
+    ss = ""
+    for it in data:
+        ss += str(it)
+    return hashlib.sha256(ss.encode()).hexdigest()
 
 def f2p(func, kmax, f, n, range):
 
@@ -42,7 +51,7 @@ def f2p(func, kmax, f, n, range):
     # using NFGen to generate the target function code.
     kmconfig = generate_nonlinear_config(config)
 
-    polysFile = "./Compiler/GFA/%s.json"%(getFuncName(func))
+    polysFile = "./Compiler/GFA/%s.json"%(getFuncName(func, kmax, f, n, range))
     with open(polysFile, "w") as f:
         json.dump(kmconfig, f, indent=4)
 
@@ -83,7 +92,7 @@ def At(x, breaks, coeffA, scaler):
 def GFA(kmax=10, f=31, n=63, range=(-10,10)):
     def x(func):
         def y(x):
-            fname = getFuncName(func)
+            fname = getFuncName(func, kmax, f, n, range)
             fpath = "./Compiler/GFA/%s.json"%(fname)
             # translating
             if not os.path.exists(fpath):

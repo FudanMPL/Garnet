@@ -130,3 +130,6 @@ doc/xml
 Compiler/DL/data/*
 Compiler/DL/AvgFeature-All/*
 Compiler/DL/checkpoint/*
+
+#GFA temp
+Compiler/GFA/*.json

@@ -1,7 +1,7 @@
 """Main non-linear function generator.
 """
 import NFGen.funcs as nf
-import NFGen.analysis as na
+# import NFGen.analysis as na
 from NFGen.fitter import PolyK
 # import NFGen.code_generator as cg
 
@@ -374,39 +374,39 @@ def generate_nonlinear_config(config_dict):
             else:
                 function = func
 
-            if "test_graph" in config_dict.keys():
-                x = np.linspace(a, b, 100000)
+            # if "test_graph" in config_dict.keys():
+            #     x = np.linspace(a, b, 100000)
 
-                if error_metric[0] == "sampled":
-                    y_true = function(x)
-                    y_pred = nf.piece_prediction(x[:, np.newaxis], coeffA, breaks,
-                                                scale_list, f, n)
-                    breaks_label = nf.piece_prediction(
-                        np.array(breaks)[:, np.newaxis], coeffA, breaks,
-                        scale_list, f, n)
-                    na.sampled_error_analysis(graph_folder,
-                                            save_name,
-                                            kc,
-                                            x,
-                                            y_true,
-                                            y_pred,
-                                            breaks,
-                                            breaks_label,
-                                            f,
-                                            zero_mask=zero_mask,
-                                            method=error_metric[1])
-                elif error_metric[0] == "analytic":
-                    na.analytic_error_analysis(graph_folder,
-                                            save_name,
-                                            kc,
-                                            x,
-                                            breaks,
-                                            coeffA,
-                                            scale_list,
-                                            func,
-                                            f,
-                                            zero_mask=zero_mask,
-                                            method=error_metric[1])
+            #     if error_metric[0] == "sampled":
+            #         y_true = function(x)
+            #         y_pred = nf.piece_prediction(x[:, np.newaxis], coeffA, breaks,
+            #                                     scale_list, f, n)
+            #         breaks_label = nf.piece_prediction(
+            #             np.array(breaks)[:, np.newaxis], coeffA, breaks,
+            #             scale_list, f, n)
+            #         na.sampled_error_analysis(graph_folder,
+            #                                 save_name,
+            #                                 kc,
+            #                                 x,
+            #                                 y_true,
+            #                                 y_pred,
+            #                                 breaks,
+            #                                 breaks_label,
+            #                                 f,
+            #                                 zero_mask=zero_mask,
+            #                                 method=error_metric[1])
+            #     elif error_metric[0] == "analytic":
+            #         na.analytic_error_analysis(graph_folder,
+            #                                 save_name,
+            #                                 kc,
+            #                                 x,
+            #                                 breaks,
+            #                                 coeffA,
+            #                                 scale_list,
+            #                                 func,
+            #                                 f,
+            #                                 zero_mask=zero_mask,
+            #                                 method=error_metric[1])
 
             if "default_values" in config_dict.keys():
                 breaks = np.insert(breaks, 0, less_break)

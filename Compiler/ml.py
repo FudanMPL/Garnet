@@ -99,8 +99,8 @@ def sigmoid(x):
     """ Sigmoid function.
 
     :param x: sfix """
-    if get_program().options.gfapp:
-        return mysigmoid.At(x)
+    # if get_program().options.gfapp:
+    #     return mysigmoid.At(x)
 
     return sigmoid_from_e_x(x, exp(-x))
 

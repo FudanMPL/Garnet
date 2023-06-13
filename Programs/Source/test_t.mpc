@@ -1,0 +1,11 @@
+import Compiler.mpc_math
+
+n = 1000
+
+@for_range(n)
+def _(i):
+    a = sfix.get_random(-10000, 10000)
+    b = sfix.get_random(-10000, 10000)
+    c = (a < b)
+    # print_ln("a is %s, b is %s, a minus b is %s, c is %s ", a.reveal(), b.reveal(), (a-b).reveal(), c.reveal())
+    print_ln(" a minus b is %s, c is %s ", (a-b).reveal(), c.reveal())
