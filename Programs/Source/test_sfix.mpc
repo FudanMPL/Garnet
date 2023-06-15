@@ -1,0 +1,36 @@
+import Compiler.mpc_math
+import random
+from ml import sigmoid
+import math
+
+def sigmoid_clear(x):
+    return 1/(1+math.exp(-x))
+
+def test(actual, expected):
+
+    # you can reveal a number in order to print it
+    actual = actual.reveal()
+    print_ln('expected %s, got %s', expected, actual)
+
+n = 1000
+cnt = 0
+
+sfix.set_precision(31,63)
+@for_range(n)
+def _(i):
+    a = sfix.get_random(-8192, 8192)
+    b = sfix.get_random(-8192, 8192)
+    c = (a < b)
+    reveal_a = a.reveal()
+    reveal_b = b.reveal()
+    d = (reveal_a < reveal_b)
+
+    if(c.reveal() != d):
+        cnt=1
+
+print_ln("%s", cnt)
+
+for i in range(0, 16):
+    t = sfix(i-8)
+    print_ln("input is %s, expected %s", t.reveal(), i-8)
+    test(sigmoid(t), sigmoid_clear(i-8))

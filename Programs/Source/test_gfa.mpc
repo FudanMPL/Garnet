@@ -1,0 +1,37 @@
+import sympy as sp
+import Compiler.mpc_math
+from gfapp import GFA
+from ml import sigmoid
+import math
+
+def sigmoid_clear(x):
+    return 1/(1+math.exp(-x))
+
+def test(actual, expected):
+
+    # you can reveal a number in order to print it
+    actual = actual.reveal()
+    print_ln('expected %s, got %s', expected, actual)
+
+
+a = [0.119, 0.269, 0.500, 0.731, 0.880]
+
+
+
+#sfix.set_precision(31, 63)
+# fundenmental functions, indicating they are cipher-text non-linear operations.
+def func_reciprocal(x):
+        return 1 / x
+
+def func_exp(x, lib=sp):
+    return lib.exp(x)
+
+# target function.
+@GFA(10, 31, 63, (-11,11))
+def mysigmoid(x):
+    return 1 * func_reciprocal((1 + func_exp(-x)))
+
+print_ln('using GFA sigmoid')
+for i in range(0, 5):
+    test(mysigmoid(sfix(i-2)) ,sigmoid_clear(i-2))
+    #print("clear value is ", sigmoid_clear(i-10))
