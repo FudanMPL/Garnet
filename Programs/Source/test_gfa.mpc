@@ -18,7 +18,7 @@ a = [0.119, 0.269, 0.500, 0.731, 0.880]
 
 
 
-#sfix.set_precision(31, 63)
+sfix.set_precision(31, 63)
 # fundenmental functions, indicating they are cipher-text non-linear operations.
 def func_reciprocal(x):
         return 1 / x
@@ -32,6 +32,6 @@ def mysigmoid(x):
     return 1 * func_reciprocal((1 + func_exp(-x)))
 
 print_ln('using GFA sigmoid')
-for i in range(0, 5):
-    test(mysigmoid(sfix(i-2)) ,sigmoid_clear(i-2))
+for i in range(0, 20):
+    test(mysigmoid(sfix(i-10)) ,sigmoid_clear(i-10))
     #print("clear value is ", sigmoid_clear(i-10))

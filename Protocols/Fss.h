@@ -63,7 +63,7 @@ public:
     void prepare_mul(const T &x, const T &y, int n = -1);
     void exchange();
     T finalize_mul(int n = -1);
-    void cisc(SubProcessor<T> &processor, const Instruction &instruction);
+    void cisc(SubProcessor<T> &proc, const Instruction &instruction);
     void prepare_reshare(const typename T::clear &share, int n = -1);
 
     void init_dotprod();
@@ -84,13 +84,13 @@ public:
     void change_domain(const vector<int> &reg, U &proc);
 
     //new added function    
-    void distributed_comparison_function(SubProcessor<T> &processor, const Instruction &instruction);
+    void distributed_comparison_function(SubProcessor<T> &processor, const Instruction &instruction, int lambda);
 
     //new added generate function
     void generate();
 
     //new added evaluate function
-    bigint evaluate(typename T::clear x);
+    bigint evaluate(typename T::clear x, int lambda);
 };
 
 

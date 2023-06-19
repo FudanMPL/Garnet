@@ -35,7 +35,7 @@ void Fss<T>::init(Preprocessing<T>& prep, typename T::MAC_Check& MC)
 
 
 template <class T>
-void Fss<T>::distributed_comparison_function(SubProcessor<T> &proc, const Instruction &instruction)
+void Fss<T>::distributed_comparison_function(SubProcessor<T> &proc, const Instruction &instruction, int lambda)
 {
     PRNG prng;
     prng.ReSeed();
@@ -49,7 +49,6 @@ void Fss<T>::distributed_comparison_function(SubProcessor<T> &proc, const Instru
         r.open("Player-Data/2-fss/r" + to_string(P.my_num()), ios::in);
         r >> r_tmp;
         r.close();
-        int lambda = T::clear::MAX_N_BITS;
         MC->init_open(P, lambda);
         auto dest = &proc.S[args[i+3]][0];
         *dest = *dest + r_tmp;
@@ -59,9 +58,9 @@ void Fss<T>::distributed_comparison_function(SubProcessor<T> &proc, const Instru
         if(P.my_num() == EVAL_1 || P.my_num() == EVAL_2)
         {
             bigint dcf_res_u, dcf_res_v, dcf_res;
-            dcf_res_u = this->evaluate(result);
+            dcf_res_u = this->evaluate(result, lambda);
             result += 1LL<<(lambda-1);
-            dcf_res_v = this->evaluate(result);
+            dcf_res_v = this->evaluate(result, lambda);
             if(result.get_bit(lambda-1)){
                 dcf_res = dcf_res_v - dcf_res_u + P.my_num();
             }
@@ -77,7 +76,7 @@ void Fss<T>::distributed_comparison_function(SubProcessor<T> &proc, const Instru
             P.receive_player(GEN, cs[P.my_num()]);
             typename T::clear tmp;
             tmp.unpack(cs[P.my_num()]);
-            proc.S[args[i+2]][0] = r_tmp - tmp;
+            proc.S[args[i+2]][0] = typename T::clear(P.my_num()) - r_tmp - tmp;
         }
         else{
             typename T::clear r_sum, r0, r1;
@@ -107,11 +106,11 @@ void Fss<T>::generate(){
 
 
 template<class T>
-bigint Fss<T>::evaluate(typename T::clear x){
+bigint Fss<T>::evaluate(typename T::clear x, int lambda){
     fstream k_in;
     PRNG prng;
     prng.ReSeed();
-    int lambda = T::clear::MAX_N_BITS, b = P.my_num(), xi;
+    int b = P.my_num(), xi;
     // Here represents the bytes that bigint will consume, the default number is 16, if the MAX_N_BITS is bigger than 128, then we should change.
     int lambda_bytes = max(16, (lambda)/8);
     k_in.open("Player-Data/2-fss/k" + to_string(P.my_num()), ios::in);
@@ -379,14 +378,19 @@ void Fss<T>::change_domain(const vector<int> &regs, U &proc)
 template <class T>
 void Fss<T>::cisc(SubProcessor<T> &processor, const Instruction &instruction)
 {
+    
     octetStream cs;
-    int r0 = instruction.get_r(0);
+    int r0 = instruction.get_r(0), lambda = T::clear::MAX_N_BITS;
     bigint signal = 1;
     string tag((char *)&r0, 4);
     if (tag == string("LTZ\0", 4))
     {
-        if(P.my_num() == GEN){
-            this->fss3prep->gen_fake_dcp(1);  
+        // auto& args = instruction.get_start();
+        // for(int i = 0; i < 6 ; i++){
+        //     std::cout << "The  " << i << "-th argument is : " << args[i] << std::endl;
+        // }
+        if(P.my_num() == GEN){  
+            this->fss3prep->gen_fake_dcp(1, lambda);  
             signal = 1;
             signal.pack(cs);
             P.send_to(EVAL_1, cs);
@@ -398,7 +402,7 @@ void Fss<T>::cisc(SubProcessor<T> &processor, const Instruction &instruction)
             signal.unpack(cs);
         }
         if(signal){
-            processor.protocol.distributed_comparison_function(processor, instruction);
+            processor.protocol.distributed_comparison_function(processor, instruction, lambda);
         }
     }
 }

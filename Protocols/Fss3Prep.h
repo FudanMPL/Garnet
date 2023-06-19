@@ -36,7 +36,7 @@ public:
 
     void buffer_bits() { this->buffer_bits_without_check(); }
 
-    void gen_fake_dcp(int beta);
+    void gen_fake_dcp(int beta, int lambda);
     
     void get_one_no_count(Dtype dtype, T& a)
     {
