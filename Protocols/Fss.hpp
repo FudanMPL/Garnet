@@ -381,8 +381,10 @@ void Fss<T>::cisc(SubProcessor<T> &processor, const Instruction &instruction)
     
     octetStream cs;
     int r0 = instruction.get_r(0), lambda = T::clear::MAX_N_BITS;
+    std::cout << "Bit length is " << lambda << std::endl;
     bigint signal = 1;
     string tag((char *)&r0, 4);
+    std::cout << tag << std::endl;
     if (tag == string("LTZ\0", 4))
     {
         // auto& args = instruction.get_start();
