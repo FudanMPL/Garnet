@@ -257,6 +257,7 @@ def get_global_instruction_type():
     return global_instruction_type_stack[-1]
 
 
+
 def vectorize(instruction, global_dict=None):
     """ Decorator to vectorize instructions. """
 
@@ -538,8 +539,16 @@ def cisc(function):
                 base += reg.size
             return block.instructions, self.n_rounds - 1
 
-        def add_usage(self, *args):
-            pass
+        def add_usage(self, req_node):
+            res = program.get_cost(self.__class__.__name__)
+            if res == -1:
+                print("The profiling results could be biased")
+                print("Please config the cost of " + self.__class__.__name__ + " in cost_config.py")
+                return
+            req_node.increment(('online communication', 'bits'), res[0]*self.get_size() )
+            req_node.increment(('offline communication', 'bits'), res[2]*self.get_size() )
+            req_node.increment(('online', 'round'), res[1])
+            req_node.increment(('offline', 'round'), res[3])
 
         def get_bytes(self):
             assert len(self.kwargs) < 2
@@ -550,6 +559,8 @@ def cisc(function):
             res += String.encode(name)
             for call in self.calls:
                 call[1].pop('nearest', None)
+                call[1].pop('round_nearest', None)
+                call[1].pop('signed', None)
                 assert not call[1]
                 res += int_to_bytes(len(call[0]) + 2)
                 res += int_to_bytes(call[0][0].size)
@@ -1143,7 +1154,13 @@ class PublicFileIOInstruction(DoNotEliminateInstruction):
 class TextInputInstruction(VarArgsInstruction, DoNotEliminateInstruction):
     """ Input from text file or stdin """
     __slots__ = []
-
+    def get_round(self):
+        res = program.get_cost("share")
+        if res == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of share in cost_config.py")
+            return 1, 0
+        return res[1], res[3]
     def add_usage(self, req_node):
         for player in self.get_players():
             req_node.increment((self.field_type, 'input', player), \

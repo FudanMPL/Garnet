@@ -11,9 +11,10 @@ import os
 import profile
 import re
 import sys
+from Compiler.cost_config import get_cost_config
 from collections import defaultdict, deque
 from functools import reduce
-
+from Compiler.profiling_visualization import plot_cost
 import Compiler.instructions
 import Compiler.instructions_base
 import Compiler.instructions_base as inst_base
@@ -92,7 +93,8 @@ class Program(object):
         self.globalbuildingblock = "initial"
         self.buildingblock_store = defaultdict(lambda: -1)
         self.buildingblock_cost_store = defaultdict(lambda: -1)
-        self.is_profiling = False     
+        self.is_profiling = True
+        self.cost_config = None     
         if sum(x != 0 for x in (options.ring, options.field, options.binary)) > 1:
             raise CompilerError("can only use one out of -B, -R, -F")
         if options.prime and (options.ring or options.binary):
@@ -117,6 +119,9 @@ class Program(object):
         print("Default bit length:", self.bit_length)
         print("Default security parameter:", self.security)
         self.galois_length = int(options.galois)
+        self.protocol = options.protocol
+        self.n_parties = options.n_parties
+
         if self.verbose:
             print("Galois length:", self.galois_length)
         self.tape_counter = 0
@@ -188,7 +193,14 @@ class Program(object):
         types.program = self
         comparison.program = self
         comparison.set_variant(options)
-
+        print(self.get_cost("share"))
+        
+    def get_cost(self, name):
+        if self.cost_config is None:
+            self.cost_config = get_cost_config(self.protocol)
+            self.cost_config.init(self)
+        return self.cost_config.get_cost(name)
+        
     def get_args(self):
         return self.args
 
@@ -460,11 +472,13 @@ class Program(object):
         # for key, value in self.buildingblock_store.items():
         #     print(key)
         #     for i in range(0, len(value)):
-        #         print(len(value[i]))                               
-        for key, value in self.curr_tape.req_node.aggregate_profiling().items():
-            print(key)
-            for x in value.pretty():
-                print(x)
+        #         print(len(value[i])) 
+        profiling_res = self.curr_tape.req_node.aggregate_profiling()
+        plot_cost(profiling_res, self.name)                    
+        # for key, value in profiling_res.items():
+        #     print(key)
+        #     for x in value.pretty():
+        #         print(x)
         
         if self.tapes:
             self.update_req(self.curr_tape)
@@ -1198,7 +1212,7 @@ class Tape:
                         % (n, req[1][0], req[1][1], req[1][1], req[1][2])
                     ]
                 elif req[0] != "all":
-                    res += ["%s %s %ss" % (n, domain, req[1])]
+                    res += ["%s %s %s" % (n, domain, req[1])]
             if self["all", "round"]:
                 res += ["% 12.0f virtual machine rounds" % self["all", "round"]]
             return res
@@ -1291,7 +1305,7 @@ class Tape:
                 for key, value in tmpRes.items():
                     if cost_store[key] == -1:
                         cost_store[key] = []
-                        cost_store[key].append(value)
+                    cost_store[key].append(value)
             for key, value in cost_store.items():
                 res[key] = self.aggregator(value)          
             return res
@@ -1475,6 +1489,8 @@ class Tape:
             if self.program != other.program:
                 raise CompilerError(
                     'cannot update register with one from another thread')
+            # if other.block in [x.block for x in self.duplicates]:
+            #         self.program.start_new_basicblock()
             self.link(other)
 
         @property

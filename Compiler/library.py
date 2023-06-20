@@ -1978,19 +1978,20 @@ def set_global_buildingblock(name):
 def buildingblock(name):
     def decorator(func):
         def wrapper(*args, **kw):
+            old_name = instructions.program.globalbuildingblock 
             set_global_buildingblock(name)
             get_tape().start_new_basicblock(name = name+"-start")
             res = func(*args, **kw)
             get_tape().start_new_basicblock(name = name + "-close")
-            set_global_buildingblock("initial")
+            set_global_buildingblock(old_name)
         copy_doc(wrapper, func)
         return wrapper
     return decorator
 
 def start_profiling():
     break_point()
-    instructions.program.is_profiling = True
+    # instructions.program.is_profiling = True
     
 def stop_profiling():
     break_point()
-    instructions.program.is_profiling = False    
+    # instructions.program.is_profiling = False    

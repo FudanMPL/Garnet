@@ -708,6 +708,69 @@ class DenseBase(Layer):
                     print_ln('X %s %s', i, self.X[i].reveal_nested())
                     print_ln('Y %s %s', i, f_schur_Y[i].reveal_nested())
 
+class AffineTransform(Layer):
+
+    def __init__(self, N, d_in, d_out, d = 128, debug = False):
+        self.N = N
+        self.d_in = d_in
+        self.d_out = d_out
+        self.d = d
+
+        self.X = MultiArray([N, d, d_in], sfix)
+        self.Y = MultiArray([N, d, d_in], sfix)
+        self.alpha = sfix.Array(d)
+        self.beta = sfix.Array(d)
+
+        back_N = min(N, self.back_batch_size)
+        self.nabla_Y = MultiArray([back_N, d, d_out], sfix)
+        self.nabla_X = MultiArray([back_N, d, d_in], sfix)
+        self.nabla_alpha = sfix.Matrix(1, d)
+        self.nabla_beta = sfix.Array(d)
+
+        self.debug = debug
+
+    def __repr__(self):
+        return '%s(%s, %s, %s)' % \
+        (type(self).__name__, self.N, self.d_in,
+            self.d_out)
+    
+    def reset(self):
+        self.alpha.assign_all(1)
+        self.beta.assign_all(0)
+    
+    def input_from(self, player, raw=False):
+        self.alpha.input_from(player, raw= raw)
+        self.beta.input_from(player, raw=raw)
+
+    @buildingblock("Affine")
+    def _forward(self, batch=None):
+        if batch is None:
+            batch = regint.Array(self.N)
+            batch.assign(regint.inc(self.N))
+
+        if self.debug_output:
+            print_ln('dense X %s', self.X.reveal_nested())
+            print_ln('dense W %s', self.alpha.reveal_nested())
+            print_ln('dense b %s', self.beta.reveal_nested())
+            print_ln('dense Y %s', self.Y.reveal_nested())
+
+        
+        if self.debug:
+            limit = self.debug
+            @for_range_opt(len(batch))
+            def _(i):
+                @for_range_opt(self.d_out)
+                def _(j):
+                    to_check = self.Y[i][0][j].reveal()
+                    check = to_check > limit
+                    @if_(check)
+                    def _():
+                        print_ln('dense Y %s %s %s %s', i, j, self.alpha.sizes, to_check)
+                        print_ln('X %s', self.X[i].reveal_nested())
+                        print_ln('W %s',
+                                 [self.alpha[k][j].reveal() for k in range(self.d_in)])
+
+
 class Dense(DenseBase):
     """ Fixed-point dense (matrix multiplication) layer.
 
@@ -1226,6 +1289,7 @@ class Add(NoVariableLayer):
             assert inp.shape == shape
         self.Y = Tensor(shape, sfix)
         self.inputs = inputs
+
     @buildingblock("Add")
     def _forward(self, batch=[0]):
         assert len(batch) == 1
@@ -1758,7 +1822,6 @@ class FixConv2d(Conv2d, FixBase):
         batch_repeat.assign_vector(batch.get(
             regint.inc(input_size, 0, 1, 1, N)) *
                                    reduce(operator.mul, self.input_shape[1:]))
-
         @for_range_opt_multithread(self.n_threads, [n_channels_in, n_channels_out])
         def _(i, j):
             a = regint.inc(input_size, self.X.address + i, n_channels_in, N,
