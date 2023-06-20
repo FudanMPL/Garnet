@@ -1,5 +1,5 @@
 import Compiler.mpc_math
-from ml import sigmoid
+from GFA.presets import sigmoid
 
 def test(actual, expected):
 

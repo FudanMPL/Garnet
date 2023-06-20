@@ -37,3 +37,8 @@ print_ln('using GFA sigmoid')
 for i in range(0, 5):
     test(mysigmoid(sfix(i-2)) ,a[i])
 
+from GFA.presets import sigmoid
+print_ln('using GFA sigmoid')
+for i in range(0, 5):
+    test(sigmoid(sfix(i-2)) ,a[i])
+

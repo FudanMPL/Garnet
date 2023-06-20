@@ -219,8 +219,8 @@ def generate_nonlinear_config(config_dict):
         print("Please indicate the resolution in `f`.")
     if "profiler" not in config_dict.keys():
         print("Please indicate profiler model(some .pkl file) in `profiler`.")
-    if "code_templet" not in config_dict.keys():
-        print("Please indicate templet in `code_templet`.")
+    # if "code_templet" not in config_dict.keys():
+    #     print("Please indicate templet in `code_templet`.")
         
     method = "Cheby"
 
