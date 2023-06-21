@@ -436,8 +436,6 @@ void SubProcessor<T>::muls(const vector<int>& reg, int size)
         {
             auto& x = proc.S[reg[3 * i + 1] + j];
             auto& y = proc.S[reg[3 * i + 2] + j];
-            cout << "X:" << x << endl;
-            cout << "Y:" << y << endl;
             protocol.prepare_mul(x, y);
         }
     protocol.exchange();

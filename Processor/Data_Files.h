@@ -339,7 +339,6 @@ inline void Sub_Data_Files<T>::get_no_count(Dtype dtype, T* a)
 template<class T>
 inline void Preprocessing<T>::get(Dtype dtype, T* a)
 {
-  cout << "In get" << endl;
   switch (dtype)
   {
   case DATA_TRIPLE:
@@ -361,7 +360,6 @@ template<class T>
 inline void Preprocessing<T>::get_three(Dtype dtype, T& a, T& b, T& c)
 {
   // count bit triples in get_triple()
-  cout << "In get_three" << endl;
   if (T::clear::field_type() != DATA_GF2)
     count(dtype);
   get_three_no_count(dtype, a, b, c);
@@ -399,7 +397,6 @@ inline void Preprocessing<T>::get(vector<T>& S, DataTag tag,
 template<class T>
 array<T, 3> Preprocessing<T>::get_triple(int n_bits)
 {
-  cout << "In get_triple" << endl;
   if (T::clear::field_type() == DATA_GF2)
     count(DATA_TRIPLE, n_bits);
   return get_triple_no_count(n_bits);
@@ -408,7 +405,6 @@ array<T, 3> Preprocessing<T>::get_triple(int n_bits)
 template<class T>
 array<T, 3> Preprocessing<T>::get_triple_no_count(int n_bits)
 {
-  cout << "In get_triple_no_count" << endl;
   assert(T::clear::field_type() != DATA_GF2 or T::default_length == 1 or
       T::default_length == n_bits or not do_count);
   array<T, 3> res;

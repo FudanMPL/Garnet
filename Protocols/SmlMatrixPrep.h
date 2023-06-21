@@ -90,12 +90,6 @@ public:
             A[i].randomize(G);
             B[i].randomize(G);
             C[i].randomize(G);
-            for(int j = 0; j < n_rows; j++)
-                for(int k = 0; k < n_inner; k++)
-                    A[i][{j, k}] = 0;
-            for(int j = 0; j < n_inner; j++)
-                for(int k = 0; k < n_cols; k++)
-                    B[i][{j, k}] = 0;
             for (int j=0; j<n_rows; j++)
                 for (int k=0; k<n_cols; k++)
                     C[i][{j,k}]=0;

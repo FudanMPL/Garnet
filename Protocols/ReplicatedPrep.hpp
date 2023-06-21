@@ -181,7 +181,6 @@ void generate_triples_initialized(vector<array<T, 3>>& triples, int n_triples,
 template<class T>
 void BufferPrep<T>::get_three_no_count(Dtype dtype, T& a, T& b, T& c)
 {
-    cout << "In get_three_no_count" << endl;
     if (dtype != DATA_TRIPLE)
         throw not_implemented();
 

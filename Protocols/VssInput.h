@@ -20,8 +20,9 @@ template<class T> class VssMC;
 template<class T>
 class VssInput : public SemiInput<T>
 {
-    PlayerBase& P;
-
+    Player& P;
+    vector<vector<octetStream>> os;
+    vector<bool> expect;
 public:
     // std::vector<std::vector<int>> public_matrix;
     // std::vector<int> inv;
@@ -30,7 +31,7 @@ public:
     {
     }
 
-    VssInput(SubProcessor<T>* proc, PlayerBase& P);
+    VssInput(SubProcessor<T>* proc, Player& P);
 
     VssInput(typename T::MAC_Check& MC, Preprocessing<T>& prep, Player& P) :
             VssInput(0, P)

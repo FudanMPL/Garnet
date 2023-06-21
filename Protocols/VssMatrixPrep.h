@@ -25,7 +25,7 @@ public:
                   LivePrep &prep,
                   DataPositions &usage,
                   Player &P) : super(usage), n_rows(n_rows), n_inner(n_inner),
-                                          n_cols(n_cols), prep(&prep), P(&P)
+                               n_cols(n_cols), prep(&prep), P(&P)
     {
         swapped = n_rows > n_cols;
         if (swapped)
@@ -37,7 +37,7 @@ public:
     {
     }
 
-    ShareMatrix<Dtype> toVSSMatrixTriples(int rows, int cols, ShareMatrix<Dtype> X)
+    ShareMatrix<T> toVSSMatrixTriples(int rows, int cols, ShareMatrix<T> X)
     {
         octetStream os, oc;
         int n = P->num_players();
@@ -45,8 +45,9 @@ public:
         AddableVector<ValueMatrix<Dtype>> Vss_X(n, {rows, cols});
         // ShareMatrix<Dtype> Vss_X(rows, cols);
         ValueMatrix<Dtype> S(n, 1);
-        ShareMatrix<Dtype> res(n, 1);
+        ShareMatrix<T> res(rows, cols);
         SeededPRNG G;
+        res.randomize(G);
         for (int i = 0; i < n; i++)
         {
             my_share[i].randomize(G);
@@ -64,17 +65,20 @@ public:
             {
                 S.randomize(G);
                 S[{0, 0}] = X[{i, j}];
+                res[{i, j}] = 0;
                 for (int k = 0; k < n; k++)
                 {
                     for (int l = 0; l < n; l++)
                     {
-                        Vss_X[k][{i, j}] += P->public_matrix[k][l] * S[{l, 0}];
+                        Vss_X[k][{i, j}] += S[{l, 0}] * P->public_matrix[k][l];
                     }
                 }
             }
         }
         for (int k = 0; k < n; k++)
         {
+            os.reset_write_head();
+            oc.reset_read_head();
             for (int i = 0; i < rows; i++)
             {
                 for (int j = 0; j < cols; j++)
@@ -98,7 +102,6 @@ public:
                 }
             }
         }
-
         for (int i = 0; i < rows; i++)
         {
             for (int j = 0; j < cols; j++)
@@ -134,70 +137,76 @@ public:
                 for (int k = 0; k < n_cols; k++)
                     C[i][{j, k}] = 0;
         }
-        cout << "TRIPLE FOR MAT GENERATING" << endl;
+        // cout << "TRIPLE FOR MAT GENERATING" << endl;
         // TRIPLE FOR MAT GENERATING
 
         for (int i = 0; i < n_matrices; i++)
         {
             assert(prep);
             auto &nTriplesPerLoop = prep->triple_generator->nPreampTriplesPerLoop;
-            cout << "nTriplesPerLoop: " << nTriplesPerLoop << endl;
+            // cout << "nTriplesPerLoop: " << nTriplesPerLoop << endl;
             int Loops = DIV_CEIL(n_rows * n_inner * n_cols, nTriplesPerLoop);
-            cout << "Loops: " << Loops << endl;
-            // // native generating
-            // for (int r = 0; r < n_rows; r++){
-            //     for (int c = 0; c < n_cols; c++){
-            //         for (int k = 0; k < n_inner; k++){
-            //             prep->triple_generator->generateMyTriples(
-            //                     A[i][{r,k}], B[i][{k,c}]);
-            //             prep->triple_generator->unlock();
-            //             for (auto x:prep->triple_generator->plainTriples){
-            //                 C[i][{r,c}]+=x[2];
-            //             }
-            //         }
-            //     }
+            // cout << "Loops: " << Loops << endl;
+            // native generating
+            for (int r = 0; r < n_rows; r++)
+            {
+                for (int c = 0; c < n_cols; c++)
+                {
+                    for (int k = 0; k < n_inner; k++)
+                    {
+                        prep->triple_generator->generateMyTriples(
+                            A[i][{r, k}], B[i][{k, c}]);
+                        prep->triple_generator->unlock();
+                        for (auto x : prep->triple_generator->plainTriples)
+                        {
+                            C[i][{r, c}] += x[2];
+                        }
+                    }
+                }
+            }
+            A[i] = toVSSMatrixTriples(n_rows, n_inner, A[i]);
+            B[i] = toVSSMatrixTriples(n_inner, n_cols, B[i]);
+            C[i] = toVSSMatrixTriples(n_rows, n_cols, C[i]);
+            // vectorisze generating
+            // for (int k = 0; k < Loops; k++)
+            // {
+            //     C[i] = prep->triple_generator->generateMatrixTriples(k, n_rows, n_inner, n_cols, A[i], B[i], C[i]);
+            //     // A[i] = toVSSMatrixTriples(n_rows, n_inner, A[i]);
+            //     // B[i] = toVSSMatrixTriples(n_inner, n_cols, B[i]);
+            //     // C[i] = toVSSMatrixTriples(n_rows, n_cols, C[i]);
+            //     prep->triple_generator->unlock();
             // }
 
-            // vectorisze generating
-            for (int k = 0; k < Loops; k++)
-            {
-                C[i] = prep->triple_generator->generateMatrixTriples(k, n_rows, n_inner, n_cols, A[i], B[i], C[i]);
-                prep->triple_generator->unlock();
-                // A[i] = toVSSMatrixTriples(n_rows, n_inner, A[i]);
-                // B[i] = toVSSMatrixTriples(n_inner, n_cols, B[i]);
-                // C[i] = toVSSMatrixTriples(n_rows, n_cols, C[i]);
-            }
-
-            cout << "========== matTriple debug A =========" << endl;
-            for (int j = 0; j < n_rows; j++)
-            {
-                cout << "[";
-                for (int k = 0; k < n_inner; k++)
-                {
-                    cout << A[i][{j, k}] << ',';
-                }
-                cout << "]," << endl;
-            }
-            cout << "========== matTriple debug B =========" << endl;
-            for (int j = 0; j < n_inner; j++)
-            {
-                cout << "[";
-                for (int k = 0; k < n_cols; k++)
-                {
-                    cout << B[i][{j, k}] << ',';
-                }
-                cout << "]," << endl;
-            }
-            cout << "========== matTriple debug C =========" << endl;
-            for (int j = 0; j < n_rows; j++)
-            {
-                cout << "[";
-                for (int k = 0; k < n_cols; k++)
-                {
-                    cout << C[i][{j, k}] << ',';
-                }
-                cout << "]," << endl;
-            }
+            // cout << "========== matTriple debug A =========" << endl;
+            // for (int j = 0; j < n_rows; j++)
+            // {
+            //     cout << "[";
+            //     for (int k = 0; k < n_inner; k++)
+            //     {
+            //         cout << A[i][{j, k}] << ',';
+            //     }
+            //     cout << "]," << endl;
+            // }
+            // cout << "========== matTriple debug B =========" << endl;
+            // for (int j = 0; j < n_inner; j++)
+            // {
+            //     cout << "[";
+            //     for (int k = 0; k < n_cols; k++)
+            //     {
+            //         cout << B[i][{j, k}] << ',';
+            //     }
+            //     cout << "]," << endl;
+            // }
+            // cout << "========== matTriple debug C =========" << endl;
+            // for (int j = 0; j < n_rows; j++)
+            // {
+            //     cout << "[";
+            //     for (int k = 0; k < n_cols; k++)
+            //     {
+            //         cout << C[i][{j, k}] << ',';
+            //     }
+            //     cout << "]," << endl;
+            // }
 
             if (swapped)
                 this->triples.push_back(

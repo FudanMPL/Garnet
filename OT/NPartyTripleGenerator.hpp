@@ -481,22 +481,6 @@ void OTTripleGenerator<U>::generatePlainTriples()
         plainTripleRound(i);
 }
 
-template<class U>
-void OTTripleGenerator<U>::generatePlainTriples(bool Vss_flag)
-{
-    machine.set_passive();
-    machine.output = false;
-    signal_multipliers(DATA_TRIPLE);
-
-    valueBits.resize(3);
-    for (int i = 0; i < 3; i++)
-        valueBits[i].resize(field_size * nPreampTriplesPerLoop);
-
-    start_progress();
-    for (int i = 0; i < nloops; i++)
-        VssplainTripleRound(i);
-}
-
 template<class T>
 void OTTripleGenerator<T>::generatePlainBits()
 {
@@ -615,7 +599,6 @@ ShareMatrix<U> OTTripleGenerator<U>::generateMatrixTriples(int k, int n_rows, in
             int yid = id % (n_cols * n_inner) / n_inner;
             int kid = id % (n_inner);
             C[{xid,yid}] += A[{xid,kid}]*B[{kid,yid}] + ot_multipliers[p]->c_output[i];
-            C[{xid,yid}] = 0;
         }
     }
     timers["Triple computation"].stop();
@@ -694,86 +677,6 @@ void OTTripleGenerator<U>::plainTripleRound(int k)
             c += ot_multipliers[i]->c_output[j];
         }
         timers["Triple computation"].stop();
-        if (machine.amplify)
-        {
-            preampTriples[j/nAmplify].a[j%nAmplify] = a;
-            preampTriples[j/nAmplify].b = b;
-            preampTriples[j/nAmplify].c[j%nAmplify] = c;
-        }
-        else if (machine.output)
-        {
-            timers["Writing"].start();
-            a.output(outputFile, false);
-            b.output(outputFile, false);
-            c.output(outputFile, false);
-            timers["Writing"].stop();
-        }
-        else
-        {
-            plainTriples[j] = {{a, b, c}};
-        }
-
-#ifdef DEBUG_MASCOT
-        cout << "lengths ";
-        for (int i = 0; i < 3; i++)
-            cout << valueBits[i].size() << " ";
-        cout << endl;
-
-        auto& P = globalPlayer;
-        SemiMC<SemiShare<T>> MC;
-
-        auto aa = MC.open(a, P);
-        auto bb = MC.open(b, P);
-        auto cc = MC.open(c, P);
-        if (cc != aa * bb)
-        {
-            cout << j << " " << cc << " != " << aa << " * " << bb << ", diff " <<
-                    (cc - aa * bb) << endl;
-            cout << "OT output " << ot_multipliers[0]->c_output[j] << endl;
-            assert(cc == aa * bb);
-        }
-#endif
-    }
-
-#ifdef DEBUG_MASCOT
-    cout << "plain triple round done" << endl;
-#endif
-}
-
-template<class U>
-void OTTripleGenerator<U>::VssplainTripleRound(int k)
-{
-    cout << "In VssplainTripleRound" << endl;
-    typedef typename U::open_type T;
-
-    if (not (machine.amplify or machine.output))
-        plainTriples.resize(nPreampTriplesPerLoop);
-
-    print_progress(k);
-    //生成随机数
-    for (int j = 0; j < 2; j++)
-        valueBits[j].template randomize_blocks<T>(share_prg);
-
-    timers["OTs"].start();
-    for (int i = 0; i < nparties-1; i++)
-        ot_multipliers[i]->inbox.push({});
-    this->wait_for_multipliers();
-    timers["OTs"].stop();
-
-    for (int j = 0; j < nPreampTriplesPerLoop; j++)
-    {
-        T a;
-        a.assign((char*)valueBits[0].get_ptr() + j * T::size());
-        T b;
-        b.assign((char*)valueBits[1].get_ptr() + j / nAmplify * T::size());
-        T c = a * b;
-        timers["Triple computation"].start();
-        for (int i = 0; i < nparties-1; i++)
-        {
-            c += ot_multipliers[i]->c_output[j];
-        }
-        timers["Triple computation"].stop();
-        a = 0; b = 0; c = 0;
         if (machine.amplify)
         {
             preampTriples[j/nAmplify].a[j%nAmplify] = a;

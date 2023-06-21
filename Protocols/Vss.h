@@ -32,7 +32,7 @@ public:
             processor.matmulsm(source, instruction, a, b);
             return;
         }
-        cout << "this uses matmulsm" << endl;
+        // cout << "this uses matmulsm" << endl;
 
         auto &dim = instruction.get_start();
         auto &S = processor.get_S();
@@ -66,20 +66,17 @@ public:
         }
 
         auto res = matrix_multiply(A, B, processor);
-        cout << __LINE__ << endl;
 
         for (int i = 0; i < dim[0]; i++)
             for (int j = 0; j < dim[2]; j++)
             {
                 *(C + i * dim[2] + j) = res[{i, j}];
-                cout << res[{i, j}] << endl;
-                MAC_Check mac;
-                mac.init_open(this->P);
-                mac.prepare_open(res[{i, j}]);
-                mac.exchange(this->P);
-                cout << "res:" << mac.finalize_open() << endl;
+                // MAC_Check mac;
+                // mac.init_open(this->P);
+                // mac.prepare_open(res[{i, j}]);
+                // mac.exchange(this->P);
+                // cout << "res:" << mac.finalize_open() << endl;
             }
-        cout << __LINE__ << endl;
         // processor.matmulsm(source, instruction, a, b);
     }
 
@@ -92,8 +89,8 @@ public:
 
         int max_inner = OnlineOptions::singleton.batch_size;
         int max_cols = OnlineOptions::singleton.batch_size;
-        cout << "A.n_cols" << A.n_cols << endl;
-        cout << "B.n_cols" << B.n_cols << endl;
+        // cout << "A.n_cols" << A.n_cols << endl;
+        // cout << "B.n_cols" << B.n_cols << endl;
         for (int i = 0; i < A.n_cols; i += max_inner)
         {
             for (int j = 0; j < B.n_cols; j += max_cols)
@@ -110,13 +107,10 @@ public:
                 bool for_real = T::real_shares(processor.P);
                 beaver.prepare_mul(A.from(0, i, subdim.data(), for_real),
                                    B.from(i, j, subdim.data() + 1, for_real));
-                cout << __LINE__<<endl;
                 if (for_real)
                 {
                     beaver.exchange();
-                    cout << __LINE__ <<endl;
                     C.add_from_col(j, beaver.finalize_mul());
-                    cout << __LINE__<<endl;
                 }
             }
         }
