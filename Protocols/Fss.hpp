@@ -40,7 +40,7 @@ void Fss<T>::distributed_comparison_function(SubProcessor<T> &proc, const Instru
     PRNG prng;
     prng.ReSeed();
     init(proc.DataF, proc.MC);
-    typename T::clear result, r_tmp;
+    typename T::clear result, r_tmp, dcf_u, dcf_v;
     auto& args = instruction.get_start();
     for(size_t i = 0; i < args.size(); i+= args[i]){ 
         fstream r;
@@ -54,7 +54,7 @@ void Fss<T>::distributed_comparison_function(SubProcessor<T> &proc, const Instru
         *dest = *dest + r_tmp;
         MC->prepare_open(proc.S[args[i+3]]);
         MC->exchange(P);
-        std::cout << "Initial x " << proc.S[args[i+3]][0] << std::endl;
+        // std::cout << "Initial x " << proc.S[args[i+3]][0] << std::endl;
         result = MC->finalize_raw();
         if(P.my_num() == EVAL_1 || P.my_num() == EVAL_2)
         {
@@ -62,58 +62,70 @@ void Fss<T>::distributed_comparison_function(SubProcessor<T> &proc, const Instru
             dcf_res_u = this->evaluate(result, lambda);
             result += 1LL<<(lambda-1);
             dcf_res_v = this->evaluate(result, lambda);
-            dcf_res = dcf_res_u - dcf_res_v ;
-            if(result.get_bit(lambda-1))
-                dcf_res = dcf_res_v - dcf_res_u + P.my_num();
+        
+            auto size = dcf_res_u.get_mpz_t()->_mp_size;
+            mpn_copyi((mp_limb_t*)dcf_u.get_ptr(), dcf_res_u.get_mpz_t()->_mp_d, abs(size));
+            size = dcf_res_v.get_mpz_t()->_mp_size;
+            mpn_copyi((mp_limb_t*)dcf_v.get_ptr(), dcf_res_v.get_mpz_t()->_mp_d, abs(size));
+
+            if(result.get_bit(lambda)){
+                // dcf_res = dcf_res_v - dcf_res_u + P.my_num();
+                r_tmp = dcf_v - dcf_u + P.my_num();
+            }
             else{
-                dcf_res = dcf_res_v - dcf_res_u;
+                // dcf_res = dcf_res_v - dcf_res_u;
+                r_tmp = dcf_v - dcf_u;
             }
 
             // Test for reveal
-            octetStream cs_reveal_u, cs_reveal_v, cs_reveal;
-            dcf_res_u.pack(cs_reveal_u);
-            P.send_to(1^P.my_num(), cs_reveal_u);
-            P.receive_player(1^P.my_num(), cs_reveal_u);
-            bigint rec;
-            rec.unpack(cs_reveal_u);
-            dcf_res_u += rec;
+            // octetStream cs_reveal_u, cs_reveal_v, cs_reveal;
+            // dcf_res_u.pack(cs_reveal_u);
+            // P.send_to(1^P.my_num(), cs_reveal_u);
+            // P.receive_player(1^P.my_num(), cs_reveal_u);
+            // bigint rec;
+            // rec.unpack(cs_reveal_u);
+            // dcf_res_u += rec;
 
-            dcf_res_v.pack(cs_reveal_v);
-            P.send_to(1^P.my_num(), cs_reveal_v);
-            P.receive_player(1^P.my_num(), cs_reveal_v);
-            rec.unpack(cs_reveal_v);
-            dcf_res_v += rec;
+            // dcf_res_v.pack(cs_reveal_v);
+            // P.send_to(1^P.my_num(), cs_reveal_v);
+            // P.receive_player(1^P.my_num(), cs_reveal_v);
+            // rec.unpack(cs_reveal_v);
+            // dcf_res_v += rec;
 
-            dcf_res.pack(cs_reveal);
-            P.send_to(1^P.my_num(), cs_reveal);
-            P.receive_player(1^P.my_num(), cs_reveal);
-            rec.unpack(cs_reveal);
-            dcf_res_reveal = dcf_res + rec;
-            std::cout << "R_tmp is " << r_tmp << " Initial result is " << result - 1LL<<(lambda-1) << " Result is " << result 
-            << " Its signal bit is " << result.get_bit(lambda-1) << " Reveal value of dcf_u is : " << dcf_res_u << " dcf_v is: " 
-            << dcf_res_v << " dcf_res " << dcf_res_reveal << std::endl;
+            // dcf_res.pack(cs_reveal);
+            // P.send_to(1^P.my_num(), cs_reveal);
+            // P.receive_player(1^P.my_num(), cs_reveal);
+            // rec.unpack(cs_reveal);
+            // dcf_res_reveal = dcf_res + rec;
+            // std::cout << "R_tmp is " << r_tmp << " Initial result is " << result - 1LL<<(lambda-1) << " Result is " << result 
+            // << " Its signal bit is " << result.get_bit(lambda-1) << " Reveal value of dcf_u is : " << dcf_res_u << " dcf_v is: " 
+            // << dcf_res_v << " dcf_res " << dcf_res_reveal << std::endl;
 
-            std::cout << "---------------" << std::endl;
-            std::cout << "Bit decomposition of result is :" << std::endl;
-            for(int i = lambda - 1; i >= 0; i--){
-                std::cout << result.get_bit(i);
-            }
-            std::cout << std::endl;
-            auto size = dcf_res.get_mpz_t()->_mp_size;
-            r_tmp = 0;
-            for(int i = ceil(lambda/64.0) - 1; i >= 0 ; i--){
-                r_tmp = r_tmp << 64;
-                std::cout << i<<"-th block is " << dcf_res.get_mpz_t()->_mp_d[i] << std::endl;
-                typename T::clear dcf_inter = dcf_res.get_mpz_t()->_mp_d[i];
-                r_tmp = r_tmp + dcf_inter;
-            }
-            std::cout << "r_tmp is " << r_tmp << std::endl;
+            // std::cout << "---------------" << std::endl;
+            // std::cout << "Bit decomposition of result is :" << std::endl;
+            // for(int i = lambda - 1; i >= 0; i--){
+            //     std::cout << result.get_bit(i);
+            // }
+            // std::cout << std::endl;
+
+            // r_tmp = 0;
+            // auto size = dcf_res.get_mpz_t()->_mp_size;
+            // mpn_copyi((mp_limb_t*)r_tmp.get_ptr(), dcf_res.get_mpz_t()->_mp_d, abs(size));
+
+            // r_tmp = 0;
+            // for(int i = ceil(lambda/64.0) - 1; i >= 0 ; i--){
+            //     r_tmp = r_tmp << 64;
+            //     std::cout << i<<"-th block is " << dcf_res.get_mpz_t()->_mp_d[i] << std::endl;
+            //     typename T::clear dcf_inter = dcf_res.get_mpz_t()->_mp_d[i];
+            //     r_tmp = r_tmp + dcf_inter;
+            // }
+            // std::cout << "r_tmp is " << r_tmp << std::endl;
             if(size < 0)
                 r_tmp = - r_tmp;
             P.receive_player(GEN, cs[P.my_num()]);
             typename T::clear tmp;
             tmp.unpack(cs[P.my_num()]);
-            proc.S[args[i+2]][0] = r_tmp - tmp;
+            proc.S[args[i+2]][0] = typename T::clear(P.my_num()) - r_tmp - tmp;
         }
         else{
             typename T::clear r_sum, r0 = 0, r1 = 0, r_inter = 0;
@@ -435,13 +447,13 @@ void Fss<T>::change_domain(const vector<int> &regs, U &proc)
 template <class T>
 void Fss<T>::cisc(SubProcessor<T> &processor, const Instruction &instruction)
 {
-    auto& args = instruction.get_start();
+    // auto& args = instruction.get_start();
     octetStream cs;
-    int r0 = instruction.get_r(0), lambda = args[4];
-    std::cout << "Bit length is " << lambda << std::endl;
+    int r0 = instruction.get_r(0), lambda = T::clear::MAX_N_BITS;
+    // std::cout << "Bit length is " << lambda << std::endl;
     bigint signal = 0;
     string tag((char *)&r0, 4);
-    std::cout << tag << std::endl;
+    // std::cout << tag << std::endl;
     if (tag == string("LTZ\0", 4))
     {
         if(P.my_num() == GEN){  
