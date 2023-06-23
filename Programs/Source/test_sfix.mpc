@@ -16,7 +16,7 @@ def test(actual, expected):
 n = 10
 cnt = 0
 
-sfix.set_precision(31, 72)
+sfix.set_precision(31, 63)
 @for_range(n)
 def _(i):
     a = sfix.get_random(-1000,1000)
@@ -26,7 +26,7 @@ def _(i):
 
     print_ln("c is %s , a-b is %s", c.reveal(), (a-b).reveal())
 
-"""for i in range(0, 20):
+for i in range(0, 20):
     t = sfix(i-10)
     print_ln("input is %s, expected %s", t.reveal(), i-10)
-    test(sigmoid(t), sigmoid_clear(i-10))"""
+    test(sigmoid(t), sigmoid_clear(i-10))

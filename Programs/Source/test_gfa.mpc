@@ -18,7 +18,7 @@ a = [0.119, 0.269, 0.500, 0.731, 0.880]
 
 
 
-sfix.set_precision(31, 63)
+sfix.set_precision(31, 80)
 # fundenmental functions, indicating they are cipher-text non-linear operations.
 def func_reciprocal(x):
         return 1 / x
