@@ -58,7 +58,7 @@ void Fss<T>::distributed_comparison_function(SubProcessor<T> &proc, const Instru
         result = MC->finalize_raw();
         if(P.my_num() == EVAL_1 || P.my_num() == EVAL_2)
         {
-            bigint dcf_res_u, dcf_res_v, dcf_res;
+            bigint dcf_res_u, dcf_res_v, dcf_res, dcf_res_reveal;
             dcf_res_u = this->evaluate(result, lambda);
             result += 1LL<<(lambda-1);
             dcf_res_v = this->evaluate(result, lambda);
@@ -88,10 +88,10 @@ void Fss<T>::distributed_comparison_function(SubProcessor<T> &proc, const Instru
             P.send_to(1^P.my_num(), cs_reveal);
             P.receive_player(1^P.my_num(), cs_reveal);
             rec.unpack(cs_reveal);
-            dcf_res += rec;
+            dcf_res_reveal = dcf_res + rec;
             std::cout << "R_tmp is " << r_tmp << " Initial result is " << result - 1LL<<(lambda-1) << " Result is " << result 
             << " Its signal bit is " << result.get_bit(lambda-1) << " Reveal value of dcf_u is : " << dcf_res_u << " dcf_v is: " 
-            << dcf_res_v << " dcf_res " << dcf_res << std::endl;
+            << dcf_res_v << " dcf_res " << dcf_res_reveal << std::endl;
 
             std::cout << "---------------" << std::endl;
             std::cout << "Bit decomposition of result is :" << std::endl;
@@ -103,10 +103,11 @@ void Fss<T>::distributed_comparison_function(SubProcessor<T> &proc, const Instru
             r_tmp = 0;
             for(int i = ceil(lambda/64.0) - 1; i >= 0 ; i--){
                 r_tmp = r_tmp << 64;
+                std::cout << i<<"-th block is " << dcf_res.get_mpz_t()->_mp_d[i] << std::endl;
                 typename T::clear dcf_inter = dcf_res.get_mpz_t()->_mp_d[i];
                 r_tmp = r_tmp + dcf_inter;
             }
-            
+            std::cout << "r_tmp is " << r_tmp << std::endl;
             if(size < 0)
                 r_tmp = - r_tmp;
             P.receive_player(GEN, cs[P.my_num()]);
