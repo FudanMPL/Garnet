@@ -54,6 +54,7 @@ void Fss<T>::distributed_comparison_function(SubProcessor<T> &proc, const Instru
         *dest = *dest + r_tmp;
         MC->prepare_open(proc.S[args[i+3]]);
         MC->exchange(P);
+        std::cout << "Initial x " << proc.S[args[i+3]][0] << std::endl;
         result = MC->finalize_raw();
         if(P.my_num() == EVAL_1 || P.my_num() == EVAL_2)
         {
@@ -61,27 +62,82 @@ void Fss<T>::distributed_comparison_function(SubProcessor<T> &proc, const Instru
             dcf_res_u = this->evaluate(result, lambda);
             result += 1LL<<(lambda-1);
             dcf_res_v = this->evaluate(result, lambda);
-            if(result.get_bit(lambda-1)){
+            dcf_res = dcf_res_u - dcf_res_v ;
+            if(result.get_bit(lambda-1))
                 dcf_res = dcf_res_v - dcf_res_u + P.my_num();
-            }
             else{
-                dcf_res = dcf_res_v - dcf_res_u ;
+                dcf_res = dcf_res_v - dcf_res_u;
             }
 
+            // Test for reveal
+            octetStream cs_reveal_u, cs_reveal_v, cs_reveal;
+            dcf_res_u.pack(cs_reveal_u);
+            P.send_to(1^P.my_num(), cs_reveal_u);
+            P.receive_player(1^P.my_num(), cs_reveal_u);
+            bigint rec;
+            rec.unpack(cs_reveal_u);
+            dcf_res_u += rec;
+
+            dcf_res_v.pack(cs_reveal_v);
+            P.send_to(1^P.my_num(), cs_reveal_v);
+            P.receive_player(1^P.my_num(), cs_reveal_v);
+            rec.unpack(cs_reveal_v);
+            dcf_res_v += rec;
+
+            dcf_res.pack(cs_reveal);
+            P.send_to(1^P.my_num(), cs_reveal);
+            P.receive_player(1^P.my_num(), cs_reveal);
+            rec.unpack(cs_reveal);
+            dcf_res += rec;
+            std::cout << "R_tmp is " << r_tmp << " Initial result is " << result - 1LL<<(lambda-1) << " Result is " << result 
+            << " Its signal bit is " << result.get_bit(lambda-1) << " Reveal value of dcf_u is : " << dcf_res_u << " dcf_v is: " 
+            << dcf_res_v << " dcf_res " << dcf_res << std::endl;
+
+            std::cout << "---------------" << std::endl;
+            std::cout << "Bit decomposition of result is :" << std::endl;
+            for(int i = lambda - 1; i >= 0; i--){
+                std::cout << result.get_bit(i);
+            }
+            std::cout << std::endl;
             auto size = dcf_res.get_mpz_t()->_mp_size;
+            r_tmp = 0;
+            for(int i = ceil(lambda/64.0) - 1; i >= 0 ; i--){
+                r_tmp = r_tmp << 64;
+                typename T::clear dcf_inter = dcf_res.get_mpz_t()->_mp_d[i];
+                r_tmp = r_tmp + dcf_inter;
+            }
+            
             if(size < 0)
-                r_tmp = - dcf_res.get_mpz_t()->_mp_d[0];
-            else
-                r_tmp = dcf_res.get_mpz_t()->_mp_d[0];
+                r_tmp = - r_tmp;
             P.receive_player(GEN, cs[P.my_num()]);
             typename T::clear tmp;
             tmp.unpack(cs[P.my_num()]);
-            proc.S[args[i+2]][0] = typename T::clear(P.my_num()) - r_tmp - tmp;
+            proc.S[args[i+2]][0] = r_tmp - tmp;
         }
         else{
-            typename T::clear r_sum, r0, r1;
-            r0.randomize(prng);
-            r1.randomize(prng);
+            typename T::clear r_sum, r0 = 0, r1 = 0, r_inter = 0;
+            bigint r_tmp;
+            prng.get(r_tmp, lambda); 
+            auto size = r_tmp.get_mpz_t()->_mp_size;
+            for(int i = ceil(lambda/64.0) - 1; i >= 0 ; i--){
+                r0 = r0 << 64;
+                r_inter = r_tmp.get_mpz_t()->_mp_d[i];
+                r0 = r0 + r_inter;
+            }
+            if(size < 0)
+                r0 = - r0;
+
+
+            prng.get(r_tmp, lambda); 
+            size = r_tmp.get_mpz_t()->_mp_size;
+
+            for(int i = ceil(lambda/64.0) - 1; i >= 0 ; i--){
+                r1 = r1 << 64;
+                r_inter = r_tmp.get_mpz_t()->_mp_d[i];
+                r1 = r1 + r_inter;
+            }
+            if(size < 0)
+                r0 = - r0;
             r_sum = r0 + r1;
             proc.S[args[i+2]][0] = r_sum;
             r0.pack(cs[EVAL_1]);
@@ -122,7 +178,7 @@ bigint Fss<T>::evaluate(typename T::clear x, int lambda){
     // std::cout << "init seed is " << tmp_t << std::endl;
     tmp_t = b;
     tmp_v = 0;
-    for(int i = 0; i < lambda; i++){
+    for(int i = 0; i < lambda - 1; i++){
         xi = x.get_bit(lambda - i - 1);
         bigintFromBytes(tmp_out, &seed[0], 16);
         k_in >> scw >> vcw >> tcw[0] >> tcw[1];
@@ -378,19 +434,15 @@ void Fss<T>::change_domain(const vector<int> &regs, U &proc)
 template <class T>
 void Fss<T>::cisc(SubProcessor<T> &processor, const Instruction &instruction)
 {
-    
+    auto& args = instruction.get_start();
     octetStream cs;
-    int r0 = instruction.get_r(0), lambda = T::clear::MAX_N_BITS;
+    int r0 = instruction.get_r(0), lambda = args[4];
     std::cout << "Bit length is " << lambda << std::endl;
-    bigint signal = 1;
+    bigint signal = 0;
     string tag((char *)&r0, 4);
     std::cout << tag << std::endl;
     if (tag == string("LTZ\0", 4))
     {
-        // auto& args = instruction.get_start();
-        // for(int i = 0; i < 6 ; i++){
-        //     std::cout << "The  " << i << "-th argument is : " << args[i] << std::endl;
-        // }
         if(P.my_num() == GEN){  
             this->fss3prep->gen_fake_dcp(1, lambda);  
             signal = 1;

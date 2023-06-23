@@ -11,10 +11,9 @@
 
 template<class T>
 void Fss3Prep<T>::gen_fake_dcp(int beta, int lambda)
-{   
-    std::cout << "lambda is " << lambda << std::endl;
+{
     // Here represents the bytes that bigint will consume, the default number is 16, if the MAX_N_BITS is bigger than 128, then we should change.
-    int lambda_bytes = lambda/8;
+    int lambda_bytes = max(16, (lambda + 1)/8);
     PRNG prng;
     prng.InitSeed();
     fstream k0, k1, r0, r1, r2;
@@ -46,7 +45,7 @@ void Fss3Prep<T>::gen_fake_dcp(int beta, int lambda)
     va = 0;
     //We can optimize keep into one bit here
     // generate the correlated word!
-    for(int i = 0; i < lambda; i++){
+    for(int i = 0; i < lambda - 1; i++){
         keep = bigint(a >> lambda - i - 1).get_ui() & 1;
         lose = 1^keep;
         for(int j = 0; j < 2; j++){     
@@ -93,7 +92,6 @@ void Fss3Prep<T>::gen_fake_dcp(int beta, int lambda)
         bigintFromBytes(tmp_out, &seed[1][0], 16);
         tmp_t[0] = t[keep][0] ^ (tmp_t[0] * tcw[keep]);
         tmp_t[1] = t[keep][1] ^ (tmp_t[1] * tcw[keep]);
-        std::cout << "tmp_t[0] is " << tmp_t[0] << " tmp_t[1] is " << tmp_t[1] << std::endl;
     }
     prng.SetSeed(seed[0]);
     prng.get(convert[0], lambda);
