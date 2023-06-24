@@ -6,4 +6,4 @@ python3 ./compile.py -R 32 poplar-efficiency kohkiloyeh
 python3 ./compile.py -R 32 poplar-efficiency diagnosis
 python3 ./compile.py -R 32 poplar-efficiency digits
 python3 ./compile.py -R 32 poplar-efficiency adult
-#python3 ./compile.py -R 32 poplar-efficiency Skin_NonSkin
+python3 ./compile.py -R 32 poplar-efficiency Skin

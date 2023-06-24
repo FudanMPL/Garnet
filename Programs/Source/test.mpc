@@ -1,6 +1,3 @@
-import poplar
-a = sfix(10.23, size=100)
-b = sfix(5.34, size=100)
+a = sint.get_input_from(0, size=10)
 
-c = a/ b
-print_ln("c = %s", c.reveal())
+print_ln("a[0] = %s", a[0].reveal())

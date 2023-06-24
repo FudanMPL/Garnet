@@ -1,7 +1,7 @@
 import poplar_radixsort, util
 
 attr_lengths = None
-poplar_radixsort.n_threads = 1
+poplar_radixsort.n_threads = 4
 poplar_radixsort.tree_h = 4 # 树高
 
 program.use_trunc_pr=True
@@ -63,7 +63,6 @@ if poplar_radixsort.n_threads == 1:
 
 
 
-
 train = sint.Array(n_train), sint.Matrix(m, n_train)
 
 
@@ -71,7 +70,7 @@ for x in train:
     x.input_from(0)
 
 
-trainer = poplar_radixsort.PoplarTrainner(
+trainer = poplar_radixsort.TreeTrainer(
    train[1], train[0], poplar_radixsort.tree_h, attr_lengths=None,
    n_threads=poplar_radixsort.n_threads)
 

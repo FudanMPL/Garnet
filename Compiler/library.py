@@ -15,6 +15,10 @@ import operator
 import copy
 from functools import reduce
 
+
+
+
+
 def change_machine_domain(k):
     break_point()
     get_program().bit_length = k - 1

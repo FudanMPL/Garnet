@@ -19,6 +19,6 @@ python3 ./Scripts/data_prepare_for_accuracy.py diagnosis
 python3 ./Scripts/data_prepare_for_accuracy.py digits
 ./Scripts/ring-without-offline.sh poplar-accuracy-digits
 
-python3 ./Scripts/data_prepare_for_accuracy.py adult
-./Scripts/ring-without-offline.sh poplar-accuracy-adult
+#python3 ./Scripts/data_prepare_for_accuracy.py adult
+#./Scripts/ring-without-offline.sh poplar-accuracy-adult
 

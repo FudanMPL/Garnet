@@ -1,9 +1,9 @@
 
 m = 4 # 特征数
-n_train = 135 # 训练样本数量
-n_test = 15 # 测试样本数量
-h = 4 # 树高
-n_estimators = 5 # 树的数量
+n_train = 99 # 训练样本数量
+n_test = 51 # 测试样本数量
+h = 2 # 树高
+tree_number = 2 # 树的数量
 n_threads = 4 # 最大线程数
 learning_rate = 0.5 # 学习率
 
@@ -24,8 +24,10 @@ for x in train + test:
 
 
 trainer = xgboost.XGBoost(
-   train[1], train[0], h=h, n_estimators=n_estimators, attr_lengths=None,
+   train[1], train[0], h=h, tree_number=tree_number, attr_lengths=None,
    n_threads=n_threads)
 trainer.fit()
 trainer.test(test[1], test[0])
 
+
+trainer.reveal_and_print()

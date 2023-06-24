@@ -135,7 +135,7 @@ $(LIBRELEASE): Protocols/MalRepRingOptions.o $(PROCESSOR) $(COMMONOBJS) $(TINIER
 
 CFLAGS += -fPIC -g
 
-LDLIBS += -Wl,-rpath -Wl,$(CURDIR)
+LDLIBS += -Wl,-rpath -Wl,$(CURDIR) -L/usr/local/opt/seal/lib -lseal.4.1
 
 $(SHAREDLIB): $(PROCESSOR) $(COMMONOBJS) GC/square64.o GC/Instruction.o
 	$(CXX) $(CFLAGS) -shared -o $@ $^ $(LDLIBS)
@@ -207,6 +207,8 @@ Fake-Offline.x: Utils/Fake-Offline.o $(VM)
 
 %-ecdsa-party.x: ECDSA/%-ecdsa-party.o ECDSA/P256Element.o $(VM)
 	$(CXX) -o $@ $(CFLAGS) $^ $(LDLIBS)
+
+tree-inference.x:  GC/square64.o
 
 replicated-bin-party.x: GC/square64.o
 replicated-ring-party.x: GC/square64.o

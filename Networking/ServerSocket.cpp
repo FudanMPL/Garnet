@@ -149,6 +149,7 @@ void ServerSocket::accept_clients()
       char buf[1];
       if (recv(consocket, buf, 1, MSG_PEEK | MSG_DONTWAIT) > 0)
         {
+
           client_id.Receive(consocket);
           process_connection(consocket, client_id.str());
         }

@@ -1,8 +1,8 @@
 import hamada, util
 
 attr_lengths = None
-hamada.n_threads = 1
-hamada.tree_h = 1 # 树高
+hamada.n_threads = 4
+hamada.tree_h = 4 # 树高
 
 program.use_trunc_pr=True
 
@@ -54,13 +54,6 @@ train = sint.Array(n_train), sint.Matrix(m, n_train)
 
 for x in train:
     x.input_from(0)
-
-
-
-
-
-
-
 
 
 

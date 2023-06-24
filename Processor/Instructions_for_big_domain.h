@@ -1,6 +1,3 @@
-//
-// Created by 林国鹏 on 2023/3/2.
-//
 
 #ifndef GARNET_INSTRUCTIONS_FOR_BIG_DOMAIN_H
 #define GARNET_INSTRUCTIONS_FOR_BIG_DOMAIN_H

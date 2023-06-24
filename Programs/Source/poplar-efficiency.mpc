@@ -1,10 +1,12 @@
+import poplar, util
+
 attr_lengths = None
-n_threads = 1
-h = 4 # 树高
+poplar.n_threads = 4
+poplar.tree_h = 4 # 树高
 
 program.use_trunc_pr=True
 
-import poplar, util
+
 
 
 
@@ -55,9 +57,8 @@ else:
     print("please include %s in poplar.mpc", dataset)
 
 
-if n_threads == 1:
+if poplar.n_threads == 1:
     poplar.single_thread = True
-
 
 
 
@@ -69,9 +70,9 @@ for x in train:
     x.input_from(0)
 
 
-trainer = poplar.PoplarTrainner(
-   train[1], train[0], h, attr_lengths=None,
-   n_threads=n_threads)
+trainer = poplar.TreeTrainer(
+   train[1], train[0], poplar.tree_h, attr_lengths=None,
+   n_threads=poplar.n_threads)
 
 
 layers = trainer.train()

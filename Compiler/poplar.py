@@ -12,6 +12,8 @@ debug_layers = False
 max_leaves = None
 label_number = 2
 single_thread = False
+tree_h = 1
+n_threads = 1
 
 
 def get_type(x):
@@ -55,7 +57,7 @@ def PrefixSumR_inv(x):
 
 
 def Sort(keys, *to_sort, n_bits=None, time=False):
-    if time:
+    if single_thread:
         start_timer(1)
     for k in keys:
         assert len(k) == len(keys[0])
@@ -66,7 +68,7 @@ def Sort(keys, *to_sort, n_bits=None, time=False):
     res = Matrix.create_from(to_sort)
     res = res.transpose()
     radix_sort_from_matrix(bs, res)
-    if time:
+    if single_thread:
         stop_timer(1)
     return res.transpose()
 
@@ -76,6 +78,17 @@ def VectMax(key, *data):
         b = x[0] > y[0]
         return [b.if_else(xx, yy) for xx, yy in zip(x, y)]
 
+    if debug:
+        key = list(key)
+        data = [list(x) for x in data]
+        print_ln('vect max key=%s data=%s', util.reveal(key), util.reveal(data))
+    return util.tree_reduce(reducer, zip(key, *data))[1:]
+
+
+def VectMax2(bit_length, key,  *data):
+    def reducer(x, y):
+        b = x[0].__gt__(y[0], bit_length=bit_length)
+        return [b.if_else(xx, yy) for xx, yy in zip(x, y)]
     if debug:
         key = list(key)
         data = [list(x) for x in data]
@@ -144,77 +157,27 @@ def GroupMax(g, keys, *x):
     return [GroupSum(g, t[:] * xx) for xx in [keys] + x]
 
 
-# def ModifiedGini(g, y, debug=False):
-#     if single_thread:
-#         start_timer(1)
-#     assert len(g) == len(y)
-#     y = [y.get_vector().bit_not(), y]
-#     u = [GroupPrefixSum(g, yy) for yy in y]
-#     s = [GroupSum(g, yy) for yy in y]
-#     w = [ss - uu for ss, uu in zip(s, u)]
-#     us = sum(u)
-#     ws = sum(w)
-#     change_machine_domain(128)
-#     u0_128 = u[0].change_domain_from_to(32, 128)
-#     u1_128 = u[1].change_domain_from_to(32, 128)
-#     w0_128 = w[0].change_domain_from_to(32, 128)
-#     w1_128 = w[1].change_domain_from_to(32, 128)
-#     us_128 = us.change_domain_from_to(32, 128)
-#     ws_128 = ws.change_domain_from_to(32, 128)
-#     uqs = u0_128 ** 2 + u1_128 ** 2
-#     wqs = w0_128 ** 2 + w1_128 ** 2
-#     if single_thread:
-#         start_timer(1)
-#     res = sfix(uqs) / us_128 + sfix(wqs) / ws_128
-#     if single_thread:
-#         stop_timer(1)
-#     n = len(y)
-#     res = res * 2 ** (31 - sfix.f - math.ceil(math.log(n)))
-#
-#     res = res.v.round(128, sfix.f)
-#     change_machine_domain(32)
-#     res = res.change_domain_from_to(128, 32)
-#     if single_thread:
-#         stop_timer(1)
-#     return res
 
-# def ModifiedGini(g, y, debug=False):
-#     if single_thread:
-#         start_timer(1)
-#     assert len(g) == len(y)
-#     y = y.get_vector()
-#     g = g.get_vector()
-#     change_machine_domain(128)
-#     y_bit = math.ceil(math.log2(label_number)) + 1
-#     y_128 = y.change_domain_from_to(32, 128, bit_length=y_bit)
-#     g_128 = g.change_domain_from_to(32, 128, bit_length=1)
-#     ones = sint(1, size=len(y))
-#     total_count = GroupSum(g_128, ones)
-#     total_prefix_count = GroupPrefixSum(g_128, ones)
-#     total_surfix_count = total_count - total_prefix_count
-#     temp_left = sint(0, size=len(y))
-#     temp_right = sint(0, size=len(y))
-#     for i in range(label_number):
-#         y_i = y_128.get_vector().__eq__(ones * i, bit_length=y_bit)
-#         label_count = GroupSum(g_128, y_i)
-#         label_prefix_count = GroupPrefixSum(g_128, y_i)
-#         label_surfix_count = label_count - label_prefix_count
-#         temp_left = label_prefix_count * label_prefix_count + temp_left
-#         temp_right = label_surfix_count * label_surfix_count + temp_right
-#
-#     if single_thread:
-#         start_timer(1)
-#     res = sfix(temp_left) / total_prefix_count + sfix(temp_right) / total_surfix_count
-#     if single_thread:
-#         stop_timer(1)
-#     n = len(y)
-#     res = res * 2 ** (31 - sfix.f - math.ceil(math.log(n)))
-#     res = res.v.round(128, sfix.f)
-#     change_machine_domain(32)
-#     res = res.change_domain_from_to(128, 32)
-#     if single_thread:
-#         stop_timer(1)
-#     return res
+def GroupMax2(node_size, g, keys, x):
+    ones = sint(1, size=len(g))
+    gid = PrefixSum(g) - ones
+    res_keys = sint(0, len(g))
+    res_x = sint(0, len(g))
+    n = len(g)
+    bits = min(3 * util.log2(n), 31)
+    @for_range(node_size)
+    def _(j):
+        nonlocal res_keys, res_x
+        eq = gid.get_vector().__eq__(ones * j, bit_length=tree_h)
+        tmp_key = keys * eq
+        tmp_x = x * eq
+        # max_key, max_x = VectMax2(bits, tmp_key, tmp_key, tmp_x)
+        max_key, max_x = VectMax(tmp_key, tmp_key, tmp_x)
+        res_keys.update(res_keys + eq * max_key)
+        res_x.update(res_x + eq * max_x)
+    return res_keys, res_x
+
+
 
 
 def newton_div(x, y):
@@ -261,25 +224,25 @@ def ModifiedGini(g, y, debug=False):
 
     if single_thread:
         start_timer(30)
-    # res = sfix(temp_left * total_surfix_count_128 + temp_right * total_prefix_count_128) / (total_prefix_count_128 * total_surfix_count_128)
 
     res = newton_div(temp_left, sfix(total_prefix_count_128)) + newton_div(temp_right, sfix(total_surfix_count_128))
-    # print_ln("res1 = %s", res.reveal())
+
     if single_thread:
         stop_timer(30)
     n = len(y)
 
-    remove_bits = max(sfix.f + util.log2(n) - 31, 0)
+    remove_bits = sfix.f
+    # remove_bits = max(sfix.f + util.log2(n) - 31, 0)
     if remove_bits > 0:
         res = res.v.round(128, remove_bits)
     else:
         res = res.v
-    # print_ln("res2 = %s", res.reveal())
+
     change_machine_domain(32)
     sfix.set_precision(16, 31)
     cfix.set_precision(16, 31)
     res = res.change_domain_from_to(128, 32)
-    # print_ln("res2 = %s", res.reveal())
+
     if single_thread:
         stop_timer(20)
     return res
@@ -316,9 +279,10 @@ def CropLayer(k, *v):
 #     return FormatLayer(h, g, NID, Label)
 
 def TrainLeafNodes(h, g, y, NID):
+    if single_thread:
+        start_timer(106)
     assert len(g) == len(y)
     assert len(g) == len(NID)
-
     Label = sint(0, len(g))
     y_bit = util.log2(label_number)
     ones = sint(1, size=len(y))
@@ -326,13 +290,13 @@ def TrainLeafNodes(h, g, y, NID):
     for i in range(label_number):
         y_i = y.get_vector().__eq__(ones * i, bit_length=y_bit)
         count = GroupSum(g, y_i)
-
         comp = max_count < count
         Label = comp * i + (1 - comp) * Label
-
         max_count = comp * count + (1 - comp) * max_count
-
-    return FormatLayer(h, g, NID, Label)
+    res = FormatLayer(h, g, NID, Label)
+    if single_thread:
+        stop_timer(106)
+    return res
 
 
 def GroupSame(g, y):
@@ -349,9 +313,10 @@ def GroupFirstOne(g, b):
     return s * b == 1
 
 
-class PoplarTrainner:
+class TreeTrainer:
     def ApplyTests(self, x, AID, Threshold):
-        start_timer(101)
+        if single_thread:
+            start_timer(101)
         m = len(x)
         n = len(AID)
         assert len(AID) == len(Threshold)
@@ -366,11 +331,13 @@ class PoplarTrainner:
 
         xx = sum(x[j] * e[j] for j in range(m))
         res = 2 * xx > Threshold
-        stop_timer(101)
+        if single_thread:
+            stop_timer(101)
         return res
 
-    def AttributeWiseTestSelection(self, g, x, y, time=False, debug=False):
-        start_timer(102)
+    def AttributeWiseTestSelection(self, g, x, y, node_size):
+        if single_thread:
+            start_timer(102)
         assert len(g) == len(x)
         assert len(g) == len(y)
         s = ModifiedGini(g, y, debug=debug)
@@ -391,13 +358,16 @@ class PoplarTrainner:
         if single_thread:
             start_timer(3)
         s, t = GroupMax(gg, s, t)
+        # s, t = GroupMax2(node_size, gg, s, t)
         if single_thread:
             stop_timer(3)
-        stop_timer(102)
+        if single_thread:
+            stop_timer(102)
         return t, s
 
-    def GlobalTestSelection(self, x, y, g):
-        start_timer(103)
+    def GlobalTestSelection(self, x, y, g, node_size):
+        if single_thread:
+            start_timer(103)
         assert len(y) == len(g)
         for xx in x:
             assert (len(xx) == len(g))
@@ -410,7 +380,6 @@ class PoplarTrainner:
 
         @for_range_multithread(self.n_threads, 1, m)
         def _(j):
-            single = not self.n_threads or self.n_threads == 1
             if single_thread:
                 start_timer(1)
             u[j][:] = PermUtil.apply(self.perms[j], x[j])
@@ -418,31 +387,34 @@ class PoplarTrainner:
             if single_thread:
                 stop_timer(1)
             t[j][:], s[j][:] = self.AttributeWiseTestSelection(
-                g, u[j], v[j], time=single, debug=self.debug_selection)
+                g, u[j], v[j], node_size)
 
         n = len(g)
         a, tt = [sint.Array(n) for i in range(2)]
         a[:], tt[:] = VectMax((s[j][:] for j in range(m)), range(m),
                               (t[j][:] for j in range(m)))
-        stop_timer(103)
+        if single_thread:
+            stop_timer(103)
         return a[:], tt[:]
 
     def TrainInternalNodes(self, k, x, y, g, NID):
-        start_timer(104)
+        if single_thread:
+            start_timer(104)
         assert len(g) == len(y)
         for xx in x:
             assert len(xx) == len(g)
-        AID, Threshold = self.GlobalTestSelection(x, y, g)
-        # s = GroupSame(g[:], y[:])
-        # AID, Threshold = s.if_else(0, AID), s.if_else(MIN_VALUE, Threshold)
+        node_size = MemValue(2 ** k)
+        AID, Threshold = self.GlobalTestSelection(x, y, g, node_size)
         res = FormatLayer_without_crop(g[:], NID, AID, Threshold), AID, Threshold
-        stop_timer(104)
+        if single_thread:
+            stop_timer(104)
         return res
 
     @method_block
     def train_layer(self, k):
         print_ln("training %s-th layer", k)
-        start_timer(105)
+        if single_thread:
+            start_timer(105)
         self.layer_matrix[k], AID, Threshold = \
             self.TrainInternalNodes(k, self.x, self.y, self.g, self.NID)
         if single_thread:
@@ -463,13 +435,9 @@ class PoplarTrainner:
         perm = SortPerm(temp_b)
         self.g.assign(perm.apply(self.g))
         self.NID.assign(perm.apply(self.NID))
-        # self.g = GroupFirstOne(self.g, temp_b_not) + GroupFirstOne(self.g, temp_b)
-        # self.NID = 2 ** k * temp_b + self.NID
-        # perm = SortPerm(temp_b)
-        # self.g = perm.apply(self.g)
-        # self.NID = perm.apply(self.NID)
         self.update_perm_for_attrbutes(b)
-        stop_timer(105)
+        if single_thread:
+            stop_timer(105)
 
     def __init__(self, x, y, h, binary=False, attr_lengths=None,
                  n_threads=None):
@@ -505,7 +473,8 @@ class PoplarTrainner:
         self.gen_perm_for_attrbutes()
 
     def update_perm_for_attrbutes(self, b):
-        start_timer(1)
+        if single_thread:
+            start_timer(1)
         b = Array.create_from(b)
 
         @for_range_multithread(self.n_threads, 1, self.m)
@@ -513,17 +482,18 @@ class PoplarTrainner:
             temp_b = PermUtil.apply(self.perms[i], b)
             temp_perm = SortPerm(temp_b)
             self.perms.assign_part_vector(PermUtil.compose(self.perms[i], temp_perm).get_vector(), i)
-
-        stop_timer(1)
+        if single_thread:
+            stop_timer(1)
 
     def gen_perm_for_attrbutes(self):
-        start_timer(1)
+        if single_thread:
+            start_timer(1)
 
         @for_range_multithread(self.n_threads, 1, self.m)
         def _(i):
             self.perms.assign_part_vector(gen_perm_by_radix_sort(self.x[i]).get_vector(), i)
-
-        stop_timer(1)
+        if single_thread:
+            stop_timer(1)
 
     def train(self):
         """ Train and return decision tree. """
@@ -548,11 +518,11 @@ class PoplarTrainner:
             self.train_layer(k)
         tree = self.get_tree(self.h)
         output_poplar(tree)
-        test_poplar('train', tree, self.y, self.x,
-                    n_threads=self.n_threads)
+        test_decision_tree('train', tree, self.y, self.x,
+                           n_threads=self.n_threads)
         if test_set:
-            test_poplar('test', tree, *test_set,
-                        n_threads=self.n_threads)
+            test_decision_tree('test', tree, *test_set,
+                               n_threads=self.n_threads)
         return tree
 
     def get_tree(self, h):
@@ -568,8 +538,8 @@ class PoplarTrainner:
         return Layer
 
 
-def PoplarTraining(x, y, h, binary=False):
-    return PoplarTrainner(x, y, h, binary=binary).train()
+def TreeTraining(x, y, h, binary=False):
+    return TreeTrainer(x, y, h, binary=binary).train()
 
 
 def output_poplar(layers):
@@ -647,7 +617,7 @@ def run_poplar(layers, data):
 #     stop_timer(100)
 
 
-def test_poplar(name, layers, y, x, n_threads=None):
+def test_decision_tree(name, layers, y, x, n_threads=None):
     start_timer(100)
     n = len(y)
     x = x.transpose().reveal()

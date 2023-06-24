@@ -10,10 +10,10 @@ debug = False
 debug_split = False
 debug_layers = False
 max_leaves = None
-label_number = 2
-single_thread = False
 n_threads = 1
-tree_h = 1
+tree_h = 4 # 树高
+single_thread = False
+label_number = 2
 
 def get_type(x):
     if isinstance(x, (Array, SubMultiArray)):
@@ -27,10 +27,8 @@ def get_type(x):
     else:
         return type(x)
 
-
 def PrefixSum(x):
     return x.get_vector().prefix_sum()
-
 
 def PrefixSumR(x):
     tmp = get_type(x).Array(len(x))
@@ -40,20 +38,17 @@ def PrefixSumR(x):
     break_point()
     return tmp.get_reverse_vector()
 
-
 def PrefixSum_inv(x):
     tmp = get_type(x).Array(len(x) + 1)
     tmp.assign_vector(x, base=1)
     tmp[0] = 0
     return tmp.get_vector(size=len(x), base=1) - tmp.get_vector(size=len(x))
 
-
 def PrefixSumR_inv(x):
     tmp = get_type(x).Array(len(x) + 1)
     tmp.assign_vector(x)
     tmp[-1] = 0
     return tmp.get_vector(size=len(x)) - tmp.get_vector(base=1, size=len(x))
-
 
 class SortPerm:
     def __init__(self, x):
@@ -70,9 +65,8 @@ class SortPerm:
         reveal_sort(self.perm, res, True)
         return res
 
-
 def Sort(keys, *to_sort, n_bits=None, time=False):
-    if single_thread:
+    if time:
         start_timer(1)
     for k in keys:
         assert len(k) == len(keys[0])
@@ -83,12 +77,12 @@ def Sort(keys, *to_sort, n_bits=None, time=False):
     res = Matrix.create_from(to_sort)
     res = res.transpose()
 
+
     radix_sort_from_matrix(bs, res)
-    if single_thread:
+    if time:
+
         stop_timer(1)
-
     return res.transpose()
-
 
 def VectMax(key, *data):
     def reducer(x, y):
@@ -100,7 +94,6 @@ def VectMax(key, *data):
         print_ln('vect max key=%s data=%s', util.reveal(key), util.reveal(data))
     return util.tree_reduce(reducer, zip(key, *data))[1:]
 
-
 def GroupSum(g, x):
     assert len(g) == len(x)
     p = PrefixSumR(x) * g
@@ -111,7 +104,6 @@ def GroupSum(g, x):
     d = pi.unapply(d1) * g
     return PrefixSum(d)
 
-
 def GroupPrefixSum(g, x):
     assert len(g) == len(x)
     s = get_type(x).Array(len(x) + 1)
@@ -120,7 +112,6 @@ def GroupPrefixSum(g, x):
     q = get_type(s).Array(len(x))
     q.assign_vector(s.get_vector(size=len(x)) * g)
     return s.get_vector(size=len(x), base=1) - GroupSum(g, q)
-
 
 def GroupMax(g, keys, *x):
     if debug:
@@ -149,23 +140,20 @@ def GroupMax(g, keys, *x):
             xx.assign_vector(g_old.get_vector(size=vsize, base=w).if_else(
                 xx.get_vector(size=vsize, base=w), a), base=w)
         break_point()
-        if debug:
-            print_ln('group max w=%s b=%s a=%s keys=%s x=%s g=%s', w, b.reveal(),
-                     util.reveal(a), util.reveal(keys),
-                     util.reveal(x), g_new.reveal())
+
     t = sint.Array(len(g))
     t[-1] = 1
     t.assign_vector(g.get_vector(size=n - 1, base=1))
-    if debug:
-        print_ln('group max end g=%s t=%s keys=%s x=%s', util.reveal(g),
-                 util.reveal(t), util.reveal(keys), util.reveal(x))
+
     return [GroupSum(g, t[:] * xx) for xx in [keys] + x]
+
 
 def GroupMax2(node_size, g, keys, x):
     ones = sint(1, size=len(g))
     gid = PrefixSum(g) - ones
     res_keys = sint(0, len(g))
     res_x = sint(0, len(g))
+    n = len(g)
     @for_range(node_size)
     def _(j):
         nonlocal res_keys, res_x
@@ -178,7 +166,6 @@ def GroupMax2(node_size, g, keys, x):
     return res_keys, res_x
 
 
-
 def newton_div(x, y):
     n = 2 ** (sfix.f / 2)
     z = sfix(1/n, size=y.size)
@@ -187,46 +174,34 @@ def newton_div(x, y):
     return x * z
 
 def ModifiedGini(g, y, debug=False):
-    if single_thread:
-        start_timer(20)
+    label_number = 2
     assert len(g) == len(y)
     y_bit = math.ceil(math.log2(label_number)) + 1
     ones = sint(1, size=len(y))
     total_count = GroupSum(g, ones)
-    total_prefix_count = GroupPrefixSum(g, ones).get_vector()
-    total_surfix_count = (total_count - total_prefix_count).get_vector()
-    label_prefix_count = [None for i in range(label_number)]
-    label_surfix_count = [None for i in range(label_number)]
+    total_prefix_count = GroupPrefixSum(g, ones)
+    total_surfix_count = (total_count - total_prefix_count)
     temp_left = sint(0, size=len(y))
     temp_right = sint(0, size=len(y))
     n = len(y)
-    f = 2 * util.log2(n)
-    sfix.set_precision(f)
-    cfix.set_precision(f)
+
     for i in range(label_number):
         y_i = y.get_vector().__eq__(ones * i, bit_length=y_bit)
         label_count = GroupSum(g, y_i)
-        label_prefix_count[i] = GroupPrefixSum(g, y_i)
-        label_surfix_count[i] = label_count - label_prefix_count[i]
-        temp_left = label_prefix_count[i] * label_prefix_count[i] + temp_left
-        temp_right = label_surfix_count[i] * label_surfix_count[i] + temp_right
-    if single_thread:
-        start_timer(30)
-
+        label_prefix_count = GroupPrefixSum(g, y_i)
+        label_surfix_count = label_count - label_prefix_count
+        temp_left = label_prefix_count * label_prefix_count + temp_left
+        temp_right = label_surfix_count * label_surfix_count + temp_right
     res = newton_div(temp_left, sfix(total_prefix_count)) + newton_div(temp_right, sfix(total_surfix_count))
-    res = res.v
-    if single_thread:
-        stop_timer(30)
-    if single_thread:
-        stop_timer(20)
-    return res
+
+    return res.v
+
+
 
 MIN_VALUE = -10000
 
-
 def FormatLayer(h, g, *a):
     return CropLayer(h, *FormatLayer_without_crop(g, *a))
-
 
 def FormatLayer_without_crop(g, *a):
     for x in a:
@@ -235,7 +210,6 @@ def FormatLayer_without_crop(g, *a):
     v = Sort([g.bit_not()], *v, n_bits=[1])
     return v
 
-
 def CropLayer(k, *v):
     if max_leaves:
         n = min(2 ** k, max_leaves)
@@ -243,14 +217,13 @@ def CropLayer(k, *v):
         n = 2 ** k
     return [vv[:min(n, len(vv))] for vv in v]
 
-
 def TrainLeafNodes(h, g, y, NID):
     if single_thread:
         start_timer(106)
     assert len(g) == len(y)
     assert len(g) == len(NID)
     Label = sint(0, len(g))
-    y_bit = math.ceil(math.log2(label_number))
+    y_bit = util.log2(label_number)
     ones = sint(1, size=len(y))
     max_count = sint(0, size=len(y))
     for i in range(label_number):
@@ -264,17 +237,13 @@ def TrainLeafNodes(h, g, y, NID):
         stop_timer(106)
     return res
 
-
 def GroupSame(g, y):
     assert len(g) == len(y)
     s = GroupSum(g, [sint(1)] * len(g))
     s0 = GroupSum(g, y.bit_not())
     s1 = GroupSum(g, y)
-    if debug_split:
-        print_ln('group same g=%s', util.reveal(g))
-        print_ln('group same y=%s', util.reveal(y))
-    return (s == s0).bit_or(s == s1)
 
+    return (s == s0).bit_or(s == s1)
 
 def GroupFirstOne(g, b):
     assert len(g) == len(b)
@@ -297,8 +266,6 @@ class TreeTrainer:
 
     """
     def ApplyTests(self, x, AID, Threshold):
-        if single_thread:
-            start_timer(101)
         m = len(x)
         n = len(AID)
         assert len(AID) == len(Threshold)
@@ -310,21 +277,16 @@ class TreeTrainer:
         def _(j):
             e[j][:] = AID[:] == j
         xx = sum(x[j] * e[j] for j in range(m))
-        if debug:
-            print_ln('apply e=%s xx=%s', util.reveal(e), util.reveal(xx))
-        res = 2 * xx < Threshold
-        if single_thread:
-            stop_timer(101)
-        return res
 
-    def AttributeWiseTestSelection(self, g, x, y, node_size=0):
-        if single_thread:
-            start_timer(102)
+        return 2 * xx < Threshold
 
+    def AttributeWiseTestSelection(self, g, x, y, node_size):
         assert len(g) == len(x)
         assert len(g) == len(y)
 
         s = ModifiedGini(g, y, debug=debug)
+
+
         xx = x
         t = get_type(x).Array(len(x))
         t[-1] = MIN_VALUE
@@ -337,31 +299,17 @@ class TreeTrainer:
             xx.get_vector(size=len(x) - 1) == \
             xx.get_vector(size=len(x) - 1, base=1)))
         break_point()
+
         s = p[:].if_else(MIN_VALUE, s)
         t = p[:].if_else(MIN_VALUE, t[:])
-        if single_thread:
-            start_timer(3)
 
-        s, t = GroupMax2(node_size, gg, s, t)
-        # s, t = GroupMax(gg, s, t)
-        # # tmp = util.log2(self.n)
-        # # condition = tmp > node_size
-        # # if_then(condition)
-        # # s, t = GroupMax2(node_size, Array.create_from(g), Array.create_from(s), Array.create_from(t))
-        # # end_if()
-        # # if_then(1 - condition)
-        # # s, t = GroupMax(gg, s, t)
-        # # end_if()
-        if single_thread:
-            stop_timer(3)
-        if single_thread:
-            stop_timer(102)
+
+        s, t = GroupMax(gg, s, t)
+
 
         return t, s
 
     def GlobalTestSelection(self, x, y, g, node_size):
-        if single_thread:
-            start_timer(103)
         assert len(y) == len(g)
         for xx in x:
             assert(len(xx) == len(g))
@@ -370,46 +318,34 @@ class TreeTrainer:
         u, t = [get_type(x).Matrix(m, n) for i in range(2)]
         v = get_type(y).Matrix(m, n)
         s = sfix.Matrix(m, n)
-        gid = PrefixSum(g)
-        gid = Array.create_from(gid)
         @for_range_multithread(self.n_threads, 1, m)
         def _(j):
-            single = not self.n_threads or self.n_threads == 1
-
-            u[j][:], v[j][:] = Sort((gid, x[j]), x[j], y, n_bits=[util.log2(n), None], time=single)
-
+            u[j][:], v[j][:] = Sort((PrefixSum(g), x[j]), x[j], y)
             t[j][:], s[j][:] = self.AttributeWiseTestSelection(
                 g, u[j], v[j], node_size)
 
         n = len(g)
         a, tt = [sint.Array(n) for i in range(2)]
+
+
         a[:], tt[:] = VectMax((s[j][:] for j in range(m)), range(m),
                               (t[j][:] for j in range(m)))
-        if single_thread:
-            stop_timer(103)
+
         return a[:], tt[:]
 
     def TrainInternalNodes(self, k, x, y, g, NID):
-        if single_thread:
-            start_timer(104)
         assert len(g) == len(y)
         for xx in x:
             assert len(xx) == len(g)
-        node_size = 2 ** k
-        AID, Threshold = self.GlobalTestSelection(x, y, g, MemValue(node_size))
-        s = GroupSame(g[:], y[:])
-        AID, Threshold = s.if_else(0, AID), s.if_else(MIN_VALUE, Threshold)
+        node_size = MemValue(2 ** k)
+        AID, Threshold = self.GlobalTestSelection(x, y, g, node_size)
+
         b = self.ApplyTests(x, AID, Threshold)
-        res = FormatLayer_without_crop(g[:], NID, AID, Threshold), b
-        if single_thread:
-            stop_timer(104)
-        return res
+        return FormatLayer_without_crop(g[:], NID, AID, Threshold), b
 
     @method_block
     def train_layer(self, k):
         print_ln("training %s-th layer", k)
-        if single_thread:
-            start_timer(105)
         x = self.x
         y = self.y
         g = self.g
@@ -417,14 +353,14 @@ class TreeTrainer:
         layer_matrix = self.layer_matrix
         self.layer_matrix[k], b = \
             self.TrainInternalNodes(k, x, y, g, NID)
+
         NID[:] = 2 ** k * b + NID
         b_not = b.bit_not()
+
         g[:] = GroupFirstOne(g, b_not) + GroupFirstOne(g, b)
         y[:], g[:], NID[:], *xx = Sort([b], y, g, NID, *x, n_bits=[1])
         for i, xxx in enumerate(xx):
             x[i] = xxx
-        if single_thread:
-            stop_timer(105)
 
     def __init__(self, x, y, h, binary=False, attr_lengths=None,
                  n_threads=None):
@@ -450,16 +386,18 @@ class TreeTrainer:
         self.x = Matrix.create_from(x)
         self.layer_matrix = sint.Tensor([h, 3, n])
         self.n_threads = n_threads
-        self.n = n
         self.debug_selection = False
         self.debug_threading = False
         self.debug_gini = True
-
+        f = 2 * util.log2(n)
+        sfix.set_precision(f)
+        cfix.set_precision(f)
 
     def train(self):
         """ Train and return decision tree. """
         h = len(self.layer_matrix)
-        for k in range(h):
+        @for_range(h)
+        def _(k):
             self.train_layer(k)
         return self.get_tree(h)
 
@@ -513,7 +451,6 @@ def pick(bits, x):
         except:
             return sum(aa * bb for aa, bb in zip(bits, x))
 
-
 def run_decision_tree(layers, data):
     """ Run decision tree against sample data.
 
@@ -541,24 +478,26 @@ def run_decision_tree(layers, data):
     bits = layers[h][0].equal(index, h)
     return pick(bits, layers[h][1])
 
-
 def test_decision_tree(name, layers, y, x, n_threads=None):
-
     start_timer(100)
     n = len(y)
     x = x.transpose().reveal()
     y = y.reveal()
     guess = regint.Array(n)
     truth = regint.Array(n)
+    correct = regint.Array(2)
+    parts = regint.Array(2)
     layers = [Matrix.create_from(util.reveal(layer)) for layer in layers]
     @for_range_multithread(n_threads, 1, n)
     def _(i):
         guess[i] = run_decision_tree([[part[:] for part in layer]
-                               for layer in layers], x[i]).reveal()
+                                      for layer in layers], x[i]).reveal()
         truth[i] = y[i].reveal()
-    correct = 0
-    for i in range(n):
-        correct = correct + (guess[i] == truth[i])
-    print_ln('%s for height %s: %s/%s', name, len(layers) - 1,
-             sum(correct), n)
+    @for_range(n)
+    def _(i):
+        parts[truth[i]] += 1
+        c = (guess[i].bit_xor(truth[i]).bit_not())
+        correct[truth[i]] += c
+    print_ln('%s for height %s: %s/%s (%s/%s, %s/%s)', name, len(layers) - 1,
+             sum(correct), n, correct[0], parts[0], correct[1], parts[1])
     stop_timer(100)
