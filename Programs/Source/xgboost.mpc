@@ -4,6 +4,7 @@ n_train = 99 # 训练样本数量
 n_test = 51 # 测试样本数量
 h = 2 # 树高
 tree_number = 2 # 树的数量
+
 n_threads = 4 # 最大线程数
 learning_rate = 0.5 # 学习率
 
@@ -16,12 +17,6 @@ test = sfix.Array(n_test), sint.Matrix(m, n_test)
 
 for x in train + test:
     x.input_from(0)
-
-
-
-
-
-
 
 trainer = xgboost.XGBoost(
    train[1], train[0], h=h, tree_number=tree_number, attr_lengths=None,

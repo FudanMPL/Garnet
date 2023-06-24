@@ -1,3 +1,5 @@
+import Compiler.mpc_math
+
 # sint: secret integers
 
 # you can assign public numbers to sint
@@ -134,3 +136,34 @@ M[1][1] = 0
 M = data * M
 test(M[0][0], data[0][1].reveal())
 test(M[1][1], data[1][0].reveal())
+
+print_ln('EXP TEST')
+exp=sfix.Array(4)
+
+exp[0] = 1
+exp[1] = 2
+exp[2] = 3
+exp[3] = 4
+
+print_ln('ERROR WITHIN 0.2')
+test(Compiler.mpc_math.exp_fx(exp.get_vector())[3],53.8)
+
+print_ln('ARGMAX/MAX TEST')
+argmax=sfix.Array(4)
+argmax[0]=0
+argmax[1]=1
+argmax[2]=3
+argmax[3]=2
+test(Compiler.mpc_math.argmax(argmax)[1],0)
+test(Compiler.mpc_math.argmax(argmax)[2],1)
+
+test(Compiler.mpc_math.max(argmax),3)
+
+
+print_ln('LOGSUM TEST')
+
+logsum=sfix.Array(2)
+logsum[0]=0.5
+logsum[1]=0.5
+
+test(Compiler.mpc_math.logsum(logsum),1.193)
