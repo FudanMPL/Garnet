@@ -30,4 +30,4 @@ trainer.fit()
 trainer.test(test[1], test[0])
 
 
-trainer.reveal_and_print()
+# trainer.reveal_and_print()

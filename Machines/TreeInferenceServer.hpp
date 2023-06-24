@@ -154,8 +154,7 @@ void TreeInferenceServer::send_single_answer(Ciphertext &answer) {
   answer.save(stream);
   octetStream os(stream.str());
   player->send(os);
-  cout << " answer noise budget in answer: " << decryptor_for_test->invariant_noise_budget(answer) << " bits"
-       << endl;
+
 
 }
 
@@ -166,11 +165,13 @@ void TreeInferenceServer::run() {
   timer.start(player->total_comm());
 
   vector<EncryptedSample> samples;
+  cout << "receiving queries" << endl;
   for (int i = 0; i < test_sample_number; i++){
     EncryptedSample sample;
     recv_single_query(sample.features_vector);
     samples.push_back(sample);
   }
+  cout << "processing queries" << endl;
   for (int i = 0; i < test_sample_number; i++){
     samples[i].label = process_single_query(samples[i].features_vector);
   }
@@ -209,7 +210,7 @@ void TreeInferenceServer::recv_single_query(vector<vector<Ciphertext> > &feature
   recv_timer.start();
   player->receive(os);
   recv_timer.stop();
-  cout << "Recv time = " << recv_timer.elapsed() << " seconds" << endl;
+//  cout << "Recv time = " << recv_timer.elapsed() << " seconds" << endl;
   string s = os.str();
   std::istringstream stream(s);
 
@@ -349,10 +350,10 @@ void TreeInferenceServer::recv_keys() {
   relin_keys = new RelinKeys();
   relin_keys->load(*context, stream);
   encryptor = new Encryptor(*context, *public_key);
-  // only for test
-  SecretKey secretKey;
-  secretKey.load(*context, stream);
-  decryptor_for_test = new Decryptor(*context, secretKey);
+//  // only for test
+//  SecretKey secretKey;
+//  secretKey.load(*context, stream);
+//  decryptor_for_test = new Decryptor(*context, secretKey);
 }
 
 void TreeInferenceServer::merge_node(Node *node) {

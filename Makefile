@@ -135,7 +135,7 @@ $(LIBRELEASE): Protocols/MalRepRingOptions.o $(PROCESSOR) $(COMMONOBJS) $(TINIER
 
 CFLAGS += -fPIC -g
 
-LDLIBS += -Wl,-rpath -Wl,$(CURDIR) -L/usr/local/opt/seal/lib -lseal.4.1
+LDLIBS += -Wl,-rpath -Wl,$(CURDIR)
 
 $(SHAREDLIB): $(PROCESSOR) $(COMMONOBJS) GC/square64.o GC/Instruction.o
 	$(CXX) $(CFLAGS) -shared -o $@ $^ $(LDLIBS)
@@ -202,13 +202,20 @@ Fake-Offline.x: Utils/Fake-Offline.o $(VM)
 %.x: Utils/%.o $(COMMON)
 	$(CXX) -o $@ $(CFLAGS) $^ $(LDLIBS)
 
+
+
+tree-inference.x: Machines/tree-inference.cpp  $(MINI_OT) $(SHAREDLIB)
+	$(CXX) -o $@ $(CFLAGS) $^ $(LDLIBS) -L/usr/local/opt/seal/lib -lseal.4.1 $(SHAREDLIB)
+
+
 %.x: Machines/%.o $(MINI_OT) $(SHAREDLIB)
 	$(CXX) -o $@ $(CFLAGS) $^ $(LDLIBS) $(SHAREDLIB)
 
 %-ecdsa-party.x: ECDSA/%-ecdsa-party.o ECDSA/P256Element.o $(VM)
 	$(CXX) -o $@ $(CFLAGS) $^ $(LDLIBS)
 
-tree-inference.x:  GC/square64.o
+
+tree-inference.x:  ${NETWORK}
 
 replicated-bin-party.x: GC/square64.o
 replicated-ring-party.x: GC/square64.o

@@ -7,9 +7,10 @@
 #include "../Tools/octetStream.h"
 #include "../Networking/PlayerBuffer.h"
 #include "../Tools/int.h"
-#include "../Processor/TreeInferenceClient.h"
-#include "../Processor/TreeInferenceServer.h"
-
+#include "../Machines/TreeInferenceClient.h"
+#include "../Machines/TreeInferenceServer.h"
+#include "../Machines/TreeInferenceClient.hpp"
+#include "../Machines/TreeInferenceServer.hpp"
 
 
 using namespace std;

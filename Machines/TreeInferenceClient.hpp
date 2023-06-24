@@ -210,7 +210,7 @@ void TreeInferenceClient::send_keys() {
   std::ostringstream stream;
   public_key->save(stream);
   relin_keys->save(stream);
-  secret_key->save(stream);
+//  secret_key->save(stream);
   octetStream os(stream.str());
   player->send(os);
 }
@@ -223,6 +223,12 @@ int TreeInferenceClient::recv_single_answer() {
   std::stringstream received_ciphertext_stream(s);
   seal::Ciphertext received_ciphertext;
   received_ciphertext.load(*context, received_ciphertext_stream);
+  int budget = decryptor->invariant_noise_budget(received_ciphertext);
+  if (budget <= 0){
+    cout << "  noise budget in the recv answer: " << budget << " bits, error may be wrong."
+       << endl;
+  }
+
   Plaintext answer;
   decryptor->decrypt(received_ciphertext, answer);
 
