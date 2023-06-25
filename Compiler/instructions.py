@@ -2800,8 +2800,8 @@ class trunc_pr(base.VarArgsInstruction):
             print("The profiling results could be biased")
             print("Please config the cost of trunc in cost_config.py")
             return
-        req_node.increment(('online communication', 'bits'), res[0]*self.get_size() * self.get_repeat())
-        req_node.increment(('offline communication', 'bits'), res[2]*self.get_size() * self.get_repeat())
+        req_node.increment(('online communication', 'bits'), res[0]*self.get_size() )
+        req_node.increment(('offline communication', 'bits'), res[2]*self.get_size())
         req_node.increment(('online', 'round'), res[1])
         req_node.increment(('offline', 'round'), res[3])
 
