@@ -69,6 +69,7 @@ from Compiler.util import is_zero, tree_reduce
 from Compiler.comparison import CarryOutRawLE
 from Compiler.GC.types import sbitint
 from functools import reduce
+
 bs_num=256
 def log_e(x):
     return mpc_math.log_fx(x, math.e)
@@ -94,6 +95,8 @@ def sigmoid(x):
     """ Sigmoid function.
 
     :param x: sfix """
+
+
     return sigmoid_from_e_x(x, exp(-x))
 
 def sigmoid_from_e_x(x, e_x):
