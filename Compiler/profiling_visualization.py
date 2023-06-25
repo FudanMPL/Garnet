@@ -23,7 +23,7 @@ def parse(profiling_res):
 font_legend = {'family': 'Times New Roman','weight': 'normal', 'size': 18}
 font_label = {'family': 'Times New Roman','weight': 'normal', 'size': 16}
 colors = ['red','blue','green','orange','purple']
-dir = "/home/wqruan/Garnet/Compiler/profiling_res/"
+dir = "Compiler/profiling_res/"
 
 def plot_histogram(data, name):
     plt.xlabel('Component', font_label)
