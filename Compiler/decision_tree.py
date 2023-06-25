@@ -161,6 +161,7 @@ def ModifiedGini(g, y, debug=False):
     uqs = u[0] ** 2 + u[1] ** 2
     wqs = w[0] ** 2 + w[1] ** 2
     res = sfix(uqs) / us + sfix(wqs) / ws
+
     if debug:
         print_ln('u0=%s', util.reveal(u[0]))
         print_ln('u0=%s', util.reveal(u[1]))
@@ -177,6 +178,9 @@ def ModifiedGini(g, y, debug=False):
         print_ln('gini %s %s', str(res), util.reveal(res))
 
     return res
+
+
+
 
 MIN_VALUE = -10000
 

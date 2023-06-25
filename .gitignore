@@ -127,8 +127,12 @@ _build/
 # temp doc files
 doc/readme.md
 doc/xml
+Compiler/profiling_res/
 
 #ignore model and data
 Compiler/DL/data/*
 Compiler/DL/AvgFeature-All/*
 Compiler/DL/checkpoint/*
+
+#GFA temp
+Compiler/GFA/*.json
