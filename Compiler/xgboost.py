@@ -205,38 +205,61 @@ def GroupFirstOne(g, b):
 
 
 class XGBoost:
-    def __init__(self, x, y, h, n_estimators, learning_rate=0.1, binary=False, attr_lengths=None,
-                 n_threads=None):
-        assert not (binary and attr_lengths)
-        if binary:
-            attr_lengths = [1] * len(x)
-        else:
-            attr_lengths = attr_lengths or ([0] * len(x))
-        for l in attr_lengths:
-            assert l in (0, 1)
-        self.attr_lengths = Array.create_from(regint(attr_lengths))
-        Array.check_indices = False
-        Matrix.disable_index_checks()
-        for xx in x:
-            assert len(xx) == len(y)
-        n = len(y)
-        self.n_estimators = n_estimators
-        self.y = Array.create_from(y)
-        self.x = Matrix.create_from(x)
-        self.n_threads = n_threads
-        self.m = len(x)
-        self.n = len(y)
-        self.h = h
-        self.perms = Matrix(self.m, self.n, sint)
-        self.gen_perm_for_attrbutes()
-        self.learning_rate = learning_rate
-        self.trees = []
+    def __init__(self, x=None, y=None, h=None, tree_number=None, learning_rate=0.5, binary=False, attr_lengths=None,
+                 n_threads=None,  attribute_number=None, attribute_max_values=None, test_sample_number=None):
+        if x is None:  # only inference
+            self.h = h
+            self.attribute_number = attribute_number
+            self.attribute_max_values = attribute_max_values
+            self.n_threads = n_threads
+            self.tree_number = tree_number
+            self.test_sample_number = test_sample_number
+            self.trees = []
+        else:  # training
+            assert not (binary and attr_lengths)
+            if binary:
+                attr_lengths = [1] * len(x)
+            else:
+                attr_lengths = attr_lengths or ([0] * len(x))
+            for l in attr_lengths:
+                assert l in (0, 1)
+            self.attr_lengths = Array.create_from(regint(attr_lengths))
+            Array.check_indices = False
+            Matrix.disable_index_checks()
+            for xx in x:
+                assert len(xx) == len(y)
+            self.tree_number = tree_number
+            self.y = Array.create_from(y)
+            self.x = Matrix.create_from(x)
+            self.n_threads = n_threads
+            self.m = len(x)
+            self.n = len(y)
+            self.h = h
+            self.perms = Matrix(self.m, self.n, sint)
+            self.gen_perm_for_attrbutes()
+            self.learning_rate = learning_rate
+            self.trees = []
+
+    def input_from(self, pid):
+        # write meta data in file for using tree-inference.x
+        f = open("Player-Data/xgboost-meta", 'w')
+        f.write(str(self.tree_number) + "\n")
+        f.write(str(self.h) + "\n")
+        f.write(str(self.attribute_number) + "\n")
+        f.write(str(self.test_sample_number) + "\n")
+        f.write(" ".join(str(self.attribute_max_values[i]) for i in range(self.attribute_number)))
+        f.close()
+        for i in range(self.tree_number):
+            tree = XGBoostTree(h=self.h, attribute_number=self.attribute_number, attribute_max_values=self.attribute_max_values)
+            tree.input_from(pid)
+            self.trees.append(tree)
+
 
     def fit(self):
         y_pred = sfix.Array(self.n)
         datas = self.x.transpose()
         update_pred = sfix.Array(self.n)
-        for i in range(self.n_estimators):
+        for i in range(self.tree_number):
             print_ln("Training the %s-th tree", i)
             tree = XGBoostTree(self.x, self.y, y_pred, self.h, self.perms)
             tree.fit()
@@ -278,42 +301,135 @@ class XGBoost:
         def _(i):
             self.perms.assign_part_vector(gen_perm_by_radix_sort(self.x[i]).get_vector(), i)
 
+    def reveal_to(self, pid):
+        for i in range(self.tree_number):
+            self.trees[i].reveal_to(pid)
+
+    def reveal_and_print(self):
+        for i in range(self.tree_number):
+            self.trees[i].reveal_and_print()
+
 
 class XGBoostTree:
 
-    def __init__(self, x, y, y_pred, h, perms, lamb=0.1, binary=False, attr_lengths=None,
-                 n_threads=None):
-        assert not (binary and attr_lengths)
-        if binary:
-            attr_lengths = [1] * len(x)
+    def __init__(self, x=None, y=None, y_pred=None, h=None, perms=None, lamb=0.1, binary=False, attr_lengths=None,
+                 n_threads=None, attribute_number=None, attribute_max_values=None):
+        if x is None:
+            self.attribute_max_values = attribute_max_values
+            self.attribute_number = attribute_number
+            self.h = h
+            self.layers = []
         else:
-            attr_lengths = attr_lengths or ([0] * len(x))
-        for l in attr_lengths:
-            assert l in (0, 1)
-        self.attr_lengths = Array.create_from(regint(attr_lengths))
-        Array.check_indices = False
-        Matrix.disable_index_checks()
-        for xx in x:
-            assert len(xx) == len(y)
-        n = len(y)
-        self.g = sint.Array(n)
-        self.g.assign_all(0)
-        self.g[0] = 1
-        self.NID = sint.Array(n)
-        self.NID.assign_all(0)
-        self.y_pred = Array.create_from(y_pred)
-        self.y = Array.create_from(y)
-        self.x = Matrix.create_from(x)
-        self.layer_matrix = sint.Tensor([h, 3, n])
-        self.n_threads = n_threads
-        self.debug_selection = False
-        self.debug_threading = False
-        self.debug_gini = True
-        self.m = len(x)
-        self.n = len(y)
-        self.h = h
-        self.perms = Matrix.create_from(perms)
-        self.lamb = lamb
+            assert not (binary and attr_lengths)
+            if binary:
+                attr_lengths = [1] * len(x)
+            else:
+                attr_lengths = attr_lengths or ([0] * len(x))
+            for l in attr_lengths:
+                assert l in (0, 1)
+            self.attr_lengths = Array.create_from(regint(attr_lengths))
+            Array.check_indices = False
+            Matrix.disable_index_checks()
+            for xx in x:
+                assert len(xx) == len(y)
+            n = len(y)
+            self.g = sint.Array(n)
+            self.g.assign_all(0)
+            self.g[0] = 1
+            self.NID = sint.Array(n)
+            self.NID.assign_all(0)
+            self.y_pred = Array.create_from(y_pred)
+            self.y = Array.create_from(y)
+            self.x = Matrix.create_from(x)
+            self.layer_matrix = sint.Tensor([h, 3, n])
+            self.n_threads = n_threads
+            self.debug_selection = False
+            self.debug_threading = False
+            self.debug_gini = True
+            self.m = len(x)
+            self.n = len(y)
+            self.h = h
+            self.perms = Matrix.create_from(perms)
+            self.lamb = lamb
+
+    def reveal_to(self, pid):
+        for i in range(self.h):
+            layer = self.layers[i]
+            node_id = layer[0]
+            attr_id = layer[1]
+            thresholds = layer[2]
+            node_number = len(layer[0])
+            for j in range(node_number):
+                node_id_plaintext = node_id[j].reveal_to(pid)
+                node_id_plaintext.binary_output()
+                attr_id_plaintext = attr_id[j].reveal_to(pid)
+                attr_id_plaintext.binary_output()
+                thresholds_plaintext = thresholds[j].reveal_to(pid)
+                thresholds_plaintext.binary_output()
+        leaf_layer = self.layers[self.h]
+        node_id = leaf_layer[0]
+        labels = leaf_layer[1]
+        node_number = len(leaf_layer[0])
+        for j in range(node_number):
+            node_id_plaintext = node_id[j].reveal_to(pid)
+            node_id_plaintext.binary_output()
+            labels_plaintext = labels[j].reveal_to(pid)
+            labels_plaintext.binary_output()
+
+    def reveal_and_print(self):
+        for i in range(self.h):
+            layer = self.layers[i]
+            node_id = layer[0]
+            attr_id = layer[1]
+            thresholds = layer[2]
+            node_number = len(layer[0])
+            # print_ln("node number = %s ", node_number)
+            for j in range(node_number):
+                node_id_plaintext = node_id[j].reveal()
+                attr_id_plaintext = attr_id[j].reveal()
+                thresholds_plaintext = thresholds[j].reveal() // cint(2)
+                print_ln("%s %s %s", node_id_plaintext, attr_id_plaintext, thresholds_plaintext)
+
+        leaf_layer = self.layers[self.h]
+        node_id = leaf_layer[0]
+        labels = leaf_layer[1]
+        node_number = len(leaf_layer[0])
+        # print_ln("node number = %s ", node_number)
+        for j in range(node_number):
+            node_id_plaintext = node_id[j].reveal()
+            labels_plaintext = labels[j].reveal()
+            print_ln("%s %s", node_id_plaintext, labels_plaintext)
+
+
+    def input_from(self, pid):
+        for i in range(self.h):
+            layer = []
+            node_number = 2 ** i
+            node_id = sint.Array(size=node_number)
+            attr_id = sint.Array(size=node_number)
+            thresholds = sint.Array(size=node_number)
+            for j in range(node_number):
+                sample = sint.get_input_from(pid, size=3)
+                node_id[j] = sample[0]
+                attr_id[j] = sample[1]
+                thresholds[j] = sample[2] * 2
+            layer.append(node_id)
+            layer.append(attr_id)
+            layer.append(thresholds)
+            self.layers.append(layer)
+        node_number = 2 ** self.h
+        node_id = sint.Array(size=node_number)
+        labels = sfix.Array(size=node_number)
+        for j in range(node_number):
+            sample_id = sint.get_input_from(pid)
+            sample_label = sfix.get_input_from(pid)
+            node_id[j] = sample_id
+            labels[j] = sample_label
+        leaf_layer = []
+        leaf_layer.append(node_id)
+        leaf_layer.append(labels)
+        self.layers.append(leaf_layer)
+        return self
 
 
     def update_perm_for_attrbutes(self, b):
@@ -511,7 +627,6 @@ def pick(bits, x):
             return x[0].dot_product(bits, x)
         except:
             return sum(aa * bb for aa, bb in zip(bits, x))
-
 
 
 

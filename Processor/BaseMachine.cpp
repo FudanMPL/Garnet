@@ -126,17 +126,17 @@ void BaseMachine::time()
 
 void BaseMachine::start(int n)
 {
-  cout << "Starting timer " << n << " at " << timer[n].elapsed()
-    << " (" << timer[n].mb_sent() << " MB)"
-    << " after " << timer[n].idle() << endl;
+//  cout << "Starting timer " << n << " at " << timer[n].elapsed()
+//    << " (" << timer[n].mb_sent() << " MB)"
+//    << " after " << timer[n].idle() << endl;
   timer[n].start(total_comm());
 }
 
 void BaseMachine::stop(int n)
 {
   timer[n].stop(total_comm());
-  cout << "Stopped timer " << n << " at " << timer[n].elapsed() << " ("
-      << timer[n].mb_sent() << " MB)" << endl;
+//  cout << "Stopped timer " << n << " at " << timer[n].elapsed() << " ("
+//      << timer[n].mb_sent() << " MB)" << endl;
 }
 
 void BaseMachine::print_timers()

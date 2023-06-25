@@ -19,7 +19,7 @@ from Compiler import ml
 tf = ml
 
 layers = [
-    tf.keras.layers.Conv2D(20, 5, 1, 'valid', activation='relu'),
+    tf.keras.layers.Conv2D(20, 5, 2, 'valid', activation='relu'),
 ]
 
 if 'batchnorm' in program.args:
@@ -47,14 +47,14 @@ model = tf.keras.models.Sequential(layers)
 optim = tf.keras.optimizers.Adam(amsgrad=True)
 
 model.compile(optimizer=optim)
-
+start_profiling()
 opt = model.fit(
     training_samples,
     training_labels,
-    epochs=10,
+    epochs=1,
     batch_size=128,
     validation_data=(test_samples, test_labels)
 )
-
+stop_profiling()
 for var in model.trainable_variables:
     var.write_to_file()

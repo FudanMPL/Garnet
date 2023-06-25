@@ -1,6 +1,3 @@
-//
-// Created by 林国鹏 on 2023/3/2.
-//
 
 #ifndef GARNET_INSTRUCTIONS_FOR_BIG_DOMAIN_H
 #define GARNET_INSTRUCTIONS_FOR_BIG_DOMAIN_H
@@ -27,7 +24,10 @@
             *dest++ = *op1++ + Rep3Share128::constant(*op2++, Proc.P.my_num(), Procp.MC.get_alphai())) \
     X(ADDCI, auto dest = &Procp.get_C()[r[0]]; auto op1 = &Procp.get_C()[r[1]]; \
             typename Rep3Share128::clear op2 = int(n), \
-            *dest++ = *op1++ + op2)                                                            \
+            *dest++ = *op1++ + op2)            \
+    X(ADDC, auto dest = &Procp.get_C()[r[0]]; auto op1 = &Procp.get_C()[r[1]]; \
+            auto op2 = &Procp.get_C()[r[2]], \
+            *dest++ = *op1++ + *op2++) \
     X(SUBS, auto dest = &Procp.get_S()[r[0]]; auto op1 = &Procp.get_S()[r[1]]; \
             auto op2 = &Procp.get_S()[r[2]], \
             *dest++ = *op1++ - *op2++)             \
@@ -61,7 +61,32 @@
     X(MULC, auto dest = &Procp.get_C()[r[0]]; auto op1 = &Procp.get_C()[r[1]]; \
             auto op2 = &Procp.get_C()[r[2]], \
             *dest++ = *op1++ * *op2++) \
-
+    X(LDMSI, auto dest = &Procp.get_S()[r[0]]; auto source = &Proc.get_Ci()[r[1]], \
+            *dest++ = Proc.machine.Mp_2->read_S(*source++))                             \
+    X(STMSI, auto source = &Procp.get_S()[r[0]]; auto dest = &Proc.get_Ci()[r[1]], \
+            Proc.machine.Mp_2->write_S(*dest++, *source++))                             \
+    X(PREFIXSUMS, auto dest = &Procp.get_S()[r[0]]; auto op1 = &Procp.get_S()[r[1]]; \
+            Rep3Share128 s, \
+            s += *op1++; *dest++ = s)          \
+    X(LDINT, auto dest = &Proc.get_Ci()[r[0]], \
+            *dest++ = int(n))                  \
+    X(ADDINT, auto dest = &Proc.get_Ci()[r[0]]; auto op1 = &Proc.get_Ci()[r[1]]; \
+            auto op2 = &Proc.get_Ci()[r[2]], \
+            *dest++ = *op1++ + *op2++)         \
+    X(INCINT, auto dest = &Proc.get_Ci()[r[0]]; auto base = Proc.get_Ci()[r[1]], \
+            int inc = (i / start[0]) % start[1]; *dest++ = base + inc * int(n))         \
+    X(LDTN, auto dest = &Proc.get_Ci()[r[0]], *dest++ = Proc.get_thread_num())          \
+    X(GTC, auto dest = &Proc.get_Ci()[r[0]]; auto op1 = &Proc.get_Ci()[r[1]]; auto op2 = &Proc.get_Ci()[r[2]], \
+            *dest++ = *op1++ > *op2++)         \
+    X(SUBINT, auto dest = &Proc.get_Ci()[r[0]]; auto op1 = &Proc.get_Ci()[r[1]]; \
+            auto op2 = &Proc.get_Ci()[r[2]], \
+            *dest++ = *op1++ - *op2++)         \
+    X(MULINT, auto dest = &Proc.get_Ci()[r[0]]; auto op1 = &Proc.get_Ci()[r[1]]; \
+            auto op2 = &Proc.get_Ci()[r[2]], \
+            *dest++ = *op1++ * *op2++)         \
+    X(MOVINT, auto dest = &Proc.get_Ci()[r[0]]; auto source = &Proc.get_Ci()[r[1]], \
+            *dest++ = *source++)               \
+                                               \
 //    X(BIT, auto dest = &Procp.get_S()[r[0]],
 //            Procp.DataF.get_one(DATA_BIT, *dest++))
 
