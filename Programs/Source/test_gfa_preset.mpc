@@ -1,8 +1,9 @@
 import Compiler.mpc_math
 from GFA.presets import sigmoid
+from GFA.presets import tanh
+import numpy as np
 
 def test(actual, expected):
-
     # you can reveal a number in order to print it
 
     actual = actual.reveal()
@@ -12,6 +13,10 @@ a = [0.119, 0.269, 0.500, 0.731, 0.880]
 
 sfix.set_precision(31, 63)
 
+print_ln('approx-sigmoid: ')
 for i in range(0, 5):
-    test(sigmoid(sfix(i-2)) ,a[i])
+    test(sigmoid(sfix(i-2)) , 1/(1 + np.exp(-(i-2))))
 
+print_ln('approx-tanh: ')
+for i in range(0, 5):
+    test(tanh(sfix(i-2)) , np.tanh(i-2))

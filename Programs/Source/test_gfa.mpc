@@ -29,16 +29,11 @@ def func_exp(x, lib=sp):
     return lib.exp(x)
 
 # target function.
-@GFA(15, 31, 63, (-10,10))
+@GFA(10, 31, 63, (-10,10))
 def mysigmoid(x):
     return 1 * func_reciprocal((1 + func_exp(-x)))
 
 print_ln('using GFA sigmoid')
 for i in range(0, 5):
     test(mysigmoid(sfix(i-2)) ,a[i])
-
-from GFA.presets import sigmoid
-print_ln('using GFA sigmoid')
-for i in range(0, 5):
-    test(sigmoid(sfix(i-2)) ,a[i])
 
