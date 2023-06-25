@@ -37,21 +37,33 @@ def fresh_name():
     _name += 1
     return name
 
-def ops_mul(self, other):
+def train():
+    global prepare
+    prepare = False
+
+def same_shape(sizes1, sizes2):
+    if len(sizes1) != len(sizes2):
+        return False
+    for i in range(0, sizes1):
+        if sizes1[i] != sizes2[i]:
+            return False
+    return True
+
+def element_wise_mul(self, other):
     # forward
     # backward
     def propagate(dl_doutputs, tape):
         dl_dx, = dl_doutputs
         inputs = tape.inputs
-        outputs = tape.outputs
-        dx_dself =  dl_d[inputs[0]]# partial derivate of r = self*other
-        dx_dother = dl_d[inputs[1]] # partial derivate of r = self*other
-        dl_dself = dl_dx * dx_dself #todo
-        dl_dother = dl_dx * dx_dother # todo
+        dl_dself =  dl_d[inputs[0]]# partial derivate of r = self*other
+        dl_dother = dl_d[inputs[1]] # partial derivate of r = self*other
+        dl_dself[:] += dl_dx[:] * other.value[:] #todo
+        dl_dother[:] += dl_dx[:] * self.value[:] # todo
         dl_dinputs = [dl_dself, dl_dother]
         return dl_dinputs
+
     if prepare:    
-        new_value = MultiArray(self.value.sizes[0], other.value.sizes[1])
+        new_value = MultiArray([self.value.sizes[0], other.value.sizes[1]], other.value.value_type)
         output = Tensor(new_value)
         tape = Tape(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
         gradient_tape.append(tape)
@@ -66,14 +78,7 @@ def ops_mul(self, other):
         input1 = tensors[inputs[0]]
         input2 = tensors[inputs[1]]
         output = tensors[outputs[0]]
-        output.vaule = input1.value * input2.value #todo
-        if len(input1.shape) == len(input2.shape):
-            x = 1
-        elif len(input1.shape) == len(input2.shape)+1:
-            x = 1
-        elif len(input1.shape)+1 == len(input2.shape):
-            x = 1
-        
+        output.value[:] = input1.value[:] * input2.value[:] #todo        
         op_id += 1
 
     # record the input and output of the op
@@ -124,7 +129,8 @@ class Tensor():
         self.name = name or fresh_name()
         self.shape = value.sizes
         if is_train and not is_grad:
-            self.grad = Tensor(self.value, is_grad=True)
+            self.grad = self.value.same_shape()
+            self.grad.assign_all(0)
             dl_d[self.name] = self.grad
             tensors[self.name] = self
 
@@ -137,26 +143,33 @@ class Tensor():
         var = Tensor(value, name)
         return var
 
-    def backward():
-        len = len(gradient_tape)
+    def backward(self):
+        length = len(gradient_tape)
         index = 0
+        dl_d[self.name].assign_all(1)
         # the following loop only runs once in the training process due the semantice of @for_range
         def gather_grad(entries):
             return [dl_d[entry]  for entry in entries]        
-        for i in range(0, len):
-            if self.name in gradient_tape[len-i-1].outputs:
-                   index = len - i
+        for i in range(0, length):
+            if self.name in gradient_tape[length-i-1].outputs:
+                   index = length - i
         for i in range(0, index):
             entry = gradient_tape[index-i-1]
             dl_doutputs = gather_grad(entry.outputs)
-            dl_dinputs = entry.propagate(dl_doutputs, entry)
-            for input, dl_dinput in zip(entry.inputs, dl_dinputs):
-                    dl_d[input] += dl_dinput
+            entry.propagate(dl_doutputs, entry)
         return 0
 
     # Multiplication of a Variable, tracking gradients
     def __mul__(self, other):
-        return ops_mul(self, other)
+        v1 = self.value
+        v2 = other.value
+        if len(v1.sizes) == len(v2.sizes):
+            return 
+
+    def element_mul(self, other):
+        if not same_shape(self.sizes, other.sizes):
+            exit(0)
+        return element_wise_mul(self, other)
 
     def __add__(self, other):
         return ops_add(self, other)
@@ -168,6 +181,8 @@ class Tensor():
 # reset tape
 def reset_tape():
     gradient_tape.clear()
+
+
 
 class Tape(NamedTuple):
     inputs : List[str]

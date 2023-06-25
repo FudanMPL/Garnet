@@ -74,6 +74,7 @@ def plot_stackedcolumn(data, name):
     plt.ylim(0,1.01)
     plt.yticks(np.arange(0,1.2,0.2),[f'{i}%' for i in range(0,120,20)])
     plt.grid(axis='y',alpha=0.5,ls='--')
+    plt.grid(axis='x',alpha=0.5,ls='--')
     plt.legend(frameon=False,bbox_to_anchor=(1.01,1))
     plt.tight_layout()
     plt.savefig(dir+name+"-stack.pdf")

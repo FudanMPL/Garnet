@@ -279,7 +279,6 @@ class Compiler:
 
         self.VARS["comparison"] = comparison
         self.VARS["floatingpoint"] = floatingpoint
-
         self.VARS["program"] = self.prog
         if self.options.binary:
             self.VARS["sint"] = GC_types.sbitintvec.get_type(int(self.options.binary))

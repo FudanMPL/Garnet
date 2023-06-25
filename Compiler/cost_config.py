@@ -140,30 +140,30 @@ class BGW(Cost): #done
         # "trunc": lambda bit_length, kapaa, precision, n_parties: (bit_length*3, 1, 0, 0)
    }
 
-class Falcon(Cost):
-    cost_dict_func = {
-        "share": lambda bit_length, kapaa, precision, n_parties: (bit_length*3, 1, 0, 0),
-        "open" : lambda bit_length, kapaa, precision, n_parties: (bit_length*3, 1, 0, 0),
-        "muls" : lambda bit_length, kapaa, precision, n_parties: (bit_length*3, 1, 0, 0),
-        "matmuls": lambda bit_length, kapaa, precision, n_parties, p ,q, r: (p*r*bit_length*2, 1, 0, 0),
-        "trunc": lambda bit_length, kapaa, precision, n_parties: (bit_length*3, 1, 0, 0)
-   }
+# class Falcon(Cost):
+#     cost_dict_func = {
+#         "share": lambda bit_length, kapaa, precision, n_parties: (bit_length*3, 1, 0, 0),
+#         "open" : lambda bit_length, kapaa, precision, n_parties: (bit_length*3, 1, 0, 0),
+#         "muls" : lambda bit_length, kapaa, precision, n_parties: (bit_length*3, 1, 0, 0),
+#         "matmuls": lambda bit_length, kapaa, precision, n_parties, p ,q, r: (p*r*bit_length*2, 1, 0, 0),
+#         "trunc": lambda bit_length, kapaa, precision, n_parties: (bit_length*3, 1, 0, 0)
+#    }
 
-class ABY2(Cost):
-    cost_dict_func = {
-        "share": lambda bit_length, kapaa, precision, n_parties: (bit_length*3, 1, 0, 0),
-        "open" : lambda bit_length, kapaa, precision, n_parties: (bit_length*3, 1, 0, 0),
-        "muls" : lambda bit_length, kapaa, precision, n_parties: (bit_length*3, 1, 0, 0),
-        "matmuls": lambda bit_length, kapaa, precision, n_parties, p ,q, r: (p*r*bit_length*2, 1, 0, 0),
-        "trunc": lambda bit_length, kapaa, precision, n_parties: (bit_length*3, 1, 0, 0)
-   }
+# class ABY2(Cost):
+#     cost_dict_func = {
+#         "share": lambda bit_length, kapaa, precision, n_parties: (bit_length*3, 1, 0, 0),
+#         "open" : lambda bit_length, kapaa, precision, n_parties: (bit_length*3, 1, 0, 0),
+#         "muls" : lambda bit_length, kapaa, precision, n_parties: (bit_length*3, 1, 0, 0),
+#         "matmuls": lambda bit_length, kapaa, precision, n_parties, p ,q, r: (p*r*bit_length*2, 1, 0, 0),
+#         "trunc": lambda bit_length, kapaa, precision, n_parties: (bit_length*3, 1, 0, 0)
+#    }
 
 protocol_store = {
     "ABY3" : ABY3(),
     "SecureML" : SecureML(),
     "ABY": ABY(),
-    "ABY2.0": ABY2(),
-    "Falcon": Falcon(),
+    # "ABY2.0": ABY2(),
+    # "Falcon": Falcon(),
     "BGW": BGW()
     # "SPDZ": SPDZ()
 }
