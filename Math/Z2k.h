@@ -18,7 +18,6 @@ using namespace std;
 
 template<class T> class IntBase;
 template<int L> class fixint;
-
 /**
  * Type for values in the ring defined by the integers modulo ``2^K``
  * representing `[0, 2^K-1]`.
@@ -134,9 +133,10 @@ public:
 	Z2<K> operator^(const Z2& other) const;
 	Z2<K> operator|(const Z2& other) const;
 
+
 	Z2<K>& operator+=(const Z2<K>& other);
 	Z2<K>& operator-=(const Z2<K>& other);
-        Z2<K>& operator*=(const Z2<K>& other);
+  Z2<K>& operator*=(const Z2<K>& other);
 	Z2<K>& operator&=(const Z2<K>& other);
 	Z2<K>& operator<<=(int other);
 	Z2<K>& operator>>=(int other);
@@ -302,6 +302,17 @@ public:
     }
 
     void output(ostream& s, bool human = true) const;
+
+  SignedZ2<K> arith_right_shift(int a) const
+  {
+    SignedZ2<K> res;
+    res = *this >> a;
+    Z2<K> sign_bit = *this >> (K - a - 1);
+    for (int i = 0; i < a; i++){
+      res = res | (sign_bit << (K - i - 1));
+    }
+    return res;
+  }
 };
 
 template<int K>
@@ -336,6 +347,16 @@ inline Z2<K>& Z2<K>::operator+=(const Z2<K>& other)
 	a[N_WORDS - 1] &= UPPER_MASK;
 	return *this;
 }
+
+//template <int K, int K2>
+//inline Z2<K>& Z2<K>::operator=(const Z2<K2>& other)
+//{
+//  int n = K < K2? K: K2;
+//  for (int i =0; i < n; i++){
+//    a[i] = other.a[i];
+//  }
+//  return *this;
+//}
 
 template <int K>
 Z2<K>& Z2<K>::operator-=(const Z2<K>& other)
@@ -463,6 +484,8 @@ void Z2<K>::unpack(octetStream& o, int n)
 	(void) n;
 	o.consume((octet*)a, N_BYTES);
 }
+
+
 
 template<int K>
 SignedZ2<K> abs(const SignedZ2<K>& x)

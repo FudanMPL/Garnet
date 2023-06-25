@@ -69,7 +69,7 @@ from Compiler.util import is_zero, tree_reduce
 from Compiler.comparison import CarryOutRawLE
 from Compiler.GC.types import sbitint
 from functools import reduce
-
+bs_num=256
 def log_e(x):
     return mpc_math.log_fx(x, math.e)
 
@@ -230,7 +230,7 @@ class Layer:
     input_bias = True
     thetas = lambda self: ()
     debug_output = False
-    back_batch_size = 128
+    back_batch_size = bs_num
     print_random_update = False
 
     @property
@@ -2083,9 +2083,15 @@ class Optimizer:
     """ Base class for graphs of layers. """
     n_threads = Layer.n_threads
     always_shuffle = True
+    shuffle = True
     time_layers = False
     revealing_correctness = False
     early_division = False
+    output_diff = False
+    output_grad = False
+    output_stats = False
+    print_accuracy = True
+    time_training = True
 
     @staticmethod
     def from_args(program, layers):
@@ -2093,14 +2099,19 @@ class Optimizer:
             res = Adam(layers, 1, approx='adamapprox' in program.args)
         elif 'amsgrad' in program.args:
             res = Adam(layers, approx=True, amsgrad=True)
+        elif 'amsgradprec' in program.args:
+            res = Adam(layers, approx=False, amsgrad=True)
         elif 'quotient' in program.args:
             res = Adam(layers, approx=True, amsgrad=True, normalize=True)
         else:
             res = SGD(layers, 1)
         res.early_division = 'early_div' in program.args
+        res.output_diff = 'output_diff' in program.args
+        res.output_grad = 'output_grad' in program.args
+        res.output_stats = 'output_stats' in program.args
         return res
 
-    def __init__(self, report_loss=None):
+    def __init__(self, layers=[], report_loss=None):
         if get_program().options.binary:
             raise CompilerError(
                 'machine learning code not compatible with binary circuits')
@@ -2114,6 +2125,7 @@ class Optimizer:
         self.i_epoch = MemValue(0)
         self.stopped_on_loss = MemValue(0)
         self.stopped_on_low_loss = MemValue(0)
+        self.layers = layers
 
     @property
     def layers(self):
@@ -2140,8 +2152,13 @@ class Optimizer:
             layer.last_used = list(filter(lambda x: x not in used, layer.inputs))
             used.update(layer.inputs)
 
+    def set_learning_rate(self, lr):
+        print('Setting learning rate to', lr)
+        self.gamma = MemValue(cfix(lr))
+
     def reset(self):
         """ Initialize weights. """
+        print('innnnn')
         for layer in self.layers:
             layer.reset()
         self.i_epoch.write(0)
@@ -2230,6 +2247,7 @@ class Optimizer:
     def backward(self, batch):
         """ Compute backward propagation. """
         for i, layer in reversed(list(enumerate(self.layers))):
+            # print(len(batch),layer.back_batch_size)
             assert len(batch) <= layer.back_batch_size
             if self.time_layers:
                 start_timer(200 + i)
@@ -2237,6 +2255,7 @@ class Optimizer:
                 layer.backward(compute_nabla_X=False,
                                batch=self.batch_for(layer, batch))
             else:
+                layer.nabla_X.alloc()
                 layer.backward(batch=self.batch_for(layer, batch))
                 if len(layer.inputs) == 1:
                     layer.inputs[0].nabla_Y.address = \
@@ -2246,6 +2265,92 @@ class Optimizer:
                             layer.nabla_X.get_vector() / len(batch))
             if self.time_layers:
                 stop_timer(200 + i)
+
+    @classmethod
+    def stat(cls, name, tensor):
+        zero, neg, small = (cint.Array(cls.n_threads) for i in range(3))
+        s, mx, mn = (cfix.Array(cls.n_threads) for i in range(3))
+        for x in zero, neg, small, s, mx, mn:
+            x.assign_all(0)
+        total = tensor.total_size()
+        @multithread(cls.n_threads, total)
+        def _(base, size):
+            tn = get_thread_number() - 1
+            tmp = Array.create_from(
+                tensor.get_vector(base, size).reveal())
+            @for_range_opt(size, budget=1000)
+            def _(i):
+                zero[tn] += tmp[i] == 0
+                neg[tn] += tmp[i] < 0
+                small[tn] += abs(tmp[i]) < 2 ** (-tmp[i].f / 2)
+                s[tn] += tmp[i]
+                mx[tn] = util.max(mx[tn], tmp[i])
+                mn[tn] = util.min(mn[tn], tmp[i])
+            tmp.delete()
+        print_str(
+            ' %s 0:%s/%s, <0:%s/%s, >0:%s/%s, ~0:%s/%s sum:%s max:%s min:%s ',
+            name, sum(zero), total, sum(neg), total,
+            total - sum(zero) - sum(neg), total,
+            sum(small) - sum(zero), total, sum(s), util.max(mx), util.min(mn))
+        if len(tensor.shape) == 4:
+            corners = sum(([tensor[0][i][j][0] for j in (0, -1)]
+                           for i in (0, -1)), [])
+        elif len(tensor.shape) == 1:
+            x = tensor.to_array()
+            corners = [x[i] for i in (0, len(x) // 2 - 1, -1)]
+        else:
+            x = tensor[0].to_array()
+            corners = [x[i] for i in (0, len(x) // 2 - 1, -1)]
+        print_ln('corners:%s shape:%s', util.reveal(corners), tensor.shape)
+
+    def update(self, i_epoch, i_batch, batch):
+        if self.output_grad:
+            @if_(i_batch % 100 == 0)
+            def _():
+                for layer in self.layers[:-1]:
+                    cfix(10000).binary_output()
+                    break_point()
+                    layer.nabla_Y.get_vector(size=2000).reveal().binary_output()
+                    break_point()
+                    for theta, nabla in zip(layer.thetas(), layer.nablas()):
+                        cfix(5000).binary_output()
+                        break_point()
+                        nabla.get_vector().reveal().binary_output()
+                        break_point()
+        if self.output_stats:
+            old_params = []
+            @if_((i_batch % self.output_stats == 0).bit_or(i_epoch == 0))
+            def _():
+                for i, layer in enumerate(self.layers[:-1]):
+                    print_ln(layer)
+                    if layer == self.layers[0]:
+                        x = Array.create_from(layer.X.get_slice_vector(batch))
+                        self.stat(' 0 X', x)
+                    else:
+                        self.stat(' %d X' % i, layer.X)
+                    self.stat(' %d Y' % i, layer.Y)
+                    self.stat(' %d nabla_Y' % i, layer.nabla_Y)
+                    for nabla in layer.nablas():
+                        self.stat(' %d grad' % i, nabla)
+                    for theta in layer.thetas():
+                        self.stat(' %d param' % i, theta)
+                        if theta.total_size() < 1000:
+                            old_params.append(theta.get_vector())
+        if self.time_layers:
+            start_timer(1000)
+        self._update(i_epoch, MemValue(i_batch), batch)
+        if self.time_layers:
+            stop_timer(1000)
+        if self.output_stats:
+            @if_(i_batch % self.output_stats == 0)
+            def _():
+                for i, layer in enumerate(self.layers[:-1]):
+                    for theta in layer.thetas():
+                        if theta.total_size() < 1000:
+                            print_ln(layer)
+                            self.stat(' %d diff' % i, Array.create_from(
+                                theta.get_vector() - old_params[0]))
+                            del old_params[0]
 
     @_no_mem_warnings
     def run(self, batch_size=None, stop_on_loss=0):
@@ -2283,7 +2388,7 @@ class Optimizer:
                     indices.assign_vector(
                         regint.get_random(int(math.log2(len(X))), size=missing),
                         base=len(X))
-                if self.always_shuffle or n_per_epoch > 1:
+                if self.shuffle and (self.always_shuffle or n_per_epoch > 1):
                     indices.shuffle()
             loss_sum = MemValue(sfix(0))
             self.n_correct.write(0)
@@ -2298,11 +2403,7 @@ class Optimizer:
                                  label * n)
                 self.forward(batch=batch, training=True)
                 self.backward(batch=batch)
-                if self.time_layers:
-                    start_timer(1000)
-                self.update(i, batch=batch)
-                if self.time_layers:
-                    stop_timer(1000)
+                self.update(i, j, batch=batch)
                 loss_sum.iadd(self.layers[-1].l)
                 if self.print_loss_reduction:
                     before = self.layers[-1].average_loss(N)
@@ -2327,12 +2428,19 @@ class Optimizer:
                     return res
             if self.print_losses:
                 print_ln()
+            self.missing_newline = False
             if self.report_loss and self.layers[-1].compute_loss and self.layers[-1].approx != 5:
                 print_ln('loss in epoch %s: %s', i,
                          (loss_sum.reveal() * cfix(1 / n_per_epoch)))
             else:
-                print_ln('done with epoch %s', i)
-            time()
+                print_str('done with epoch %s', i)
+                if self.time_training or self.print_losses:
+                    print_ln()
+                else:
+                    print_str('\r')
+                    self.missing_newline = True
+            if self.time_training:
+                time()
             i.iadd(1)
             res = True
             if self.tol > 0:
@@ -2341,7 +2449,15 @@ class Optimizer:
             self.stopped_on_low_loss.write(1 - res)
             return res
 
-    def reveal_correctness(self, data, truth, batch_size):
+    def reveal_correctness(self, data, truth, batch_size=bs_num, running=False):
+        """ Test correctness by revealing results.
+
+        :param data: test sample data
+        :param truth: test labels
+        :param batch_size: batch size
+        :param running: output after every batch
+
+        """
         N = data.sizes[0]
         n_correct = MemValue(0)
         loss = MemValue(sfix(0))
@@ -2352,13 +2468,20 @@ class Optimizer:
             n_correct.iadd(
                 self.layers[-1].reveal_correctness(batch_size, part_truth))
             loss.iadd(self.layers[-1].l * batch_size)
-        self.run_in_batches(f, data, batch_size)
+            if running:
+                total = start + batch_size
+                print_str('\rpart acc: %s (%s/%s) ',
+                          cfix(n_correct, k=63, f=31) / total, n_correct, total)
+        self.run_in_batches(f, data, batch_size, truth)
+        if running:
+            print_ln()
         loss = loss.reveal()
         if cfix.f < 31:
             loss = cfix._new(loss.v << (31 - cfix.f), k=63, f=31)
         return n_correct, loss / N
 
     def run_in_batches(self, f, data, batch_size, truth=None):
+        batch_size = min(batch_size, data.sizes[0])
         training_data = self.layers[0].X.address
         training_truth = self.layers[-1].Y.address
         self.layers[0].X.address = data.address
@@ -2373,39 +2496,45 @@ class Optimizer:
         batch_size = N % batch_size
         if batch_size:
             start = N - batch_size
-            f(start, batch_size, batch)
+            f(start, batch_size, regint.Array(batch_size))
         self.layers[0].X.address = training_data
         self.layers[-1].Y.address = training_truth
 
     @_no_mem_warnings
     def run_by_args(self, program, n_runs, batch_size, test_X, test_Y,
-                    acc_batch_size=None):
+                    acc_batch_size=None, reset=True):
         if acc_batch_size is None:
             acc_batch_size = batch_size
         depreciation = None
+        if program is None:
+            class A:
+                pass
+            program = A()
+            program.args = []
         for arg in program.args:
             m = re.match('rate(.*)', arg)
             if m:
-                self.gamma = MemValue(cfix(float(m.group(1))))
+                self.set_learning_rate(float(m.group(1)))
             m = re.match('dep(.*)', arg)
             if m:
                 depreciation = float(m.group(1))
         if 'nomom' in program.args:
             self.momentum = 0
-        self.print_losses = 'print_losses' in program.args
+        self.print_losses |= 'print_losses' in program.args
         self.print_random_update = 'print_random_update' in program.args
         Layer.print_random_update = self.print_random_update
         self.time_layers = 'time_layers' in program.args
-        self.revealing_correctness = not 'no_acc' in program.args
+        self.revealing_correctness &= not 'no_acc' in program.args
         self.layers[-1].compute_loss = not 'no_loss' in program.args
         if 'full_cisc' in program.args:
             program.options.keep_cisc = 'FPDiv,exp2_fx,log2_fx'
         model_input = 'model_input' in program.args
         acc_first = model_input and not 'train_first' in program.args
+        print(model_input)
         if model_input:
             for layer in self.layers:
                 layer.input_from(0)
-        else:
+        elif reset:
             self.reset()
         if 'one_iter' in program.args:
             print_float_prec(16)
@@ -2436,50 +2565,91 @@ class Optimizer:
             return
         @for_range(n_runs)
         def _(i):
+
             if not acc_first:
-                start_timer(1)
+                if self.time_training:
+                    start_timer(1)
                 self.run(batch_size,
                          stop_on_loss=0 if 'no_loss' in program.args else 100)
-                stop_timer(1)
+                if self.time_training:
+                    stop_timer(1)
             if 'no_acc' in program.args:
+                # print('in')
                 return
             N = self.layers[0].X.sizes[0]
             n_trained = (N + batch_size - 1) // batch_size * batch_size
-            if not acc_first:
+            # print(acc_first,self.print_accuracy,self.revealing_correctness)
+            if not acc_first and self.print_accuracy and \
+               self.revealing_correctness:
                 print_ln('train_acc: %s (%s/%s)',
                          cfix(self.n_correct, k=63, f=31) / n_trained,
                          self.n_correct, n_trained)
             if test_X and test_Y:
                 print('use test set')
                 n_test = len(test_Y)
-                n_correct, loss = self.reveal_correctness(test_X, test_Y,
-                                                          acc_batch_size)
+                n_correct, loss = self.reveal_correctness(
+                    test_X, test_Y, acc_batch_size,
+                    running='part_acc' in program.args)
                 print_ln('test loss: %s', loss)
-                print_ln('acc: %s (%s/%s)',
-                         cfix(n_correct, k=63, f=31) / n_test,
-                         n_correct, n_test)
-            if acc_first:
-                start_timer(1)
-                self.run(batch_size)
-                stop_timer(1)
-            else:
-                @if_(util.or_op(self.stopped_on_loss, n_correct <
-                                int(n_test // self.layers[-1].n_outputs * 1.2)))
-                def _():
-                    self.gamma.imul(.5)
-                    if 'crash' in program.args:
-                        @if_(self.gamma == 0)
-                        def _():
-                            runtime_error('diverging')
-                    self.reset()
-                    print_ln('reset after reducing learning rate to %s',
-                             self.gamma)
-            if depreciation:
-                self.gamma.imul(depreciation)
-                print_ln('reducing learning rate to %s', self.gamma)
+                if self.print_accuracy:
+                    print_ln('acc: %s (%s/%s)',
+                             cfix(n_correct, k=63, f=31) / n_test,
+                             n_correct, n_test)
+            # if acc_first: #Alice
+            #     if self.time_training:
+            #         start_timer(1)
+            #     self.run(batch_size)
+            #     if self.time_training:
+            #         stop_timer(1)
+            # else:
+            #     @if_(util.or_op(self.stopped_on_loss, (n_correct <
+            #                     int(n_test // self.layers[-1].n_outputs * 1.2))
+            #                         if test_X and test_Y else 0))
+            #     def _():
+            #         # print('innnnn')
+            #         self.gamma.imul(.5)
+            #         # print(self.gamma)
+            #         if 'crash' in program.args:
+            #             @if_(self.gamma == 0)
+            #             def _():
+            #                 runtime_error('diverging')
+            #         self.reset()
+            #         print_ln('reset after reducing learning rate to %s',
+            #                  self.gamma)
+            # print(depreciation)
+            # if depreciation:
+            #     self.gamma.imul(depreciation)
+            #     print_ln('reducing learning rate to %s', self.gamma)
             return 1 - self.stopped_on_low_loss
+        if self.missing_newline:
+            print_ln('')
         if 'model_output' in program.args:
             self.output_weights()
+
+    def fit(self, X, Y, epochs=1, batch_size=bs_num, validation_data=(None, None),
+            program=None, reset=True, print_accuracy=False, print_loss=False):
+        """ Train model.
+
+        :param X: training sample data (sfix tensor)
+        :param Y: training labels (sint/sfix tensor)
+        :param epochs: number of epochs (int)
+        :param batch_size: batch size (int)
+        :param validation_data: tuple of test sample data and labels for
+          accuracy testing (optional; reveals labels)
+        :param program: :py:class:`~Compile.program.Program` instance to use
+          command-line parameters (optional)
+        :param reset: whether to initialize model
+        :param print_accuracy: print accuracy on training data (reveals labels)
+        :param print_loss: reveal and print training loss after every batch
+
+        """
+        self.layers[0].X = X
+        self.layers[-1].Y = Y
+        self.revealing_correctness = print_accuracy
+        self.print_losses = print_loss
+        self.time_training = False
+        self.run_by_args(program, epochs, batch_size, *validation_data,
+                         reset=reset)#Alice added
 
     def output_weights(self):
         print_float_precision(max(6, sfix.f // 3))
@@ -2490,6 +2660,19 @@ class Optimizer:
         sizes = [var.total_size() for var in self.thetas]
         print(sizes)
         print('Trainable params:', sum(sizes))
+
+    @property
+    def trainable_variables(self):
+        return list(self.thetas)
+
+    def reveal_model_to_binary(self):
+        input_shape = self.layers[0].X.shape
+        for layer in self.layers:
+            if len(input_shape) == 4 and isinstance(layer, DenseBase):
+                layer.reveal_parameters_to_binary(reshape=input_shape[1:])
+            else:
+                layer.reveal_parameters_to_binary()
+            input_shape = layer.Y.shape
 
 class Adam(Optimizer):
     """ Adam/AMSgrad optimizer.
@@ -2587,8 +2770,10 @@ class SGD(Optimizer):
     :param n_epochs: number of epochs for training
     :param report_loss: disclose and print loss
     """
-    def __init__(self, layers, n_epochs, debug=False, report_loss=None):
-        self.momentum = 0.9
+    def __init__(self, layers, n_epochs=1, debug=False, report_loss=None):
+        super(SGD, self).__init__(report_loss=report_loss)
+        self.momentum = 0.9 #Alice added
+        # self.momentum = 0.0
         self.layers = layers
         self.n_epochs = n_epochs
         self.nablas = []
@@ -2597,9 +2782,9 @@ class SGD(Optimizer):
             self.nablas.extend(layer.nablas())
             for theta in layer.thetas():
                 self.delta_thetas.append(theta.same_shape())
-        self.gamma = MemValue(cfix(0.01))
+        self.set_learning_rate(0.01)
         self.debug = debug
-        super(SGD, self).__init__(report_loss)
+        # print_both('Using SGD')
 
     @_no_mem_warnings
     def reset(self, X_by_label=None):
@@ -2607,6 +2792,7 @@ class SGD(Optimizer):
 
         :param X_by_label: if given, set training data by public labels for balancing
         """
+        print('innnnnnnn1')
         self.X_by_label = X_by_label
         if X_by_label is not None:
             for label, X in enumerate(X_by_label):
@@ -2618,14 +2804,15 @@ class SGD(Optimizer):
         for y in self.delta_thetas:
             y.assign_all(0)
         super(SGD, self).reset()
-        
+
     @buildingblock("Update")
-    def update(self, i_epoch, batch):
+    def _update(self, i_epoch, i_batch, batch):
         for nabla, theta, delta_theta in zip(self.nablas, self.thetas,
                                              self.delta_thetas):
             @multithread(self.n_threads, nabla.total_size())
             def _(base, size):
                 old = delta_theta.get_vector(base, size)
+                print(self.momentum)
                 red_old = self.momentum * old
                 rate = self.gamma.expand_to_vector(size)
                 nabla_vector = nabla.get_vector(base, size)
@@ -2688,18 +2875,21 @@ class SGD(Optimizer):
                          index, nabla.to_array().get_vector(index, l).reveal(),
                          delta_theta.to_array().get_vector(index, l).reveal(),
                          theta.to_array().get_vector(index, l).reveal())
-        self.gamma.imul(1 - 10 ** - 6)
+        # self.gamma.imul(1 - 10 ** - 6) #Alice added
 
 def apply_padding(input_shape, kernel_size, strides, padding):
     if isinstance(padding, int):
-        input_shape = [x + 2 * padding for x in input_shape]
+        padding = [padding, padding]
+    if isinstance(padding, (tuple, list)):
+        input_shape = [x + sum(padding) for x in input_shape]
         padding = 'valid'
-    if padding == 'valid':
+    if padding.lower() == 'valid':
         res = (input_shape[0] - kernel_size[0] + 1) // strides[0], \
             (input_shape[1] - kernel_size[1] + 1) // strides[1],
+        print(min(res))
         assert min(res) > 0, (input_shape, kernel_size, strides, padding)
         return res
-    elif padding == 'same':
+    elif padding.lower() == 'same':
         return (input_shape[0]) // strides[0], \
             (input_shape[1]) // strides[1],
     else:
@@ -2764,7 +2954,7 @@ class keras:
             def summary(self):
                 self.opt.summary()
 
-            def build(self, input_shape, batch_size=128):
+            def build(self, input_shape, batch_size=bs_num):
                 data_input_shape = input_shape
                 if self.opt != None and \
                    input_shape == self.opt.layers[0].X.sizes and \
@@ -3014,3 +3204,428 @@ def var(x):
     def _(i):
         res.iadd((x[i] - mean.read()) ** 2)
     return res.read()
+
+def easyConv2d(input_shape, batch_size, out_channels, kernel_size, stride=1,
+               padding=0):
+    """ More convenient interface to :py:class:`FixConv2d`.
+
+    :param input_shape: input shape (tuple/list of four int)
+    :param out_channels: output channels (int)
+    :param kernel_size: kernel size (int or tuple/list of two int)
+    :param stride: stride (int or tuple/list of two int)
+    :param padding: :py:obj:`'SAME'`, :py:obj:`'VALID'`, int, or tuple/list of two int
+
+    """
+    if isinstance(kernel_size, int):
+        kernel_size = (kernel_size, kernel_size)
+    if isinstance(stride, int):
+        stride = (stride, stride)
+    weight_shape = [out_channels] + list(kernel_size) +  [input_shape[-1]]
+    output_shape = [batch_size] + list(
+        apply_padding(input_shape[1:3], kernel_size, stride, padding)) + \
+            [out_channels]
+    padding = padding.upper() if isinstance(padding, str) \
+        else padding
+    return FixConv2d(input_shape, weight_shape, (out_channels,), output_shape,
+                     stride, padding)
+
+def easyMaxPool(input_shape, kernel_size, stride=None, padding=0):
+    """ More convenient interface to :py:class:`MaxPool`.
+
+    :param input_shape: input shape (tuple/list of four int)
+    :param kernel_size: kernel size (int or tuple/list of two int)
+    :param stride: stride (int or tuple/list of two int)
+    :param padding: :py:obj:`'SAME'`, :py:obj:`'VALID'`, int,
+      or tuple/list of two int
+
+    """
+    if isinstance(kernel_size, int):
+        kernel_size = (kernel_size, kernel_size)
+    if isinstance(stride, int):
+        stride = (stride, stride)
+    if stride == None:
+        stride = kernel_size
+    padding = padding.upper() if isinstance(padding, str) \
+        else padding
+    return MaxPool(input_shape, [1] + list(stride) + [1],
+                   [1] + list(kernel_size) + [1], padding)
+
+def layers_from_torch(sequence, data_input_shape, batch_size, input_via=None):
+    """ Convert a PyTorch Sequential object to MP-SPDZ layers.
+
+    :param sequence: PyTorch Sequential object
+    :param data_input_shape: input shape (list of four int)
+    :param batch_size: batch size (int)
+    :param input_via: player to input model data via (default: don't)
+
+    """
+    layers = []
+
+    def mul(x):
+        return reduce(operator.mul, x)
+
+    def process(item):
+        nonlocal input_shape
+        name = type(item).__name__
+        if name == 'Sequential':
+            for x in item:
+                process(x)
+        elif name == 'Linear':
+            assert mul(input_shape[1:]) == item.in_features
+            assert item.bias is not None
+            layers.append(Dense(input_shape[0], item.in_features,
+                                item.out_features))
+            if input_via is not None:
+                shapes = [x.shape for x in (layers[-1].W, layers[-1].b)]
+                import numpy
+                swapped = item.weight.detach().numpy()
+                if len(input_shape) == 4:
+                    print (swapped.shape)
+                    swapped = numpy.reshape(
+                        swapped,
+                        [item.out_features, input_shape[3]] + input_shape[1:3])
+                    print (swapped.shape)
+                    swapped = numpy.moveaxis(swapped, 1, -1)
+                    print (swapped.shape)
+                    swapped = numpy.reshape(
+                        swapped, [item.out_features, item.in_features])
+                    print (swapped.shape)
+                swapped = numpy.swapaxes(swapped, 0, 1)
+                layers[-1].W = sfix.input_tensor_via(
+                    input_via, swapped)
+                layers[-1].b = sfix.input_tensor_via(
+                    input_via, item.bias.detach())
+                assert layers[-1].W.shape == shapes[0]
+                assert layers[-1].b.shape == shapes[1]
+            input_shape = [batch_size, item.out_features]
+        elif name == 'Conv2d':
+            layers.append(easyConv2d(input_shape, batch_size, item.out_channels,
+                                     item.kernel_size, item.stride,
+                                     item.padding))
+            input_shape = layers[-1].Y.shape
+            if input_via is not None:
+                shapes = [x.shape for x in
+                          (layers[-1].weights, layers[-1].bias)]
+                import numpy
+                swapped = numpy.moveaxis(
+                    numpy.array(item.weight.detach()), 1, -1)
+                layers[-1].weights = sfix.input_tensor_via(input_via, swapped)
+                layers[-1].bias = sfix.input_tensor_via(
+                    input_via, item.bias.detach())
+                # print(layers[-1].weights.shape, shapes[0])
+                assert layers[-1].weights.shape == shapes[0]
+                assert layers[-1].bias.shape == shapes[1]
+        elif name == 'MaxPool2d':
+            layers.append(easyMaxPool(input_shape, item.kernel_size,
+                                      item.stride, item.padding))
+            input_shape = layers[-1].Y.shape
+        elif name== 'AvgPool2d':
+            layers.append(easyAvgPool(input_shape, item.kernel_size,
+                                      item.stride, item.padding))
+            input_shape = layers[-1].Y.shape
+        elif name == 'ReLU':
+            layers.append(Relu(input_shape))
+        elif name == 'Flatten':
+            pass
+        elif name == 'BatchNorm2d':
+            layers.append(BatchNorm(layers[-1].Y.sizes))
+        elif name == 'Dropout':
+            layers.append(Dropout(input_shape[0], mul(layers[-1].Y.sizes[1:]),
+                                  alpha=item.p))
+            input_shape = layers[-1].Y.sizes
+        else:
+            raise CompilerError('unknown PyTorch module: ' + name)
+
+    input_shape = data_input_shape + [1] * (4 - len(data_input_shape))
+    process(sequence)
+    if layers[-1].d_out == 1:
+        layers.append(Output(data_input_shape[0]))
+    else:
+        layers.append(MultiOutput(data_input_shape[0], layers[-1].d_out))
+    return layers
+
+def layers_from_torch_select(sequence, net, modelnum, flag, data_input_shape, batch_size, input_via=None):
+    """ Convert a PyTorch Sequential object to MP-SPDZ layers.
+
+    :param sequence: PyTorch Sequential object
+    :param data_input_shape: input shape (list of four int)
+    :param batch_size: batch size (int)
+    :param input_via: player to input model data via (default: don't)
+
+    """
+    layers = []
+
+    def mul(x):
+        return reduce(operator.mul, x)
+
+    def process(item,loc):
+        nonlocal input_shape
+        name = type(item).__name__
+        if name == 'Sequential':
+            tmploc=-1
+            for x in item:
+                tmpname = type(x).__name__
+                if(tmpname!='Flatten'):
+                    tmploc+=1
+                # print('Eiona+'+str(tmploc))
+                process(x,tmploc)
+        elif name == 'Linear':
+            assert mul(input_shape[1:]) == item.in_features
+            assert item.bias is not None
+            layers.append(Dense(input_shape[0], item.in_features,
+                                item.out_features))
+            if input_via is not None:
+                shapes = [x.shape for x in (layers[-1].W, layers[-1].b)]
+                import numpy
+                swapped = item.weight.detach().numpy()
+                if len(input_shape) == 4:
+                    print (swapped.shape)
+                    swapped = numpy.reshape(
+                        swapped,
+                        [item.out_features, input_shape[3]] + input_shape[1:3])
+                    print (swapped.shape)
+                    swapped = numpy.moveaxis(swapped, 1, -1)
+                    print (swapped.shape)
+                    swapped = numpy.reshape(
+                        swapped, [item.out_features, item.in_features])
+                    print (swapped.shape)
+                swapped = numpy.swapaxes(swapped, 0, 1)
+                layers[-1].W = sfix.input_tensor_via(
+                    input_via, swapped)
+                # layers[-1].W.input_from(2)
+                layers[-1].b = sfix.input_tensor_via(
+                    input_via, numpy.array(item.bias.detach()))
+                # layers[-1].b.input_from(2)
+                assert layers[-1].W.shape == shapes[0]
+                assert layers[-1].b.shape == shapes[1]
+                if (modelnum=='0'):
+                    net.append(layers[-1])
+                    net[loc].W=layers[loc].W.__imul__(flag)
+                    net[loc].b=layers[loc].b.__imul__(flag)
+                    # net[loc].W = layers[loc].W
+                    # net[loc].b = layers[loc].b
+                else:
+                    net[loc].W=net[loc].W.__iadd__(layers[loc].W.__imul__(flag))
+                    net[loc].b=net[loc].b.__iadd__(layers[loc].b.__imul__(flag))
+                    # net[loc].W = net[loc].W + layers[loc].W
+                    # net[loc].b = net[loc].b + layers[loc].b
+            input_shape = [batch_size, item.out_features]
+        elif name == 'Conv2d':
+            layers.append(easyConv2d(input_shape, batch_size, item.out_channels,
+                                     item.kernel_size, item.stride,
+                                     item.padding))
+            input_shape = layers[-1].Y.shape
+            if input_via is not None:
+                shapes = [x.shape for x in
+                          (layers[-1].weights, layers[-1].bias)]
+                import numpy
+                swapped = numpy.moveaxis(
+                    numpy.array(item.weight.detach()), 1, -1)
+                layers[-1].weights = sfix.input_tensor_via(input_via, swapped)
+                layers[-1].bias = sfix.input_tensor_via(
+                    input_via, numpy.array(item.bias.detach()))
+                # layers[-1].weights.input_from(2)
+                # layers[-1].bias.input_from(2)
+                # print(layers[-1].weights.shape, shapes[0])
+                assert layers[-1].weights.shape == shapes[0]
+                assert layers[-1].bias.shape == shapes[1]
+                if (modelnum == '0'):
+                    net.append(layers[-1])
+                    # print_ln('%s', net[loc].bias.reveal())
+                    # print_ln('%s', layers[loc].bias.reveal())
+                    net[loc].weights=layers[loc].weights.__imul__(flag)
+                    net[loc].bias=layers[loc].bias.__imul__(flag)
+                    # print_ln('%s', layers[loc].bias.__imul__(flag).reveal())
+                    # print_ln('%s', net[loc].bias.reveal())
+                    # net[loc].weights = layers[loc].weights
+                    # net[loc].bias = layers[loc].bias
+                else:
+                    net[loc].weights=net[loc].weights.__iadd__(layers[loc].weights.__imul__(flag))
+
+                    net[loc].bias=net[loc].bias.__iadd__(layers[loc].bias.__imul__(flag))
+
+                    # net[loc].weights = net[loc].weights + layers[loc].weights
+                    # net[loc].bias = net[loc].bias + layers[loc].bias
+        elif name == 'MaxPool2d':
+            layers.append(easyMaxPool(input_shape, item.kernel_size,
+                                      item.stride, item.padding))
+            input_shape = layers[-1].Y.shape
+            if (modelnum == '0'):
+                net.append(layers[-1])
+        elif name== 'AvgPool2d':
+            layers.append(easyAvgPool(input_shape, item.kernel_size,
+                                      item.stride, item.padding))
+            input_shape = layers[-1].Y.shape
+            if (modelnum == '0'):
+                net.append(layers[-1])
+        elif name == 'ReLU':
+            layers.append(Relu(input_shape))
+            if (modelnum == '0'):
+                net.append(layers[-1])
+        elif name == 'Flatten':
+            pass
+        elif name == 'BatchNorm2d':
+            layers.append(BatchNorm(layers[-1].Y.sizes))
+            if (modelnum == '0'):
+                net.append(layers[-1])
+        elif name == 'Dropout':
+            layers.append(Dropout(input_shape[0], mul(layers[-1].Y.sizes[1:]),
+                                  alpha=item.p))
+            input_shape = layers[-1].Y.sizes
+            if (modelnum == '0'):
+                net.append(layers[-1])
+        else:
+            raise CompilerError('unknown PyTorch module: ' + name)
+
+    input_shape = data_input_shape + [1] * (4 - len(data_input_shape))
+    process(sequence,0)
+    if layers[-1].d_out == 1:
+        layers.append(Output(data_input_shape[0]))
+        if (modelnum == '0'):
+            net.append(layers[-1])
+    else:
+        layers.append(MultiOutput(data_input_shape[0], layers[-1].d_out))
+        if (modelnum == '0'):
+            net.append(layers[-1])
+    return net
+
+def layers_from_torch_select_const(sequence, net, modelnum, flag, data_input_shape, batch_size, input_via=None):
+    """ Convert a PyTorch Sequential object to MP-SPDZ layers.
+
+    :param sequence: PyTorch Sequential object
+    :param data_input_shape: input shape (list of four int)
+    :param batch_size: batch size (int)
+    :param input_via: player to input model data via (default: don't)
+
+    """
+    layers = []
+
+    def mul(x):
+        return reduce(operator.mul, x)
+
+    def process(item,loc):
+        nonlocal input_shape
+        name = type(item).__name__
+        if name == 'Sequential':
+            tmploc=-1
+            for x in item:
+                tmpname = type(x).__name__
+                if(tmpname!='Flatten'):
+                    tmploc+=1
+                # print('Eiona+'+str(tmploc))
+                process(x,tmploc)
+        elif name == 'Linear':
+            assert mul(input_shape[1:]) == item.in_features
+            assert item.bias is not None
+            layers.append(Dense(input_shape[0], item.in_features,
+                                item.out_features))
+            if input_via is not None:
+                shapes = [x.shape for x in (layers[-1].W, layers[-1].b)]
+                import numpy
+                swapped = item.weight.detach().numpy()
+                if len(input_shape) == 4:
+                    print (swapped.shape)
+                    swapped = numpy.reshape(
+                        swapped,
+                        [item.out_features, input_shape[3]] + input_shape[1:3])
+                    print (swapped.shape)
+                    swapped = numpy.moveaxis(swapped, 1, -1)
+                    print (swapped.shape)
+                    swapped = numpy.reshape(
+                        swapped, [item.out_features, item.in_features])
+                    print (swapped.shape)
+                swapped = numpy.swapaxes(swapped, 0, 1)
+                layers[-1].W = sfix.input_tensor_via(
+                    input_via, swapped)
+                layers[-1].b = sfix.input_tensor_via(
+                    input_via, item.bias.detach())
+                assert layers[-1].W.shape == shapes[0]
+                assert layers[-1].b.shape == shapes[1]
+                if (modelnum=='0'):
+                    net.append(layers[-1])
+                    net[loc].W=layers[loc].W.__imul__(flag)
+                    net[loc].b=layers[loc].b.__imul__(flag)
+                    # net[loc].W = layers[loc].W
+                    # net[loc].b = layers[loc].b
+                else:
+                    net[loc].W=net[loc].W.__iadd__(layers[loc].W.__imul__(flag))
+                    net[loc].b=net[loc].b.__iadd__(layers[loc].b.__imul__(flag))
+                    # net[loc].W = net[loc].W + layers[loc].W
+                    # net[loc].b = net[loc].b + layers[loc].b
+            input_shape = [batch_size, item.out_features]
+        elif name == 'Conv2d':
+            layers.append(easyConv2d(input_shape, batch_size, item.out_channels,
+                                     item.kernel_size, item.stride,
+                                     item.padding))
+            input_shape = layers[-1].Y.shape
+            if input_via is not None:
+                shapes = [x.shape for x in
+                          (layers[-1].weights, layers[-1].bias)]
+                import numpy
+                swapped = numpy.moveaxis(
+                    numpy.array(item.weight.detach()), 1, -1)
+                layers[-1].weights = sfix.input_tensor_via(input_via, swapped)
+                layers[-1].bias = sfix.input_tensor_via(
+                    input_via, item.bias.detach())
+                # print(layers[-1].weights.shape, shapes[0])
+                assert layers[-1].weights.shape == shapes[0]
+                assert layers[-1].bias.shape == shapes[1]
+                if (modelnum == '0'):
+                    net.append(layers[-1])
+                    # print_ln('%s', net[loc].bias.reveal())
+                    # print_ln('%s', layers[loc].bias.reveal())
+                    net[loc].weights=layers[loc].weights.__imul__(flag)
+                    net[loc].bias=layers[loc].bias.__imul__(flag)
+                    # print_ln('%s', layers[loc].bias.__imul__(flag).reveal())
+                    # print_ln('%s', net[loc].bias.reveal())
+                    # net[loc].weights = layers[loc].weights
+                    # net[loc].bias = layers[loc].bias
+                else:
+                    net[loc].weights=net[loc].weights.__iadd__(layers[loc].weights.__imul__(flag))
+
+                    net[loc].bias=net[loc].bias.__iadd__(layers[loc].bias.__imul__(flag))
+
+                    # net[loc].weights = net[loc].weights + layers[loc].weights
+                    # net[loc].bias = net[loc].bias + layers[loc].bias
+        elif name == 'MaxPool2d':
+            layers.append(easyMaxPool(input_shape, item.kernel_size,
+                                      item.stride, item.padding))
+            input_shape = layers[-1].Y.shape
+            if (modelnum == '0'):
+                net.append(layers[-1])
+        elif name== 'AvgPool2d':
+            layers.append(easyAvgPool(input_shape, item.kernel_size,
+                                      item.stride, item.padding))
+            input_shape = layers[-1].Y.shape
+            if (modelnum == '0'):
+                net.append(layers[-1])
+        elif name == 'ReLU':
+            layers.append(Relu(input_shape))
+            if (modelnum == '0'):
+                net.append(layers[-1])
+        elif name == 'Flatten':
+            pass
+        elif name == 'BatchNorm2d':
+            layers.append(BatchNorm(layers[-1].Y.sizes))
+            if (modelnum == '0'):
+                net.append(layers[-1])
+        elif name == 'Dropout':
+            layers.append(Dropout(input_shape[0], mul(layers[-1].Y.sizes[1:]),
+                                  alpha=item.p))
+            input_shape = layers[-1].Y.sizes
+            if (modelnum == '0'):
+                net.append(layers[-1])
+        else:
+            raise CompilerError('unknown PyTorch module: ' + name)
+
+    input_shape = data_input_shape + [1] * (4 - len(data_input_shape))
+    process(sequence,0)
+    if layers[-1].d_out == 1:
+        layers.append(Output(data_input_shape[0]))
+        if (modelnum == '0'):
+            net.append(layers[-1])
+    else:
+        layers.append(MultiOutput(data_input_shape[0], layers[-1].d_out))
+        if (modelnum == '0'):
+            net.append(layers[-1])
+    return net

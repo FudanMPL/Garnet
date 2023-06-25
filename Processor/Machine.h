@@ -22,6 +22,8 @@
 #include <vector>
 #include <map>
 #include <atomic>
+#include "Protocols/Rep3Share128.h"
+
 using namespace std;
 
 template<class sint, class sgf2n>
@@ -55,7 +57,11 @@ class Machine : public BaseMachine
   vector<Program>  progs;
 
   Memory<sgf2n> M2;
+
   Memory<sint> Mp;
+#ifdef BIG_DOMAIN_FOR_RSS
+  Memory<Rep3Share128>* Mp_2;
+#endif
   Memory<Integer> Mi;
   GC::Memories<typename sint::bit_type> bit_memories;
 

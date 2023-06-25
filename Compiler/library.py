@@ -15,6 +15,16 @@ import operator
 import copy
 from functools import reduce
 
+
+
+
+
+def change_machine_domain(k):
+    break_point()
+    get_program().bit_length = k - 1
+    get_program().options.ring = k
+    cmd(k)
+
 def get_program():
     return instructions.program
 def get_tape():

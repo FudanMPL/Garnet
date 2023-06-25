@@ -18,6 +18,9 @@ comparison-specific preprocessing is also available.
 [2] https://www1.cs.fau.de/filepool/publications/octavian_securescm/SecureSCM-D.9.2.pdf
 """
 
+
+
+
 # Use constant rounds protocols instead of log rounds
 const_rounds = False
 # Set use_inv to use preprocessed inverse tuples for more efficient
@@ -30,6 +33,9 @@ do_precomp = True
 
 from . import instructions_base
 from . import util
+
+
+
 
 def set_variant(options):
     """ Set flags based on the command-line option provided """

@@ -153,6 +153,7 @@ class Program(object):
             Compiler.instructions.inputmixed_class,
             Compiler.instructions.trunc_pr_class,
             Compiler.instructions_base.Mergeable,
+            Compiler.instructions.csd_class,
         ]
         import Compiler.GC.instructions as gc
 
@@ -487,10 +488,11 @@ class Program(object):
         self.finalize_memory()
 
         self.write_bytes()
-
         if self.options.asmoutfile:
             for tape in self.tapes:
                 tape.write_str(self.options.asmoutfile + "-" + tape.name)
+
+
 
     def finalize_memory(self):
         self.curr_tape.start_new_basicblock(None, "memory-usage")
@@ -1127,10 +1129,23 @@ class Tape:
             filename = self.program.programs_dir + "/Bytecode/" + filename
         print("Writing to", filename)
         f = open(filename, "wb")
+
+        # temp = self._get_instructions()
+        # s = set()
+        # count = 0
+        # for k in temp:
+        #     if k.code == 0xa6:
+        #         count = count + len(k.args)
+        #     s.add(k.code)
+        # s = list(s)
+        # s.sort()
+        # # print("\n".join(hex(k) for k in s))
+        # print(count)
         for i in self._get_instructions():
             if i is not None:
                 f.write(i.get_bytes())
         f.close()
+
 
     def new_reg(self, reg_type, size=None):
         return self.Register(reg_type, self, size=size)

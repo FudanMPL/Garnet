@@ -1,0 +1,37 @@
+m = 4 # 特征数
+h = 2 # 树高
+tree_number = 2 # 树的数量
+n_threads = 4 # 最大线程数
+test_samples = 51 # 测试样本数
+attribute_max_values = [ # 各个特征的最大值，用于在两方同态加密下使用
+100,
+100,
+100,
+100
+]
+
+
+program.use_trunc_pr=True
+import xgboost, util, math
+
+test = sfix.Array(test_samples), sint.Matrix(m, test_samples)
+
+for x in  test:
+    x.input_from(1)
+
+
+
+
+
+
+
+
+trainer = xgboost.XGBoost(
+    h=h, tree_number=tree_number,  n_threads=n_threads, attribute_number=m, attribute_max_values=attribute_max_values, test_sample_number=test_samples)
+
+trainer.input_from(0)
+
+
+trainer.test(test[1], test[0])
+
+

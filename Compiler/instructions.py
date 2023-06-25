@@ -31,6 +31,33 @@ from Compiler.cost_config import Cost
 # avoid naming collision with input instruction
 _python_input = input
 
+
+###
+### Change domain instructions
+###
+
+@base.vectorize
+class csd(base.VarArgsInstruction):
+    """ change secret value to another ring domain 2^i.
+    :param: result secret value (sint)
+    :param: secret value (sint)
+    :param: domain size 2^i (int)
+    :param: bit length 2^i (int)
+    """
+    __slots__ = []
+    code = base.opcodes['CSD']
+    arg_format = tools.cycle(['sw','s','int', 'int'])
+
+
+
+class cmd(base.Instruction):
+    """ Change machine to execute on another ring domain 2^i
+    :param: domain size 2^i (int)
+    """
+    __slots__ = []
+    code = base.opcodes['CMD']
+    arg_format = ['int']
+
 ###
 ### Load and store instructions
 ###

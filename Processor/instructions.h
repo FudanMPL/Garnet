@@ -8,6 +8,7 @@
 
 #include "Instruction.h"
 
+
 #define ARITHMETIC_INSTRUCTIONS \
     X(LDI, auto dest = &Procp.get_C()[r[0]]; typename sint::clear tmp = int(n), \
             *dest++ = tmp) \

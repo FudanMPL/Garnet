@@ -577,7 +577,8 @@ class _secret_structure(_structure):
         return res
 
     @classmethod
-    def input_tensor_via(cls, player, content):
+    def input_tensor_via(cls, player, content=None, shape=None, binary=False,
+                         one_hot=False):
         """
         Input tensor-like data via a player. This overwrites the input
         file for the relevant player. The following returns an
@@ -586,35 +587,77 @@ class _secret_structure(_structure):
           M = [[1, 2], [3, 4]]
           sint.input_tensor_via(0, M)
 
-        Make sure to copy ``Player-Data/Input-P<player>-0`` if running
+        Make sure to copy ``Player-Data/Input-P<player>-0`` or
+        ``Player-Data/Input-Binary-P<player>-0`` if running
         on another host.
+
+        :param player: player to input via (int)
+        :param content: nested Python list or numpy array (binary mode only) or
+          left out if not available
+        :param shape: shape if content not given
+        :param binary: binary mode (bool)
+        :param one_hot: one-hot encoding (bool)
 
         """
         if program.curr_tape != program.tapes[0]:
             raise CompilerError('only available in main thread')
-        shape = []
-        tmp = content
-        while True:
-            try:
-                shape.append(len(tmp))
-                tmp = tmp[0]
-            except:
-                break
-        if not program.input_files.get(player, None):
-            program.input_files[player] = open(
-                'Player-Data/Input-P%d-0' % player, 'w')
-        f = program.input_files[player]
-        def traverse(content, level):
-            assert len(content) == shape[level]
-            if level == len(shape) - 1:
-                for x in content:
-                    f.write(' ')
-                    f.write(str(x))
+        if content is not None:
+            requested_shape = shape
+            if binary:
+                import numpy
+                content = numpy.array(content)
+                if issubclass(cls, _fix):
+                    min_k = \
+                        math.ceil(math.log(abs(content).max(), 2)) + cls.f + 1
+                    if cls.k < min_k:
+                        raise CompilerError(
+                            "data outside fixed-point range, "
+                            "use 'sfix.set_precision(%d, %d)'" % (cls.f, min_k))
+                    if binary == 2:
+                        t = numpy.double
+                    else:
+                        t = numpy.single
+                else:
+                    t = numpy.int64
+                if one_hot:
+                    content = numpy.eye(content.max() + 1)[content]
+                content = content.astype(t)
+                f = program.get_binary_input_file(player)
+                f.write(content.tobytes())
+                f.flush()
+                shape = content.shape
             else:
-                for x in content:
-                    traverse(x, level + 1)
-        traverse(content, 0)
-        f.write('\n')
+                shape = []
+                tmp = content
+                while True:
+                    try:
+                        shape.append(len(tmp))
+                        tmp = tmp[0]
+                    except:
+                        break
+                if not program.input_files.get(player, None):
+                    print('ALice')
+                    program.input_files[player] = open(
+                        'Player-Data/Input-P%d-0' % player, 'w')
+                f = program.input_files[player]
+
+                def traverse(content, level):
+                    assert len(content) == shape[level]
+                    if level == len(shape) - 1:
+                        for x in content:
+                            f.write(' ')
+                            f.write(str(x))
+                    else:
+                        for x in content:
+                            traverse(x, level + 1)
+
+                traverse(content, 0)
+                f.write('\n')
+                f.flush()
+                # f.close()
+            if requested_shape is not None and \
+                    list(shape) != list(requested_shape):
+                raise CompilerError('content contradicts shape')
         res = cls.Tensor(shape)
         res.input_from(player)
         return res
@@ -2077,6 +2120,7 @@ class _secret(_arithmetic_register, _secret_structure):
             return NotImplemented
         return res
 
+
     def add(self, other):
         """ Secret addition.
 
@@ -2233,6 +2277,27 @@ class sint(_secret, _int):
     PreOp = staticmethod(floatingpoint.PreOpL)
     PreOR = staticmethod(floatingpoint.PreOR)
     get_type = staticmethod(lambda n: sint)
+
+
+    @set_instruction_type
+    @read_mem_value
+    @vectorize
+    def change_domain_from_to(self, k1, k2, bit_length=None):
+        """ change to another domain  """
+        if k1 < k2:
+            res = self.prep_res(self)
+            if bit_length is None:
+                bit_length = k1
+            csd(res, self, k1, bit_length)
+            # temp = self + 2 ** (k1 - 1)
+            # b1 = temp.__ge__(2 ** k1, bit_length=34)
+            # b2 = temp.__ge__(2 ** (k1 + 1), bit_length=34)
+            # b3 = temp.__ge__(3 * (2 ** k1), bit_length=34)
+            # res = self - b1 * (2 ** k1) - b2 * (2 ** k1) - b3 ** (2 ** k1)
+            return res
+        else:
+            res = self + 0
+            return res
 
     @staticmethod
     def require_bit_length(n_bits):
@@ -2863,6 +2928,8 @@ class sintbit(sint):
             movs(self, other)
         else:
             super(sintbit, self).load_other(other)
+
+
 
     @vectorize
     def __and__(self, other):
@@ -4463,6 +4530,12 @@ class sfix(_fix):
     get_type = staticmethod(lambda n: sint)
     default_type = sint
 
+    def change_domain_from_to(self, k1, k2, bit_length=None):
+        temp = self.v.change_domain_from_to(k1, k2, bit_length)
+        res = sfix(size=temp.size)
+        res.v = temp
+        return res
+
     @vectorized_classmethod
     def get_input_from(cls, player):
         """ Secret fixed-point input.
@@ -4587,6 +4660,9 @@ class sfix(_fix):
     def prefix_sum(self):
         return self._new(self.v.prefix_sum(), k=self.k, f=self.f)
 
+    def change_domain(self, k):
+        pass
+
 class unreduced_sfix(_single):
     int_type = sint
 
@@ -4622,6 +4698,9 @@ sfix.unreduced_type = unreduced_sfix
 
 sfix.set_precision(16, 31)
 cfix.set_precision(16, 31)
+
+# sfix.set_precision(20, 54)
+# cfix.set_precision(20, 54)
 
 class squant(_single):
     """ Quantization as in ArXiv:1712.05877v1 """
@@ -5336,6 +5415,9 @@ class Array(_vectorizable):
     """
     check_indices = True
 
+    def change_domain_from_to(self, k1, k2, bit_length=None):
+        return self.get_vector().change_domain_from_to(k1, k2, bit_length)
+
     @classmethod
     def create_from(cls, l):
         """ Convert Python iterator or vector to array. Basic type will be taken
@@ -5374,10 +5456,17 @@ class Array(_vectorizable):
         if alloc:
             self.alloc()
 
+    def change_domain(self, k):
+        return self.get_vector().change_domain(k)
+
     def alloc(self):
         if self.address is None:
             self.address = self.value_type.malloc(self.length,
                                                   self.creator_tape)
+
+    @property
+    def shape(self):
+        return [self.length]
 
     def delete(self):
         self.value_type.free(self.address)
@@ -5629,7 +5718,7 @@ class Array(_vectorizable):
     def get_mem_value(self, index):
         return MemValue(self[index], self.get_address(index))
 
-    def input_from(self, player, budget=None, raw=False):
+    def input_from(self, player, budget=None, raw=False, **kwargs):
         """ Fill with inputs from player if supported by type.
 
         :param player: public (regint/cint/int) """
@@ -5638,12 +5727,16 @@ class Array(_vectorizable):
         else:
             input_from = self.value_type.get_input_from
         try:
-            self.assign(input_from(player, size=len(self)))
+            @library.multithread(None, len(self),
+                                 max_size=budget or program.budget)
+            def _(base, size):
+                self.assign(input_from(player, size=size, **kwargs), base)
         except (TypeError, CompilerError):
-            print (budget)
+            print(budget)
+
             @library.for_range_opt(self.length, budget=budget)
             def _(i):
-                self[i] = input_from(player)
+                self[i] = input_from(player, **kwargs)
 
     def read_from_file(self, start):
         """ Read content from ``Persistence/Transactions-P<playerno>.data``.
@@ -5748,6 +5841,7 @@ class Array(_vectorizable):
         """ Reveal the whole array.
 
         :returns: Array of relevant clear type. """
+        library.break_point()
         return Array.create_from(self.get_vector().reveal())
 
     def reveal_list(self):
@@ -5882,6 +5976,10 @@ class SubMultiArray(_vectorizable):
         res = self.sub_cache[key]
         res.check_indices = self.check_indices
         return res
+
+    @property
+    def shape(self):
+        return list(self.sizes)
 
     def __setitem__(self, index, other):
         """ Part assignment.

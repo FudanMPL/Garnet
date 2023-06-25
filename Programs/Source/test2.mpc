@@ -1,0 +1,27 @@
+y = sint(10)
+g = sint(
+y = [y.get_vector().bit_not(), y]
+u = [GroupPrefixSum(g, yy) for yy in y]
+s = [GroupSum(g, yy) for yy in y]
+w = [ss - uu for ss, uu in zip(s, u)]
+us = sum(u)
+ws = sum(w)
+change_machine_domain(128)
+u0_128 = u[0].change_domain_from_to(32, 128)
+u1_128 = u[1].change_domain_from_to(32, 128)
+w0_128 = w[0].change_domain_from_to(32, 128)
+w1_128 = w[1].change_domain_from_to(32, 128)
+us_128 = us.change_domain_from_to(32, 128)
+ws_128 = ws.change_domain_from_to(32, 128)
+uqs = u0_128 ** 2 + u1_128 ** 2
+wqs = w0_128 ** 2 + w1_128 ** 2
+if single_thread:
+    start_timer(2)
+res = sfix(uqs) / us_128 + sfix(wqs) / ws_128
+if single_thread:
+    stop_timer(2)
+n = len(y)
+res = res * 2 ** (31 - sfix.f - math.ceil(math.log(n)))
+
+res = res.v.round(128, sfix.f)
+change_machine_domain(32)

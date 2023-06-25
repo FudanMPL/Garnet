@@ -1,0 +1,3 @@
+a = sint.get_input_from(0, size=10)
+
+print_ln("a[0] = %s", a[0].reveal())

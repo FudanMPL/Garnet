@@ -1,12 +1,15 @@
 # Offline data, runtime logs #
 ##############################
+Data
 Player-Data
 Player-Data/*
 Prep-Data/*
 logs/*
 Language-Definition/main.pdf
 keys/*
-
+Data/*
+.idea/*
+Compiler/DL/data*
 # Personal CONFIG file #
 ##############################
 CONFIG.mine
@@ -20,6 +23,7 @@ config_mine.py
 *.tmp
 callgrind.out.*
 HOSTS*
+*.csv
 
 # Vim
 .*.swp
@@ -124,3 +128,8 @@ _build/
 doc/readme.md
 doc/xml
 Compiler/profiling_res/
+
+#ignore model and data
+Compiler/DL/data/*
+Compiler/DL/AvgFeature-All/*
+Compiler/DL/checkpoint/*

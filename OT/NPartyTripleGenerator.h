@@ -12,6 +12,8 @@
 #include "OT/MascotParams.h"
 #include "OT/OTMultiplier.h"
 
+#include "Protocols/ShareMatrix.h"
+
 #include <map>
 #include <vector>
 
@@ -101,6 +103,7 @@ public:
     vector<array<open_type, 3>> plainTriples;
     vector<dabit<T>> plainBits;
     vector<array<open_type, 3>> mixedTriples;
+    vector<array<ShareMatrix<T>, 3>> matrixTriple;
 
     typename T::MAC_Check* MC;
 
@@ -113,6 +116,9 @@ public:
     void generate() { throw not_implemented(); }
 
     void generatePlainTriples();
+    ShareMatrix<T> generateMatrixTriples(int k, int n_rows, int n_inner, int n_cols,
+        ShareMatrix<T> A, ShareMatrix<T> B, ShareMatrix<T> C);
+    void generateMyTriples(typename T::open_type a, typename T::open_type b);
     void plainTripleRound(int k = 0);
 
     void generatePlainBits();

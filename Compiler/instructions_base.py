@@ -20,6 +20,9 @@ from Compiler import program
 ### MUST also be changed. (+ the documentation)
 ###
 opcodes = dict(
+    # Change domain
+    CSD = 0xf8,
+    CMD = 0xf9,
     # Emulation
     CISC = 0,
     # Load/store
@@ -838,6 +841,7 @@ class Instruction(object):
         Instruction.count += 1
         if Instruction.count % 100000 == 0:
             print("Compiled %d lines at" % self.__class__.count, time.asctime())
+
 
     def get_code(self, prefix=0):
         return (prefix << self.code_length) + self.code
