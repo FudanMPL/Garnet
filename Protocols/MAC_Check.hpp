@@ -30,6 +30,20 @@ const char* TreeSum<T>::mc_timer_names[] = {
         "waiting for select()"
 };
 
+template<class T>
+const char* TreeVss_Sum<T>::mc_timer_names[] = {
+        "sending",
+        "receiving and adding",
+        "broadcasting",
+        "receiving summed values",
+        "random seed",
+        "commit and open",
+        "wait for summer thread",
+        "receiving",
+        "summing",
+        "waiting for select()"
+};
+
 template<class U>
 void Tree_MAC_Check<U>::setup(Player& P)
 {
