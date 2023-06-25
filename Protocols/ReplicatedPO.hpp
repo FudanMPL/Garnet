@@ -3,6 +3,9 @@
  *
  */
 
+#ifndef PROTOCOLS_REPLICATEDPO_HPP_
+#define PROTOCOLS_REPLICATEDPO_HPP_
+
 #include "ReplicatedPO.h"
 
 #include "MaliciousRepPO.hpp"
@@ -19,3 +22,5 @@ void ReplicatedPO<T>::receive()
 {
     this->P.receive_relative(1, this->to_receive[0]);
 }
+
+#endif /* PROTOCOLS_REPLICATEDPO_HPP_ */
