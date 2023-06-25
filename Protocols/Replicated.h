@@ -126,8 +126,7 @@ public:
     virtual void check() {}
 
     virtual void cisc(SubProcessor<T>&, const Instruction&)
-    { throw runtime_error("CISC instructions not implemented"); }
-
+    { throw runtime_error("CISC instuctions not implemented"); }
     virtual vector<int> get_relevant_players();
 };
 
@@ -184,7 +183,7 @@ public:
     void stop_exchange();
 
     template<class U>
-    void change_domain(const vector<int>& reg,  U& proc);
+    void change_domain(const vector<int>& regs, int reg_size, U& proc);
 };
 
 #endif /* PROTOCOLS_REPLICATED_H_ */

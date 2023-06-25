@@ -8,11 +8,13 @@ import inspect
 import itertools
 import math
 import os
+import profile
 import re
 import sys
+from Compiler.cost_config import get_cost_config
 from collections import defaultdict, deque
 from functools import reduce
-
+from Compiler.profiling_visualization import plot_cost
 import Compiler.instructions
 import Compiler.instructions_base
 import Compiler.instructions_base as inst_base
@@ -88,6 +90,11 @@ class Program(object):
         self._security = 40
         self.prime = None
         self.tapes = []
+        self.globalbuildingblock = "initial"
+        self.buildingblock_store = defaultdict(lambda: -1)
+        self.buildingblock_cost_store = defaultdict(lambda: -1)
+        self.is_profiling = True
+        self.cost_config = None     
         if sum(x != 0 for x in (options.ring, options.field, options.binary)) > 1:
             raise CompilerError("can only use one out of -B, -R, -F")
         if options.prime and (options.ring or options.binary):
@@ -112,6 +119,9 @@ class Program(object):
         print("Default bit length:", self.bit_length)
         print("Default security parameter:", self.security)
         self.galois_length = int(options.galois)
+        self.protocol = options.protocol
+        self.n_parties = options.n_parties
+
         if self.verbose:
             print("Galois length:", self.galois_length)
         self.tape_counter = 0
@@ -184,7 +194,14 @@ class Program(object):
         types.program = self
         comparison.program = self
         comparison.set_variant(options)
-
+        print(self.get_cost("share"))
+        
+    def get_cost(self, name):
+        if self.cost_config is None:
+            self.cost_config = get_cost_config(self.protocol)
+            self.cost_config.init(self)
+        return self.cost_config.get_cost(name)
+        
     def get_args(self):
         return self.args
 
@@ -452,6 +469,18 @@ class Program(object):
         for tape in self.tapes:
             tape.optimize(self.options)
 
+        #insert profiling module here
+        # for key, value in self.buildingblock_store.items():
+        #     print(key)
+        #     for i in range(0, len(value)):
+        #         print(len(value[i])) 
+        profiling_res = self.curr_tape.req_node.aggregate_profiling()
+        plot_cost(profiling_res, self.name)                    
+        # for key, value in profiling_res.items():
+        #     print(key)
+        #     for x in value.pretty():
+        #         print(x)
+        
         if self.tapes:
             self.update_req(self.curr_tape)
 
@@ -684,6 +713,7 @@ class Tape:
             self.exit_condition = exit_condition
             self.exit_block = None
             self.previous_block = None
+            self.label = None
             self.scope = scope
             self.children = []
             if scope is not None:
@@ -720,7 +750,8 @@ class Tape:
             self.exit_block = exit_true
             for reg in condition.get_used():
                 reg.can_eliminate = False
-
+                
+            
         def add_jump(self):
             """Add the jump for this block's exit condition to list of
             instructions (must be done after merging)"""
@@ -757,9 +788,14 @@ class Tape:
                 instructions = self.instructions
             for inst in instructions:
                 inst.add_usage(req_node)
-            req_node.num["all", "round"] += self.n_rounds
-            req_node.num["all", "inv"] += self.n_to_merge
-            req_node.num += self.rounds
+            if req_node.key == "default":
+                req_node.num["all", "round"] += self.n_rounds
+                req_node.num["all", "inv"] += self.n_to_merge
+                req_node.num += self.rounds
+            else:
+                req_node.buildingblock_cost_store[req_node.key]["all", "round"] += self.n_rounds
+                req_node.buildingblock_cost_store[req_node.key]["all", "inv"] += self.n_to_merge
+                req_node.buildingblock_cost_store[req_node.key] += self.rounds
 
         def expand_cisc(self):
             new_instructions = []
@@ -797,7 +833,7 @@ class Tape:
         self.basicblocks.append(sub)
         self.active_basicblock = sub
         self.req_node.add_block(sub)
-        # print 'Compiling basic block', sub.name
+        sub.label = self.program.globalbuildingblock
 
     def init_registers(self):
         self.reg_counter = RegType.create_dict(lambda: 0)
@@ -834,7 +870,6 @@ class Tape:
         if len(self.basicblocks) == 0:
             print("Tape %s is empty" % self.name)
             return
-
         if self.if_states:
             print("Tracebacks for open blocks:")
             for state in self.if_states:
@@ -1095,14 +1130,17 @@ class Tape:
         print("Writing to", filename)
         f = open(filename, "wb")
 
-        temp = self._get_instructions()
+        # temp = self._get_instructions()
         # s = set()
+        # count = 0
         # for k in temp:
-        #     print(hex(k.code))
+        #     if k.code == 0xa6:
+        #         count = count + len(k.args)
         #     s.add(k.code)
         # s = list(s)
         # s.sort()
-        # print("\n".join(hex(k) for k in s))
+        # # print("\n".join(hex(k) for k in s))
+        # print(count)
         for i in self._get_instructions():
             if i is not None:
                 f.write(i.get_bytes())
@@ -1189,7 +1227,7 @@ class Tape:
                         % (n, req[1][0], req[1][1], req[1][1], req[1][2])
                     ]
                 elif req[0] != "all":
-                    res += ["%s %s %ss" % (n, domain, req[1])]
+                    res += ["%s %s %s" % (n, domain, req[1])]
             if self["all", "round"]:
                 res += ["% 12.0f virtual machine rounds" % self["all", "round"]]
             return res
@@ -1201,12 +1239,15 @@ class Tape:
             return repr(dict(self))
 
     class ReqNode(object):
-        __slots__ = ["num", "children", "name", "blocks"]
+        __slots__ = ["num", "children", "name", "blocks", "buildingblock_cost_store", "key", "profiled"]
 
         def __init__(self, name):
             self.children = []
             self.name = name
             self.blocks = []
+            self.buildingblock_cost_store = defaultdict(lambda: -1)
+            self.key = "default"
+            self.profiled = False
 
         def aggregate(self, *args):
             self.num = Tape.ReqNum()
@@ -1217,8 +1258,32 @@ class Tape:
             )
             return res
 
+        def aggregate_profiling(self, *args):
+            if not self.profiled:
+                for block in self.blocks:
+                    self.key = block.label
+                    if  self.buildingblock_cost_store[self.key] == -1:
+                        self.buildingblock_cost_store[self.key] = Tape.ReqNum()
+                    block.add_usage(self)    
+                self.profiled = True
+            def cost_store_add(x, y):
+                tmpRes = y.aggregate_profiling(self.name)    
+                for key, value in tmpRes.items():
+                      if x[key] == -1:
+                        x[key] =Tape.ReqNum()
+                      x[key] = x[key] + value
+            res =  self.buildingblock_cost_store
+            for child in self.children:
+                cost_store_add(res, child)
+            self.key = "default"
+            return res
+
         def increment(self, data_type, num=1):
-            self.num[data_type] += num
+            # self.num[data_type] += num
+            if self.key == "default":
+                self.num[data_type] += num
+            else:
+                self.buildingblock_cost_store[self.key][data_type] += num
 
         def add_block(self, block):
             self.blocks.append(block)
@@ -1245,6 +1310,19 @@ class Tape:
                     )
             except Exception:
                 pass
+            return res
+        
+        def aggregate_profiling(self, name):
+            res = defaultdict(lambda: -1)
+            cost_store = defaultdict(lambda: -1)
+            for node in self.nodes:
+                tmpRes = node.aggregate_profiling() 
+                for key, value in tmpRes.items():
+                    if cost_store[key] == -1:
+                        cost_store[key] = []
+                    cost_store[key].append(value)
+            for key, value in cost_store.items():
+                res[key] = self.aggregator(value)          
             return res
 
         def add_node(self, tape, name):
@@ -1422,10 +1500,12 @@ class Tape:
             :param other: any convertible type
 
             """
-            other = self.conv(other)
+            other = type(self)(other)
             if self.program != other.program:
                 raise CompilerError(
                     'cannot update register with one from another thread')
+            # if other.block in [x.block for x in self.duplicates]:
+            #         self.program.start_new_basicblock()
             self.link(other)
 
         @property

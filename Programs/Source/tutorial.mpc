@@ -7,6 +7,7 @@ import Compiler.mpc_math
 a = sint(1)
 b = sint(2)
 
+@buildingblock("test")
 def test(actual, expected):
 
     # you can reveal a number in order to print it
@@ -49,10 +50,22 @@ test((a < b).if_else(b, a), 2)
 # arrays and loops work as follows
 
 a = Array(100, sint)
+x = sint(0)
+mm = a*x
+mm2 = a*x
+n=10
 
+ww = Array(100, sint)
+dd = Array(100, sint)
+ss = [sint(i) for i in range(n)] 
+ss1 = [sint(i+1) for i in range(n)]
+ss2 = [sint(i+1) for i in range(n)]
+sd = sint.dot_product(ww, dd)
+sd1 = sint.dot_product(ss, ss2)
 @for_range(100)
 def f(i):
     a[i] = sint(i) * sint(i - 1)
+    x.update(x+1)
 
 test(a[99], 99 * 98)
 

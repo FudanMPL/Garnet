@@ -787,7 +787,7 @@ int FakeParams::generate()
   case 64:
     break;
 #define X(L) case L: generate_ring<L>(); break;
-    X(128) X(192) X(256)
+    X(32) X(128) X(192) X(256)
   default:
     cerr << "Not compiled for " << lgp << "-bit rings." << endl << "Add 'X("
         << lgp << "') to line " << (__LINE__ - 2) << " in " << __FILE__ << endl;

@@ -51,6 +51,7 @@ void PrepBase::print_left(const char* name, size_t n, const string& type_string,
         cerr << "Significant amount of unused " << name << " of " << type_string
                 << ". For more accurate benchmarks, "
                 << "consider reducing the batch size with -b." << endl;
+
 }
 
 void PrepBase::print_left_edabits(size_t n, size_t n_batch, bool strict,

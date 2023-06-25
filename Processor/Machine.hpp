@@ -110,11 +110,6 @@ Machine<sint, sgf2n>::Machine(Names& playerNames, bool use_encryption,
        inpf.open(memory_filename(), ios::in | ios::binary);
        if (inpf.fail()) { throw file_error(memory_filename()); }
        inpf >> M2 >> Mp >> Mi;
-#ifdef BIG_DOMAIN_FOR_RSS
-       this->Mp_2 = new Memory<Rep3Share128>();
-       this->Mp_2->template assign_S<sint>(Mp.get_S());
-       this->Mp_2->template assign_C<sint>(Mp.get_C());
-#endif
        if (inpf.get() != 'M')
          {
            cerr << "Invalid memory file. Run with '-m empty'." << endl;
@@ -214,6 +209,12 @@ size_t Machine<sint, sgf2n>::load_program(const string& threadname,
   M2.minimum_size(SGF2N, CGF2N, progs[i], threadname);
   Mp.minimum_size(SINT, CINT, progs[i], threadname);
   Mi.minimum_size(NONE, INT, progs[i], threadname);
+#ifdef BIG_DOMAIN_FOR_RSS
+  this->Mp_2 = new Memory<Rep3Share128>();
+  this->Mp_2->template assign_S<sint>(Mp.get_S());
+  this->Mp_2->template assign_C<sint>(Mp.get_C());
+
+#endif
   return progs.back().size();
 }
 
@@ -355,9 +356,11 @@ DataPositions Machine<sint, sgf2n>::run_tape(int thread_number, int tape_number,
     {
       if (not opts.live_prep and thread_number != 0)
         {
+        #ifndef BIG_DOMAIN_FOR_RSS
           insecure(
               "Internally called tape " + to_string(tape_number)
                   + " has unknown offline data usage");
+        #endif
         }
       return DataPositions(N.num_players());
     }

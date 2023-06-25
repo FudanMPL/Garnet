@@ -202,11 +202,20 @@ Fake-Offline.x: Utils/Fake-Offline.o $(VM)
 %.x: Utils/%.o $(COMMON)
 	$(CXX) -o $@ $(CFLAGS) $^ $(LDLIBS)
 
+
+
+tree-inference.x: Machines/tree-inference.cpp  $(MINI_OT) $(SHAREDLIB)
+	$(CXX) -o $@ $(CFLAGS) $^ $(LDLIBS) -L/usr/local/opt/seal/lib -lseal.4.1 $(SHAREDLIB)
+
+
 %.x: Machines/%.o $(MINI_OT) $(SHAREDLIB)
 	$(CXX) -o $@ $(CFLAGS) $^ $(LDLIBS) $(SHAREDLIB)
 
 %-ecdsa-party.x: ECDSA/%-ecdsa-party.o ECDSA/P256Element.o $(VM)
 	$(CXX) -o $@ $(CFLAGS) $^ $(LDLIBS)
+
+
+tree-inference.x:  ${NETWORK}
 
 replicated-bin-party.x: GC/square64.o
 replicated-ring-party.x: GC/square64.o

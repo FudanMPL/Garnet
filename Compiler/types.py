@@ -52,7 +52,7 @@ Container types
 
 """
 
-from Compiler.program import Tape
+from Compiler.program import Tape,Program
 from Compiler.exceptions import *
 from Compiler.instructions import *
 from Compiler.instructions_base import *
@@ -65,7 +65,7 @@ from .util import is_zero, is_one
 import operator
 from functools import reduce
 import re
-
+from Compiler.cost_config import Cost
 
 class ClientMessageType:
     """ Enum to define type of message sent to external client. Each may be array of length n."""
@@ -2279,19 +2279,21 @@ class sint(_secret, _int):
     get_type = staticmethod(lambda n: sint)
 
 
-    def change_domain_from_to(self, k1, k2):
+    @set_instruction_type
+    @read_mem_value
+    @vectorize
+    def change_domain_from_to(self, k1, k2, bit_length=None):
         """ change to another domain  """
         if k1 < k2:
-            # res = sint()
-            # csd(res, self, k1)
-            temp = self + 2 ** (k1 - 1)
-            b1 = temp.__ge__(2 ** k1, bit_length=34)
-            b2 = temp.__ge__(2 ** (k1 + 1), bit_length=34)
-            b3 = temp.__ge__(3 * (2 ** k1), bit_length=34)
-            res = self - b1 * (2 ** k1) - b2 * (2 ** k1) - b3 ** (2 ** k1)
-            # wrap = temp.TruncPr(40, 32)
-            # library.print_ln("wrap = %s", wrap.reveal())
-            # res = self - wrap * (2 ** k1)
+            res = self.prep_res(self)
+            if bit_length is None:
+                bit_length = k1
+            csd(res, self, k1, bit_length)
+            # temp = self + 2 ** (k1 - 1)
+            # b1 = temp.__ge__(2 ** k1, bit_length=34)
+            # b2 = temp.__ge__(2 ** (k1 + 1), bit_length=34)
+            # b3 = temp.__ge__(3 * (2 ** k1), bit_length=34)
+            # res = self - b1 * (2 ** k1) - b2 * (2 ** k1) - b3 ** (2 ** k1)
             return res
         else:
             res = self + 0
@@ -2752,6 +2754,7 @@ class sint(_secret, _int):
         else:
             if secret:
                 return floatingpoint.Trunc(self, k, m, kappa)
+            
             return self.TruncPr(k, m, kappa, signed=signed)
 
     def Norm(self, k, f, kappa=None, simplex_flag=False):
@@ -4527,8 +4530,8 @@ class sfix(_fix):
     get_type = staticmethod(lambda n: sint)
     default_type = sint
 
-    def change_domain_from_to(self, k1, k2):
-        temp = self.v.change_domain_from_to(k1, k2)
+    def change_domain_from_to(self, k1, k2, bit_length=None):
+        temp = self.v.change_domain_from_to(k1, k2, bit_length)
         res = sfix(size=temp.size)
         res.v = temp
         return res
@@ -4548,6 +4551,19 @@ class sfix(_fix):
     @vectorized_classmethod
     def get_raw_input_from(cls, player):
         return cls._new(cls.int_type.get_raw_input_from(player))
+
+    @classmethod
+    def set_precision(cls, f, k = None):
+        cls.f = f
+        # default bitlength = 2*precision
+        if k is None:
+            cls.k = 2 * f
+        else:
+            cls.k = k
+        try:
+            Program.prog.cost_config.set_precision(f)
+        except:
+            pass
 
     @vectorized_classmethod
     def get_random(cls, lower, upper, symmetric=True):
@@ -5399,6 +5415,9 @@ class Array(_vectorizable):
     """
     check_indices = True
 
+    def change_domain_from_to(self, k1, k2, bit_length=None):
+        return self.get_vector().change_domain_from_to(k1, k2, bit_length)
+
     @classmethod
     def create_from(cls, l):
         """ Convert Python iterator or vector to array. Basic type will be taken
@@ -5760,7 +5779,13 @@ class Array(_vectorizable):
         """ Vector multiplication.
 
         :param other: vector or container of same length and type that supports operations with type of this array """
-        return self.get_vector() * value
+        if isinstance(value, SubMultiArray):
+            assert len(value.sizes) == 2
+            if self.length == value.sizes[1]:
+                res = SubMultiArray(value.sizes, value.value_type)
+                return res
+        else:        
+            return self.get_vector() * value
 
     def __truediv__(self, value):
         """ Vector division.
@@ -5816,6 +5841,7 @@ class Array(_vectorizable):
         """ Reveal the whole array.
 
         :returns: Array of relevant clear type. """
+        library.break_point()
         return Array.create_from(self.get_vector().reveal())
 
     def reveal_list(self):
@@ -6345,6 +6371,7 @@ class SubMultiArray(_vectorizable):
             other_sizes = other.sizes
             assert len(other.sizes) == 2
         assert self.sizes[1] == other_sizes[0]
+        assert self.value_type == other.value_type
         return self.value_type.direct_matrix_mul(self.address, other.address,
                                                  self.sizes[0], *other_sizes,
                                                  reduce=reduce, indices=indices)
@@ -6684,8 +6711,87 @@ class MultiArray(SubMultiArray):
     def alloc(self):
         self.array.alloc()
 
+    def tuple_permute(self, tuple, perm):
+        res = ()
+        for i, x  in enumerate(perm):
+            res = res[:] + (tuple[x],)
+        return res
+
+    def permute_singledim(self, new_perm, indices, i, res):
+        if i == len(self.sizes) - 1:
+            for j in range(self.sizes[i]):
+                tmp_indices = indices[:] + (j,)
+                tmp = self.get_vector_by_indices(*tmp_indices)
+                new_indices = self.tuple_permute(tmp_indices, new_perm)
+                res.assign_vector_by_indices(tmp, *new_indices)
+            return
+        for j in range(self.sizes[i]):
+            tmp_indices = indices[:] + (j,)
+            self.permute_singledim(new_perm, tmp_indices, i+1, res)
+
+
+    def permute(self, new_perm):
+        assert len(new_perm) == len(self.sizes)
+        i = 0
+        indices = ()
+        new_sizes = self.tuple_permute(self.sizes, new_perm)
+        res = MultiArray(new_sizes, self.value_type)
+        self.permute_singledim(new_perm, indices, i, res)
+        return res
+
+    def view(self, *sizes):
+        assert self.value_type.n_elements() == 1
+        tmp = self.total_size()
+        tmp_sizes = []
+        is_negative_one = False
+        negative_index = 0
+        for i, x in enumerate(sizes):
+            tmp_sizes.append(x)
+            if x == -1:
+                if is_negative_one:
+                    raise CompilerError('Multiple -1 in MultiArray.view()')
+                is_negative_one = True
+                negative_index = i
+                continue
+            assert tmp % x == 0
+            tmp = tmp / x
+            
+        if is_negative_one: 
+            tmp_sizes[negative_index] = int(tmp)
+        self.sizes = tuple(tmp_sizes)
+
+    def mean(self, dim):
+        assert dim < len(self.sizes)
+        new_sizes = self.sizes[:dim] +  self.sizes[dim+1:]
+        res = MultiArray(new_sizes, self.value_type)
+        new_num = res.total_size()
+        pre_mul_prod = []
+        tmp = 1
+        
+        for i in range(len(new_sizes) - 1):
+            tmp *= new_sizes[-i-1]
+            pre_mul_prod.append(tmp)
+        for i in range(new_num):
+            index = []
+            mod = i
+            for j in range(len(new_sizes)-1):
+                index.append(mod//pre_mul_prod[j])
+                mod = mod % pre_mul_prod[j]
+            index.append(mod)
+            index = tuple(index)
+            tmp_value = self.value_type(0)
+            for j in range(self.sizes[dim]):
+                tmp_indices = index[:dim] +(j,) + index[dim:]
+                tmp_value+=self.get_vector_by_indices(*tmp_indices)
+            res.assign_vector_by_indices(tmp_value, *index)
+        div = MultiArray(new_sizes, cint)
+        div.assign_all(self.sizes[dim])
+        res /= div
+        div.delete()
+        return res
+
     def delete(self):
-        self.array.delete()
+            self.array.delete()
 
 class Matrix(MultiArray):
     """ Matrix.
