@@ -1,6 +1,3 @@
-//
-// Created by 林国鹏 on 2023/2/28.
-//
 
 #ifndef GARNET_REP3SHARE128_H
 #define GARNET_REP3SHARE128_H

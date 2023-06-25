@@ -34,6 +34,9 @@ do_precomp = True
 from . import instructions_base
 from . import util
 
+
+
+
 def set_variant(options):
     """ Set flags based on the command-line option provided """
     global const_rounds, do_precomp, use_inv

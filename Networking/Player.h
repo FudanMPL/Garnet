@@ -529,6 +529,9 @@ public:
 
   size_t send(const PlayerBuffer& buffer, bool block) const;
   size_t recv(const PlayerBuffer& buffer, bool block) const;
+  NamedCommStats total_comm() const {return this->comm_stats;};
+//  NamedCommStats send_comm() const {return this->comm_stats["Sending one-to-one"];};
+//  NamedCommStats recv_comm() const {return this->comm_stats["Receiving one-to-one"] ;};
 };
 
 class RealTwoPartyPlayer : public VirtualTwoPartyPlayer
