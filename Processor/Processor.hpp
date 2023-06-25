@@ -426,8 +426,10 @@ void SubProcessor<T>::POpen(const Instruction& inst)
 template<class T>
 void SubProcessor<T>::muls(const vector<int>& reg, int size)
 {
+
     assert(reg.size() % 3 == 0);
     int n = reg.size() / 3;
+//    cout << "n/3 * size = " << size * n / 3 << endl;
 
     SubProcessor<T>& proc = *this;
     protocol.init_mul();

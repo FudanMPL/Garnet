@@ -1095,14 +1095,17 @@ class Tape:
         print("Writing to", filename)
         f = open(filename, "wb")
 
-        temp = self._get_instructions()
+        # temp = self._get_instructions()
         # s = set()
+        # count = 0
         # for k in temp:
-        #     print(hex(k.code))
+        #     if k.code == 0xa6:
+        #         count = count + len(k.args)
         #     s.add(k.code)
         # s = list(s)
         # s.sort()
-        # print("\n".join(hex(k) for k in s))
+        # # print("\n".join(hex(k) for k in s))
+        # print(count)
         for i in self._get_instructions():
             if i is not None:
                 f.write(i.get_bytes())

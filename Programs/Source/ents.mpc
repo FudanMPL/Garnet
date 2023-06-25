@@ -1,0 +1,83 @@
+attr_lengths = None
+n_threads = 4
+h = 4 # 树高
+
+program.use_trunc_pr=True
+
+import poplar, util
+
+
+
+dataset = program.args[1]
+
+if dataset == "IRIS":
+    m = 4
+    n_train = 135
+    n_test = 15
+    poplar.label_number = 3
+elif dataset == "cancer":
+    m = 30
+    n_train = 512
+    n_test = 56
+    poplar.label_number = 2
+elif dataset == "diagnosis":
+    m = 6
+    n_train = 108
+    n_test = 12
+    poplar.label_number = 2
+elif dataset == "adult":
+    m = 14
+    n_train = 32561
+    n_test = 16281
+    poplar.label_number = 2
+elif dataset == "kohkiloyeh":
+    m = 5
+    n_train = 90
+    n_test = 10
+    poplar.label_number = 2
+elif dataset == "tic-tac-toe":
+    m = 9
+    n_train = 862
+    n_test = 95
+    poplar.label_number = 2
+elif dataset == "digits":
+    m = 64
+    n_train = 5058
+    n_test = 562
+    poplar.label_number = 10
+elif dataset == "wine":
+    m = 13
+    n_train = 160
+    n_test = 18
+    poplar.label_number = 4
+elif dataset == "Skin_NonSkin":
+    m = 3
+    n_train = 220551
+    n_test = 24506
+    poplar.label_number = 2
+else:
+    print("please include %s in poplar.mpc", dataset)
+
+
+if n_threads == 1:
+    poplar.single_thread = True
+
+
+
+
+
+train = sint.Array(n_train), sint.Matrix(m, n_train)
+test = sint.Array(n_test), sint.Matrix(m, n_test)
+
+for x in train + test:
+    x.input_from(0)
+
+
+trainer = poplar.PoplarTrainner(
+   train[1], train[0], h, attr_lengths=None,
+   n_threads=n_threads)
+
+# layers = trainer.train_with_testing(*test)
+
+layers = trainer.train()
+poplar.test_poplar(dataset + "-test", layers, *test)

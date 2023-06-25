@@ -184,7 +184,7 @@ public:
     void stop_exchange();
 
     template<class U>
-    void change_domain(const vector<int>& reg,  U& proc);
+    void change_domain(const vector<int>& regs, int reg_size, U& proc);
 };
 
 #endif /* PROTOCOLS_REPLICATED_H_ */
