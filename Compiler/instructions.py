@@ -15,6 +15,7 @@ right order.
 # Note: every instruction should have a suitable docstring for
 # auto-generation of documentation
 
+from ast import arg
 import itertools
 import operator
 import math
@@ -24,6 +25,7 @@ from functools import reduce
 from Compiler.config import *
 from Compiler.exceptions import *
 import Compiler.instructions_base as base
+from Compiler.cost_config import Cost
 
 
 # avoid naming collision with input instruction
@@ -868,8 +870,8 @@ class addci(base.ClearImmediate):
 class addsi(base.SharedImmediate):
     """ Addition of secret register (vector)  and (constant) immediate value.
 
-    :param: result (cint)
-    :param: summand (cint)
+    :param: result (sint)
+    :param: summand (sint)
     :param: summand (int)
     """
     __slots__ = []
@@ -1128,6 +1130,19 @@ class triple(base.DataInstruction):
     arg_format = ['sw','sw','sw']
     data_type = 'triple'
 
+    def add_usage(self, req_node):
+        res = program.get_cost("triple")
+        if res == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of " + self.__class__.__name__ + " in cost_config.py")
+            return
+        req_node.increment(('online communication', 'bits'), res[0]*self.get_size() * self.get_repeat())
+        req_node.increment(('offline communication', 'bits'), res[2]*self.get_size() * self.get_repeat())
+        req_node.increment(('online', 'round'), res[1])
+        req_node.increment(('offline', 'round'), res[3])
+        req_node.increment((self.field_type, self.data_type),
+                           self.get_size() * self.get_repeat())
+
 @base.vectorize
 class gbittriple(base.DataInstruction):
     r""" Load secret variables $s_i$, $s_j$ and $s_k$
@@ -1165,6 +1180,20 @@ class bit(base.DataInstruction):
     arg_format = ['sw']
     data_type = 'bit'
 
+
+    def add_usage(self, req_node):
+        res = program.get_cost("randbit")
+        if res == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of " + self.__class__.__name__ + " in cost_config.py")
+            return
+        req_node.increment(('online communication', 'bits'), res[0]*self.get_size() * self.get_repeat())
+        req_node.increment(('offline communication', 'bits'), res[2]*self.get_size() * self.get_repeat())
+        req_node.increment(('online', 'round'), res[1])
+        req_node.increment(('offline', 'round'), res[3])
+        req_node.increment((self.field_type, self.data_type),
+                           self.get_size() * self.get_repeat())
+
 @base.vectorize
 class dabit(base.DataInstruction):
     """ Store fresh random daBit(s) in secret register (vectors).
@@ -1177,6 +1206,20 @@ class dabit(base.DataInstruction):
     arg_format = ['sw', 'sbw']
     field_type = 'modp'
     data_type = 'dabit'
+
+
+    def add_usage(self, req_node):
+        res = program.get_cost("dabit")
+        if res == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of " + self.__class__.__name__ + " in cost_config.py")
+            return
+        req_node.increment(('online communication', 'bits'), res[0]*self.get_size() * self.get_repeat())
+        req_node.increment(('offline communication', 'bits'), res[2]*self.get_size() * self.get_repeat())
+        req_node.increment(('online', 'round'), res[1])
+        req_node.increment(('offline', 'round'), res[3])
+        req_node.increment((self.field_type, self.data_type),
+                           self.get_size() * self.get_repeat()) 
 
 @base.vectorize
 class edabit(base.Instruction):
@@ -1193,8 +1236,20 @@ class edabit(base.Instruction):
     arg_format = tools.chain(['sw'], itertools.repeat('sbw'))
     field_type = 'modp'
 
+
     def add_usage(self, req_node):
-        req_node.increment(('edabit', len(self.args) - 1), self.get_size())
+        cost_func = program.get_cost("edabit")
+        config = program.cost_config
+        if res == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of " + self.__class__.__name__ + " in cost_config.py")
+            return
+        res = cost_func(config.bit_length, config._security, config.f, config.n_parties, len(self.args)-1)
+        req_node.increment(('online communication', 'bits'), res[0]*self.get_size() * self.get_repeat())
+        req_node.increment(('offline communication', 'bits'), res[2]*self.get_size() * self.get_repeat())
+        req_node.increment(('online', 'round'), res[1])
+        req_node.increment(('offline', 'round'), res[3])
+        req_node.increment(('edabit', len(self.args) - 1), self.get_size()) 
 
 @base.vectorize
 class sedabit(base.Instruction):
@@ -1211,7 +1266,19 @@ class sedabit(base.Instruction):
     arg_format = tools.chain(['sw'], itertools.repeat('sbw'))
     field_type = 'modp'
 
+
     def add_usage(self, req_node):
+        res = program.get_cost("sedabit")
+        config = program.cost_config
+        if res == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of " + self.__class__.__name__ + " in cost_config.py")
+            return
+        res = res(config.bit_length, config._security, config.f, config.n_parties, len(self.args)-1)
+        req_node.increment(('online communication', 'bits'), res[0]*self.get_size() * self.get_repeat())
+        req_node.increment(('offline communication', 'bits'), res[2]*self.get_size() * self.get_repeat())
+        req_node.increment(('online', 'round'), res[1])
+        req_node.increment(('offline', 'round'), res[3])
         req_node.increment(('sedabit', len(self.args) - 1), self.get_size())
 
 @base.vectorize
@@ -1253,6 +1320,20 @@ class square(base.DataInstruction):
     arg_format = ['sw','sw']
     data_type = 'square'
 
+
+    def add_usage(self, req_node):
+        res = program.get_cost("muls")
+        if res == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of " + self.__class__.__name__ + " in cost_config.py")
+            return
+        req_node.increment(('online communication', 'bits'), res[0]*self.get_size() * self.get_repeat())
+        req_node.increment(('offline communication', 'bits'), res[2]*self.get_size() * self.get_repeat())
+        req_node.increment(('online', 'round'), res[1])
+        req_node.increment(('offline', 'round'), res[3])
+        req_node.increment((self.field_type, self.data_type),
+                           self.get_size() * self.get_repeat())
+
 @base.gf2n
 @base.vectorize
 class inverse(base.DataInstruction):
@@ -1271,6 +1352,21 @@ class inverse(base.DataInstruction):
             raise CompilerError('random inverse in ring not implemented')
         base.DataInstruction.__init__(self, *args, **kwargs)
 
+
+    def add_usage(self, req_node):
+        res1 = program.get_cost("triple")
+        res2 = program.get_cost("open")        
+        if res1 == -1 or res2 == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of triple and open in cost_config.py")
+            return
+        req_node.increment(('online communication', 'bits'), (res1[0] + res2[0])*self.get_size() * self.get_repeat())
+        req_node.increment(('offline communication', 'bits'), (res1[2] + res2[2])*self.get_size() * self.get_repeat())
+        req_node.increment(('online', 'round'), res[1])
+        req_node.increment(('offline', 'round'), res[3])
+        req_node.increment((self.field_type, self.data_type),
+                           self.get_size() * self.get_repeat())
+
 @base.gf2n
 @base.vectorize
 class inputmask(base.Instruction):
@@ -1285,8 +1381,18 @@ class inputmask(base.Instruction):
     code = base.opcodes['INPUTMASK']
     arg_format = ['sw', 'cw', 'p']
     field_type = 'modp'
-
+ 
     def add_usage(self, req_node):
+        res = program.get_cost("share")
+        times = self.get_size()
+        if res == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of share in cost_config.py")
+            return
+        req_node.increment(('online communication', 'bits'), res[0] * times)
+        req_node.increment(('offline communication', 'bits'), res[2] * times)
+        req_node.increment(('online', 'round'), res[1])
+        req_node.increment(('offline', 'round'), res[3])
         req_node.increment((self.field_type, 'input', self.args[2]), \
                                self.get_size())
 
@@ -1306,6 +1412,16 @@ class inputmaskreg(base.Instruction):
 
     def add_usage(self, req_node):
         # player 0 as proxy
+        res = program.get_cost("share")
+        times = self.get_size()
+        if res == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of share in cost_config.py")
+            return
+        req_node.increment(('online communication', 'bits'), res[0] * times)
+        req_node.increment(('offline communication', 'bits'), res[2] * times)
+        req_node.increment(('online', 'round'), res[1])
+        req_node.increment(('offline', 'round'), res[3])
         req_node.increment((self.field_type, 'input', 0), float('inf'))
 
 @base.gf2n
@@ -1346,6 +1462,22 @@ class asm_input(base.TextInputInstruction):
     def get_players(self):
         return self.args[1::2]
 
+    def add_usage(self, req_node):
+        res = program.get_cost("share")
+        times = len(self.get_players()) * self.get_size()
+        if res == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of share in cost_config.py")
+            return
+        req_node.increment(('online communication', 'bits'), res[0] * times)
+        req_node.increment(('offline communication', 'bits'), res[2] * times)
+        req_node.increment(('online', 'round'), res[1])
+        req_node.increment(('offline', 'round'), res[3])
+        for player in self.get_players():
+            req_node.increment((self.field_type, 'input', player), \
+                               self.get_size())
+
+
 @base.vectorize
 class inputfix(base.TextInputInstruction):
     __slots__ = []
@@ -1356,6 +1488,23 @@ class inputfix(base.TextInputInstruction):
     def get_players(self):
         return self.args[2::3]
 
+
+    def add_usage(self, req_node):
+        res = program.get_cost("share")
+        times = len(self.get_players()) * self.get_size()
+        if res == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of share in cost_config.py")
+            return
+        req_node.increment(('online communication', 'bits'), res[0]*times)
+        req_node.increment(('offline communication', 'bits'), res[2]*times)
+        req_node.increment(('online', 'round'), res[1])
+        req_node.increment(('offline', 'round'), res[3])
+        for player in self.get_players():
+            req_node.increment((self.field_type, 'input', player), \
+                               self.get_size())
+
+
 @base.vectorize
 class inputfloat(base.TextInputInstruction):
     __slots__ = []
@@ -1364,6 +1513,16 @@ class inputfloat(base.TextInputInstruction):
     field_type = 'modp'
 
     def add_usage(self, req_node):
+        res = program.get_cost("share")
+        times = len(self.get_players()) * self.get_size() * 4
+        if res == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of share in cost_config.py")
+            return
+        req_node.increment(('online communication', 'bits'), res[0]*times)
+        req_node.increment(('offline communication', 'bits'), res[2]*times)
+        req_node.increment(('online', 'round'), res[1])
+        req_node.increment(('offline', 'round'), res[3])
         for player in self.args[5::6]:
             req_node.increment((self.field_type, 'input', player), \
                                4 * self.get_size())
@@ -1434,6 +1593,19 @@ class inputmixed(inputmixed_base):
     player_arg_type = 'p'
 
     def add_usage(self, req_node):
+        res = program.get_cost("share")
+        if res == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of share in cost_config.py")
+            return
+        times = 0
+        for i, t in self.bases(iter(self.args)):
+            n_dest = self.types[t][0]
+            times += n_dest * self.get_size()
+        req_node.increment(('online communication', 'bits'), res[0]*times)
+        req_node.increment(('offline communication', 'bits'), res[2]*times)
+        req_node.increment(('online', 'round'), res[1])
+        req_node.increment(('offline', 'round'), res[3])
         for i, t in self.bases(iter(self.args)):
             player = self.args[i + sum(self.types[t]) + 1]
             n_dest = self.types[t][0]
@@ -1480,7 +1652,19 @@ class inputmixedreg(inputmixed_base):
             self, self.get_size() if self.get_size() > 1 else 0)
 
     def add_usage(self, req_node):
-        # player 0 as proxy
+        res = program.get_cost("share")
+        if res == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of share in cost_config.py")
+            return
+        times = 0
+        for i, t in self.bases(iter(self.args)):
+            n_dest = self.types[t][0]
+            times += n_dest * self.get_size()
+        req_node.increment(('online communication', 'bits'), res[0]*times)
+        req_node.increment(('offline communication', 'bits'), res[2]*times)
+        req_node.increment(('online', 'round'), res[1])
+        req_node.increment(('offline', 'round'), res[3])
         req_node.increment((self.field_type, 'input', 0), float('inf'))
 
     def get_players(self):
@@ -1502,6 +1686,18 @@ class rawinput(base.RawInputInstruction, base.Mergeable):
     field_type = 'modp'
 
     def add_usage(self, req_node):
+        res = program.get_cost("share")
+        if res == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of share in cost_config.py")
+            return
+        times = 0
+        for i in range(0, len(self.args), 2):
+            times += self.get_size()
+        req_node.increment(('online communication', 'bits'), res[0]*times)
+        req_node.increment(('offline communication', 'bits'), res[2]*times)
+        req_node.increment(('online', 'round'), res[1])
+        req_node.increment(('offline', 'round'), res[3])
         for i in range(0, len(self.args), 2):
             player = self.args[i]
             req_node.increment((self.field_type, 'input', player), \
@@ -1517,11 +1713,7 @@ class personal_base(base.Instruction, base.Mergeable):
             assert args[i + 2].size == args[i]
             assert args[i + 3].size == args[i]
 
-    def add_usage(self, req_node):
-        for i in range(0, len(self.args), 4):
-            player = self.args[i + 1]
-            req_node.increment((self.field_type, 'input', player), \
-                               self.args[i])
+
 
 class inputpersonal(personal_base):
     """ Private input from cint.
@@ -1536,6 +1728,24 @@ class inputpersonal(personal_base):
     code = base.opcodes['INPUTPERSONAL']
     arg_format = tools.cycle(['int','p','sw','c'])
 
+    def add_usage(self, req_node):
+        res = program.get_cost("share")
+        if res == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of share in cost_config.py")
+            return
+        times = 0
+        for i in range(0, len(self.args), 4):
+            times += self.args[i]
+        req_node.increment(('online communication', 'bits'), res[0]*times)
+        req_node.increment(('offline communication', 'bits'), res[2]*times)
+        req_node.increment(('online', 'round'), res[1])
+        req_node.increment(('offline', 'round'), res[3])
+        for i in range(0, len(self.args), 4):
+            player = self.args[i + 1]
+            req_node.increment((self.field_type, 'input', player), \
+                               self.args[i])    
+
 class privateoutput(personal_base):
     """ Private input from cint.
 
@@ -1548,6 +1758,25 @@ class privateoutput(personal_base):
     __slots__ = []
     code = base.opcodes['PRIVATEOUTPUT']
     arg_format = tools.cycle(['int','p','cw','s'])
+
+    def add_usage(self, req_node):
+        res = program.get_cost("open")
+        if res == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of open in cost_config.py")
+            return
+        times = 0
+        for i in range(0, len(self.args), 4):
+            times += self.args[i]
+        config = program.cost_config
+        req_node.increment(('online communication', 'bits'), res[0]*times/config.n_parties)
+        req_node.increment(('offline communication', 'bits'), res[2]*times/config.n_parties)
+        req_node.increment(('online', 'round'), res[1])
+        req_node.increment(('offline', 'round'), res[3]) 
+        for i in range(0, len(self.args), 4):
+            player = self.args[i + 1]
+            req_node.increment((self.field_type, 'input', player), \
+                               self.args[i])       
 
 class sendpersonal(base.Instruction, base.Mergeable):
     """ Private input from cint.
@@ -1568,6 +1797,14 @@ class sendpersonal(base.Instruction, base.Mergeable):
         for i in range(0, len(args), 5):
             assert args[i + 2].size == args[i]
             assert args[i + 4].size == args[i]
+
+    def add_usage(self, req_node):
+        num_bits = 0
+        for i in range(0, len(self.args), 5):
+            num_bits += program.bit_length * args[i]
+        req_node.increment(('online communication', 'bits'), num_bits)
+        req_node.increment(('online', 'round'), 1)
+        req_node.increment(('offline', 'round'), 0)
 
 @base.gf2n
 @base.vectorize
@@ -2225,10 +2462,23 @@ class asm_open(base.VarArgsInstruction):
     __slots__ = []
     code = base.opcodes['OPEN']
     arg_format = tools.chain(['int'], tools.cycle(['cw','s']))
-
     def merge(self, other):
         self.args[0] |= other.args[0]
         self.args += other.args[1:]
+
+    def get_repeat(self):
+        return (len(self.args)-1)/2
+
+    def add_usage(self, req_node):
+        res = program.get_cost("open")
+        if res == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of " + self.__class__.__name__ + " in cost_config.py")
+            return
+        req_node.increment(('online communication', 'bits'), res[0]*self.get_size() * self.get_repeat())
+        req_node.increment(('offline communication', 'bits'), res[2]*self.get_size() * self.get_repeat())
+        req_node.increment(('online', 'round'), res[1])
+        req_node.increment(('offline', 'round'), res[3])
 
 @base.gf2n
 @base.vectorize
@@ -2256,6 +2506,19 @@ class muls(base.VarArgsInstruction, base.DataInstruction):
             return type(self), self.get_size()
         return type(self)
 
+
+    def add_usage(self, req_node):
+        res = program.get_cost("muls")
+        if res == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of " + self.__class__.__name__ + " in cost_config.py")
+            return
+        req_node.increment(('online communication', 'bits'), res[0]*self.get_size() * self.get_repeat())
+        req_node.increment(('offline communication', 'bits'), res[2]*self.get_size() * self.get_repeat())
+        req_node.increment(('online', 'round'), res[1])
+        req_node.increment(('offline', 'round'), res[3])
+        req_node.increment((self.field_type, self.data_type),
+                           self.get_size() * self.get_repeat())
     # def expand(self):
     #     s = [program.curr_block.new_reg('s') for i in range(9)]
     #     c = [program.curr_block.new_reg('c') for i in range(3)]
@@ -2302,6 +2565,19 @@ class mulrs(base.VarArgsInstruction, base.DataInstruction):
     def get_used(self):
         return sum((arg.get_all()
                     for arg in self.args[2::4] + self.args[3::4]), [])
+
+    def add_usage(self, req_node):
+        res = program.get_cost("muls")
+        if res == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of muls in cost_config.py")
+            return
+        req_node.increment(('online communication', 'bits'), res[0]*self.get_size() * self.get_repeat())
+        req_node.increment(('offline communication', 'bits'), res[2]*self.get_size() * self.get_repeat())
+        req_node.increment(('online', 'round'), res[1])
+        req_node.increment(('offline', 'round'), res[3])
+        req_node.increment((self.field_type, self.data_type),
+                           self.get_size() * self.get_repeat())
 
 @base.gf2n
 @base.vectorize
@@ -2361,12 +2637,51 @@ class dotprods(base.VarArgsInstruction, base.DataInstruction,
             for reg in self.args[i + 2:i + self.args[i]]:
                 yield reg
 
+    def add_usage(self, req_node):
+        def merge_tuple(first, second):
+            zipped = zip(first, second)
+            mapped = map(sum, zipped)
+            return tuple(mapped)
+        cost_func = program.get_cost("matmuls")
+        if cost_func == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of matmuls in cost_config.py")
+            return
+        res = (0, 0, 0, 0)
+        config = program.cost_config
+        for i, n in self.bases(iter(self.args)):
+            dimension = self.args[i] // 2 - 1
+            tmpres = cost_func(config.bit_length, config._security, config.f, config.n_parties, 1, dimension, 1)
+            res = merge_tuple(res, tmpres)
+        req_node.increment(('online communication', 'bits'), res[0])
+        req_node.increment(('offline communication', 'bits'), res[2])
+        req_node.increment(('online', 'round'), res[1])
+        req_node.increment(('offline', 'round'), res[3])
+        req_node.increment((self.field_type, self.data_type),
+                           self.get_size() * self.get_repeat())
+ 
 class matmul_base(base.DataInstruction):
     data_type = 'triple'
     is_vec = lambda self: True
 
     def get_repeat(self):
         return reduce(operator.mul, self.args[3:6])
+
+    def add_usage(self, req_node):
+        cost_func = program.get_cost("matmuls")
+        if cost_func == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of matmuls in cost_config.py")
+            return
+        config = program.cost_config
+        res = cost_func(config.bit_length, config._security, config.f, config.n_parties, self.args[3], self.args[4], self.args[5])       
+        req_node.increment(('online communication', 'bits'), res[0])
+        req_node.increment(('offline communication', 'bits'), res[2])
+        req_node.increment(('online', 'round'), res[1])
+        req_node.increment(('offline', 'round'), res[3])
+        req_node.increment((self.field_type, self.data_type),
+                           self.get_size() * self.get_repeat())
+    
 
 class matmuls(matmul_base):
     """ Secret matrix multiplication from registers. All matrices are
@@ -2409,9 +2724,7 @@ class matmulsm(matmul_base):
         for i in range(2):
             assert args[8 + i].size == args[4 + i]
 
-    def add_usage(self, req_node):
-        super(matmulsm, self).add_usage(req_node)
-        req_node.increment(('matmul', tuple(self.args[3:6])), 1)
+
 
 class conv2ds(base.DataInstruction):
     """ Secret 2D convolution.
@@ -2449,6 +2762,19 @@ class conv2ds(base.DataInstruction):
             self.args[11] * self.args[14]
 
     def add_usage(self, req_node):
+        cost_func = program.get_cost("matmuls")
+        if cost_func == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of matmuls in cost_config.py")
+            return
+        config = program.cost_config
+        args = self.args
+        res = cost_func(config.bit_length, config._security, config.f, config.n_parties, 1 , args[7]*args[8], 1)
+        times = args[14] * args[11] * args[3] * args[4]    
+        req_node.increment(('online communication', 'bits'), res[0]*times)
+        req_node.increment(('offline communication', 'bits'), res[2]*times)
+        req_node.increment(('online', 'round'), res[1])
+        req_node.increment(('offline', 'round'), res[3])
         super(conv2ds, self).add_usage(req_node)
         args = self.args
         req_node.increment(('matmul', (1, args[7] * args[8] * args[11],
@@ -2468,6 +2794,17 @@ class trunc_pr(base.VarArgsInstruction):
     code = base.opcodes['TRUNC_PR']
     arg_format = tools.cycle(['sw','s','int','int'])
 
+    def add_usage(self, req_node):
+        res = program.get_cost("trunc")
+        if res == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of trunc in cost_config.py")
+            return
+        req_node.increment(('online communication', 'bits'), res[0]*self.get_size() * self.get_repeat())
+        req_node.increment(('offline communication', 'bits'), res[2]*self.get_size() * self.get_repeat())
+        req_node.increment(('online', 'round'), res[1])
+        req_node.increment(('offline', 'round'), res[3])
+
 class shuffle_base(base.DataInstruction):
     n_relevant_parties = 2
 
@@ -2480,7 +2817,38 @@ class shuffle_base(base.DataInstruction):
         logn = cls.logn(n)
         return logn * 2 ** logn - 2 ** logn + 1
 
+    def get_gen_round(self, n):
+        cost_func = program.get_cost("shufflegen")
+        if cost_func == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of shuffle generation in cost_config.py")
+            return 1, 0
+        config = program.cost_config
+        res = cost_func(config.bit_length, config._security, config.f, config.n_parties, n)       
+        return res[1], res[3]
+
+    def get_app_round(self, n, record_size):
+        cost_func = program.get_cost("shuffleapply")
+        if cost_func == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of shuffle application in cost_config.py")
+            return 1, 0
+        config = program.cost_config
+        res = cost_func(config.bit_length, config._security, config.f, config.n_parties, n)       
+        return res[1], res[3]
+
     def add_gen_usage(self, req_node, n):
+        cost_func = program.get_cost("shufflegen")
+        if cost_func == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of shuffle generation in cost_config.py")
+            return
+        config = program.cost_config
+        res = cost_func(config.bit_length, config._security, config.f, config.n_parties, n)       
+        req_node.increment(('online communication', 'bits'), res[0])
+        req_node.increment(('offline communication', 'bits'), res[2])
+        req_node.increment(('online', 'round'), res[1])
+        req_node.increment(('offline', 'round'), res[3])
         # hack for unknown usage
         req_node.increment(('bit', 'inverse'), float('inf'))
         # minimal usage with two relevant parties
@@ -2493,6 +2861,17 @@ class shuffle_base(base.DataInstruction):
                            n_switches * self.n_relevant_parties)
 
     def add_apply_usage(self, req_node, n, record_size):
+        cost_func = program.get_cost("shuffleapply")
+        if cost_func == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of shuffle application in cost_config.py")
+            return
+        config = program.cost_config
+        res = cost_func(config.bit_length, config._security, config.f, config.n_parties, n, record_size)       
+        req_node.increment(('online communication', 'bits'), res[0])
+        req_node.increment(('offline communication', 'bits'), res[2])
+        req_node.increment(('online', 'round'), res[1])
+        req_node.increment(('offline', 'round'), res[3])
         req_node.increment(('bit', 'inverse'), float('inf'))
         logn = self.logn(n)
         n_switches = self.n_swaps(n) * self.n_relevant_parties
@@ -2553,7 +2932,7 @@ class applyshuffle(base.VectorInstruction, shuffle_base):
         super(applyshuffle, self).__init__(*args, **kwargs)
         assert len(args[0]) == len(args[1])
         assert len(args[0]) > args[2]
-
+ 
     def add_usage(self, req_node):
         self.add_apply_usage(req_node, len(self.args[0]), self.args[2])
 

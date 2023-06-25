@@ -126,8 +126,7 @@ public:
     virtual void check() {}
 
     virtual void cisc(SubProcessor<T>&, const Instruction&)
-    { throw runtime_error("CISC instructions not implemented"); }
-
+    { throw runtime_error("CISC instuctions not implemented"); }
     virtual vector<int> get_relevant_players();
 };
 

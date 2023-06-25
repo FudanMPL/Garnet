@@ -5,6 +5,8 @@ import sys
 import tempfile
 from optparse import OptionParser
 
+from traitlets import default
+
 from Compiler.exceptions import CompilerError
 
 from .GC import types as GC_types
@@ -117,6 +119,20 @@ class Compiler:
             dest="ring",
             default=defaults.ring,
             help="bit length of ring (default: 0 for field)",
+        )
+        parser.add_option(
+            "-Q",
+            "--protocol",
+            dest="protocol",
+            default = "ABY3",
+            help="underlying protocol of the compiled program",
+        )
+        parser.add_option(
+            "-N",
+            "--n_parties",
+            dest="n_parties",
+            default = 2,
+            help="number of parties ",
         )
         parser.add_option(
             "-B",
@@ -263,7 +279,6 @@ class Compiler:
 
         self.VARS["comparison"] = comparison
         self.VARS["floatingpoint"] = floatingpoint
-
         self.VARS["program"] = self.prog
         if self.options.binary:
             self.VARS["sint"] = GC_types.sbitintvec.get_type(int(self.options.binary))
