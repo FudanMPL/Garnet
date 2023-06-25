@@ -16,7 +16,7 @@ def test(actual, expected):
 n = 10
 cnt = 0
 
-sfix.set_precision(31, 63)
+#sfix.set_precision(31, 72)
 @for_range(n)
 def _(i):
     a = sfix.get_random(-1000,1000)
