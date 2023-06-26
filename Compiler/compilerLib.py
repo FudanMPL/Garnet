@@ -239,6 +239,13 @@ class Compiler:
             dest="verbose",
             help="more verbose output",
         )
+        parser.add_option(
+            "-A",
+            "--gfa",
+            action="store_true",
+            dest="gfapp",
+            help="general function approximately caculation",
+        )
         self.parser = parser
 
     def parse_args(self):

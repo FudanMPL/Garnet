@@ -78,8 +78,10 @@ public:
 
         for (int i = 0; i < dim[0]; i++)
             for (int j = 0; j < dim[2]; j++)
+            {
                 *(C + i * dim[2] + j) = res[{i, j}];
-
+                cout << res[{i, j}] << endl;
+            }
         // processor.matmulsm(source, instruction, a, b);
 
         

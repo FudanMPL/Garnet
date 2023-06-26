@@ -3,6 +3,9 @@
  *
  */
 
+#ifndef PROTOCOLS_SEMIPREP_HPP_
+#define PROTOCOLS_SEMIPREP_HPP_
+
 #include "SemiPrep.h"
 
 #include "ReplicatedPrep.hpp"
@@ -23,6 +26,7 @@ SemiPrep<T>::SemiPrep(SubProcessor<T>* proc, DataPositions& usage) :
 template<class T>
 void SemiPrep<T>::buffer_triples()
 {
+    cout << "In buffer_triples" << endl;
     assert(this->triple_generator);
     this->triple_generator->generatePlainTriples();
     for (auto& x : this->triple_generator->plainTriples)
@@ -67,3 +71,5 @@ void SemiPrep<T>::get_one_no_count(Dtype dtype, T& a)
     else
         SemiHonestRingPrep<T>::get_one_no_count(dtype, a);
 }
+
+#endif
