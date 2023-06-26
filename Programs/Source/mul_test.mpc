@@ -1,0 +1,13 @@
+#a = sfix.Matrix(1, 2)
+#b = sfix.Matrix(2, 1)
+#a.input_from(0)
+#b.input_from(0)
+#c = a * b
+#for i in range(0,1):
+#    for j in range(0,1):
+#        print_ln("c = %s", c[i][j].reveal())
+
+a = sint(-1244112)
+b = sint(-1111111)
+c = a <= b
+print_ln("c = %s", c.reveal())

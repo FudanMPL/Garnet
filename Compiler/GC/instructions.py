@@ -14,6 +14,9 @@ import Compiler.tools as tools
 import collections
 import itertools
 import math
+# from Compiler import program
+from Compiler.program import Tape,Program
+
 
 class SecretBitsAF(base.RegisterArgFormat):
     reg_type = 'sb'
@@ -156,6 +159,16 @@ class andrs(BinaryVectorInstruction):
     arg_format = tools.cycle(['int','sbw','sb','sb'])
 
     def add_usage(self, req_node):
+        program = Program.prog
+        res = program.get_cost("ands")
+        if res == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of ands in cost_config.py")
+            return
+        req_node.increment(('online communication', 'bits'), res[0]*sum(self.args[::4]))
+        req_node.increment(('offline communication', 'bits'), res[2]*sum(self.args[::4]))
+        req_node.increment(('online', 'round'), res[1])
+        req_node.increment(('offline', 'round'), res[3])
         req_node.increment(('bit', 'triple'), sum(self.args[::4]))
         req_node.increment(('bit', 'mixed'),
                            sum(int(math.ceil(x / 64)) for x in self.args[::4]))
@@ -199,10 +212,23 @@ class andrsvec(base.VarArgsInstruction, base.Mergeable,
             yield 'int'
 
     def add_usage(self, req_node):
+        program = Program.prog
+        res = program.get_cost("ands")
+        if res == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of ands in cost_config.py")
+            return
+        times = 0        
         for i, n in self.bases(iter(self.args)):
             size = self.args[i + 1]
-            req_node.increment(('bit', 'triple'), size * (n - 3) // 2)
-            req_node.increment(('bit', 'mixed'), size)
+            times += size * (n - 3) // 2
+        req_node.increment(('online communication', 'bits'), res[0]*sum(self.args[::4]))
+        req_node.increment(('offline communication', 'bits'), res[2]*sum(self.args[::4]))
+        req_node.increment(('online', 'round'), res[1])
+        req_node.increment(('offline', 'round'), res[3])
+        req_node.increment(('bit', 'triple'), sum(self.args[::4]))
+        req_node.increment(('bit', 'mixed'),
+                           sum(int(math.ceil(x / 64)) for x in self.args[::4]))
 
 class ands(BinaryVectorInstruction):
     """ Bitwise AND of secret bit register vector.
@@ -218,7 +244,19 @@ class ands(BinaryVectorInstruction):
     arg_format = tools.cycle(['int','sbw','sb','sb'])
 
     def add_usage(self, req_node):
+        program = Program.prog
+        res = program.get_cost("ands")
+        if res == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of ands in cost_config.py")
+            return
+        req_node.increment(('online communication', 'bits'), res[0]*sum(self.args[::4]))
+        req_node.increment(('offline communication', 'bits'), res[2]*sum(self.args[::4]))
+        req_node.increment(('online', 'round'), res[1])
+        req_node.increment(('offline', 'round'), res[3])
         req_node.increment(('bit', 'triple'), sum(self.args[::4]))
+        req_node.increment(('bit', 'mixed'),
+                           sum(int(math.ceil(x / 64)) for x in self.args[::4]))
 
 class andm(BinaryVectorInstruction):
     """ Bitwise AND of single secret and clear bit registers.
@@ -624,8 +662,22 @@ class inputb(base.DoNotEliminateInstruction, base.VarArgsInstruction):
     is_vec = lambda self: True
 
     def add_usage(self, req_node):
+        program = Program.prog
+        res = program.get_cost("bit_share")
+        if res == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of ands in cost_config.py")
+            return
+        times = 0        
+        for i in range(0, len(self.args), 4):
+            times += self.args[i + 1]
+        req_node.increment(('online communication', 'bits'), res[0]*times)
+        req_node.increment(('offline communication', 'bits'), res[2]*times)
+        req_node.increment(('online', 'round'), res[1])
+        req_node.increment(('offline', 'round'), res[3])
         for i in range(0, len(self.args), 4):
             req_node.increment(('bit', 'input', self.args[i]), self.args[i + 1])
+        
 
 class inputbvec(base.DoNotEliminateInstruction, base.VarArgsInstruction,
                 base.Mergeable, base.DynFormatInstruction):
@@ -667,6 +719,19 @@ class inputbvec(base.DoNotEliminateInstruction, base.VarArgsInstruction,
         assert i == len(args)
 
     def add_usage(self, req_node):
+        program = Program.prog
+        res = program.get_cost("bit_share")
+        if res == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of ands in cost_config.py")
+            return
+        times = 0        
+        for x in self.get_arg_tuples(self.args):
+            times += x[0] - 3
+        req_node.increment(('online communication', 'bits'), res[0]*times)
+        req_node.increment(('offline communication', 'bits'), res[2]*times)
+        req_node.increment(('online', 'round'), res[1])
+        req_node.increment(('offline', 'round'), res[3])
         for x in self.get_arg_tuples(self.args):
             req_node.increment(('bit', 'input', x[2]), x[0] - 3)
 

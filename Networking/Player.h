@@ -184,6 +184,8 @@ protected:
 
 public:
   mutable Timer timer;
+  std::vector<std::vector<int>> public_matrix;
+  std::vector<int> inv;
 
   PlayerBase(int player_no) : player_no(player_no), sent(comm_stats.sent) {}
   virtual ~PlayerBase();

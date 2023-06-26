@@ -5,6 +5,8 @@ import sys
 import tempfile
 from optparse import OptionParser
 
+
+
 from Compiler.exceptions import CompilerError
 
 from .GC import types as GC_types
@@ -119,6 +121,20 @@ class Compiler:
             help="bit length of ring (default: 0 for field)",
         )
         parser.add_option(
+            "-Q",
+            "--protocol",
+            dest="protocol",
+            default = "ABY3",
+            help="underlying protocol of the compiled program",
+        )
+        parser.add_option(
+            "-N",
+            "--n_parties",
+            dest="n_parties",
+            default = 2,
+            help="number of parties ",
+        )
+        parser.add_option(
             "-B",
             "--binary",
             dest="binary",
@@ -217,6 +233,13 @@ class Compiler:
             dest="verbose",
             help="more verbose output",
         )
+        parser.add_option(
+            "-A",
+            "--gfa",
+            action="store_true",
+            dest="gfapp",
+            help="general function approximately caculation",
+        )
         self.parser = parser
 
     def parse_args(self):
@@ -263,7 +286,6 @@ class Compiler:
 
         self.VARS["comparison"] = comparison
         self.VARS["floatingpoint"] = floatingpoint
-
         self.VARS["program"] = self.prog
         if self.options.binary:
             self.VARS["sint"] = GC_types.sbitintvec.get_type(int(self.options.binary))
@@ -395,7 +417,8 @@ class Compiler:
         if self.prog.req_num:
             print("Program requires at most:")
             for x in self.prog.req_num.pretty():
-                print(x)
+                if "online" in x or  "offline" in x:
+                    print(x)
 
         if self.prog.verbose:
             print("Program requires:", repr(self.prog.req_num))

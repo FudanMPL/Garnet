@@ -291,12 +291,13 @@ inline void bigintFromBytes(bigint& x,octet* bytes,int len)
 
 inline void bytesFromBigint(octet* bytes,const bigint& x,unsigned int len)
 {
-  size_t ll;
-  mpz_export(bytes,&ll,1,sizeof(octet),0,0,x.get_mpz_t());
+  size_t ll = x == 0 ? 0 : numBytes(x);
   if (ll>len)
     { throw invalid_length(); }
-  for (unsigned int i=ll; i<len; i++)
-    { bytes[i]=0; }
+  memset(bytes, 0, len - ll);
+  size_t l;
+  mpz_export(bytes + len - ll, &l, 1, sizeof(octet), 0, 0, x.get_mpz_t());
+  assert(ll == l);
 }
 
 

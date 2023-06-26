@@ -1,0 +1,18 @@
+import Compiler.mpc_math
+from gfapp import GFA
+
+def test(actual, expected):
+
+    # you can reveal a number in order to print it
+
+    actual = actual.reveal()
+    print_ln('expected %s, got %s', expected, actual)
+
+
+sfix.set_precision(32, 96)
+
+a = [-0.964, -0.761, 0.000, 0.761, 0.964]
+
+mytanh = GFA('tanh')
+for i in range(0, 5):
+    test(mytanh.At(sfix(i-2)) ,a[i])

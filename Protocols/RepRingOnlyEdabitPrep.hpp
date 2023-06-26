@@ -3,6 +3,9 @@
  *
  */
 
+#ifndef PROTOCOLS_REPRINGONLYEDABITPREP_HPP_
+#define PROTOCOLS_REPRINGONLYEDABITPREP_HPP_
+
 #include "RepRingOnlyEdabitPrep.h"
 #include "GC/BitAdder.h"
 #include "Processor/Instruction.h"
@@ -51,3 +54,5 @@ void RepRingOnlyEdabitPrep<T>::buffer_edabits(int n_bits, ThreadQueues*)
 
     this->push_edabits(this->edabits[{false, n_bits}], wholes, sums, buffer_size);
 }
+
+#endif

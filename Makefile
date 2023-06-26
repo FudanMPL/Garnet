@@ -1,4 +1,3 @@
-
 include CONFIG
 
 MATH = $(patsubst %.cpp,%.o,$(wildcard Math/*.cpp))
@@ -7,9 +6,9 @@ TOOLS = $(patsubst %.cpp,%.o,$(wildcard Tools/*.cpp))
 
 NETWORK = $(patsubst %.cpp,%.o,$(wildcard Networking/*.cpp))
 
-PROCESSOR = $(patsubst %.cpp,%.o,$(wildcard Processor/*.cpp))
+PROCESSOR = $(patsubst %.cpp,%.o,$(wildcard Processor/*.cpp)) 
 
-FHEOBJS = $(patsubst %.cpp,%.o,$(wildcard FHEOffline/*.cpp FHE/*.cpp)) Protocols/CowGearOptions.o
+FHEOBJS = $(patsubst %.cpp,%.o,$(wildcard FHEOffline/*.cpp FHE/*.cpp)) Protocols/CowGearOptions.o 
 
 GC = $(patsubst %.cpp,%.o,$(wildcard GC/*.cpp)) $(PROCESSOR)
 GC_SEMI = GC/SemiPrep.o GC/square64.o GC/Semi.o
@@ -17,8 +16,8 @@ GC_SEMI = GC/SemiPrep.o GC/square64.o GC/Semi.o
 OT = $(patsubst %.cpp,%.o,$(wildcard OT/*.cpp)) $(LIBSIMPLEOT)
 OT_EXE = ot.x ot-offline.x
 
-COMMONOBJS = $(MATH) $(TOOLS) $(NETWORK) GC/square64.o Processor/OnlineOptions.o Processor/BaseMachine.o Processor/DataPositions.o Processor/ThreadQueues.o Processor/ThreadQueue.o
-COMPLETE = $(COMMON) $(PROCESSOR) $(FHEOFFLINE) $(TINYOTOFFLINE) $(GC) $(OT)
+COMMONOBJS = $(MATH) $(TOOLS) $(NETWORK) GC/square64.o Processor/OnlineOptions.o Processor/BaseMachine.o Processor/DataPositions.o Processor/ThreadQueues.o Processor/ThreadQueue.o 
+COMPLETE = $(COMMON) $(PROCESSOR) $(FHEOFFLINE) $(TINYOTOFFLINE) $(GC) $(OT) 
 YAO = $(patsubst %.cpp,%.o,$(wildcard Yao/*.cpp)) $(OT) BMR/Key.o
 BMR = $(patsubst %.cpp,%.o,$(wildcard BMR/*.cpp BMR/network/*.cpp))
 VMOBJS = $(PROCESSOR) $(COMMONOBJS) GC/square64.o GC/Instruction.o OT/OTTripleSetup.o OT/BaseOT.o $(LIBSIMPLEOT)
@@ -29,8 +28,8 @@ SPDZ = Machines/SPDZ.o $(TINIER)
 
 
 LIB = libSPDZ.a
-SHAREDLIB = libSPDZ.so
-FHEOFFLINE = libFHE.so
+SHAREDLIB = libSPDZ.so 
+FHEOFFLINE = libFHE.so 
 LIBRELEASE = librelease.a
 LIBSIMPLEOT_C = deps/SimplestOT_C/ref10/libSimplestOT.a
 LIBSIMPLEOT += $(LIBSIMPLEOT_C)
@@ -66,7 +65,7 @@ vm: arithmetic binary
 doc:
 	cd doc; $(MAKE) html
 
-arithmetic: rep-ring rep-field shamir semi2k-party.x semi-party.x sml-party.x mascot sy dealer-ring-party.x
+arithmetic: rep-ring rep-field shamir semi2k-party.x semi-party.x sml-party.x vss-party.x mascot sy dealer-ring-party.x
 binary: rep-bin yao semi-bin-party.x tinier-party.x tiny-party.x ccd-party.x malicious-ccd-party.x real-bmr
 
 all: overdrive she-offline
@@ -141,9 +140,9 @@ $(SHAREDLIB): $(PROCESSOR) $(COMMONOBJS) GC/square64.o GC/Instruction.o
 	$(CXX) $(CFLAGS) -shared -o $@ $^ $(LDLIBS)
 
 $(FHEOFFLINE): $(FHEOBJS) $(SHAREDLIB)
-	$(CXX) $(CFLAGS) -shared -o $@ $^ $(LDLIBS)
+	$(CXX) $(CFLAGS) -shared -o $@ $^ $(LDLIBS) 
 
-static/%.x: Machines/%.o $(LIBRELEASE) $(LIBSIMPLEOT) local/lib/libcryptoTools.a local/lib/liblibOTe.a
+static/%.x: Machines/%.o $(LIBRELEASE) $(LIBSIMPLEOT) local/lib/libcryptoTools.a local/lib/liblibOTe.a 
 	$(CXX) -o $@ $(CFLAGS) $^ -Wl,-Map=$<.map -Wl,-Bstatic -static-libgcc -static-libstdc++ $(LIBRELEASE) -llibOTe -lcryptoTools $(LIBSIMPLEOT) $(BOOST) $(LDLIBS) -Wl,-Bdynamic -ldl
 
 static/%.x: ECDSA/%.o ECDSA/P256Element.o $(VMOBJS) $(OT) $(LIBSIMPLEOT)
@@ -231,6 +230,8 @@ static/spdz2k-party.x: $(patsubst %.cpp,%.o,$(wildcard Machines/SPDZ2*.cpp))
 semi-party.x: $(OT)  $(GC_SEMI)
 semi2k-party.x: $(OT) $(GC_SEMI)
 sml-party.x: $(OT) $(GC_SEMI) 
+vss-party.x: $(OT) $(GC_SEMI)
+fss-ring-party.x: GC/square64.o
 hemi-party.x: $(FHEOFFLINE) $(GC_SEMI) $(OT)
 temi-party.x: $(FHEOFFLINE) $(GC_SEMI) $(OT)
 soho-party.x: $(FHEOFFLINE) $(GC_SEMI) $(OT)
@@ -368,7 +369,7 @@ mac-setup: mac-machine-setup
 	brew install openssl boost libsodium mpir yasm ntl cmake
 	-echo MY_CFLAGS += -I/usr/local/opt/openssl/include -I`brew --prefix`/opt/openssl/include -I`brew --prefix`/include >> CONFIG.mine
 	-echo MY_LDLIBS += -L/usr/local/opt/openssl/lib -L`brew --prefix`/lib -L`brew --prefix`/opt/openssl/lib >> CONFIG.mine
-#	-echo USE_NTL = 1 >> CONFIG.mine
+	-echo USE_NTL = 1 >> CONFIG.mine
 
 ifeq ($(ARM), 1)
 mac-machine-setup:
@@ -382,6 +383,7 @@ endif
 
 deps/simde/simde:
 	git submodule update --init deps/simde || git clone https://github.com/simd-everywhere/simde deps/simde
+
 
 clean:
 	-rm -f */*.o *.o */*.d *.d *.x core.* *.a gmon.out */*/*.o static/*.x *.so
