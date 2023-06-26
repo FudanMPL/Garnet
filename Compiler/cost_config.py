@@ -1,6 +1,5 @@
 import re
 from collections import defaultdict, deque
-from turtle import update
 import math
 
 #Basic operations, these operations are necessary for one protocol

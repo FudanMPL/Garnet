@@ -34,7 +34,7 @@ for x in dense.X, sigmoid.Y:
 sgd = ml.SGD([dense, sigmoid], 1, debug=debug, report_loss=False)
 sgd.reset()
 
-start_profiling()
+start_profiling() # starting model trainging cost profiling
 if not ('forward' in program.args or 'backward' in program.args):
    sgd.run(batch_size=batch)
 
@@ -49,4 +49,4 @@ if 'backward' in program.args:
    @for_range(n_iterations)
    def _(i):
       sgd.backward(batch=b)
-stop_profiling()
+stop_profiling() # stopping model trainging cost profiling
