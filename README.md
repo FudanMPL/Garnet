@@ -340,7 +340,7 @@ make -j 8 fss-ring-party.x
 ### 编译mpc文件
 想要开启function secret sharing做比较，需要在编译时开启cisc指令并指定LTZ指令不在编译器层进行拆解：
 
-编译test_sfix.mpc，该过程可能会花费几分钟时间
+编译test_sfix.mpc获得编译后的二进制文件，该过程可能会花费几分钟时间
 ```
 ./compile.py -l -R 128 -C -K LTZ test_sfix
 ```
