@@ -2,6 +2,8 @@
 
 We   currently supports versions of Linux 2014 and above, as well as MacOS High Sierra and later versions.
 
+The code for implementing Ents is primarily located in Compiler/ents.py and Protocols/replicated.hpp.
+
 ## Build Environment
 
 To run Ents, we first need to build the running environment. The steps is as follows:
