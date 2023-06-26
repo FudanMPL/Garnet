@@ -322,7 +322,7 @@ program.use_split(3)
 
 ### 环境配置
 1. 首先在Garnet/Player-Data文件夹下创建2-fss文件夹，并编译fss-ring-party.x虚拟机
-
+编译过程可能会花费几分钟时间
 ```
 cd Garnet/Player-Data
 mkdir 2-fss
@@ -340,14 +340,14 @@ make -j 8 fss-ring-party.x
 ### 编译mpc文件
 想要开启function secret sharing做比较，需要在编译时开启cisc指令并指定LTZ指令不在编译器层进行拆解：
 
-编译test_sfix.mpc
+编译test_sfix.mpc，该过程可能会花费几分钟时间
 ```
 ./compile.py -l -R 128 -C -K LTZ test_sfix
 ```
 
-### 运行结果
+### 运行
 
-需要注意的是，由于a，b都是随机数，所以a-b的结果是随机的，只需要比对a-b > 0时 c是否为1， a-b <= 0时 c是否为0即可。
+运行test_sfix只需要执行./Scripts/fss-ring.sh test_sfix，需要注意的是，由于a，b都是随机数，所以a-b的结果是随机的，只需要比对a-b > 0时 c是否为1， a-b <= 0时 c是否为0即可。
 ```
 ./Scripts/fss-ring.sh test_sfix
 
