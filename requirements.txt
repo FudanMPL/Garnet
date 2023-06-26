@@ -14,3 +14,4 @@ torchvision==0.13.1
 tqdm==4.64.1
 collections
 matplotlib
+tkinter

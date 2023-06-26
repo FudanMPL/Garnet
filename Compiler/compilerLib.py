@@ -5,7 +5,7 @@ import sys
 import tempfile
 from optparse import OptionParser
 
-from traitlets import default
+
 
 from Compiler.exceptions import CompilerError
 
@@ -410,7 +410,8 @@ class Compiler:
         if self.prog.req_num:
             print("Program requires at most:")
             for x in self.prog.req_num.pretty():
-                print(x)
+                if "online" in x or  "offline" in x:
+                    print(x)
 
         if self.prog.verbose:
             print("Program requires:", repr(self.prog.req_num))

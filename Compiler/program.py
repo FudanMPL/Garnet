@@ -476,10 +476,11 @@ class Program(object):
         #         print(len(value[i])) 
         profiling_res = self.curr_tape.req_node.aggregate_profiling()
         plot_cost(profiling_res, self.name)                    
-        # for key, value in profiling_res.items():
-        #     print(key)
-        #     for x in value.pretty():
-        #         print(x)
+        for key, value in profiling_res.items():
+            print(key)
+            for x in value.pretty():
+                if "online" in x or  "offline" in x:
+                    print(x)
         
         if self.tapes:
             self.update_req(self.curr_tape)
