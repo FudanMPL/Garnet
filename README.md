@@ -316,5 +316,104 @@ program.use_split(3)
 |  5  | Cancer | 100% | 94.64% |
 |  6  | Tic-tac-toe | 90.95% | 88.42% |
 
+
+## 运行Function Secret Sharing与Replicated Secret Sharing混合协议
+本协议通过Function Secret Sharing减小比较的通信量（通信轮次待优化），在乘法、加法运算时转换回Replicated Secret Sharing进行计算，兼容NFGen并提供分段时的加速。
+
+### 环境配置
+1. 首先在Garnet/Player-Data文件夹下创建2-fss文件夹，并编译fss-ring-party.x虚拟机
+
+```
+cd Garnet/Player-Data
+mkdir 2-fss
+cd ..
+make clean
+make -j 8 fss-ring-party.x
+```
+
+下一步，在控制台上输入以下命令，生成证书及密钥
+
+```
+./Scripts/setup-ssl.sh 3
+```
+
+### 编译mpc文件
+想要开启function secret sharing做比较，需要在编译时开启cisc指令并指定LTZ指令不在编译器层进行拆解：
+
+编译test_sfix.mpc
+```
+./compile.py -l -R 128 -C -K LTZ test_sfix
+```
+
+### 运行结果
+
+需要注意的是，由于a，b都是随机数，所以a-b的结果是随机的，只需要比对a-b > 0时 c是否为1， a-b <= 0时 c是否为0即可。
+```
+./Scripts/fss-ring.sh test_sfix
+
+以下为控制台输出
+Using security parameter 40
+Trying to run 128-bit computation
+c is 1 , a-b is 478.79
+c is 1 , a-b is 241.013
+c is 0 , a-b is -506.922
+c is 1 , a-b is 602.822
+c is 1 , a-b is 269.458
+c is 0 , a-b is -536.345
+c is 0 , a-b is -101.865
+c is 0 , a-b is -273.936
+c is 0 , a-b is -76.5733
+c is 0 , a-b is -312.029
+input is -10, expected -10
+expected 4.5397868702434395e-05, got 0
+input is -9, expected -9
+expected 0.00012339457598623172, got 0.00012207
+input is -8, expected -8
+expected 0.0003353501304664781, got 0.000335693
+input is -7, expected -7
+expected 0.0009110511944006454, got 0.000915527
+input is -6, expected -6
+expected 0.0024726231566347743, got 0.00248718
+input is -5, expected -5
+expected 0.0066928509242848554, got 0.00669861
+input is -4, expected -4
+expected 0.01798620996209156, got 0.0179901
+input is -3, expected -3
+expected 0.04742587317756678, got 0.0474243
+input is -2, expected -2
+expected 0.11920292202211755, got 0.119202
+input is -1, expected -1
+expected 0.2689414213699951, got 0.268921
+input is 0, expected 0
+expected 0.5, got 0.5
+input is 1, expected 1
+expected 0.7310585786300049, got 0.731079
+input is 2, expected 2
+expected 0.8807970779778823, got 0.880783
+input is 3, expected 3
+expected 0.9525741268224334, got 0.95256
+input is 4, expected 4
+expected 0.9820137900379085, got 0.982025
+input is 5, expected 5
+expected 0.9933071490757153, got 0.993301
+input is 6, expected 6
+expected 0.9975273768433653, got 0.997528
+input is 7, expected 7
+expected 0.9990889488055994, got 0.9991
+input is 8, expected 8
+expected 0.9996646498695336, got 0.999664
+input is 9, expected 9
+expected 0.9998766054240137, got 0.999863
+Significant amount of unused dabits of replicated Z2^128. For more accurate benchmarks, consider reducing the batch size with -b.
+The following benchmarks are including preprocessing (offline phase).
+Time = 0.203494 seconds 
+Data sent = 0.764416 MB in ~310 rounds (party 0)
+Global data sent = 2.29498 MB (all parties)
+This program might benefit from some protocol options.
+Consider adding the following at the beginning of 'test_sfix.mpc':
+        program.use_trunc_pr = True
+        program.use_split(3)
+```
+
 ## 联系我们
 如果您对项目有任何疑问，请在GitHub仓库上创建issue或者发送邮件到dsglab@fudan.edu.cn。
