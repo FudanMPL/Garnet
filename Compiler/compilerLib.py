@@ -128,6 +128,12 @@ class Compiler:
             help="underlying protocol of the compiled program",
         )
         parser.add_option(
+            "--profiling",
+            dest="profiling",
+            action="store_true",
+            help="whether profing",
+        )
+        parser.add_option(
             "-N",
             "--n_parties",
             dest="n_parties",
