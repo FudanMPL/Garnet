@@ -342,9 +342,9 @@ make -j 8 vss-party.x
  在两个终端分别运行
 
 ```
-./vss-party.x -I 0 tutorial
-./vss-party.x -I 1 tutorial
-./vss-party.x -I 2 tutorial
+./vss-party.x 0 tutorial
+./vss-party.x 1 tutorial
+./vss-party.x 2 tutorial
 ```
 
  或使用脚本
