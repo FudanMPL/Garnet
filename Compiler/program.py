@@ -93,7 +93,7 @@ class Program(object):
         self.globalbuildingblock = "initial"
         self.buildingblock_store = defaultdict(lambda: -1)
         self.buildingblock_cost_store = defaultdict(lambda: -1)
-        self.is_profiling = True
+        
         self.cost_config = None     
         if sum(x != 0 for x in (options.ring, options.field, options.binary)) > 1:
             raise CompilerError("can only use one out of -B, -R, -F")
@@ -121,7 +121,7 @@ class Program(object):
         self.galois_length = int(options.galois)
         self.protocol = options.protocol
         self.n_parties = options.n_parties
-
+        self.is_profiling = options.profiling
         if self.verbose:
             print("Galois length:", self.galois_length)
         self.tape_counter = 0
@@ -475,12 +475,13 @@ class Program(object):
         #     for i in range(0, len(value)):
         #         print(len(value[i])) 
         profiling_res = self.curr_tape.req_node.aggregate_profiling()
-        plot_cost(profiling_res, self.name)                    
-        for key, value in profiling_res.items():
-            print(key)
-            for x in value.pretty():
-                if "online" in x or  "offline" in x:
-                    print(x)
+        if self.is_profiling:
+            plot_cost(profiling_res, self.name)                    
+            for key, value in profiling_res.items():
+                print(key)
+                for x in value.pretty():
+                    if "online" in x or  "offline" in x:
+                        print(x)
         
         if self.tapes:
             self.update_req(self.curr_tape)
