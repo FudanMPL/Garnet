@@ -7,4 +7,4 @@ export PLAYERS=3
 
 . $HERE/run-common.sh
 
-run_player sml-party.x $* || exit 1
+run_player vss-party.x $* || exit 1
