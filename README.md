@@ -57,7 +57,7 @@ Scripts/setup-ssl.sh 2
 
 以tutorial.mpc的测试程序为例
 
- 设置输入、编辑mpc程序、设置环参数
+ 设置输入、编译mpc程序、设置环参数
 
 ```
 echo 1 2 3 4 > Player-Data/Input-P0-0
@@ -319,15 +319,9 @@ program.use_split(3)
 ## 向量空间秘密共享技术使用
 
 向量空间秘密共享（Vector Space Secret Shaing）是Song等人发表于ACM CCS‘22 的安全多方学习框架pMPL所使用的底层秘密共享技术。
-在Garnet中向量空间秘密共享技术所对应的虚拟机是vss-party。vss-party基于MP-SPDZ原生的semi-party和hemi-party。vss-party实现了基于向量空间秘密共享的三方安全乘法、安全截断、安全比较等操作（目前只支持64位）。
+在Garnet中向量空间秘密共享技术所对应的虚拟机是vss-party。vss-party基于MP-SPDZ原生的semi-party和hemi-party。vss-party实现了基于向量空间秘密共享的三方安全计算操作（目前只支持64位）。
 
 ### 基础设置
-
-安装必要的库
-
-```
-make -j 8 tldr
-```
 
 设置ssl
 
@@ -335,17 +329,21 @@ make -j 8 tldr
 Scripts/setup-ssl.sh 3
 ```
 
-### 编译vss-party虚拟机
+### 编译tutorial程序
 
-以tutorial.mpc的测试程序为例
-
-设置输入、编辑mpc程序、设置环参数
+设置输入、编译mpc程序、设置环参数
 
 ```
 echo 1 2 3 4 > Player-Data/Input-P0-0
 echo 1 2 3 4 > Player-Data/Input-P1-0
 echo 1 2 3 4 > Player-Data/Input-P2-0
 ./compile.py -R 64 tutorial
+```
+
+### 编译vss-party虚拟机
+
+```
+make -j 8 vss-party.x
 ```
   
 ### 运行vss-party虚拟机
@@ -361,8 +359,254 @@ echo 1 2 3 4 > Player-Data/Input-P2-0
  或使用脚本
 
 ```
+chmod +x Scripts/vss.sh
 Scripts/vss.sh tutorial
 ```
 
+## 运行Function Secret Sharing与Replicated Secret Sharing混合协议
+本协议通过Function Secret Sharing减小比较的通信量（通信轮次待优化），在乘法、加法运算时转换回Replicated Secret Sharing进行计算，兼容NFGen并提供分段时的加速。
+
+### 环境配置
+由于fss-ring-party.x默认会生成edabits，同时通信量开销会计算online+offline两个部分，因此我们需要开启online benchmark only，为此我们需要创建一个CONFIG.mine文件在Garnet目录下，并在文件中添加"MY_CFLAGS = -DINSECURE"。
+
+接着在Garnet/Player-Data文件夹下创建2-fss文件夹，并编译fss-ring-party.x虚拟机
+编译过程可能会花费几分钟时间
+```
+cd Garnet/Player-Data
+mkdir 2-fss
+cd ..
+make clean
+make -j 8 fss-ring-party.x
+```
+
+下一步，在控制台上输入以下命令，生成证书及密钥
+
+```
+./Scripts/setup-ssl.sh 3
+```
+
+最后，生成Offline需要的内容
+```
+./Fake-Offline.x 3 -e 15,31,63
+```
+
+### 编译mpc文件
+想要开启function secret sharing做比较，需要在编译时开启cisc指令并指定LTZ指令不在编译器层进行拆解：
+
+编译test_sfix.mpc获得编译后的二进制文件，该过程可能会花费几分钟时间
+```
+./compile.py -l -R 128 -C -K LTZ test_sfix
+```
+
+### 运行
+
+运行test_sfix只需要执行./Scripts/fss-ring.sh -F test_sfix，其中-F表示开启online benchmark only，需要注意的是，如果输出结果中没有例如“c is 1 , a-b is -478.79”的内容，则表示判断大小的结果均是正确的，否则表示出现了错误情况。
+
+```
+./Scripts/fss-ring.sh -F test_sfix
+
+以下为控制台输出
+Running /home/txy/Garnet/Scripts/../fss-ring-party.x 0 -F test_sfix -pn 11279 -h localhost
+Running /home/txy/Garnet/Scripts/../fss-ring-party.x 1 -F test_sfix -pn 11279 -h localhost
+Running /home/txy/Garnet/Scripts/../fss-ring-party.x 2 -F test_sfix -pn 11279 -h localhost
+Using security parameter 40
+Trying to run 128-bit computation
+REWINDING - ONLY FOR BENCHMARKING
+The following benchmarks are excluding preprocessing (offline phase).
+Time = 69.982 seconds 
+Data sent = 1.12 MB in ~70000 rounds (party 0)
+Global data sent = 3.8 MB (all parties)
+This program might benefit from some protocol options.
+Consider adding the following at the beginning of 'test_sfix.mpc':
+        program.use_split(3)
+
+想要测试FSS究竟减少了多少通信量，只需要关闭FSS的比较，通过重新编译test_sfix.mpc文件，关闭-C -K LTZ选项即可，即，运行
+./compile.py -l -R 128 test_sfix
+接着运行test_sfix文件即可（关闭-C -K LTZ选项后，fss-ring-party.x与replicated-ring-party.x内容一致）
+此时，控制台输出如下
+Running /home/txy/Garnet/Scripts/../fss-ring-party.x 0 -F test_sfix -pn 11531 -h localhost
+Running /home/txy/Garnet/Scripts/../fss-ring-party.x 1 -F test_sfix -pn 11531 -h localhost
+Running /home/txy/Garnet/Scripts/../fss-ring-party.x 2 -F test_sfix -pn 11531 -h localhost
+Using security parameter 40
+Trying to run 128-bit computation
+REWINDING - ONLY FOR BENCHMARKING
+The following benchmarks are excluding preprocessing (offline phase).
+Time = 7.42893 seconds 
+Data sent = 9.92 MB in ~90000 rounds (party 0)
+Global data sent = 29.76 MB (all parties)
+This program might benefit from some protocol options.
+Consider adding the following at the beginning of 'test_sfix.mpc':
+```
+
+通过上述结果可以看到通信量减少了～10倍，通信轮次的减少以及本地计算的加速将在后续版本陆续更新，敬请期待。
+
+# 基于NFGen的非线性函数近似计算
+
+
+# 基于NFGen的非线性函数近似计算
+
+清华团队Xiaoyu Fan等人发表在CCS'2022上的论文NFGen中，提出了NFGen工具包。NFGen利用离散分段多项式，自动化综合考虑后端MPC协议的开销、近似精度等指标，生成较优的近似多项式，再利用后端的MPC协议库进行计算并生成对应的代码模板。在Garnet中基于NfGen的多项式生成模块实现了GFA，general nonlinear-function approximation，通用非线性函数近似计算模块，能支持复杂非线性函数的mpc友好的计算，并可结合Function Secret Sharing进一步提高效率。
+
+## 1 Garnet预设非线性函数
+
+从预设函数库中导入所需函数如sigmoid，即直接带有近似计算
+
+```
+from GFA.presets import sigmoid
+```
+预设函数库presets中包含了常用的机器学习激活函数和标准正态分布函数如下
+| 预设函数    | 表达式                                                       | 阶数 | 精度（n, f） | 段数 | 范围        |
+| ----------- | ------------------------------------------------------------ | ---- | ------------ | ---- | ----------- |
+| sigmoid     | 1 / (1 + math.exp(-x))                                       | 6    | （44，96）   | 8    | （-10，10） |
+| tanh        | math.tanh(x)                                                 | 5    | （44，96）   | 10   | （-50，50） |
+| soft_plus   | math.log(1 + math.exp(x))                                    | 8    | （44，96）   | 9    | （-20，50） |
+| elu         | [ELU — PyTorch 2.0 documentation](https://pytorch.org/docs/stable/generated/torch.nn.ELU.html) | 4    | （44，96）   | 8    | （-50，20） |
+| selu        | [SELU — PyTorch 2.0 documentation](https://pytorch.org/docs/stable/generated/torch.nn.SELU.html) | 4    | （44，96）   | 9    | （-50，20） |
+| gelu        | [GELU — PyTorch 2.0 documentation](https://pytorch.org/docs/stable/generated/torch.nn.GELU.html) | 4    | （44，96）   | 10   | （-20，20） |
+| snormal_dis | (1 / math.sqrt(2 * math.pi)) * math.exp(-x ** 2 / 2)         | 8    | （44，96）   | 13   | （-10，10） |
+
+
+设置对应定点数位数后可计算该函数的近似结果
+```
+from GFA.presets import sigmoid
+sfix.set_precision(44, 96)
+x = sfix(0)
+y = sigmoid(x)
+```
+
+## 2 自定义函数近似优化
+
+使用GFA模块可生成自定函数的近似计算多项式，在Source/test_gfa.mpc中以自定义的sigmoid函数为例
+
+1. 在Programs/Source中在新建mpc代码，导入GFA模块并在计算前设置对应定点数位数
+
+```
+from gfapp import GFA
+sfix.set_precision(31, 63)
+```
+2. mpc代码中创建原始非线性函数的表达式，在目标函数前加上GFA装饰器。在装饰器中可修改GFA参数，多项式最大阶数k、定点数小数位数f和位数n、近似范围、导数是否存在等。（不设置将默认为10，44，96，（-10，10）, True）
+```
+# target function.
+@GFA(10, 31, 63, (-10,10))
+def mysigmoid(x):
+    return 1 / ((1 + sp.exp(-x)))
+```
+
+3. 在后续代码中即可直接使用该函数计算，将自动具有近似优化
+```
+print_ln('using GFA sigmoid')
+for i in range(0, 5):
+    expected = sigmoid(sfix(i-2))
+    actual = mysigmoid(sfix(i-2))
+```
+
+以rss虚拟机运行test_gfa.mpc进行测试
+```
+./Scripts/setup-ssl.sh 3
+make -j 8 tldr
+make -j 8 replicated-ring-party.x
+./compile.py -R 128 test_gfa
+./Scripts/ring.sh test_gfa
+```
+输出如下，计算结果与Garnet精确计算误差有限
+```
+Trying to run 128-bit computation
+using GFA sigmoid
+expected 0.119203, got 0.119202
+expected 0.268941, got 0.268889
+expected 0.5, got 0.5
+expected 0.731059, got 0.731111
+Significant amount of unused dabits of replicated Z2^128. For more accurate benchmarks, consider reducing the batch size with -b.
+The following benchmarks are including preprocessing (offline phase).
+Time = 0.0581284 seconds 
+Data sent = 1.14333 MB in ~138 rounds (party 0)
+Global data sent = 3.42998 MB (all parties)
+```
+
+## 模型训练开销Profiling
+
+模型训练开销Profiling是指给定一个mpc语言描述的机器学习模型训练过程，在编译阶段通过对指令进行分析量化每个算子（全连接层、激活函数层、卷积层等）的通信量与通信轮次，为MPC-Friendly模型的设计提供重要参考。目前Garnet中模型训练开销Profiling支持四种协议，包括SecureML、ABY、ABY3、BGW。
+
+### 环境配置
+在主目录（/Garnet）下提供了requirements.txt和fine-tuning.yaml用于配置环境，可以在主目录下执行以下命令完成环境配置
+
+```
+pip install -r ./requirements.txt 
+```
+
+### 代码运行
+以运行在ABY3上的逻辑回归模型为例。在Programs/Source文件夹下的logreg.mpc文件中，在模型训练代码之前添加start_profiling()调用，之后添加stop_profiling()调用，如下所示，
+
+```
+start_profiling() # starting model trainging cost profiling
+if not ('forward' in program.args or 'backward' in program.args):
+   sgd.run(batch_size=batch)
+
+if 'forward' in program.args:
+   @for_range(n_iterations)
+   def _(i):
+      sgd.forward(N=batch)
+
+if 'backward' in program.args:
+   b = regint.Array(batch)
+   b.assign(regint.inc(batch))
+   @for_range(n_iterations)
+   def _(i):
+      sgd.backward(batch=b)
+stop_profiling() # stopping model trainging cost profiling
+```
+随后，在Garnet文件夹下运行如下命令，在包含100条100维数据的数据集上训练一个逻辑回归模型并对其训练开销进行Progfiling，并指定底层协议为ABY3。
+```
+python compile.py -R 64 split 3 --profiling -Q ABY3 logreg 100 100
+```
+输出为
+```
+initial
+       34500 online communication bits
+      245700 offline communication bits
+           6 online round
+         384 offline round
+Dense
+      178200 online communication bits
+      869400 offline communication bits
+          16 online round
+        1532 offline round
+Output
+     6949302 online communication bits
+    24763347 offline communication bits
+         152 online round
+       45741 offline round
+Update
+      140289 online communication bits
+      878094 offline communication bits
+           8 online round
+        3064 offline round
+Writing to /home/wqruan/Garnet/Programs/Schedules/logreg-100-100.sch
+Writing to /home/wqruan/Garnet/Programs/Bytecode/logreg-100-100-0.bc
+Program requires at most:
+     7302291 online communication bits
+    26756541 offline communication bits
+         182 online round
+       50721 offline round
+```
+此外，在Profiling_res文件夹中会自动生成Profiling结果的可视化展示，如下图所示，
+
+<img src="./fig/stack.png" width="320" ></img>
+<img src="./fig/onlinecommunication.png" width="320" ></img>
+
+### 添加新的安全多方计算协议
+通过编辑在Compiler/cost_config.py文件中，配置协议基础算子的通信开销，可以灵活地添加新的协议。一个新协议的示例如下所示
+```
+class ABY3(Cost):
+    cost_dict_func = {
+        "share": lambda bit_length, kapaa, precision, n_parties: (bit_length*3, 1, 0, 0),
+        "open" : lambda bit_length, kapaa, precision, n_parties: (bit_length*3, 1, 0, 0),
+        "muls" : lambda bit_length, kapaa, precision, n_parties: (bit_length*3, 1, 0, 0),
+        "matmuls": lambda bit_length, kapaa, precision, n_parties, p ,q, r: (p*r*bit_length*3, 1, 0, 0),
+        "bit_share":lambda bit_length, kapaa, precision, n_parties: (3, 1, 0, 0),
+        "ands":lambda bit_length, kapaa, precision, n_parties: (3, 1, 0, 0)
+   }
+```
+其中share, open, muls, matmuls为必须配置的基础算子，bit_share以及ands在涉及bit share运算时需要配置。此外，bit_length指数据表示的位长，kapaa指计算安全参数，precision指定点数中小数的精度，n_parties指涉及运算的参与方的数量。
 ## 联系我们
 如果您对项目有任何疑问，请在GitHub仓库上创建issue或者发送邮件到dsglab@fudan.edu.cn。

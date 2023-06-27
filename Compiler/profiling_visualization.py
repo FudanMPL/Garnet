@@ -40,7 +40,7 @@ def plot_histogram(data, name):
         plt.bar(range(len(num_list)), num_list, tick_label = name_list)
         plt.xlabel('Component', font_label)
         plt.tight_layout()
-        plt.savefig(dir+name+" "+key+ ".pdf")
+        plt.savefig(dir+name+" "+key+".pdf")
 
 def plot_stackedcolumn(data, name):
     plt.clf()

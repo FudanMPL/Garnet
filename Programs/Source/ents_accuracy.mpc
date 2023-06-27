@@ -1,0 +1,92 @@
+program.use_trunc_pr=True
+import ents, util
+
+attr_lengths = None
+ents.n_threads = 4
+ents.tree_h = 4 # tree height
+
+
+
+
+
+dataset = program.args[1]
+if dataset == "IRIS":
+    m = 4
+    n_train = 99
+    n_test = 51
+    ents.label_number = 3
+elif dataset == "cancer":
+    m = 30
+    n_train = 376
+    n_test = 193
+    ents.label_number = 2
+elif dataset == "diagnosis":
+    m = 6
+    n_train = 79
+    n_test = 41
+    ents.label_number = 2
+elif dataset == "adult":
+    m = 14
+    n_train = 32561
+    n_test = 16281
+    ents.label_number = 2
+elif dataset == "kohkiloyeh":
+    m = 5
+    n_train = 66
+    n_test = 34
+    ents.label_number = 2
+elif dataset == "tic-tac-toe":
+    m = 9
+    n_train = 632
+    n_test = 326
+    ents.label_number = 2
+elif dataset == "digits":
+    m = 64
+    n_train = 3709
+    n_test = 1911
+    ents.label_number = 10
+elif dataset == "wine":
+    m = 13
+    n_train = 117
+    n_test = 61
+    ents.label_number = 4
+elif dataset == "Skin":
+    m = 3
+    n_train = 161738
+    n_test = 83319
+    ents.label_number = 2
+else:
+    print("please include %s in ents.mpc", dataset)
+
+
+if ents.n_threads == 1:
+    ents.single_thread = True
+
+
+train = sint.Array(n_train), sint.Matrix(m, n_train)
+test = sint.Array(n_test), sint.Matrix(m, n_test)
+
+for x in train + test:
+    x.input_from(0)
+
+
+
+
+
+
+
+
+
+
+
+trainer = ents.TreeTrainer(
+   train[1], train[0], ents.tree_h, attr_lengths=None,
+   n_threads=ents.n_threads)
+
+layers = trainer.train()
+ents.test_decision_tree(dataset + "-test", layers, *test)
+
+ents.output_tree(layers)
+
+
+

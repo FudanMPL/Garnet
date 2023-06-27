@@ -5,7 +5,7 @@ import sys
 import tempfile
 from optparse import OptionParser
 
-from traitlets import default
+
 
 from Compiler.exceptions import CompilerError
 
@@ -126,6 +126,12 @@ class Compiler:
             dest="protocol",
             default = "ABY3",
             help="underlying protocol of the compiled program",
+        )
+        parser.add_option(
+            "--profiling",
+            dest="profiling",
+            action="store_true",
+            help="whether profing",
         )
         parser.add_option(
             "-N",
@@ -417,7 +423,8 @@ class Compiler:
         if self.prog.req_num:
             print("Program requires at most:")
             for x in self.prog.req_num.pretty():
-                print(x)
+                if "online" in x or  "offline" in x:
+                    print(x)
 
         if self.prog.verbose:
             print("Program requires:", repr(self.prog.req_num))

@@ -148,7 +148,7 @@ def FormatLayer(h, g, *a):
 def FormatLayer_without_crop(g, *a):
     for x in a:
         assert len(x) == len(g)
-    v = [g.if_else(aa, 0) for aa in a]
+    v = [g.if_else(aa, -1) for aa in a]
     v = Sort([g.bit_not()], *v, n_bits=[1])
     return v
 
@@ -181,7 +181,7 @@ def TrainLeafNodes(h, g, y, y_pred, NID, lamb=0.1):
     layer = []
     layer.append(NID)
     layer.append(Label)
-    layer = [g.if_else(aa, 0) for aa in layer]
+    layer = [g.if_else(aa, -1) for aa in layer]
     perm = SortPerm(g.bit_not())
     layer = [perm.apply(aa) for aa in layer]
     return CropLayer(h, layer[0], layer[1])
@@ -277,6 +277,7 @@ class XGBoost:
         y_pred = sfix.Array(n)
         @for_range_multithread(self.n_threads, 1, n)
         def _(i):
+        # for i in range(n):
             for tree in self.trees:
                 y_pred[i] = y_pred[i] + tree.predict(datas[i])
         return y_pred
@@ -540,7 +541,7 @@ class XGBoostTree:
             assert len(layer) == 3
             for x in layer:
                 assert len(x) <= 2 ** k
-            bits = layer[0].get_vector().equal(index, k)
+            bits = layer[0].get_vector().equal(index)
             threshold = pick(bits, layer[2])
             key_index = pick(bits, layer[1])
             if key_index.is_clear:
@@ -550,7 +551,7 @@ class XGBoostTree:
                     oram.demux(key_index.bit_decompose(util.log2(len(data)))), data)
             child = 2 * key > threshold
             index += child * 2 ** k
-        bits = layers[h][0].get_vector().equal(index, h)
+        bits = layers[h][0].get_vector().equal(index)
         res = pick(bits, layers[h][1])
         return res
 

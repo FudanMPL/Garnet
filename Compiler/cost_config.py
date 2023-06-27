@@ -1,6 +1,5 @@
 import re
 from collections import defaultdict, deque
-from turtle import update
 import math
 
 #Basic operations, these operations are necessary for one protocol
@@ -100,7 +99,6 @@ class ABY3(Cost): #done
         "ands":lambda bit_length, kapaa, precision, n_parties: (3, 1, 0, 0),
         "LTZ": lambda bit_length, kapaa, precision, n_parties: (bit_length*3, 1, 10, 0),
         "trunc": lambda bit_length, kapaa, precision, n_parties: (bit_length*3, 1, 0, 0)
-
    }
 
 class SecureML(Cost): #done
