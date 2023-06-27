@@ -316,12 +316,13 @@ program.use_split(3)
 |  5  | Cancer | 100% | 94.64% |
 |  6  | Tic-tac-toe | 90.95% | 88.42% |
 
-
 ## 运行Function Secret Sharing与Replicated Secret Sharing混合协议
 本协议通过Function Secret Sharing减小比较的通信量（通信轮次待优化），在乘法、加法运算时转换回Replicated Secret Sharing进行计算，兼容NFGen并提供分段时的加速。
 
 ### 环境配置
-1. 首先在Garnet/Player-Data文件夹下创建2-fss文件夹，并编译fss-ring-party.x虚拟机
+由于fss-ring-party.x默认会生成edabits，同时通信量开销会计算online+offline两个部分，因此我们需要开启online benchmark only，为此我们需要创建一个CONFIG.mine文件在Garnet目录下，并在文件中添加"MY_CFLAGS = -DINSECURE"。
+
+接着在Garnet/Player-Data文件夹下创建2-fss文件夹，并编译fss-ring-party.x虚拟机
 编译过程可能会花费几分钟时间
 ```
 cd Garnet/Player-Data
@@ -337,6 +338,11 @@ make -j 8 fss-ring-party.x
 ./Scripts/setup-ssl.sh 3
 ```
 
+最后，生成Offline需要的内容
+```
+./Fake-Offline.x 3 -e 15,31,63
+```
+
 ### 编译mpc文件
 想要开启function secret sharing做比较，需要在编译时开启cisc指令并指定LTZ指令不在编译器层进行拆解：
 
@@ -347,73 +353,45 @@ make -j 8 fss-ring-party.x
 
 ### 运行
 
-运行test_sfix只需要执行./Scripts/fss-ring.sh test_sfix，需要注意的是，由于a，b都是随机数，所以a-b的结果是随机的，只需要比对a-b > 0时 c是否为1， a-b <= 0时 c是否为0即可。
+运行test_sfix只需要执行./Scripts/fss-ring.sh -F test_sfix，其中-F表示开启online benchmark only，需要注意的是，如果输出结果中没有例如“c is 1 , a-b is -478.79”的内容，则表示判断大小的结果均是正确的，否则表示出现了错误情况。
+
 ```
-./Scripts/fss-ring.sh test_sfix
+./Scripts/fss-ring.sh -F test_sfix
 
 以下为控制台输出
+Running /home/txy/Garnet/Scripts/../fss-ring-party.x 0 -F test_sfix -pn 11279 -h localhost
+Running /home/txy/Garnet/Scripts/../fss-ring-party.x 1 -F test_sfix -pn 11279 -h localhost
+Running /home/txy/Garnet/Scripts/../fss-ring-party.x 2 -F test_sfix -pn 11279 -h localhost
 Using security parameter 40
 Trying to run 128-bit computation
-c is 1 , a-b is 478.79
-c is 1 , a-b is 241.013
-c is 0 , a-b is -506.922
-c is 1 , a-b is 602.822
-c is 1 , a-b is 269.458
-c is 0 , a-b is -536.345
-c is 0 , a-b is -101.865
-c is 0 , a-b is -273.936
-c is 0 , a-b is -76.5733
-c is 0 , a-b is -312.029
-input is -10, expected -10
-expected 4.5397868702434395e-05, got 0
-input is -9, expected -9
-expected 0.00012339457598623172, got 0.00012207
-input is -8, expected -8
-expected 0.0003353501304664781, got 0.000335693
-input is -7, expected -7
-expected 0.0009110511944006454, got 0.000915527
-input is -6, expected -6
-expected 0.0024726231566347743, got 0.00248718
-input is -5, expected -5
-expected 0.0066928509242848554, got 0.00669861
-input is -4, expected -4
-expected 0.01798620996209156, got 0.0179901
-input is -3, expected -3
-expected 0.04742587317756678, got 0.0474243
-input is -2, expected -2
-expected 0.11920292202211755, got 0.119202
-input is -1, expected -1
-expected 0.2689414213699951, got 0.268921
-input is 0, expected 0
-expected 0.5, got 0.5
-input is 1, expected 1
-expected 0.7310585786300049, got 0.731079
-input is 2, expected 2
-expected 0.8807970779778823, got 0.880783
-input is 3, expected 3
-expected 0.9525741268224334, got 0.95256
-input is 4, expected 4
-expected 0.9820137900379085, got 0.982025
-input is 5, expected 5
-expected 0.9933071490757153, got 0.993301
-input is 6, expected 6
-expected 0.9975273768433653, got 0.997528
-input is 7, expected 7
-expected 0.9990889488055994, got 0.9991
-input is 8, expected 8
-expected 0.9996646498695336, got 0.999664
-input is 9, expected 9
-expected 0.9998766054240137, got 0.999863
-Significant amount of unused dabits of replicated Z2^128. For more accurate benchmarks, consider reducing the batch size with -b.
-The following benchmarks are including preprocessing (offline phase).
-Time = 0.203494 seconds 
-Data sent = 0.764416 MB in ~310 rounds (party 0)
-Global data sent = 2.29498 MB (all parties)
+REWINDING - ONLY FOR BENCHMARKING
+The following benchmarks are excluding preprocessing (offline phase).
+Time = 69.982 seconds 
+Data sent = 1.12 MB in ~70000 rounds (party 0)
+Global data sent = 3.8 MB (all parties)
 This program might benefit from some protocol options.
 Consider adding the following at the beginning of 'test_sfix.mpc':
-        program.use_trunc_pr = True
         program.use_split(3)
+
+想要测试FSS究竟减少了多少通信量，只需要关闭FSS的比较，通过重新编译test_sfix.mpc文件，关闭-C -K LTZ选项即可，即，运行
+./compile.py -l -R 128 test_sfix
+接着运行test_sfix文件即可（关闭-C -K LTZ选项后，fss-ring-party.x与replicated-ring-party.x内容一致）
+此时，控制台输出如下
+Running /home/txy/Garnet/Scripts/../fss-ring-party.x 0 -F test_sfix -pn 11531 -h localhost
+Running /home/txy/Garnet/Scripts/../fss-ring-party.x 1 -F test_sfix -pn 11531 -h localhost
+Running /home/txy/Garnet/Scripts/../fss-ring-party.x 2 -F test_sfix -pn 11531 -h localhost
+Using security parameter 40
+Trying to run 128-bit computation
+REWINDING - ONLY FOR BENCHMARKING
+The following benchmarks are excluding preprocessing (offline phase).
+Time = 7.42893 seconds 
+Data sent = 9.92 MB in ~90000 rounds (party 0)
+Global data sent = 29.76 MB (all parties)
+This program might benefit from some protocol options.
+Consider adding the following at the beginning of 'test_sfix.mpc':
 ```
+
+通过上述结果可以看到通信量减少了～10倍，通信轮次的减少以及本地计算的加速将在后续版本陆续更新，敬请期待。
 
 ## 联系我们
 如果您对项目有任何疑问，请在GitHub仓库上创建issue或者发送邮件到dsglab@fudan.edu.cn。
