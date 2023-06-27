@@ -3,7 +3,7 @@ m = 4 # 特征数
 n_train = 99 # 训练样本数量
 n_test = 51 # 测试样本数量
 h = 2 # 树高
-tree_number = 2 # 树的数量
+tree_number = 3 # 树的数量
 
 n_threads = 4 # 最大线程数
 learning_rate = 0.5 # 学习率
@@ -25,4 +25,4 @@ trainer.fit()
 trainer.test(test[1], test[0])
 
 
-# trainer.reveal_and_print()
+trainer.reveal_and_print()

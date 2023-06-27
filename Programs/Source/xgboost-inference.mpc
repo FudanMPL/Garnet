@@ -1,6 +1,6 @@
 m = 4 # 特征数
-h = 2 # 树高
-tree_number = 2 # 树的数量
+h = 3 # 树高
+tree_number = 3 # 树的数量
 n_threads = 4 # 最大线程数
 test_samples = 51 # 测试样本数
 attribute_max_values = [ # 各个特征的最大值，用于在两方同态加密下使用

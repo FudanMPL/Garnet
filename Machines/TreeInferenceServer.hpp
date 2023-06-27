@@ -282,6 +282,8 @@ void TreeInferenceServer::read_tree_structure_and_feature_info() {
           node_file >> node_id;
           node_file >> attr_id;
           node_file >> threhold;
+          if (node_id < 0)
+            continue;
           Node* node = new Node(attr_id, threhold, false);
           node_of_current_layer[node_id] = node;
         }
@@ -305,6 +307,8 @@ void TreeInferenceServer::read_tree_structure_and_feature_info() {
       for (int j = 0; j < node_number; j++){
         node_file >> node_id;
         node_file >> label;
+        if (node_id < 0)
+            continue;
         int scale_label = round(label*scale_for_decimal_part);
         scale_label = (scale_label + plain_modulus) % plain_modulus;
         Node* node = new Node(attr_id, scale_label, true);
@@ -322,22 +326,7 @@ void TreeInferenceServer::read_tree_structure_and_feature_info() {
     merge_node(roots[i]);
   }
   node_file.close();
-//  Node* root1 = new Node(0, 20, false);
-//  Node* left1 = new Node(-1, 10, true);
-//  Node* right1 = new Node(-1, 20, true);
-//  root1->left_child_node = left1;
-//  root1->right_child_node = right1;
-//  Node* root2 = new Node(1, 30, false);
-//  Node* left2 = new Node(0, 10, true);
-//  Node* right2 = new Node(0, 20, true);
-//  root2->left_child_node = left2;
-//  root2->right_child_node = right2;
-//  roots.push_back(root1);
-//  roots.push_back(root2);
-//  feature_number = 3;
-//  max_values.push_back(100);
-//  max_values.push_back(100);
-//  max_values.push_back(100);
+
 }
 
 void TreeInferenceServer::recv_keys() {

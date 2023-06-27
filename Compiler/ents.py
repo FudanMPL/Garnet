@@ -258,7 +258,7 @@ def FormatLayer(h, g, *a):
 def FormatLayer_without_crop(g, *a):
     for x in a:
         assert len(x) == len(g)
-    v = [g.if_else(aa, 0) for aa in a]
+    v = [g.if_else(aa, -1) for aa in a]
     v = Sort([g.bit_not()], *v, n_bits=[1])
     return v
 
@@ -517,7 +517,7 @@ class TreeTrainer:
         for k in range(self.h):
             self.train_layer(k)
         tree = self.get_tree(self.h)
-        output_poplar(tree)
+        output_tree(tree)
         test_decision_tree('train', tree, self.y, self.x,
                            n_threads=self.n_threads)
         if test_set:
@@ -542,7 +542,7 @@ def TreeTraining(x, y, h, binary=False):
     return TreeTrainer(x, y, h, binary=binary).train()
 
 
-def output_poplar(layers):
+def output_tree(layers):
     """ Print decision tree output by :py:class:`TreeTrainer`. """
     print_ln('full model %s', util.reveal(layers))
     for i, layer in enumerate(layers[:-1]):
@@ -578,7 +578,7 @@ def run_poplar(layers, data):
         assert len(layer) == 3
         for x in layer:
             assert len(x) <= 2 ** k
-        bits = layer[0].equal(index, k)
+        bits = layer[0].equal(index)
         threshold = pick(bits, layer[2])
         key_index = pick(bits, layer[1])
         if key_index.is_clear:
@@ -588,7 +588,7 @@ def run_poplar(layers, data):
                 oram.demux(key_index.bit_decompose(util.log2(len(data)))), data)
         child = 2 * key > threshold
         index += child * 2 ** k
-    bits = layers[h][0].equal(index, h)
+    bits = layers[h][0].equal(index)
     return pick(bits, layers[h][1])
 
 
