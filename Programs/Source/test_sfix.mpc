@@ -1,19 +1,8 @@
 import Compiler.mpc_math
 import random
-from ml import sigmoid
-from ml import approx_sigmoid
 import math
 
-def sigmoid_clear(x):
-    return 1/(1+math.exp(-x))
-
-def test(actual, expected):
-
-    # you can reveal a number in order to print it
-    actual = actual.reveal()
-    print_ln('expected %s, got %s', expected, actual)
-
-n = 10
+n = 10000
 cnt = 0
 
 #sfix.set_precision(31, 72)
@@ -22,11 +11,8 @@ def _(i):
     a = sfix.get_random(-1000,1000)
     b = sfix.get_random(-1000,1000)
     c = (a > b)
-    d = sfix(3)
-
-    print_ln("c is %s , a-b is %s", c.reveal(), (a-b).reveal())
-
-for i in range(0, 20):
-    t = sfix(i-10)
-    print_ln("input is %s, expected %s", t.reveal(), i-10)
-    test(sigmoid(t), sigmoid_clear(i-10))
+    clear_a = a.reveal()
+    clear_b = b.reveal()
+    d = (clear_a > clear_b)
+    if(c.reveal() != d):
+        print_ln("c is %s , a-b is %s", c.reveal(), (a-b).reveal())
