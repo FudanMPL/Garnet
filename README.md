@@ -396,6 +396,9 @@ Consider adding the following at the beginning of 'test_sfix.mpc':
 # 基于NFGen的非线性函数近似计算
 
 
+# 基于NFGen的非线性函数近似计算
+
+清华团队Xiaoyu Fan等人发表在CCS'2022上的论文NFGen中，提出了NFGen工具包。NFGen利用离散分段多项式，自动化综合考虑后端MPC协议的开销、近似精度等指标，生成较优的近似多项式，再利用后端的MPC协议库进行计算并生成对应的代码模板。在Garnet中基于NfGen的多项式生成模块实现了GFA，general nonlinear-function approximation，通用非线性函数近似计算模块，能支持复杂非线性函数的mpc友好的计算，并可结合Function Secret Sharing进一步提高效率。
 
 ## 1 Garnet预设非线性函数
 
@@ -472,6 +475,7 @@ Time = 0.0581284 seconds
 Data sent = 1.14333 MB in ~138 rounds (party 0)
 Global data sent = 3.42998 MB (all parties)
 ```
+
 ## 模型训练开销Profiling
 
 模型训练开销Profiling是指给定一个mpc语言描述的机器学习模型训练过程，在编译阶段通过对指令进行分析量化每个算子（全连接层、激活函数层、卷积层等）的通信量与通信轮次，为MPC-Friendly模型的设计提供重要参考。目前Garnet中模型训练开销Profiling支持四种协议，包括SecureML、ABY、ABY3、BGW。
