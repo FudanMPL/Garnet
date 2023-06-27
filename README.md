@@ -318,9 +318,9 @@ program.use_split(3)
 
 ## 向量空间秘密共享技术使用
 
-在Garnet中向量空间秘密共享技术所对应的虚拟机是vss-party。vss-party基于MP-SPDZ原生的semi-party和hemi-party。vss-party实现了基于向量空间秘密共享的三方安全乘法、安全截断、安全比较等操作。
+在Garnet中向量空间秘密共享技术所对应的虚拟机是vss-party。vss-party基于MP-SPDZ原生的semi-party和hemi-party。vss-party实现了基于向量空间秘密共享的三方安全乘法、安全截断、安全比较等操作（目前只支持64位）。
 
-### 编译运行vss-party虚拟机
+### 编译vss-party虚拟机
 
 以tutorial.mpc的测试程序为例
 
@@ -330,16 +330,12 @@ program.use_split(3)
 echo 1 2 3 4 > Player-Data/Input-P0-0
 echo 1 2 3 4 > Player-Data/Input-P1-0
 echo 1 2 3 4 > Player-Data/Input-P2-0
-./compile.py -R 64 tutorial
+./compile.py -R 64 tutor
 ```
 
- 编译虚拟机
+### 运行vss-party虚拟机
 
-```
-make -j 8 vss-party.x
-```
-
- 在两个终端分别运行
+ 在三个终端分别运行
 
 ```
 ./vss-party.x 0 tutorial
