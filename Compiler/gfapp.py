@@ -24,9 +24,9 @@ def getFile(path):
         js = json.load(f)
         return js
 
-def getFuncName(func, kmax, f, n, range):
+def getFuncName(func, kmax, f, n, range, derivative):
     fstr = str(func).split(" ")[1]
-    paramHASH = hashToStr([range, kmax, n, f])[:10]
+    paramHASH = hashToStr([range, kmax, f, n, derivative])[:10]
     return fstr + '_' + paramHASH
 
 def hashToStr(data):
@@ -35,7 +35,7 @@ def hashToStr(data):
         ss += str(it)
     return hashlib.sha256(ss.encode()).hexdigest()
 
-def f2p(func, kmax, f, n, range):
+def f2p(func, kmax, f, n, range, derivative):
 
     config = {
         "function": func, # function config.
@@ -46,6 +46,7 @@ def f2p(func, kmax, f, n, range):
         "zero_mask": 1e-6,
         "n": n, # <n, f> fixed-point config.
         "f": f,
+        "derivative_flag": derivative,
         "profiler": profiler_file, # profiler model source file.
         # "code_templet": temp.templet_spdz, # spdz templet.
         # "code_language": "python", # indicating the templet language.
@@ -56,7 +57,7 @@ def f2p(func, kmax, f, n, range):
     # using NFGen to generate the target function code.
     kmconfig = generate_nonlinear_config(config)
 
-    polysFile = "./Compiler/GFA/%s.json"%(getFuncName(func, kmax, f, n, range))
+    polysFile = "./Compiler/GFA/%s.json"%(getFuncName(func, kmax, f, n, range, derivative))
     with open(polysFile, "w") as f:
         json.dump(kmconfig, f, indent=4)
 
@@ -94,14 +95,14 @@ def At(x, breaks, coeffA, scaler):
     # 计算每段函数值向量与位置向量的点积
     return sfix.dot_product(cipher_index, poss_res)
 
-def GFA(kmax=10, f=31, n=63, range=(-10,10)):
+def GFA(kmax=10, f=44, n=96, range=(-10,10), derivative=True):
     def x(func):
         def y(x):
-            fname = getFuncName(func, kmax, f, n, range)
+            fname = getFuncName(func, kmax, f, n, range, derivative)
             fpath = "./Compiler/GFA/%s.json"%(fname)
             # translating
             if not os.path.exists(fpath):
-                f2p(func, kmax, f, n, range)
+                f2p(func, kmax, f, n, range, derivative)
             # loading
             polys = getFile(fpath)
             breaks = polys['breaks']

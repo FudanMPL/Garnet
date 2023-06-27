@@ -3,36 +3,16 @@ import Compiler.mpc_math
 from gfapp import GFA
 from ml import sigmoid
 
-def test(actual, expected):
-
-    # you can reveal a number in order to print it
-    actual = actual.reveal()
-    print_ln('expected %s, got %s', expected, actual)
-
-
-a = [0.119, 0.269, 0.500, 0.731, 0.880]
-
-
 sfix.set_precision(31, 63)
-
-print_ln('using original sigmoid')
-for i in range(0, 5):
-    test(sigmoid(sfix(i-2)) ,a[i])
-
-
-# fundenmental functions, indicating they are cipher-text non-linear operations.
-def func_reciprocal(x):
-        return 1 / x
-
-def func_exp(x, lib=sp):
-    return lib.exp(x)
 
 # target function.
 @GFA(10, 31, 63, (-10,10))
 def mysigmoid(x):
-    return 1 * func_reciprocal((1 + func_exp(-x)))
+    return 1 / ((1 + sp.exp(-x)))
 
 print_ln('using GFA sigmoid')
-for i in range(0, 5):
-    test(mysigmoid(sfix(i-2)) ,a[i])
+for i in range(-2, 2):
+    actual = mysigmoid(sfix(i))
+    expected = sigmoid(sfix(i))
+    print_ln('expected %s, got %s', expected.reveal(), actual.reveal())
 
