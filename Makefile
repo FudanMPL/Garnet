@@ -214,8 +214,7 @@ tree-inference.x: Machines/tree-inference.cpp  $(MINI_OT) $(SHAREDLIB)
 	$(CXX) -o $@ $(CFLAGS) $^ $(LDLIBS)
 
 
-tree-inference.x:  ${NETWORK}
-
+tree-inference.x:   Machines/tree-inference.cpp
 replicated-bin-party.x: GC/square64.o
 replicated-ring-party.x: GC/square64.o
 replicated-field-party.x: GC/square64.o

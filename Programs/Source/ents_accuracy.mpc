@@ -86,4 +86,7 @@ trainer = ents.TreeTrainer(
 layers = trainer.train()
 ents.test_decision_tree(dataset + "-test", layers, *test)
 
+ents.output_tree(layers)
+
+
 

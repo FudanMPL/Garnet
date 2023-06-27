@@ -1,12 +1,27 @@
 # ReadMe for Ents
 
 We   currently supports versions of Linux 2014 and above, as well as MacOS High Sierra and later versions.
-
 The code for implementing Ents is primarily located in Compiler/ents.py and Protocols/replicated.hpp.
+
+## Library install
+
+#### Linux
+```
+sudo apt-get install automake build-essential cmake git libboost-dev libboost-thread-dev libntl-dev libsodium-dev libssl-dev libtool m4 python3 texinfo yasm
+```
+
+#### MacOS
+
+```
+brew install automake build-essential cmake git libboost-dev libboost-thread-dev libntl-dev libsodium-dev libssl-dev libtool m4 python3 texinfo yasm
+```
+
+
 
 ## Build Environment
 
 To run Ents, we first need to build the running environment. The steps is as follows:
+
 
 (1) Download the code:
 
