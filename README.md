@@ -316,7 +316,7 @@ program.use_split(3)
 |  5  | Cancer | 100% | 94.64% |
 |  6  | Tic-tac-toe | 90.95% | 88.42% |
 
-## 向量空间秘密共享技术使用
+## 基于向量空间秘密共享的安全计算协议使用
 
 向量空间秘密共享（Vector Space Secret Shaing）是Song等人发表于ACM CCS‘22 的安全多方学习框架pMPL所使用的底层秘密共享技术。
 在Garnet中向量空间秘密共享技术所对应的虚拟机是vss-party。vss-party基于MP-SPDZ原生的semi-party和hemi-party。vss-party实现了基于向量空间秘密共享的三方安全计算操作（目前只支持64位）。
