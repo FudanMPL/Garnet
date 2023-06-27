@@ -393,14 +393,11 @@ Consider adding the following at the beginning of 'test_sfix.mpc':
 
 通过上述结果可以看到通信量减少了～10倍，通信轮次的减少以及本地计算的加速将在后续版本陆续更新，敬请期待。
 
-# 基于NFGen的非线性函数近似计算
-
-
-# 基于NFGen的非线性函数近似计算
+## 基于NFGen的非线性函数近似计算
 
 清华团队Xiaoyu Fan等人发表在CCS'2022上的论文NFGen中，提出了NFGen工具包。NFGen利用离散分段多项式，自动化综合考虑后端MPC协议的开销、近似精度等指标，生成较优的近似多项式，再利用后端的MPC协议库进行计算并生成对应的代码模板。在Garnet中基于NfGen的多项式生成模块实现了GFA，general nonlinear-function approximation，通用非线性函数近似计算模块，能支持复杂非线性函数的mpc友好的计算，并可结合Function Secret Sharing进一步提高效率。
 
-## 1 Garnet预设非线性函数
+### 1 Garnet预设非线性函数
 
 从预设函数库中导入所需函数如sigmoid，即直接带有近似计算
 
@@ -427,7 +424,7 @@ x = sfix(0)
 y = sigmoid(x)
 ```
 
-## 2 自定义函数近似优化
+### 2 自定义函数近似优化
 
 使用GFA模块可生成自定函数的近似计算多项式，在Source/test_gfa.mpc中以自定义的sigmoid函数为例
 
