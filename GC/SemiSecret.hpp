@@ -3,6 +3,9 @@
  *
  */
 
+#ifndef PROTOCOLS_SEMISECRET_HPP_
+#define PROTOCOLS_SEMISECRET_HPP_
+
 #include "GC/ShareParty.h"
 #include "GC/ShareSecret.hpp"
 #include "Protocols/MAC_Check_Base.hpp"
@@ -146,3 +149,5 @@ void SemiSecretBase<T, V>::reveal(size_t n_bits, Clear& x)
 }
 
 } /* namespace GC */
+
+#endif

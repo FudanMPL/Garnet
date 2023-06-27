@@ -23,7 +23,7 @@ def parse(profiling_res):
 font_legend = {'family': 'Times New Roman','weight': 'normal', 'size': 18}
 font_label = {'family': 'Times New Roman','weight': 'normal', 'size': 16}
 colors = ['red','blue','green','orange','purple']
-dir = "/home/wqruan/Garnet/Compiler/profiling_res/"
+dir = "Compiler/profiling_res/"
 
 def plot_histogram(data, name):
     plt.xlabel('Component', font_label)
@@ -40,7 +40,7 @@ def plot_histogram(data, name):
         plt.bar(range(len(num_list)), num_list, tick_label = name_list)
         plt.xlabel('Component', font_label)
         plt.tight_layout()
-        plt.savefig(dir+name+" "+key+ ".pdf")
+        plt.savefig(dir+name+" "+key+".pdf")
 
 def plot_stackedcolumn(data, name):
     plt.clf()

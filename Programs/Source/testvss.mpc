@@ -1,0 +1,4 @@
+a = sint.get_input_from(0)
+b = sint.get_input_from(0)
+c = a * b
+print_ln("c = %s", c.reveal())
