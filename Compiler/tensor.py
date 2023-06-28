@@ -44,14 +44,49 @@ def train():
 def same_shape(sizes1, sizes2):
     if len(sizes1) != len(sizes2):
         return False
-    for i in range(0, sizes1):
+    for i in range(0, len(sizes1)):
         if sizes1[i] != sizes2[i]:
             return False
     return True
 
 def element_wise_mul(self, other):
-    # forward
     # backward
+    @buildingblock(get_program().globalbuildingblock)
+    def propagate(dl_doutputs, tape):
+        dl_dx, = dl_doutputs
+        inputs = tape.inputs
+        dl_dself =  dl_d[inputs[0]]# partial derivate of r = self*other
+        dl_dother = dl_d[inputs[1]] # partial derivate of r = self*other
+        dl_dself[:] += dl_dx[:] * other.value[:] #todo
+        dl_dother[:] += dl_dx[:] * self.value[:] # todo
+        dl_dinputs = [dl_dself, dl_dother]
+        return dl_dinputs
+    # forward
+    if prepare:    
+        new_value = MultiArray([self.value.sizes[0], other.value.sizes[1]], other.value.value_type)
+        output = Tensor(new_value)
+        tape = Tape(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
+        gradient_tape.append(tape)
+        tape_id = len(gradient_tape) - 1
+        global op_id
+        op_id_store[op_id] = tape_id
+        op_id += 1
+    else:
+        tape = gradient_tape[op_id_store[op_id]]
+        inputs = tape.inputs
+        outputs = tape.outputs
+        input1 = tensors[inputs[0]]
+        input2 = tensors[inputs[1]]
+        output = tensors[outputs[0]]
+        output.value[:] = input1.value[:] * input2.value[:] #todo        
+        op_id += 1
+
+    # record the input and output of the op
+    return output
+
+def mat_mul(self, other):
+
+    @buildingblock(get_program().globalbuildingblock)
     def propagate(dl_doutputs, tape):
         dl_dx, = dl_doutputs
         inputs = tape.inputs
@@ -82,7 +117,7 @@ def element_wise_mul(self, other):
         op_id += 1
 
     # record the input and output of the op
-    return output
+    return output    
 
 def ops_add(self, other):
     x = Tensor(self.value + other.value)
@@ -161,15 +196,30 @@ class Tensor():
 
     # Multiplication of a Variable, tracking gradients
     def __mul__(self, other):
-        v1 = self.value
-        v2 = other.value
-        if len(v1.sizes) == len(v2.sizes):
-            return 
-
-    def element_mul(self, other):
-        if not same_shape(self.sizes, other.sizes):
+        # todo, dimension of self and other may not be the same
+        if not same_shape(self.size(), other.size()):
             exit(0)
         return element_wise_mul(self, other)
+
+    def mul(self, other):
+        # todo
+        return self
+    
+    def mv(self, other):
+        # todo
+        return self
+    
+    def mm(self, other):
+        #todo
+        return self
+
+    def dot(self, other):
+        #todo
+        return self
+    
+    def matmul(self, other):
+        # todo, may not implement
+        return self
 
     def __add__(self, other):
         return ops_add(self, other)
@@ -177,6 +227,8 @@ class Tensor():
     def __sub__(self, other):
         return ops_sub(self, other)
 
+    def size(self):
+        return self.value.sizes
 
 # reset tape
 def reset_tape():
