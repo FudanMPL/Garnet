@@ -57,7 +57,7 @@ Scripts/setup-ssl.sh 2
 
 以tutorial.mpc的测试程序为例
 
- 设置输入、编辑mpc程序、设置环参数
+ 设置输入、编译mpc程序、设置环参数
 
 ```
 echo 1 2 3 4 > Player-Data/Input-P0-0
@@ -315,6 +315,53 @@ program.use_split(3)
 |  4  | Wine | 100% | 94.44% |
 |  5  | Cancer | 100% | 94.64% |
 |  6  | Tic-tac-toe | 90.95% | 88.42% |
+
+## 基于向量空间秘密共享的安全计算协议使用
+
+向量空间秘密共享（Vector Space Secret Shaing）是Song等人发表于ACM CCS‘22 的安全多方学习框架pMPL所使用的底层秘密共享技术。
+在Garnet中向量空间秘密共享技术所对应的虚拟机是vss-party。vss-party基于MP-SPDZ原生的semi-party和hemi-party。vss-party实现了基于向量空间秘密共享的三方安全计算操作（目前只支持64位）。
+
+### 基础设置
+
+设置ssl
+
+```
+Scripts/setup-ssl.sh 3
+```
+
+### 编译tutorial程序
+
+设置输入、编译mpc程序、设置环参数
+
+```
+echo 1 2 3 4 > Player-Data/Input-P0-0
+echo 1 2 3 4 > Player-Data/Input-P1-0
+echo 1 2 3 4 > Player-Data/Input-P2-0
+./compile.py -R 64 tutorial
+```
+
+### 编译vss-party虚拟机
+
+```
+make -j 8 vss-party.x
+```
+  
+### 运行vss-party虚拟机
+
+ 在三个终端分别运行
+
+```
+./vss-party.x 0 tutorial
+./vss-party.x 1 tutorial
+./vss-party.x 2 tutorial
+```
+
+ 或使用脚本
+
+```
+chmod +x Scripts/vss.sh
+Scripts/vss.sh tutorial
+```
 
 ## 运行Function Secret Sharing与Replicated Secret Sharing混合协议
 本协议通过Function Secret Sharing减小比较的通信量（通信轮次待优化），在乘法、加法运算时转换回Replicated Secret Sharing进行计算，兼容NFGen并提供分段时的加速。
