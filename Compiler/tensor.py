@@ -158,11 +158,12 @@ def reset_op_id():
     op_id = 0
 
 class Tensor():
-    def __init__(self, value, name=None, is_grad = False):
+    def __init__(self, value, name=None, req_grad = False, is_grad = False):
         assert isinstance(value, Array) or isinstance(value, MultiArray)
         self.value = value
         self.name = name or fresh_name()
         self.shape = value.sizes
+        self.req_grad = req_grad
         if is_train and not is_grad:
             self.grad = self.value.same_shape()
             self.grad.assign_all(0)
@@ -220,6 +221,10 @@ class Tensor():
     def matmul(self, other):
         # todo, may not implement
         return self
+    
+    def div(self, other):
+        #todo
+        return self
 
     def __add__(self, other):
         return ops_add(self, other)
@@ -227,6 +232,83 @@ class Tensor():
     def __sub__(self, other):
         return ops_sub(self, other)
 
+    def __getitem__(self, index):
+        #todo
+        return self    
+    
+    def view(self):
+        #todo
+        return self
+    
+    def squeeze(self):
+        #todo
+        return self
+
+    def unsqueeze(self):
+        #todo
+        return self
+
+    def gather(self):
+        #todo
+        return self
+    
+    def reshape(self, sizes):
+        #todo
+        return self
+
+    def permute(self, sizes):
+        #todo 
+        return self
+    
+    def transpose(self):
+        #todo
+        return self
+
+    def concate(self, other):
+        #todo
+        return self
+
+    def abs(self):
+        #todo
+        return self
+
+    def exp(self):
+        #todo
+        return self
+
+    def log(self):
+        #todo
+        return self
+
+    def pow(self, pow):
+        #todo
+        return self
+
+    def cos(self):
+        #todo
+        return self
+
+    def sin(self):
+        #todo
+        return self
+
+    def mean(self):
+        #todo
+        return self
+
+    def sum(self):
+        #todo
+        return self
+
+    def std(self):
+        #todo
+        return self
+
+    def var(self):
+        #todo
+        return self    
+
+    
     def size(self):
         return self.value.sizes
 
