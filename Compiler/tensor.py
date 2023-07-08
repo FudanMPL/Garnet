@@ -1,3 +1,4 @@
+from glob import glob
 import math
 import re
 from turtle import forward, shape
@@ -18,7 +19,7 @@ _name = 1
 #sotre of tensors involved in computation process
 tensors  =  {}
 #store of operators invovled in computation process, these operators are topologically sotred
-gradient_tape : List[Tape] = []
+gradient_operation : List[Operation] = []
 #sotre of gradients involved in computation process, their types are tensors without gradient
 dl_d =  {}
 #the flag indicates whether initialize gradients for tensors
@@ -27,7 +28,7 @@ is_train = True
 prepare = True
 #op_id is used for extracting the references of inputs and outputs of one opertator
 op_id = 0
-#op_id_store stores the correlation among op_ids and tape ids.
+#op_id_store stores the correlation among op_ids and operation ids.
 op_id_store = {}
 
 
@@ -52,9 +53,9 @@ def same_shape(sizes1, sizes2):
 def element_wise_mul(self, other):
     # backward
     @buildingblock(get_program().globalbuildingblock)
-    def propagate(dl_doutputs, tape):
+    def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
-        inputs = tape.inputs
+        inputs = operation.inputs
         dl_dself =  dl_d[inputs[0]]# partial derivate of r = self*other
         dl_dother = dl_d[inputs[1]] # partial derivate of r = self*other
         dl_dself[:] += dl_dx[:] * other.value[:] #todo
@@ -65,16 +66,16 @@ def element_wise_mul(self, other):
     if prepare:    
         new_value = MultiArray([self.value.sizes[0], other.value.sizes[1]], other.value.value_type)
         output = Tensor(new_value)
-        tape = Tape(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
-        gradient_tape.append(tape)
-        tape_id = len(gradient_tape) - 1
+        operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation) - 1
         global op_id
-        op_id_store[op_id] = tape_id
+        op_id_store[op_id] = operation_id
         op_id += 1
     else:
-        tape = gradient_tape[op_id_store[op_id]]
-        inputs = tape.inputs
-        outputs = tape.outputs
+        operation = gradient_operation[op_id_store[op_id]]
+        inputs = operation.inputs
+        outputs = operation.outputs
         input1 = tensors[inputs[0]]
         input2 = tensors[inputs[1]]
         output = tensors[outputs[0]]
@@ -87,9 +88,9 @@ def element_wise_mul(self, other):
 def mat_mul(self, other):
 
     @buildingblock(get_program().globalbuildingblock)
-    def propagate(dl_doutputs, tape):
+    def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
-        inputs = tape.inputs
+        inputs = operation.inputs
         dl_dself =  dl_d[inputs[0]]# partial derivate of r = self*other
         dl_dother = dl_d[inputs[1]] # partial derivate of r = self*other
         dl_dself[:] += dl_dx[:] * other.value[:] #todo
@@ -100,16 +101,16 @@ def mat_mul(self, other):
     if prepare:    
         new_value = MultiArray([self.value.sizes[0], other.value.sizes[1]], other.value.value_type)
         output = Tensor(new_value)
-        tape = Tape(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
-        gradient_tape.append(tape)
-        tape_id = len(gradient_tape) - 1
+        operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation) - 1
         global op_id
-        op_id_store[op_id] = tape_id
+        op_id_store[op_id] = operation_id
         op_id += 1
     else:
-        tape = gradient_tape[op_id_store[op_id]]
-        inputs = tape.inputs
-        outputs = tape.outputs
+        operation = gradient_operation[op_id_store[op_id]]
+        inputs = operation.inputs
+        outputs = operation.outputs
         input1 = tensors[inputs[0]]
         input2 = tensors[inputs[1]]
         output = tensors[outputs[0]]
@@ -132,8 +133,8 @@ def ops_add(self, other):
         return [dl_dself, dl_dother]
 
     # record the input and output of the op
-    tape = Tape(inputs=[self.name, other.name], outputs=[x.name], propagate=propagate)
-    gradient_tape.append(tape)
+    operation = Operation(inputs=[self.name, other.name], outputs=[x.name], propagate=propagate)
+    gradient_operation.append(operation)
     return x
 
 def ops_sub(self, other):
@@ -148,14 +149,11 @@ def ops_sub(self, other):
         return [dl_dself, dl_dother]
 
     # record the input and output of the op
-    tape = Tape(inputs=[self.name, other.name], outputs=[x.name], propagate=propagate)
-    gradient_tape.append(tape)
+    operation = Operation(inputs=[self.name, other.name], outputs=[x.name], propagate=propagate)
+    gradient_operation.append(operation)
     return x
 
-#call this function after each iteration
-def reset_op_id():
-    global op_id
-    op_id = 0
+
 
 class Tensor():
     def __init__(self, value, name=None, req_grad = False, is_grad = False):
@@ -180,17 +178,17 @@ class Tensor():
         return var
 
     def backward(self):
-        length = len(gradient_tape)
+        length = len(gradient_operation)
         index = 0
         dl_d[self.name].assign_all(1)
         # the following loop only runs once in the training process due the semantice of @for_range
         def gather_grad(entries):
             return [dl_d[entry]  for entry in entries]        
         for i in range(0, length):
-            if self.name in gradient_tape[length-i-1].outputs:
+            if self.name in gradient_operation[length-i-1].outputs:
                    index = length - i
         for i in range(0, index):
-            entry = gradient_tape[index-i-1]
+            entry = gradient_operation[index-i-1]
             dl_doutputs = gather_grad(entry.outputs)
             entry.propagate(dl_doutputs, entry)
         return 0
@@ -312,13 +310,33 @@ class Tensor():
     def size(self):
         return self.value.sizes
 
-# reset tape
-def reset_tape():
-    gradient_tape.clear()
+    def zero_grad(self):
+        self.grad.assign_all(0)
+
+    
+# reset operation
+def reset_operation():
+    gradient_operation.clear()
+
+#call this function after each iteration
+def reset_op_id():
+    global op_id
+    op_id = 0
+
+def get_opid():
+    global op_id
+    return op_id
+
+def set_opid(new_id):
+    global op_id
+    op_id = new_id
+
+def add_operation(operation):
+    global gradient_operation
+    gradient_operation.append(operation)
 
 
-
-class Tape(NamedTuple):
+class Operation(NamedTuple):
     inputs : List[str]
     outputs : List[str]
     # apply chain rule
