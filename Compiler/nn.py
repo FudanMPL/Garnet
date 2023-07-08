@@ -17,6 +17,11 @@ def _addindent(s_, numSpaces):
     s = first + '\n' + s
     return s
 
+r"""This tracks hooks common to all modules that are executed immediately before
+.registering the buffer/module/parameter"""
+_global_buffer_registration_hooks: Dict[int, Callable] = OrderedDict()
+_global_module_registration_hooks: Dict[int, Callable] = OrderedDict()
+_global_parameter_registration_hooks: Dict[int, Callable] = OrderedDict()
 class Parameter(Tensor):
     def   __init__(self):
         self.s = True
@@ -31,25 +36,276 @@ class Module():
         self._non_persistent_buffers_set: Set[str] = set()
     
     def register_buffer(self, name: str, tensor: Optional[Tensor], persistent: bool = True) -> None:
-        return True
+        r"""Adds a buffer to the module.
+
+        This is typically used to register a buffer that should not to be
+        considered a model parameter. For example, BatchNorm's ``running_mean``
+        is not a parameter, but is part of the module's state. Buffers, by
+        default, are persistent and will be saved alongside parameters. This
+        behavior can be changed by setting :attr:`persistent` to ``False``. The
+        only difference between a persistent buffer and a non-persistent buffer
+        is that the latter will not be a part of this module's
+        :attr:`state_dict`.
+
+        Buffers can be accessed as attributes using given names.
+
+        Args:
+            name (str): name of the buffer. The buffer can be accessed
+                from this module using the given name
+            tensor (Tensor or None): buffer to be registered. If ``None``, then operations
+                that run on buffers, such as :attr:`cuda`, are ignored. If ``None``,
+                the buffer is **not** included in the module's :attr:`state_dict`.
+            persistent (bool): whether the buffer is part of this module's
+                :attr:`state_dict`.
+
+        Example::
+
+            >>> # xdoctest: +SKIP("undefined vars")
+            >>> self.register_buffer('running_mean', torch.zeros(num_features))
+
+        """
+
+        if '_buffers' not in self.__dict__:
+            raise AttributeError(
+                "cannot assign buffer before Module.__init__() call")
+        elif not isinstance(name, str):
+            raise TypeError("buffer name should be a string. "
+                            "Got {}".format((type(name).__name__)))
+        elif '.' in name:
+            raise KeyError("buffer name can't contain \".\"")
+        elif name == '':
+            raise KeyError("buffer name can't be empty string \"\"")
+        elif hasattr(self, name) and name not in self._buffers:
+            raise KeyError("attribute '{}' already exists".format(name))
+        elif tensor is not None and not isinstance(tensor, Tensor):
+            raise TypeError("cannot assign '{}' object to buffer '{}' "
+                            "(Tensor or None required)"
+                            .format((type(tensor).__name__), name))
+        else:
+            self._buffers[name] = tensor
+
 
     def register_parameter(self, name: str, param: Optional[Parameter]) -> None:
-        return True
+        r"""Adds a parameter to the module.
+
+        The parameter can be accessed as an attribute using given name.
+
+        Args:
+            name (str): name of the parameter. The parameter can be accessed
+                from this module using the given name
+            param (Parameter or None): parameter to be added to the module. If
+                ``None``, then operations that run on parameters, such as :attr:`cuda`,
+                are ignored. If ``None``, the parameter is **not** included in the
+                module's :attr:`state_dict`.
+        """
+        if '_parameters' not in self.__dict__:
+            raise AttributeError(
+                "cannot assign parameter before Module.__init__() call")
+
+        elif not isinstance(name, str):
+            raise TypeError("parameter name should be a string. "
+                            "Got {}".format(type(name).__name__))
+        elif '.' in name:
+            raise KeyError("parameter name can't contain \".\"")
+        elif name == '':
+            raise KeyError("parameter name can't be empty string \"\"")
+        elif hasattr(self, name) and name not in self._parameters:
+            raise KeyError("attribute '{}' already exists".format(name))
+
+        if param is None:
+            self._parameters[name] = None
+        elif not isinstance(param, Parameter):
+            raise TypeError("cannot assign '{}' object to parameter '{}' "
+                            "(torch.nn.Parameter or None required)"
+                            .format(type(param).__name__, name))
+        elif param.grad_fn:
+            raise ValueError(
+                "Cannot assign non-leaf Tensor to parameter '{0}'. Model "
+                "parameters must be created explicitly. To express '{0}' "
+                "as a function of another Tensor, compute the value in "
+                "the forward() method.".format(name))
+        else:
+            for hook in _global_parameter_registration_hooks.values():
+                output = hook(self, name, param)
+                if output is not None:
+                    param = output
+            self._parameters[name] = param
 
     def add_module(self, name: str, module: Optional['Module']) -> None:
-        return True
+        r"""Adds a child module to the current module.
+
+        The module can be accessed as an attribute using the given name.
+
+        Args:
+            name (str): name of the child module. The child module can be
+                accessed from this module using the given name
+            module (Module): child module to be added to the module.
+        """
+        if not isinstance(module, Module) and module is not None:
+            raise TypeError("{} is not a Module subclass".format(
+                type(module).__name__))
+        elif not isinstance(name, str):
+            raise TypeError("module name should be a string. Got {}".format(
+               type(name).__name__))
+        elif hasattr(self, name) and name not in self._modules:
+            raise KeyError("attribute '{}' already exists".format(name))
+        elif '.' in name:
+            raise KeyError("module name can't contain \".\", got: {}".format(name))
+        elif name == '':
+            raise KeyError("module name can't be empty string \"\"")
+        for hook in _global_module_registration_hooks.values():
+            output = hook(self, name, module)
+            if output is not None:
+                module = output
+        self._modules[name] = module
 
     def register_module(self, name: str, module: Optional['Module']) -> None:
-        return True
+        r"""Alias for :func:`add_module`."""
+        self.add_module(name, module)
+
 
     def get_submodule(self, target: str) -> "Module":
-        return True
+        """
+        Returns the submodule given by ``target`` if it exists,
+        otherwise throws an error.
+
+        For example, let's say you have an ``nn.Module`` ``A`` that
+        looks like this:
+
+        .. code-block:: text
+
+            A(
+                (net_b): Module(
+                    (net_c): Module(
+                        (conv): Conv2d(16, 33, kernel_size=(3, 3), stride=(2, 2))
+                    )
+                    (linear): Linear(in_features=100, out_features=200, bias=True)
+                )
+            )
+
+        (The diagram shows an ``nn.Module`` ``A``. ``A`` has a nested
+        submodule ``net_b``, which itself has two submodules ``net_c``
+        and ``linear``. ``net_c`` then has a submodule ``conv``.)
+
+        To check whether or not we have the ``linear`` submodule, we
+        would call ``get_submodule("net_b.linear")``. To check whether
+        we have the ``conv`` submodule, we would call
+        ``get_submodule("net_b.net_c.conv")``.
+
+        The runtime of ``get_submodule`` is bounded by the degree
+        of module nesting in ``target``. A query against
+        ``named_modules`` achieves the same result, but it is O(N) in
+        the number of transitive modules. So, for a simple check to see
+        if some submodule exists, ``get_submodule`` should always be
+        used.
+
+        Args:
+            target: The fully-qualified string name of the submodule
+                to look for. (See above example for how to specify a
+                fully-qualified string.)
+
+        Returns:
+            torch.nn.Module: The submodule referenced by ``target``
+
+        Raises:
+            AttributeError: If the target string references an invalid
+                path or resolves to something that is not an
+                ``nn.Module``
+        """
+        if target == "":
+            return self
+
+        atoms: List[str] = target.split(".")
+        mod: Module = self
+
+        for item in atoms:
+
+            if not hasattr(mod, item):
+                raise AttributeError(mod._get_name() + " has no "
+                                     "attribute `" + item + "`")
+
+            mod = getattr(mod, item)
+
+            if not isinstance(mod, Module):
+                raise AttributeError("`" + item + "` is not "
+                                     "an nn.Module")
+
+        return mod
 
     def get_parameter(self, target: str) -> "Parameter":
-        return True
+        """
+        Returns the parameter given by ``target`` if it exists,
+        otherwise throws an error.
+
+        See the docstring for ``get_submodule`` for a more detailed
+        explanation of this method's functionality as well as how to
+        correctly specify ``target``.
+
+        Args:
+            target: The fully-qualified string name of the Parameter
+                to look for. (See ``get_submodule`` for how to specify a
+                fully-qualified string.)
+
+        Returns:
+            Parameter: The Parameter referenced by ``target``
+
+        Raises:
+            AttributeError: If the target string references an invalid
+                path or resolves to something that is not an
+                ``nn.Parameter``
+        """
+        module_path, _, param_name = target.rpartition(".")
+
+        mod: Module = self.get_submodule(module_path)
+
+        if not hasattr(mod, param_name):
+            raise AttributeError(mod._get_name() + " has no attribute `"
+                                 + param_name + "`")
+
+        param: Parameter = getattr(mod, param_name)
+
+        if not isinstance(param, Parameter):
+            raise AttributeError("`" + param_name + "` is not an "
+                                 "nn.Parameter")
+
+        return param
     
     def get_buffer(self, target: str) -> "Tensor":
-        return True
+        """
+        Returns the buffer given by ``target`` if it exists,
+        otherwise throws an error.
+
+        See the docstring for ``get_submodule`` for a more detailed
+        explanation of this method's functionality as well as how to
+        correctly specify ``target``.
+
+        Args:
+            target: The fully-qualified string name of the buffer
+                to look for. (See ``get_submodule`` for how to specify a
+                fully-qualified string.)
+
+        Returns:
+            torch.Tensor: The buffer referenced by ``target``
+
+        Raises:
+            AttributeError: If the target string references an invalid
+                path or resolves to something that is not a
+                buffer
+        """
+        module_path, _, buffer_name = target.rpartition(".")
+
+        mod: Module = self.get_submodule(module_path)
+
+        if not hasattr(mod, buffer_name):
+            raise AttributeError(mod._get_name() + " has no attribute `"
+                                 + buffer_name + "`")
+
+        buffer: Tensor = getattr(mod, buffer_name)
+
+        if buffer_name not in mod._buffers:
+            raise AttributeError("`" + buffer_name + "` is not a buffer")
+
+        return buffer
 
     def __getattr__(self, name: str) -> Union[Tensor, 'Module']:
         if '_parameters' in self.__dict__:
@@ -427,7 +683,7 @@ class Module():
 
         main_str += ')'
         return main_str
-        
+
     def __dir__(self):
         module_attrs = dir(self.__class__)
         attrs = list(self.__dict__.keys())
@@ -440,3 +696,15 @@ class Module():
         keys = [key for key in keys if not key[0].isdigit()]
 
         return sorted(keys)
+    
+    
+    def _wrapped_call_impl(self, *args, **kwargs):
+        if self._compiled_call_impl is not None:
+            return self._compiled_call_impl(*args, **kwargs)  # type: ignore[misc]
+        else:
+            return self._call_impl(*args, **kwargs)
+
+    def _call_impl(self, *args, **kwargs):
+        return True
+    
+    __call__ : Callable[..., Any] = _wrapped_call_impl
