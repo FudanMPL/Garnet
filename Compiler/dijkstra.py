@@ -57,9 +57,9 @@ class HeapORAM(object):
     def make_entry(self, value, empty):
         return HeapEntry(self.int_type, (empty,) + value)
     def __setitem__(self, index, value):
-        self.oram.access(index, value.data(), True, new_empty=value.empty)
+        self.oram.access(index, value.data_before_merge(), True, new_empty=value.empty)
     def access(self, index, value, write):
-        tmp = self.oram.access(index, value.data(), write)
+        tmp = self.oram.access(index, value.data_before_merge(), write)
         return self.make_entry(*tmp)
     def delete(self, index, for_real):
         self.oram.delete(index, for_real)
@@ -68,8 +68,8 @@ class HeapORAM(object):
         return self.make_entry(*entry), state
     def add(self, index, entry, state):
         self.oram.add(Entry(MemValue(index), \
-                                [MemValue(i) for i in entry.data()], \
-                                entry.empty), state=state)
+                            [MemValue(i) for i in entry.data_before_merge()], \
+                            entry.empty), state=state)
     def __len__(self):
         return len(self.oram)
 

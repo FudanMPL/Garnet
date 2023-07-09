@@ -1,3 +1,4 @@
-a = sint.get_input_from(0, size=1)
-
-print_ln("a[0] = %s", a[0].reveal())
+a = sint(2, 4)
+b = sint(0, 1)
+c = a * b
+print_ln("c = %s", c.reveal())

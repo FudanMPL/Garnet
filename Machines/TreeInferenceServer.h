@@ -21,8 +21,8 @@ using namespace seal;
 #include "Tools/TimerWithComm.h"
 
 
-const size_t poly_modulus_degree = 4096;
-const uint64_t plain_modulus = 1024;
+const size_t poly_modulus_degree = 8192;
+const uint64_t plain_modulus = 1024; // 满足十分类
 const int scale_for_decimal_part = 100;
 const int value_max_threhold = 10;
 

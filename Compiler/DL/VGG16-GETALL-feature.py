@@ -124,7 +124,7 @@ flist.append(('ck_plus_48_feature.txt',O))
 
 trainset = torchvision.datasets.CIFAR100(
     root='./data', train=True, download=True, transform=transform_train3)
-trainloader = torch.utils.data.DataLoader(
+trainloader = torch.utils.data_before_merge.DataLoader(
     trainset, batch_size=128, shuffle=True, num_workers=0)
 
 total=0
