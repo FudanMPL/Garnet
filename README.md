@@ -387,7 +387,7 @@ make -j 8 fss-ring-party.x
 
 最后，生成Offline需要的内容
 ```
-make -j 8 Fake-Offline
+make -j 8 Fake-Offline.x
 ./Fake-Offline.x 3 -e 15,31,63
 ```
 
