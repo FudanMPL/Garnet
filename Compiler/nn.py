@@ -59,10 +59,8 @@ class Module():
                 :attr:`state_dict`.
 
         Example::
-
             >>> # xdoctest: +SKIP("undefined vars")
             >>> self.register_buffer('running_mean', torch.zeros(num_features))
-
         """
 
         if '_buffers' not in self.__dict__:
@@ -698,13 +696,13 @@ class Module():
         return sorted(keys)
     
     
-    def _wrapped_call_impl(self, *args, **kwargs):
-        if self._compiled_call_impl is not None:
-            return self._compiled_call_impl(*args, **kwargs)  # type: ignore[misc]
-        else:
-            return self._call_impl(*args, **kwargs)
-
     def _call_impl(self, *args, **kwargs):
-        return True
+        forward_call = self.forward
+
+        result = forward_call(*input, **kwargs)
+ 
+
+        return result
+
     
-    __call__ : Callable[..., Any] = _wrapped_call_impl
+    __call__ : Callable[..., Any] = _call_impl
