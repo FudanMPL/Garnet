@@ -525,7 +525,7 @@ Global data sent = 3.42998 MB (all parties)
 模型训练开销Profiling是指给定一个mpc语言描述的机器学习模型训练过程，在编译阶段通过对指令进行分析量化每个算子（全连接层、激活函数层、卷积层等）的通信量与通信轮次，为MPC-Friendly模型的设计提供重要参考。目前Garnet中模型训练开销Profiling支持四种协议，包括SecureML、ABY、ABY3、BGW。
 
 ### 环境配置
-在主目录（/Garnet）下提供了requirements.txt和fine-tuning.yaml用于配置环境，可以在主目录下执行以下命令完成环境配置
+在主目录（/Garnet）下提供了requirements.txt用于配置环境，可以在主目录下执行以下命令完成环境配置.
 
 ```
 pip install -r ./requirements.txt 
@@ -554,7 +554,7 @@ stop_profiling() # stopping model trainging cost profiling
 ```
 随后，在Garnet文件夹下运行如下命令，在包含100条100维数据的数据集上训练一个逻辑回归模型并对其训练开销进行Progfiling，并指定底层协议为ABY3。
 ```
-python compile.py -R 64 split 3 --profiling -Q ABY3 logreg 100 100
+python compile.py -R 64 -Z 3 --profiling -Q ABY3 logreg 100 100
 ```
 输出为
 ```
