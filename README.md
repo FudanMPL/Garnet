@@ -167,7 +167,7 @@ Scripts/ring.sh torch_ckplus48_lenet_selected
 
 
 
-## 运行XGBoost模型安全训练与预测
+## 运行XGBoost模型安全训练
 ### 环境配置
 首先修改CONFIG.mine文件（没有的话需要新建一个，请注意不是CONFIG文件），在开头加入如下一行代码。
 ```
@@ -690,7 +690,19 @@ make -j 6 replicated-ring-party.x
 ./Scripts/ring.sh xgboost-inference
 ```
 
-第二种是使用同态加密进行推理。首先需要保证服务器上已经安装好了微软的seal库，如果没有，则进行安装。如何安装seal库，请参照微软的教程https://github.com/microsoft/SEAL。此外，需要保证能够在/usr/local/opt/seal/lib 下找到安装的seal库文件。即在命令行输入ls /usr/local/opt/seal/lib 应该包含以下这些输出
+第二种是使用同态加密进行推理。首先需要保证服务器上已经安装好了微软的seal库，如果没有，则进行安装。
+
+安装命令如下, 或者参照微软的教程https://github.com/microsoft/SEAL
+```
+git clone https://github.com/microsoft/SEAL.git
+cd SEAL
+cmake -S . -B build -DSEAL_BUILD_EXAMPLES=ON #下载依赖项，如果报错就重新运行，可能是网络问题
+cmake --build build #生成静态库libseal-<version>.a
+sudo cmake --install build #将SEAL添加到/usr/local
+
+```
+
+此外，需要保证能够在/usr/local/opt/seal/lib 下找到安装的seal库文件。即在命令行输入ls /usr/local/opt/seal/lib 应该包含以下这些输出
 
 ```
 cmake                   libhexl.a               libseal.4.1.1.dylib     libseal.4.1.dylib       libseal.dylib           pkgconfig
