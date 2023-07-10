@@ -15,7 +15,15 @@ from typing import List, NamedTuple, Callable, Dict, Optional
 
 
 _name = 1
-
+class Operation(NamedTuple):
+    inputs : List[str]
+    outputs : List[str]
+    
+    # apply chain rule
+    propagate : 'Callable[List[Tensor], List[Tensor]]'
+    # forward : 'Callable[List[Tensor], List[Tensor]]'
+    intermediate : List = [] 
+     
 #sotre of tensors involved in computation process
 tensors  =  {}
 #store of operators invovled in computation process, these operators are topologically sotred
@@ -267,12 +275,84 @@ class Tensor():
         return self
 
     def abs(self):
-        #todo
-        return self
+        # backward
+        @buildingblock(get_program().globalbuildingblock)
+        def propagate(dl_doutputs, operation):
+            dl_dx, = dl_doutputs
+            inputs = operation.inputs
+            inter = operation.intermediate[0] # reuse the inter in mem
+            
+            dl_dself =  dl_d[inputs[0]]
+            dl_dself[:] +=  (2 * inter[:] - 1) * dl_dx[:]
+            dl_dinputs = [dl_dself]
+            return dl_dinputs
+        # forward
+        global op_id
+        if prepare:
+            if isinstance(self, Array):    
+                new_value = Array(self.value.sizes, self.value.value_type)
+                output = Tensor(new_value)
+                inter = Array(self.value.sizes, self.value.value_type)
+            else:
+                new_value = MultiArray(self.value.sizes, self.value.value_type)
+                output = Tensor(new_value)
+                inter = MultiArray(self.value.sizes, self.value.value_type)
+                
+            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=[inter])
+            gradient_operation.append(operation)
+            operation_id = len(gradient_operation) - 1
+                
+            op_id_store[op_id] = operation_id
+            op_id += 1
+        else:
+            operation = gradient_operation[op_id_store[op_id]]
+            inputs = operation.inputs
+            outputs = operation.outputs
+            
+            input = tensors[inputs[0]]
+            output = tensors[outputs[0]]
+            
+            c = input.value[:] > 0
+            operation.intermediate[0].assign_vector(c) # write to mem
+            
+            output.value[:] = (2*c-1) * input.value[:]    
+            op_id += 1
+        # record the input and output of the op
+        return output
 
     def exp(self):
-        #todo
-        return self
+        # backward
+        @buildingblock(get_program().globalbuildingblock)
+        def propagate(dl_doutputs, operation):
+            dl_dx, = dl_doutputs
+            inputs = operation.inputs
+            outputs = operation.outputs
+            output = dl_d[outputs[0]]
+            dl_dself = dl_d[inputs[0]]
+            dl_dself[:] += output[:] * dl_dx[:]
+            dl_dinputs = [dl_dself]
+            return dl_dinputs
+        # forward
+        global op_id
+        if prepare:    
+            new_value = MultiArray(self.value.sizes, self.value.value_type)
+            output = Tensor(new_value)
+            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
+            gradient_operation.append(operation)
+            operation_id = len(gradient_operation) - 1
+            
+            op_id_store[op_id] = operation_id
+            op_id += 1
+        else:
+            operation = gradient_operation[op_id_store[op_id]]
+            inputs = operation.inputs
+            outputs = operation.outputs
+            input = tensors[inputs[0]]
+            output = tensors[outputs[0]]
+            output.value[:] = mpc_math.pow_fx(math.e, input.value[:])
+            op_id += 1
+        # record the input and output of the op
+        return output
 
     def log(self):
         #todo
@@ -336,10 +416,5 @@ def add_operation(operation):
     gradient_operation.append(operation)
 
 
-class Operation(NamedTuple):
-    inputs : List[str]
-    outputs : List[str]
-    # apply chain rule
-    propagate : 'Callable[List[Tensor], List[Tensor]]'
-    # forward : 'Callable[List[Tensor], List[Tensor]]'
+
 
