@@ -702,11 +702,7 @@ sudo cmake --install build #将SEAL添加到/usr/local
 
 ```
 
-此外，需要保证能够在/usr/local/opt/seal/lib 下找到安装的seal库文件。即在命令行输入ls /usr/local/opt/seal/lib 应该包含以下这些输出
 
-```
-cmake                   libhexl.a               libseal.4.1.1.dylib     libseal.4.1.dylib       libseal.dylib           pkgconfig
-```
 
 之后运行以下命令进行编译虚拟机
 
