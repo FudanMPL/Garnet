@@ -9,14 +9,13 @@ y = MultiArray([i, j], sfix)
 y.assign_all(5)
 input1 = Tensor(x)
 input2 = Tensor(y)
-input3 = input1 *input2
+input3 = Tensor.sin(input1)
 
 tensor.train()
 tensor.reset_op_id()
 
-input3 = input1 *input2
+input3 = Tensor.sin(input1)
 
 input3.backward()
 input1.grad.print_reveal_nested()
 input2.grad.print_reveal_nested()
-

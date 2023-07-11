@@ -1,6 +1,6 @@
 import math
 import re
-from turtle import forward, shape
+# from turtle import forward, shape
 
 from Compiler import mpc_math, util
 from Compiler.types import *
@@ -11,7 +11,7 @@ from Compiler.comparison import CarryOutRawLE
 from Compiler.GC.types import sbitint
 from functools import reduce
 from typing import List, NamedTuple, Callable, Dict, Optional
-
+import numpy as np
 
 _name = 1
 
@@ -79,13 +79,72 @@ def element_wise_mul(self, other):
         input2 = tensors[inputs[1]]
         output = tensors[outputs[0]]
         output.value[:] = input1.value[:] * input2.value[:] #todo        
-        op_id += 1
-
-    # record the input and output of the op
+        op_id += 1# record the input and output of the op
     return output
 
-def mat_mul(self, other):
+def ops_abs(self):
+    @buildingblock(get_program().globalbuildingblock)
+    def propagate(dl_doutputs,tape):
+        dl_dx, = dl_doutputs
+        # inputs = tape.inputs
+        dx_dself = Tensor((self.value))
+        dl_dself = dl_dx * dx_dself
+        return [dl_dself]
 
+    if prepare:
+        new_value=MultiArray([self.value.sizes[0], self.value.sizes[1]],self.value.value_type)
+        output = Tensor(new_value)
+        tape=Tape(inputs=[self.name],outputs=[output.name],propagate=propagate)
+        gradient_tape.append(tape)
+        tape_id = len(gradient_tape) - 1
+        global op_id
+        op_id_store[op_id] = tape_id
+        op_id+=1
+    else:
+        tape=gradient_tape[op_id_store[op_id]]
+        inputs=tape.inputs
+        outputs=tape.outputs
+        input=tensors[inputs[0]]
+        output=tensors[outputs[0]]
+        
+
+        
+        op_id+=1
+    return output
+
+
+
+def ops_sin(self):
+    @buildingblock(get_program().globalbuildingblock)
+    def propagate(dl_doutputs,tape):
+        dl_dx, = dl_doutputs
+        # inputs = tape.inputs
+        dx_dself = Tensor(mpc_math.scos(self.value))
+        dl_dself = dl_dx * dx_dself
+        return [dl_dself]
+
+    if prepare:
+        new_value=MultiArray([self.value.sizes[0], self.value.sizes[1]],self.value.value_type)
+        output = Tensor(new_value)
+        tape=Tape(inputs=[self.name],outputs=[output.name],propagate=propagate)
+        gradient_tape.append(tape)
+        tape_id = len(gradient_tape) - 1
+        global op_id
+        op_id_store[op_id] = tape_id
+        op_id+=1
+    else:
+        tape=gradient_tape[op_id_store[op_id]]
+        inputs=tape.inputs
+        outputs=tape.outputs
+        input=tensors[inputs[0]]
+        output=tensors[outputs[0]]
+        output.value[:]=Tensor(mpc_math.ssin(self.value))
+        op_id+=1
+    return output
+
+
+
+def mat_mul(self, other):
     @buildingblock(get_program().globalbuildingblock)
     def propagate(dl_doutputs, tape):
         dl_dx, = dl_doutputs
@@ -270,7 +329,7 @@ class Tensor():
 
     def abs(self):
         #todo
-        return self
+        return ops_abs(self)
 
     def exp(self):
         #todo
@@ -289,8 +348,9 @@ class Tensor():
         return self
 
     def sin(self):
+        return ops_sin(self)
         #todo
-        return self
+        # return self
 
     def mean(self):
         #todo
