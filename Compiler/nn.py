@@ -4,7 +4,17 @@ import functools
 from collections import OrderedDict, namedtuple
 from typing import Union, Tuple, Any, Callable, Iterator, Set, Optional, overload, TypeVar, Mapping, Dict, List
 from tensor import Tensor
+import math
+import re
 
+from Compiler import mpc_math, util
+from Compiler.types import *
+from Compiler.types import _unreduced_squant
+from Compiler.library import *
+from Compiler.util import is_zero, tree_reduce
+from Compiler.comparison import CarryOutRawLE
+from Compiler.GC.types import sbitint
+from functools import reduce
 
 def _addindent(s_, numSpaces):
     s = s_.split('\n')
@@ -59,10 +69,8 @@ class Module():
                 :attr:`state_dict`.
 
         Example::
-
             >>> # xdoctest: +SKIP("undefined vars")
             >>> self.register_buffer('running_mean', torch.zeros(num_features))
-
         """
 
         if '_buffers' not in self.__dict__:
@@ -698,13 +706,13 @@ class Module():
         return sorted(keys)
     
     
-    def _wrapped_call_impl(self, *args, **kwargs):
-        if self._compiled_call_impl is not None:
-            return self._compiled_call_impl(*args, **kwargs)  # type: ignore[misc]
-        else:
-            return self._call_impl(*args, **kwargs)
-
     def _call_impl(self, *args, **kwargs):
-        return True
+        forward_call = self.forward
+        break_point()
+        result = forward_call(*args, **kwargs)
+        break_point()
+
+        return result
+
     
-    __call__ : Callable[..., Any] = _wrapped_call_impl
+    __call__ : Callable[..., Any] = _call_impl
