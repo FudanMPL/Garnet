@@ -4,7 +4,17 @@ import functools
 from collections import OrderedDict, namedtuple
 from typing import Union, Tuple, Any, Callable, Iterator, Set, Optional, overload, TypeVar, Mapping, Dict, List
 from tensor import Tensor
+import math
+import re
 
+from Compiler import mpc_math, util
+from Compiler.types import *
+from Compiler.types import _unreduced_squant
+from Compiler.library import *
+from Compiler.util import is_zero, tree_reduce
+from Compiler.comparison import CarryOutRawLE
+from Compiler.GC.types import sbitint
+from functools import reduce
 
 def _addindent(s_, numSpaces):
     s = s_.split('\n')
@@ -698,9 +708,9 @@ class Module():
     
     def _call_impl(self, *args, **kwargs):
         forward_call = self.forward
-
-        result = forward_call(*input, **kwargs)
- 
+        break_point()
+        result = forward_call(*args, **kwargs)
+        break_point()
 
         return result
 

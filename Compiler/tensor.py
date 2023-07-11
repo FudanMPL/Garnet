@@ -15,7 +15,13 @@ from typing import List, NamedTuple, Callable, Dict, Optional
 
 
 _name = 1
+class Operation(NamedTuple):
+    inputs : List[str]
+    outputs : List[str]
+    # apply chain rule
+    propagate : 'Callable[List[Tensor], List[Tensor]]'
 
+    # forward : 'Callable[List[Tensor], List[Tensor]]'
 #sotre of tensors involved in computation process
 tensors  =  {}
 #store of operators invovled in computation process, these operators are topologically sotred
@@ -336,10 +342,5 @@ def add_operation(operation):
     gradient_operation.append(operation)
 
 
-class Operation(NamedTuple):
-    inputs : List[str]
-    outputs : List[str]
-    # apply chain rule
-    propagate : 'Callable[List[Tensor], List[Tensor]]'
-    # forward : 'Callable[List[Tensor], List[Tensor]]'
+
 
