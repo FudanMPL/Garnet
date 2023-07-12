@@ -14,3 +14,5 @@ torchvision==0.13.1
 tqdm==4.64.1
 matplotlib
 turtle
+scipy==1.11.1
+sympy==1.11.1
