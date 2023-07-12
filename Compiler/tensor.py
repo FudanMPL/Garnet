@@ -192,6 +192,8 @@ class Tensor():
             dl_d[self.name] = self.grad
             tensors[self.name] = self
 
+
+
     def set_req_grad(self, req_grad):
         self.req_grad = req_grad
 
@@ -597,7 +599,11 @@ class Tensor():
 # reset operation
 def reset_gloabal_store():
     gradient_operation.clear()
+    for tensor in tensors:
+        tensor.delete()    
     tensors.clear()
+    for grad in dl_d:
+        grad.delete()
     dl_d.clear()
     op_id_store.clear()
 
