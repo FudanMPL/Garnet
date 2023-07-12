@@ -33,8 +33,40 @@ _global_buffer_registration_hooks: Dict[int, Callable] = OrderedDict()
 _global_module_registration_hooks: Dict[int, Callable] = OrderedDict()
 _global_parameter_registration_hooks: Dict[int, Callable] = OrderedDict()
 class Parameter(Tensor):
-    def   __init__(self):
-        self.s = True
+    r"""A kind of Tensor that is to be considered a module parameter.
+
+    Parameters are :class:`~torch.Tensor` subclasses, that have a
+    very special property when used with :class:`Module` s - when they're
+    assigned as Module attributes they are automatically added to the list of
+    its parameters, and will appear e.g. in :meth:`~Module.parameters` iterator.
+    Assigning a Tensor doesn't have such effect. This is because one might
+    want to cache some temporary state, like last hidden state of the RNN, in
+    the model. If there was no such class as :class:`Parameter`, these
+    temporaries would get registered too.
+
+    Args:
+        data (Tensor): parameter tensor.
+        requires_grad (bool, optional): if the parameter requires gradient. Note that
+            the torch.no_grad() context does NOT affect the default behavior of
+            Parameter creation--the Parameter will still have `requires_grad=True` in
+            :class:`~no_grad` mode. See :ref:`locally-disable-grad-doc` for more
+            details. Default: `True`
+    """
+    def __new__(cls, data=None, requires_grad=True):
+        if data is None:
+            raise RuntimeError(f"Data cannot be None when creating Parameters")
+        if type(data) is Tensor or type(data) is Parameter:
+            # For ease of BC maintenance, keep this path for standard Tensor.
+            # Eventually (tm), we should change the behavior for standard Tensor to match.
+            data.set_req_grad(requires_grad)
+            return data
+        else:
+            raise RuntimeError(f"Parameter can only be created from tensor or parameter")
+            
+    def __repr__(self):
+        return 'Parameter containing:\n' + super().__repr__()
+
+
 
 
 class Module():
