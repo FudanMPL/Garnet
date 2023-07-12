@@ -2306,6 +2306,7 @@ class Optimizer:
             corners = [x[i] for i in (0, len(x) // 2 - 1, -1)]
         print_ln('corners:%s shape:%s', util.reveal(corners), tensor.shape)
 
+    @buildingblock("Update")
     def update(self, i_epoch, i_batch, batch):
         if self.output_grad:
             @if_(i_batch % 100 == 0)
@@ -2808,7 +2809,7 @@ class SGD(Optimizer):
             y.assign_all(0)
         super(SGD, self).reset()
 
-    @buildingblock("Update")
+    
     def _update(self, i_epoch, i_batch, batch):
         for nabla, theta, delta_theta in zip(self.nablas, self.thetas,
                                              self.delta_thetas):
