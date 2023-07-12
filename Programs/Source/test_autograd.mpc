@@ -160,5 +160,5 @@ def test_mean():
 #test_exp()
 #test_log()
 #test_pow(3)
-#test_sum()
-test_mean()
+test_sum()
+#test_mean()

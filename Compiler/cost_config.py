@@ -63,7 +63,10 @@ class Cost(object):
                 m = re.match('f([0-9]+)$', arg)
         if m:
                 cls.f = int(m.group(1))
-        cls.bit_length = program.bit_length
+        if program.options.ring:
+            cls.bit_length = program.bit_length+1
+        else:
+            cls.bit_length = program.bit_length
         cls._security = program._security
         cls.n_parties = program.n_parties
         cls.program = program
