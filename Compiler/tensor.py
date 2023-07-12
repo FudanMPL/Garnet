@@ -2,8 +2,7 @@ from glob import glob
 import math
 import re
 import numpy as np
-from turtle import forward, shape
-
+# from turtle import forward, shape
 from Compiler import mpc_math, util
 from Compiler.types import *
 from Compiler.types import _unreduced_squant
@@ -13,7 +12,7 @@ from Compiler.comparison import CarryOutRawLE
 from Compiler.GC.types import sbitint
 from functools import reduce
 from typing import List, NamedTuple, Callable, Dict, Optional
-
+import numpy as np
 
 _name = 1
 class Operation(NamedTuple):
@@ -30,7 +29,7 @@ tensors  =  {}
 #store of operators invovled in computation process, these operators are topologically sotred
 gradient_operation : List[Operation] = []
 #sotre of gradients involved in computation process, their types are tensors without gradient
-dl_d =  {}
+dl_d  =  {}
 #the flag indicates whether initialize gradients for tensors
 is_train = True
 #the flag indicated that we are in prepration phase, i.e. initialize inputs and outputs for each operators
@@ -89,13 +88,41 @@ def element_wise_mul(self, other):
         input2 = tensors[inputs[1]]
         output = tensors[outputs[0]]
         output.value[:] = input1.value[:] * input2.value[:] #todo        
-        op_id += 1
-
-    # record the input and output of the op
+        op_id += 1# record the input and output of the op
     return output
 
-def mat_mul(self, other):
 
+def ops_sin(self):
+    @buildingblock(get_program().globalbuildingblock)
+    def propagate(dl_doutputs,tape):
+        dl_dx, = dl_doutputs
+        # inputs = tape.inputs
+        dx_dself = Tensor(mpc_math.scos(self.value))
+        dl_dself = dl_dx * dx_dself
+        return [dl_dself]
+
+    if prepare:
+        new_value=MultiArray([self.value.sizes[0], self.value.sizes[1]],self.value.value_type)
+        output = Tensor(new_value)
+        tape=Tape(inputs=[self.name],outputs=[output.name],propagate=propagate)
+        gradient_tape.append(tape)
+        tape_id = len(gradient_tape) - 1
+        global op_id
+        op_id_store[op_id] = tape_id
+        op_id+=1
+    else:
+        tape=gradient_tape[op_id_store[op_id]]
+        inputs=tape.inputs
+        outputs=tape.outputs
+        input=tensors[inputs[0]]
+        output=tensors[outputs[0]]
+        output.value[:]=Tensor(mpc_math.ssin(self.value))
+        op_id+=1
+    return output
+
+
+
+def mat_mul(self, other):
     @buildingblock(get_program().globalbuildingblock)
     def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
@@ -173,7 +200,7 @@ class Tensor():
         assert isinstance(value, Array) or isinstance(value, MultiArray)
         self.value = value
         self.name = name or fresh_name()
-        self.shape = value.sizes
+        self.shape = value.length if isinstance(value, Array) else value.sizes
         self.req_grad = req_grad
         if is_train and not is_grad:
             self.grad = self.value.same_shape()
@@ -286,7 +313,6 @@ class Tensor():
             dl_dx, = dl_doutputs
             inputs = operation.inputs
             inter = operation.intermediate[0] # reuse the intervalue in mem
-            
             dl_dself =  dl_d[inputs[0]]
             dl_dself[:] +=  (2 * inter[:] - 1) * dl_dx[:]
             dl_dinputs = [dl_dself]
@@ -302,11 +328,9 @@ class Tensor():
                 new_value = MultiArray(self.value.sizes, self.value.value_type)
                 output = Tensor(new_value)
                 inter = MultiArray(self.value.sizes, self.value.value_type)
-                
             operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=[inter])
             gradient_operation.append(operation)
             operation_id = len(gradient_operation) - 1
-                
             op_id_store[op_id] = operation_id
             op_id += 1
         else:
@@ -350,7 +374,6 @@ class Tensor():
             operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=[inter])
             gradient_operation.append(operation)
             operation_id = len(gradient_operation) - 1
-            
             op_id_store[op_id] = operation_id
             op_id += 1
         else:
@@ -364,7 +387,6 @@ class Tensor():
             operation.intermediate[0].assign_vector(ex)
             
             output.value[:] = ex
-            
             op_id += 1
         # record the input and output of the op
         return output
@@ -381,6 +403,8 @@ class Tensor():
             return dl_dinputs
         # forward
         global op_id
+
+
         if prepare:    
             if isinstance(self, Array):    
                 new_value = Array(self.value.sizes, self.value.value_type)
@@ -454,8 +478,37 @@ class Tensor():
         return self
 
     def sin(self):
-        #todo
-        return self
+        @buildingblock(get_program().globalbuildingblock)
+        def propagate(dl_doutputs,operation): #dl_outputs is Tensor.value
+            dl_dx,=dl_doutputs
+            dl_dself=dl_d[self.name]
+            dl_dself[:] += dl_dx[:]*mpc_math.cos(self.value[:])
+        global op_id
+        if prepare:
+            if isinstance(self.value,Array): #Array is instance of tensor?
+                new_value=Array(self.value.length,self.value.value_type) #
+                output=Tensor(new_value)
+            else:
+                new_value=MultiArray(self.value.sizes,self.value.value_type)
+                output=Tensor(new_value)
+            operation=Operation(inputs=[self.name],outputs=[output.name],propagate=propagate)
+            gradient_operation.append(operation)
+            operation_id=len(gradient_operation)-1
+            op_id_store[op_id]=operation_id
+            op_id+=1
+        else:
+            operation=gradient_operation[op_id_store[op_id]]
+            inputs=operation.inputs
+            outputs=operation.outputs
+            input = tensors[inputs[0]] #input is Tensor
+            output = tensors[outputs[0]]
+            output.value[:]=mpc_math.sin(input.value[:])
+            op_id+=1
+            return output
+
+                
+            
+
 
     def mean(self):
         # backward
