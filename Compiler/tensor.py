@@ -585,13 +585,13 @@ class Tensor():
         def propagate(dl_doutputs, operation):
             dl_dx, = dl_doutputs
             inputs = operation.inputs
+            inter = operation.intermediate[0] # reuse the intervalue in mem
             dl_dself = dl_d[inputs[0]]
             
             num = 1
             for si in self.value.sizes:
                 num = num * si
-            
-            dl_dself[:] += dl_dx[0] / num
+            dl_dself[:] += 2 * inter[:] * dl_dx[0] / num
             dl_dinputs = [dl_dself]
             return dl_dinputs
         # forward
@@ -621,7 +621,7 @@ class Tensor():
                 num = num * si
             mean = sum(input.value[:]) / num
             dmean = input.value[:] - mean
-            output.value[:] = sum(dmean ** 2)
+            output.value[:] = sum(dmean ** 2) / num
             
             operation.intermediate[0].assign_vector(dmean)
             
