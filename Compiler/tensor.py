@@ -162,7 +162,11 @@ def ops_sub(self, other):
     gradient_operation.append(operation)
     return x
 
+# def compare_shape(shape1, shape2):
+#     if len(shape1) == len(shape2):
 
+#     else:
+#         return -1
 
 class Tensor():
     def __init__(self, value, name=None, req_grad = False, is_grad = False):

@@ -5447,6 +5447,7 @@ class Array(_vectorizable):
         value_type = _get_type(value_type)
         self.address = address
         self.length = length
+        self.sizes = [length]
         self.value_type = value_type
         self.address = address
         self.address_cache = {}
