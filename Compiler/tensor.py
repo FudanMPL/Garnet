@@ -40,23 +40,7 @@ op_id = 0
 op_id_store = {}
 
 
-def fresh_name():
-    global _name
-    name = f'v{_name}'
-    _name += 1
-    return name
 
-def train():
-    global prepare
-    prepare = False
-
-def same_shape(sizes1, sizes2):
-    if len(sizes1) != len(sizes2):
-        return False
-    for i in range(0, len(sizes1)):
-        if sizes1[i] != sizes2[i]:
-            return False
-    return True
 
 def element_wise_mul(self, other):
     # backward
@@ -218,6 +202,9 @@ class Tensor():
         return var
 
     def backward(self):
+        global prepare
+        if prepare:
+            return 0
         length = len(gradient_operation)
         index = 0
         dl_d[self.name].assign_all(1)
@@ -320,8 +307,8 @@ class Tensor():
         # forward
         global op_id
         if prepare:
-            if isinstance(self, Array):    
-                new_value = Array(self.value.sizes, self.value.value_type)
+            if isinstance(self.value, Array):    
+                new_value = Array(self.value.length, self.value.value_type)
                 output = Tensor(new_value)
                 inter = Array(self.value.sizes, self.value.value_type)
             else:
@@ -363,8 +350,8 @@ class Tensor():
         # forward
         global op_id
         if prepare:    
-            if isinstance(self, Array):    
-                new_value = Array(self.value.sizes, self.value.value_type)
+            if isinstance(self.value, Array):    
+                new_value = Array(self.value.length, self.value.value_type)
                 output = Tensor(new_value)
                 inter = Array(self.value.sizes, self.value.value_type)
             else:
@@ -406,8 +393,8 @@ class Tensor():
 
 
         if prepare:    
-            if isinstance(self, Array):    
-                new_value = Array(self.value.sizes, self.value.value_type)
+            if isinstance(self.value, Array):    
+                new_value = Array(self.value.length, self.value.value_type)
                 output = Tensor(new_value)
                 # inter = Array(self.value.sizes, self.value.value_type)
             else:
@@ -446,8 +433,8 @@ class Tensor():
         # forward
         global op_id
         if prepare:    
-            if isinstance(self, Array):    
-                new_value = Array(self.value.sizes, self.value.value_type)
+            if isinstance(self.value, Array):    
+                new_value = Array(self.value.length, self.value.value_type)
                 output = Tensor(new_value)
                 # inter = Array(self.value.sizes, self.value.value_type)
             else:
@@ -651,8 +638,11 @@ class Tensor():
 
     
 # reset operation
-def reset_operation():
+def reset_gloabal_store():
     gradient_operation.clear()
+    tensors.clear()
+    dl_d.clear()
+    op_id_store.clear()
 
 #call this function after each iteration
 def reset_op_id():
@@ -671,6 +661,36 @@ def add_operation(operation):
     global gradient_operation
     gradient_operation.append(operation)
 
+def fresh_name():
+    global _name
+    name = f'v{_name}'
+    _name += 1
+    return name
+
+def train():
+    global prepare
+    prepare = False
+
+def untrain():
+    global prepare
+    prepare = True
+
+def same_shape(sizes1, sizes2):
+    if len(sizes1) != len(sizes2):
+        return False
+    for i in range(0, len(sizes1)):
+        if sizes1[i] != sizes2[i]:
+            return False
+    return True
+
+def autograd_function(func):
+    def wrapper(*args, **kw):
+        func(*args, **kw)
+        untrain()
+        reset_op_id()
+        reset_gloabal_store()
+    copy_doc(wrapper, func)
+    return wrapper
 
 
 
