@@ -1,4 +1,5 @@
-import tensor as tensor
+import Compiler.tensor as tensor
+
 def relu(input):
      return input
 
