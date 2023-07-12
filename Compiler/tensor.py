@@ -517,8 +517,12 @@ class Tensor():
             dl_dx, = dl_doutputs
             inputs = operation.inputs
             dl_dself = dl_d[inputs[0]]
+            
+            num = 1
             for si in self.value.sizes:
-                dl_dself[:] += dl_dx[0] / si
+                num = num * si
+            
+            dl_dself[:] += dl_dx[0] / num
             dl_dinputs = [dl_dself]
             return dl_dinputs
         # forward
@@ -540,9 +544,10 @@ class Tensor():
             input = tensors[inputs[0]]
             output = tensors[outputs[0]]
 
-            output.value[:] = sum(input.value[:])
+            num = 1
             for si in self.value.sizes:
-                output.value[:] =  output.value[:] / si
+                num = num * si
+            output.value[:] = sum(input.value[:]) / num
             
             op_id += 1
         # record the input and output of the op
