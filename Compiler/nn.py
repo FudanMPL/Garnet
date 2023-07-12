@@ -603,7 +603,11 @@ class Module():
         self.training = mode
         for module in self.children():
             module.train(mode)
-        return self    
+        return self   
+
+    def setup(self, data_loader):
+        #todo, setup tensor space of the model, call it before training or evaluation
+        return self 
 
     def requires_grad_(self: T, requires_grad: bool = True) -> T:
         r"""Change if autograd should record operations on parameters in this

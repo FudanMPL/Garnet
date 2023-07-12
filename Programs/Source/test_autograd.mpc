@@ -1,8 +1,8 @@
-from tensor import Tensor
+from tensor import Tensor,autograd_function
 import tensor
 program.options_from_args()
 
-
+@autograd_function
 def test_mul():
     i, j = 3, 3
     x = MultiArray([i, j], sfix)
@@ -24,9 +24,8 @@ def test_mul():
     input3.backward()
     input1.grad.print_reveal_nested()
     input2.grad.print_reveal_nested()
-    tensor.reset_op_id()
-    tensor.reset_operation()
 
+@autograd_function
 def test_abs():
     i, j = 3, 3
     x = MultiArray([i, j], sfix)
@@ -47,9 +46,8 @@ def test_abs():
     input2.backward()
     
     input1.grad.print_reveal_nested()
-    tensor.reset_op_id()
-    tensor.reset_operation()
 
+@autograd_function
 def test_exp():
     i, j = 3, 3
     x = MultiArray([i, j], sfix)
@@ -68,9 +66,8 @@ def test_exp():
     input2.backward()
     input2.value.print_reveal_nested()
     input1.grad.print_reveal_nested()
-    tensor.reset_op_id()
-    tensor.reset_operation()
 
+@autograd_function
 def test_log():
     i, j = 3, 3
     x = MultiArray([i, j], sfix)
@@ -89,9 +86,8 @@ def test_log():
     input2.backward()
     input2.value.print_reveal_nested()
     input1.grad.print_reveal_nested()
-    tensor.reset_op_id()
-    tensor.reset_operation()
 
+@autograd_function
 def test_pow(pow):
     i, j = 3, 3
     x = MultiArray([i, j], sfix)
@@ -110,9 +106,8 @@ def test_pow(pow):
     input2.backward()
     input2.value.print_reveal_nested()
     input1.grad.print_reveal_nested()
-    tensor.reset_op_id()
-    tensor.reset_operation()
 
+@autograd_function
 def test_sum():
     i, j = 3, 3
     x = MultiArray([i, j], sfix)
@@ -131,9 +126,8 @@ def test_sum():
     input2.backward()
     input2.value.print_reveal_nested()
     input1.grad.print_reveal_nested()
-    tensor.reset_op_id()
-    tensor.reset_operation()
 
+@autograd_function
 def test_mean():
     i, j = 3, 3
     x = MultiArray([i, j], sfix)
@@ -152,13 +146,12 @@ def test_mean():
     input2.backward()
     input2.value.print_reveal_nested()
     input1.grad.print_reveal_nested()
-    tensor.reset_op_id()
-    tensor.reset_operation()
 
-#test_mul()
-#test_abs()
-#test_exp()
-#test_log()
-#test_pow(3)
+
+test_mul()
+test_abs()
+test_exp()
+test_log()
+test_pow(3)
 test_sum()
 #test_mean()
