@@ -1800,8 +1800,9 @@ class sendpersonal(base.Instruction, base.Mergeable):
 
     def add_usage(self, req_node):
         num_bits = 0
+        config = program.cost_config
         for i in range(0, len(self.args), 5):
-            num_bits += program.bit_length * args[i]
+            num_bits += config.bit_length * args[i]
         req_node.increment(('online communication', 'bits'), num_bits)
         req_node.increment(('online', 'round'), 1)
         req_node.increment(('offline', 'round'), 0)
