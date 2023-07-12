@@ -645,11 +645,11 @@ class Tensor():
 # reset operation
 def reset_gloabal_store():
     gradient_operation.clear()
-    for tensor in tensors:
-        tensor.delete()    
+    for key, item in tensors.items():
+        item.value.delete()    
     tensors.clear()
-    for grad in dl_d:
-        grad.delete()
+    for key, item in dl_d.items():
+        item.delete()
     dl_d.clear()
     op_id_store.clear()
 
