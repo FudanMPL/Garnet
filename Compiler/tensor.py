@@ -398,18 +398,52 @@ class Tensor():
             outputs = operation.outputs
             input = tensors[inputs[0]]
             output = tensors[outputs[0]]
-            
-            logx = mpc_math.log_fx(input.value[:], base)
-            
-            output.value[:] = logx
+
+            output.value[:] = mpc_math.log_fx(input.value[:], base)
             
             op_id += 1
         # record the input and output of the op
         return output
 
     def pow(self, pow):
-        #todo
-        return self
+        # backward
+        @buildingblock(get_program().globalbuildingblock)
+        def propagate(dl_doutputs, operation):
+            dl_dx, = dl_doutputs
+            inputs = operation.inputs
+            dl_dself = dl_d[inputs[0]]
+            dl_dself[:] += pow * mpc_math.pow_fx(self.value[:], pow-1) * dl_dx[:]
+            dl_dinputs = [dl_dself]
+            return dl_dinputs
+        # forward
+        global op_id
+        if prepare:    
+            if isinstance(self, Array):    
+                new_value = Array(self.value.sizes, self.value.value_type)
+                output = Tensor(new_value)
+                # inter = Array(self.value.sizes, self.value.value_type)
+            else:
+                new_value = MultiArray(self.value.sizes, self.value.value_type)
+                output = Tensor(new_value)
+                # inter = MultiArray(self.value.sizes, self.value.value_type)
+            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
+            gradient_operation.append(operation)
+            operation_id = len(gradient_operation) - 1
+            
+            op_id_store[op_id] = operation_id
+            op_id += 1
+        else:
+            operation = gradient_operation[op_id_store[op_id]]
+            inputs = operation.inputs
+            outputs = operation.outputs
+            input = tensors[inputs[0]]
+            output = tensors[outputs[0]]
+            
+            output.value[:] = mpc_math.pow_fx(input.value[:], pow)
+            
+            op_id += 1
+        # record the input and output of the op
+        return output
 
     def cos(self):
         #todo
