@@ -106,19 +106,85 @@ def test_single_operation(func,Value):
     Value.print_reveal_nested()
     input = Tensor(Value)
     output = getattr(input, func)() 
+def test_pow(pow):
+    i, j = 3, 3
+    x = MultiArray([i, j], sfix)
+    for i in range(0,3):
+        for  j in range(0,3):
+            x[i][j] = sfix(i+j)
+    x.print_reveal_nested()
+    input1 = Tensor(x)
+
+    input2 = input1.pow(pow)
 
     tensor.train()
     tensor.reset_op_id()
 
+    input2 = input1.pow(pow)
+    input2.backward()
+    input2.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+    tensor.reset_op_id()
+    tensor.reset_operation()
+
+def test_sum():
+    i, j = 3, 3
+    x = MultiArray([i, j], sfix)
+    for i in range(0,3):
+        for  j in range(0,3):
+            x[i][j] = sfix(i+j)
+    x.print_reveal_nested()
+    input1 = Tensor(x)
+
+    input2 = input1.sum()
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    input2 = input1.sum()
+    input2.backward()
+    input2.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+    tensor.reset_op_id()
+    tensor.reset_operation()
+
+def test_mean():
+    i, j = 3, 3
+    x = MultiArray([i, j], sfix)
+    for i in range(0,3):
+        for  j in range(0,3):
+            x[i][j] = sfix(i+j)
+    x.print_reveal_nested()
+    input1 = Tensor(x)
+
+    input2 = input1.mean()
+
+    tensor.train()
+    tensor.reset_op_id()
+
+<<<<<<< HEAD
     output = getattr(input, func)()
     output.backward()
     output.value.print_reveal_nested()
     input.grad.print_reveal_nested()
+=======
+    input2 = input1.mean()
+    input2.backward()
+    input2.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+>>>>>>> ff8c0bd5642dfe33fe0016599dbf8bc0d8bafbc4
     tensor.reset_op_id()
     tensor.reset_operation()
 
 #test_mul()
 #test_abs()
 #test_exp()
+<<<<<<< HEAD
 test_log()
 #test_sin()
+=======
+#test_log()
+#test_pow(3)
+test_sum()
+#test_mean()
+>>>>>>> ff8c0bd5642dfe33fe0016599dbf8bc0d8bafbc4

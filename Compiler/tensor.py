@@ -189,7 +189,11 @@ def ops_sub(self, other):
     gradient_operation.append(operation)
     return x
 
+# def compare_shape(shape1, shape2):
+#     if len(shape1) == len(shape2):
 
+#     else:
+#         return -1
 
 class Tensor():
     def __init__(self, value, name=None, req_grad = False, is_grad = False):
@@ -422,18 +426,52 @@ class Tensor():
             outputs = operation.outputs
             input = tensors[inputs[0]]
             output = tensors[outputs[0]]
-            
-            logx = mpc_math.log_fx(input.value[:], base)
-            
-            output.value[:] = logx
+
+            output.value[:] = mpc_math.log_fx(input.value[:], base)
             
             op_id += 1
         # record the input and output of the op
         return output
 
     def pow(self, pow):
-        #todo
-        return self
+        # backward
+        @buildingblock(get_program().globalbuildingblock)
+        def propagate(dl_doutputs, operation):
+            dl_dx, = dl_doutputs
+            inputs = operation.inputs
+            dl_dself = dl_d[inputs[0]]
+            dl_dself[:] += pow * mpc_math.pow_fx(self.value[:], pow-1) * dl_dx[:]
+            dl_dinputs = [dl_dself]
+            return dl_dinputs
+        # forward
+        global op_id
+        if prepare:    
+            if isinstance(self, Array):    
+                new_value = Array(self.value.sizes, self.value.value_type)
+                output = Tensor(new_value)
+                # inter = Array(self.value.sizes, self.value.value_type)
+            else:
+                new_value = MultiArray(self.value.sizes, self.value.value_type)
+                output = Tensor(new_value)
+                # inter = MultiArray(self.value.sizes, self.value.value_type)
+            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
+            gradient_operation.append(operation)
+            operation_id = len(gradient_operation) - 1
+            
+            op_id_store[op_id] = operation_id
+            op_id += 1
+        else:
+            operation = gradient_operation[op_id_store[op_id]]
+            inputs = operation.inputs
+            outputs = operation.outputs
+            input = tensors[inputs[0]]
+            output = tensors[outputs[0]]
+            
+            output.value[:] = mpc_math.pow_fx(input.value[:], pow)
+            
+            op_id += 1
+        # record the input and output of the op
+        return output
 
     def cos(self):
         #todo
@@ -473,12 +511,77 @@ class Tensor():
 
 
     def mean(self):
-        #todo
-        return self
+        # backward
+        @buildingblock(get_program().globalbuildingblock)
+        def propagate(dl_doutputs, operation):
+            dl_dx, = dl_doutputs
+            inputs = operation.inputs
+            dl_dself = dl_d[inputs[0]]
+            for si in self.value.sizes:
+                dl_dself[:] += dl_dx[0] / si
+            dl_dinputs = [dl_dself]
+            return dl_dinputs
+        # forward
+        global op_id
+        if prepare:    
+            new_value = Array(1, self.value.value_type)
+            output = Tensor(new_value)
+            
+            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
+            gradient_operation.append(operation)
+            operation_id = len(gradient_operation) - 1
+            
+            op_id_store[op_id] = operation_id
+            op_id += 1
+        else:
+            operation = gradient_operation[op_id_store[op_id]]
+            inputs = operation.inputs
+            outputs = operation.outputs
+            input = tensors[inputs[0]]
+            output = tensors[outputs[0]]
+
+            output.value[:] = sum(input.value[:])
+            for si in self.value.sizes:
+                output.value[:] =  output.value[:] / si
+            
+            op_id += 1
+        # record the input and output of the op
+        return output
 
     def sum(self):
-        #todo
-        return self
+        # backward
+        @buildingblock(get_program().globalbuildingblock)
+        def propagate(dl_doutputs, operation):
+            dl_dx, = dl_doutputs
+            inputs = operation.inputs
+            dl_dself = dl_d[inputs[0]]
+            dl_dself[:] += dl_dx[0]
+            dl_dinputs = [dl_dself]
+            return dl_dinputs
+        # forward
+        global op_id
+        if prepare:    
+            new_value = Array(1, self.value.value_type)
+            output = Tensor(new_value)
+            
+            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
+            gradient_operation.append(operation)
+            operation_id = len(gradient_operation) - 1
+            
+            op_id_store[op_id] = operation_id
+            op_id += 1
+        else:
+            operation = gradient_operation[op_id_store[op_id]]
+            inputs = operation.inputs
+            outputs = operation.outputs
+            input = tensors[inputs[0]]
+            output = tensors[outputs[0]]
+            
+            output.value[:] = sum(input.value[:])
+            
+            op_id += 1
+        # record the input and output of the op
+        return output
 
     def std(self):
         #todo
