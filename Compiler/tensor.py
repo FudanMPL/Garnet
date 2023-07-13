@@ -228,8 +228,8 @@ class Tensor():
     # Multiplication of a Variable, tracking gradients
     def __mul__(self, other):
         # todo, dimension of self and other may not be the same
-        if not same_shape(self.size(), other.size()):
-            exit(0)
+        if isinstance(other, (int, float)):
+            return 0
         return element_wise_mul(self, other)
 
     def mul(self, other):
@@ -257,9 +257,18 @@ class Tensor():
         return self
 
     def __add__(self, other):
+        if isinstance(other, (int, float)):
+            return 0
         return ops_add(self, other)
 
     def __sub__(self, other):
+        if isinstance(other, (int, float)):
+            return 0
+        return ops_sub(self, other)
+
+    def __div__(self, other):
+        if isinstance(other, (int, float)):
+            return 0
         return ops_sub(self, other)
 
     def __getitem__(self, index):
@@ -600,7 +609,7 @@ class Tensor():
 def reset_gloabal_store():
     gradient_operation.clear()
     for tensor in tensors:
-        tensor.delete()    
+        tensor.value.delete()    
     tensors.clear()
     for grad in dl_d:
         grad.delete()
