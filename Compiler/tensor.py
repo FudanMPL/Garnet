@@ -78,9 +78,8 @@ def element_wise_mul(self, other):
 
 def ops_sin(self):
     @buildingblock(get_program().globalbuildingblock)
-    def propagate(dl_doutputs,tape):
+    def propagate(dl_doutputs,oparation):
         dl_dx, = dl_doutputs
-        # inputs = tape.inputs
         dx_dself = Tensor(mpc_math.scos(self.value))
         dl_dself = dl_dx * dx_dself
         return [dl_dself]
@@ -88,16 +87,16 @@ def ops_sin(self):
     if prepare:
         new_value=MultiArray([self.value.sizes[0], self.value.sizes[1]],self.value.value_type)
         output = Tensor(new_value)
-        tape=Tape(inputs=[self.name],outputs=[output.name],propagate=propagate)
-        gradient_tape.append(tape)
-        tape_id = len(gradient_tape) - 1
+        operation=Operation(inputs=[self.name],outputs=[output.name],propagate=propagate)
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation) - 1
         global op_id
-        op_id_store[op_id] = tape_id
+        op_id_store[op_id] = operation_id
         op_id+=1
     else:
-        tape=gradient_tape[op_id_store[op_id]]
-        inputs=tape.inputs
-        outputs=tape.outputs
+        operation=gradient_operation[op_id_store[op_id]]
+        inputs=operation.inputs
+        outputs=operation.outputs
         input=tensors[inputs[0]]
         output=tensors[outputs[0]]
         output.value[:]=Tensor(mpc_math.ssin(self.value))
