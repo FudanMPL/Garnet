@@ -131,10 +131,10 @@ def test_sum():
 @autograd_function
 def test_var():
     i, j = 3, 3
-    x = MultiArray([i, j], sfix)
-    for i in range(0,3):
-        for  j in range(0,3):
-            x[i][j] = sfix(i+j)
+    x = Array(3, sfix)
+    x[0] = 2
+    x[1] = 2
+    x[2] = 3
     x.print_reveal_nested()
     input1 = Tensor(x)
 
@@ -151,10 +151,10 @@ def test_var():
 @autograd_function
 def test_std():
     i, j = 3, 3
-    x = MultiArray([i, j], sfix)
-    for i in range(0,3):
-        for  j in range(0,3):
-            x[i][j] = sfix(i+j)
+    x = Array(3, sfix)
+    x[0] = 2
+    x[1] = 2
+    x[2] = 3
     x.print_reveal_nested()
     input1 = Tensor(x)
 
@@ -175,4 +175,5 @@ def test_std():
 #test_pow(3)
 #test_sum()
 #test_mean()
-test_std()
+test_var()
+#test_std()

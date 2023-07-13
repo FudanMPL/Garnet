@@ -324,7 +324,7 @@ class Tensor():
             if isinstance(self.value, Array):    
                 new_value = Array(self.value.length, self.value.value_type)
                 output = Tensor(new_value)
-                inter = Array(self.value.sizes, self.value.value_type)
+                inter = Array(self.value.length, self.value.value_type)
             else:
                 new_value = MultiArray(self.value.sizes, self.value.value_type)
                 output = Tensor(new_value)
@@ -367,7 +367,7 @@ class Tensor():
             if isinstance(self.value, Array):    
                 new_value = Array(self.value.length, self.value.value_type)
                 output = Tensor(new_value)
-                inter = Array(self.value.sizes, self.value.value_type)
+                inter = Array(self.value.length, self.value.value_type)
             else:
                 new_value = MultiArray(self.value.sizes, self.value.value_type)
                 output = Tensor(new_value)
@@ -595,12 +595,14 @@ class Tensor():
         def propagate(dl_doutputs, operation):
             dl_dx, = dl_doutputs
             inputs = operation.inputs
+            mean = operation.intermediate[0]
+            stdvalue = operation.intermediate[1]
             dl_dself = dl_d[inputs[0]]
             
             num = 1
             for si in self.value.sizes:
                 num = num * si
-            dl_dself[:] += np.sqrt(num) * (num-1) / (num *num) * dl_dx[0]
+            dl_dself[:] += dl_dx[0] / stdvalue[0] / (num-1) * (self.value[:] - mean[0] ) 
             dl_dinputs = [dl_dself]
             return dl_dinputs
         # forward
@@ -608,13 +610,13 @@ class Tensor():
         if prepare:    
             new_value = Array(1, self.value.value_type)
             output = Tensor(new_value)
-            # if isinstance(self, Array):    
-            #     inter1 = Array(self.value.sizes, self.value.value_type)
-            #     inter2 = Array(self.value.sizes, self.value.value_type)
-            # else:
-            #     inter1 = MultiArray(self.value.sizes, self.value.value_type)
-            #     inter2 = Array(self.value.sizes, self.value.value_type)
-            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
+            if isinstance(self.value, Array):    
+                inter1 = Array(self.value.length, self.value.value_type)
+                inter2 = Array(self.value.length, self.value.value_type)
+            else:
+                inter1 = MultiArray(self.value.sizes, self.value.value_type)
+                inter2 = MultiArray(self.value.sizes, self.value.value_type)
+            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=[inter1, inter2])
             gradient_operation.append(operation)
             operation_id = len(gradient_operation) - 1
             
@@ -632,10 +634,10 @@ class Tensor():
                 num = num * si
             mean = sum(input.value[:]) / num
             dmean = input.value[:] - mean
-            stdvalue = mpc_math.sqrt(sum(dmean ** 2) / num)
+            stdvalue = mpc_math.sqrt(sum(dmean ** 2) / (num-1))
             
-            # operation.intermediate[0].assign_vector(dmean)
-            # operation.intermediate[1].assign_vector(stdvalue)
+            operation.intermediate[0].assign_vector(mean)
+            operation.intermediate[1].assign_vector(stdvalue)
             output.value[:] = stdvalue
             
             op_id += 1
@@ -648,13 +650,13 @@ class Tensor():
         def propagate(dl_doutputs, operation):
             dl_dx, = dl_doutputs
             inputs = operation.inputs
-            inter = operation.intermediate[0] # reuse the intervalue in mem
+            mean = operation.intermediate[0] # reuse the intervalue in mem
             dl_dself = dl_d[inputs[0]]
             
             num = 1
             for si in self.value.sizes:
                 num = num * si
-            dl_dself[:] += 2 * (num-1) / (num * num) * inter[:] * dl_dx[0]
+            dl_dself[:] += 2 / (num-1) * (self.value[:] - mean[0] ) * dl_dx[0]
             dl_dinputs = [dl_dself]
             return dl_dinputs
         # forward
@@ -662,8 +664,8 @@ class Tensor():
         if prepare:    
             new_value = Array(1, self.value.value_type)
             output = Tensor(new_value)
-            if isinstance(self, Array):    
-                inter = Array(self.value.sizes, self.value.value_type)
+            if isinstance(self.value, Array):    
+                inter = Array(self.value.length, self.value.value_type)
             else:
                 inter = MultiArray(self.value.sizes, self.value.value_type)
             operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=[inter])
@@ -684,9 +686,9 @@ class Tensor():
                 num = num * si
             mean = sum(input.value[:]) / num
             dmean = input.value[:] - mean
-            output.value[:] = sum(dmean ** 2) / num
+            output.value[:] = sum(dmean ** 2) / (num-1)
             
-            operation.intermediate[0].assign_vector(dmean)
+            operation.intermediate[0].assign_vector(mean)
             
             op_id += 1
         # record the input and output of the op
