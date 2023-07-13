@@ -642,7 +642,7 @@ def norm_simplified_SQ(b, k):
 # @return g: approximated sqrt
 def sqrt_simplified_fx(x):
     # fix theta (number of iterations)
-    theta = max(int(math.ceil(math.log(x.k))), 6)
+    theta = 6
 
     # process to use 2^(m/2) approximation
     m_odd, m, w = norm_simplified_SQ(x.v, x.k)
