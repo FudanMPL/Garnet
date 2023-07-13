@@ -590,12 +590,107 @@ class Tensor():
         return output
 
     def std(self):
-        #todo
-        return self
+        # backward
+        @buildingblock(get_program().globalbuildingblock)
+        def propagate(dl_doutputs, operation):
+            dl_dx, = dl_doutputs
+            inputs = operation.inputs
+            dl_dself = dl_d[inputs[0]]
+            
+            num = 1
+            for si in self.value.sizes:
+                num = num * si
+            dl_dself[:] += np.sqrt(num) * (num-1) / (num *num) * dl_dx[0]
+            dl_dinputs = [dl_dself]
+            return dl_dinputs
+        # forward
+        global op_id
+        if prepare:    
+            new_value = Array(1, self.value.value_type)
+            output = Tensor(new_value)
+            # if isinstance(self, Array):    
+            #     inter1 = Array(self.value.sizes, self.value.value_type)
+            #     inter2 = Array(self.value.sizes, self.value.value_type)
+            # else:
+            #     inter1 = MultiArray(self.value.sizes, self.value.value_type)
+            #     inter2 = Array(self.value.sizes, self.value.value_type)
+            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
+            gradient_operation.append(operation)
+            operation_id = len(gradient_operation) - 1
+            
+            op_id_store[op_id] = operation_id
+            op_id += 1
+        else:
+            operation = gradient_operation[op_id_store[op_id]]
+            inputs = operation.inputs
+            outputs = operation.outputs
+            input = tensors[inputs[0]]
+            output = tensors[outputs[0]]
+
+            num = 1
+            for si in self.value.sizes:
+                num = num * si
+            mean = sum(input.value[:]) / num
+            dmean = input.value[:] - mean
+            stdvalue = mpc_math.sqrt(sum(dmean ** 2) / num)
+            
+            # operation.intermediate[0].assign_vector(dmean)
+            # operation.intermediate[1].assign_vector(stdvalue)
+            output.value[:] = stdvalue
+            
+            op_id += 1
+        # record the input and output of the op
+        return output
 
     def var(self):
-        #todo
-        return self    
+        # backward
+        @buildingblock(get_program().globalbuildingblock)
+        def propagate(dl_doutputs, operation):
+            dl_dx, = dl_doutputs
+            inputs = operation.inputs
+            inter = operation.intermediate[0] # reuse the intervalue in mem
+            dl_dself = dl_d[inputs[0]]
+            
+            num = 1
+            for si in self.value.sizes:
+                num = num * si
+            dl_dself[:] += 2 * (num-1) / (num * num) * inter[:] * dl_dx[0]
+            dl_dinputs = [dl_dself]
+            return dl_dinputs
+        # forward
+        global op_id
+        if prepare:    
+            new_value = Array(1, self.value.value_type)
+            output = Tensor(new_value)
+            if isinstance(self, Array):    
+                inter = Array(self.value.sizes, self.value.value_type)
+            else:
+                inter = MultiArray(self.value.sizes, self.value.value_type)
+            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=[inter])
+            gradient_operation.append(operation)
+            operation_id = len(gradient_operation) - 1
+            
+            op_id_store[op_id] = operation_id
+            op_id += 1
+        else:
+            operation = gradient_operation[op_id_store[op_id]]
+            inputs = operation.inputs
+            outputs = operation.outputs
+            input = tensors[inputs[0]]
+            output = tensors[outputs[0]]
+
+            num = 1
+            for si in self.value.sizes:
+                num = num * si
+            mean = sum(input.value[:]) / num
+            dmean = input.value[:] - mean
+            output.value[:] = sum(dmean ** 2) / num
+            
+            operation.intermediate[0].assign_vector(dmean)
+            
+            op_id += 1
+        # record the input and output of the op
+        return output
 
     
     def size(self):
@@ -608,11 +703,11 @@ class Tensor():
 # reset operation
 def reset_gloabal_store():
     gradient_operation.clear()
-    for tensor in tensors:
-        tensor.value.delete()    
+    for key, item in tensors.items():
+        item.value.delete()    
     tensors.clear()
-    for grad in dl_d:
-        grad.delete()
+    for key, item in dl_d.items():
+        item.delete()
     dl_d.clear()
     op_id_store.clear()
 
