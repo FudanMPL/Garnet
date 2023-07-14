@@ -335,17 +335,20 @@ class Tensor():
     def __add__(self, other):
         if isinstance(other, (int, float)):
             return ops_add_constant(self, other)
-        return ops_add(self, other)
+        #todo
+        return self
 
     def __sub__(self, other):
         if isinstance(other, (int, float)):
             return ops_add_constant(self, -other)
-        return ops_sub(self, other)
+        #todo
+        return self
 
     def __truediv__(self, other):
         if isinstance(other, (int, float)):
             return ops_mul_constant(self, 1./other)
-        return ops_sub(self, other)
+        #todo
+        return self
 
     def __getitem__(self, index):
         #todo
