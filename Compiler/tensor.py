@@ -75,6 +75,44 @@ def element_wise_mul(self, other):
         op_id += 1# record the input and output of the op
     return output
 
+def ops_mul_constant(self, c):
+    # backward
+    @buildingblock(get_program().globalbuildingblock)
+    def propagate(dl_doutputs, operation):
+        dl_dx, = dl_doutputs
+        inputs = operation.inputs
+        dl_dself = dl_d[inputs[0]]
+        dl_dself[:] += c * dl_dx[:]
+        dl_dinputs = [dl_dself]
+        return dl_dinputs
+    # forward
+    global op_id
+    if prepare:    
+        if isinstance(self.value, Array):    
+            new_value = Array(self.value.length, self.value.value_type)
+            output = Tensor(new_value)
+        else:
+            new_value = MultiArray(self.value.sizes, self.value.value_type)
+            output = Tensor(new_value)
+            
+        operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation) - 1
+            
+        op_id_store[op_id] = operation_id
+        op_id += 1
+    else:
+        operation = gradient_operation[op_id_store[op_id]]
+        inputs = operation.inputs
+        outputs = operation.outputs
+        input = tensors[inputs[0]]
+        output = tensors[outputs[0]]
+            
+        output.value[:] = input.value[:] * c
+            
+        op_id += 1
+        # record the input and output of the op
+        return output
 
 def ops_sin(self):
     @buildingblock(get_program().globalbuildingblock)
@@ -156,6 +194,45 @@ def ops_add(self, other):
     gradient_operation.append(operation)
     return x
 
+def ops_add_constant(self, c):
+    # backward
+    @buildingblock(get_program().globalbuildingblock)
+    def propagate(dl_doutputs, operation):
+        dl_dx, = dl_doutputs
+        inputs = operation.inputs
+        dl_dself = dl_d[inputs[0]]
+        dl_dself[:] += dl_dx[:]
+        dl_dinputs = [dl_dself]
+        return dl_dinputs
+    # forward
+    global op_id
+    if prepare:    
+        if isinstance(self.value, Array):    
+            new_value = Array(self.value.length, self.value.value_type)
+            output = Tensor(new_value)
+        else:
+            new_value = MultiArray(self.value.sizes, self.value.value_type)
+            output = Tensor(new_value)
+            
+        operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation) - 1
+            
+        op_id_store[op_id] = operation_id
+        op_id += 1
+    else:
+        operation = gradient_operation[op_id_store[op_id]]
+        inputs = operation.inputs
+        outputs = operation.outputs
+        input = tensors[inputs[0]]
+        output = tensors[outputs[0]]
+            
+        output.value[:] = input.value[:] + c
+            
+        op_id += 1
+        # record the input and output of the op
+        return output
+
 def ops_sub(self, other):
     x = Tensor(self.value - other.value)
 
@@ -228,7 +305,7 @@ class Tensor():
     def __mul__(self, other):
         # todo, dimension of self and other may not be the same
         if isinstance(other, (int, float)):
-            return 0
+            return ops_mul_constant(self, other)
         return element_wise_mul(self, other)
 
     def mul(self, other):
@@ -257,17 +334,17 @@ class Tensor():
 
     def __add__(self, other):
         if isinstance(other, (int, float)):
-            return 0
+            return ops_add_constant(self, other)
         return ops_add(self, other)
 
     def __sub__(self, other):
         if isinstance(other, (int, float)):
-            return 0
+            return ops_add_constant(self, -other)
         return ops_sub(self, other)
 
-    def __div__(self, other):
+    def __truediv__(self, other):
         if isinstance(other, (int, float)):
-            return 0
+            return ops_mul_constant(self, 1./other)
         return ops_sub(self, other)
 
     def __getitem__(self, index):
