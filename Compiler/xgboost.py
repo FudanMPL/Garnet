@@ -101,7 +101,7 @@ def TrainLeafNodes(h, g, y, y_pred, NID, lamb=0.1):
 
 class XGBoost:
     def __init__(self, x=None, y=None, h=None, tree_number=None, learning_rate=0.5, binary=False, attr_lengths=None,
-                 n_threads=None,  attribute_number=None, attribute_max_values=None, test_sample_number=None):
+                 n_threads=1,  attribute_number=None, attribute_max_values=None, test_sample_number=None):
         if x is None:  # only inference
             self.h = h
             self.attribute_number = attribute_number
@@ -175,6 +175,12 @@ class XGBoost:
         # for i in range(n):
             for tree in self.trees:
                 y_pred[i] = y_pred[i] + tree.predict(datas[i])
+        return y_pred
+
+    def single_predict(self, x):
+        y_pred = sfix(0)
+        for tree in self.trees:
+            y_pred = y_pred + tree.predict(x)
         return y_pred
 
     def test(self, x, y, set_name="test"):

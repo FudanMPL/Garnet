@@ -65,9 +65,7 @@ def GroupPrefixSum(g, x):
 
 
 def GroupMax(g, keys, *x):
-    if debug:
-        print_ln('group max input g=%s keys=%s x=%s', util.reveal(g),
-                 util.reveal(keys), util.reveal(x))
+
     assert len(keys) == len(g)
     for xx in x:
         assert len(xx) == len(g)
