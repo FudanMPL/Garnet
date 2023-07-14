@@ -1,0 +1,58 @@
+
+party_number = 3
+sample_number_of_parties = [
+0,
+10,
+20]
+feature_number = 4
+
+max_sample_id = 100
+max_feature_value = [
+    max_sample_id,
+    30,
+    1000000,
+    1000000
+]
+
+# 使用统计规则进行判断
+def is_fraud(x):
+    return x[1] > 20
+choose_model = is_fraud
+
+# 使用xgboost进行判断
+if program.args[1] == 'xgboost':
+    import xgboost
+    tree_number = 3
+    h = 3
+    model = xgboost.XGBoost(
+    h=h, tree_number=tree_number,  attribute_number=feature_number, attribute_max_values=max_feature_value)
+    model.input_from(0)
+    def is_fraud_by_xgboost(x):
+        return model.single_predict(x) > 0.5
+    choose_model = is_fraud_by_xgboost
+
+# 使用线性回归或逻辑回归进行判断
+if program.args[1] == 'ml':
+    import ml
+    dense = ml.Dense(sum(sample_number_of_parties), feature_number, 1)
+    dense.input_from(0)
+    layers = [dense, ml.Output(sum(sample_number_of_parties))]
+    sgd = ml.SGD(layers)
+    def is_fraud_by_ml(x):
+        s = sint.Matrix(1, feature_number)
+        s[0] = x
+        return sgd.eval(s)[0] > 0.5
+    choose_model = is_fraud_by_ml
+import loan_fraud_framework
+
+analysis = loan_fraud_framework.LoanFraudFramework(party_number, sample_number_of_parties, feature_number, choose_model)
+
+analysis.input_data_from_parties()
+analysis.merge_data()
+analysis.predict_and_reveal()
+
+
+
+
+
+
