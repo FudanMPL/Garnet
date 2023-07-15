@@ -204,7 +204,7 @@ pip install pandas
 
 在准备好csv格式的数据集后，运行python Scripts/data_prepare_for_xgboost [数据集名] 从而生成符合框架的数据格式，生成的文件为Player-Data/Input-P0-0。运行该脚本后，控制台会输出训练集所包含的训练样本数，特征数，测试集所包含的样本数，特征数。例如:
 ```
-python ./Scripts/data_prepare_for_decision_tree.py IRIS
+python ./Scripts/data_prepare_for_xgboost.py IRIS
 
 以下为控制台输出
 file: ./Data/IRIS_train.csv
