@@ -1,0 +1,48 @@
+from tensor import Tensor,autograd_function
+from tensor import *
+import tensor
+
+def test_addc():
+    print_ln('test_broadcast')
+    xdims = (2,3,2)
+    ydims = (3,1)
+    zdims = (1,1)
+
+    x = MultiArray([*xdims], sfix)
+    for i in range(2):
+        for j in range(3):
+            for k in range(2):
+                x[i][j][k] = sfix(i+j+2+k)
+
+    y = MultiArray([*ydims], sfix)
+    for i in range(3):
+        for j in range(1):
+            y[i][j] = sfix(i+j+2)
+
+    z = MultiArray([*zdims], sfix)
+    z[0][0] = sfix(1)
+
+    x.print_reveal_nested()
+    y.print_reveal_nested()
+    z.print_reveal_nested()
+    a = Tensor(x)
+    b = Tensor(y)
+    c = Tensor(z)
+
+    print("Shape of a:", a.shape)
+    print("Shape of b:", b.shape)
+    print("Shape of c:", c.shape)
+    print("Broadcasted shape(a,b):", compute_broadcast_shape(a.shape, b.shape))
+    print("Broadcasted shape(a,c):", compute_broadcast_shape(a.shape, c.shape))
+    
+    print_ln("Broadcast a b")
+    a_broad, b_broad = broadcast(a, b)
+    a_broad.value.print_reveal_nested()
+    b_broad.value.print_reveal_nested()
+
+    print_ln("Broadcast a c")
+    a_broad, c_brpad = broadcast(a, c)
+    a_broad.value.print_reveal_nested()
+    c_brpad.value.print_reveal_nested()
+
+test_addc()
