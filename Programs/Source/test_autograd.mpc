@@ -4,9 +4,10 @@ program.options_from_args()
 
 @autograd_function
 def test_mul():
+    print_ln('test_mul')
     i, j = 3, 3
     x = MultiArray([i, j], sfix)
-    x.assign_all(1)
+    x.assign_all(2)
     x.print_reveal_nested()
     y = MultiArray([i, j], sfix)
     y.assign_all(5)
@@ -20,7 +21,55 @@ def test_mul():
     tensor.reset_op_id()
 
     input3 = input1 *input2
+    input3.value.print_reveal_nested()
+    input3.backward()
+    input1.grad.print_reveal_nested()
+    input2.grad.print_reveal_nested()
 
+@autograd_function
+def test_add():
+    print_ln('test_add')
+    i, j = 3, 3
+    x = MultiArray([i, j], sfix)
+    x.assign_all(2)
+    x.print_reveal_nested()
+    y = MultiArray([i, j], sfix)
+    y.assign_all(5)
+    y.print_reveal_nested()
+    input1 = Tensor(x)
+    input2 = Tensor(y)
+
+    input3 = input1 +input2
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    input3 = input1 +input2
+    input3.value.print_reveal_nested()
+    input3.backward()
+    input1.grad.print_reveal_nested()
+    input2.grad.print_reveal_nested()
+
+@autograd_function
+def test_sub():
+    print_ln('test_sub')
+    i, j = 3, 3
+    x = MultiArray([i, j], sfix)
+    x.assign_all(2)
+    x.print_reveal_nested()
+    y = MultiArray([i, j], sfix)
+    y.assign_all(5)
+    y.print_reveal_nested()
+    input1 = Tensor(x)
+    input2 = Tensor(y)
+
+    input3 = input1 -input2
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    input3 = input1 -input2
+    input3.value.print_reveal_nested()
     input3.backward()
     input1.grad.print_reveal_nested()
     input2.grad.print_reveal_nested()
@@ -252,7 +301,31 @@ def test_divc():
     input2.value.print_reveal_nested()
     input1.grad.print_reveal_nested()
 
-#test_mul()
+@autograd_function
+def test_neg():
+    print_ln('test_neg')
+    i, j = 3, 3
+    x = MultiArray([i, j], sfix)
+    for i in range(0,3):
+        for  j in range(0,3):
+            x[i][j] = sfix(i+j)
+    x.print_reveal_nested()
+    input1 = Tensor(x)
+
+    input2 = -input1
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    input2 = -input1
+    input2.backward()
+    input2.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+
+test_mul()
+test_add()
+test_sub()
+
 #test_abs()
 #test_exp()
 #test_log()
@@ -262,7 +335,9 @@ def test_divc():
 #test_var()
 #test_std()
 
-test_addc()
-test_subc()
-test_mulc()
-test_divc()
+#test_addc()
+#test_subc()
+#test_mulc()
+#test_divc()
+
+#test_neg()

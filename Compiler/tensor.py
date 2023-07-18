@@ -40,7 +40,71 @@ op_id = 0
 op_id_store = {}
 
 
+def element_wise_add(self, other):
+    # backward
+    @buildingblock(get_program().globalbuildingblock)
+    def propagate(dl_doutputs, operation):
+        dl_dx, = dl_doutputs
+        inputs = operation.inputs
+        dl_dself =  dl_d[inputs[0]] # partial derivate of r = 1
+        dl_dother = dl_d[inputs[1]] # partial derivate of r = 1
+        dl_dself[:] += dl_dx[:]
+        dl_dother[:] += dl_dx[:]
+        dl_dinputs = [dl_dself, dl_dother]
+        return dl_dinputs
+    # forward
+    global op_id
+    if prepare:    
+        new_value = MultiArray([self.value.sizes[0], other.value.sizes[1]], other.value.value_type)
+        output = Tensor(new_value)
+        operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation) - 1
+        op_id_store[op_id] = operation_id
+        op_id += 1
+    else:
+        operation = gradient_operation[op_id_store[op_id]]
+        inputs = operation.inputs
+        outputs = operation.outputs
+        input1 = tensors[inputs[0]]
+        input2 = tensors[inputs[1]]
+        output = tensors[outputs[0]]
+        output.value[:] = input1.value[:] + input2.value[:] #todo        
+        op_id += 1# record the input and output of the op
+    return output
 
+def element_wise_sub(self, other):
+    # backward
+    @buildingblock(get_program().globalbuildingblock)
+    def propagate(dl_doutputs, operation):
+        dl_dx, = dl_doutputs
+        inputs = operation.inputs
+        dl_dself =  dl_d[inputs[0]] # partial derivate of r = 1
+        dl_dother = dl_d[inputs[1]] # partial derivate of r = -1
+        dl_dself[:] += dl_dx[:]
+        dl_dother[:] += - dl_dx[:]
+        dl_dinputs = [dl_dself, dl_dother]
+        return dl_dinputs
+    # forward
+    global op_id
+    if prepare:    
+        new_value = MultiArray([self.value.sizes[0], other.value.sizes[1]], other.value.value_type)
+        output = Tensor(new_value)
+        operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation) - 1
+        op_id_store[op_id] = operation_id
+        op_id += 1
+    else:
+        operation = gradient_operation[op_id_store[op_id]]
+        inputs = operation.inputs
+        outputs = operation.outputs
+        input1 = tensors[inputs[0]]
+        input2 = tensors[inputs[1]]
+        output = tensors[outputs[0]]
+        output.value[:] = input1.value[:] - input2.value[:] #todo        
+        op_id += 1# record the input and output of the op
+    return output
 
 def element_wise_mul(self, other):
     # backward
@@ -55,13 +119,13 @@ def element_wise_mul(self, other):
         dl_dinputs = [dl_dself, dl_dother]
         return dl_dinputs
     # forward
+    global op_id
     if prepare:    
         new_value = MultiArray([self.value.sizes[0], other.value.sizes[1]], other.value.value_type)
         output = Tensor(new_value)
         operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
-        global op_id
         op_id_store[op_id] = operation_id
         op_id += 1
     else:
@@ -74,6 +138,8 @@ def element_wise_mul(self, other):
         output.value[:] = input1.value[:] * input2.value[:] #todo        
         op_id += 1# record the input and output of the op
     return output
+
+
 
 def ops_mul_constant(self, c):
     # backward
@@ -335,15 +401,16 @@ class Tensor():
     def __add__(self, other):
         if isinstance(other, (int, float)):
             return ops_add_constant(self, other)
-        #todo
-        return self
+        return element_wise_add(self, other)
 
     def __sub__(self, other):
         if isinstance(other, (int, float)):
             return ops_add_constant(self, -other)
-        #todo
-        return self
+        return element_wise_sub(self, other)
 
+    def __neg__(self):
+        return ops_mul_constant(self, -1)
+    
     def __truediv__(self, other):
         if isinstance(other, (int, float)):
             return ops_mul_constant(self, 1./other)
