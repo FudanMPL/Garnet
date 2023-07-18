@@ -3,6 +3,7 @@ import math
 import re
 import numpy as np
 # from turtle import forward, shape
+from itertools import zip_longest
 from Compiler import mpc_math, util
 from Compiler.types import *
 from Compiler.types import _unreduced_squant
@@ -11,8 +12,7 @@ from Compiler.util import is_zero, tree_reduce
 from Compiler.comparison import CarryOutRawLE
 from Compiler.GC.types import sbitint
 from functools import reduce
-from typing import List, NamedTuple, Callable, Dict, Optional
-import numpy as np
+from typing import List, NamedTuple, Callable, Dict, Optional, Union, Tuple, Any
 
 _name = 1
 class Operation(NamedTuple):
@@ -840,5 +840,72 @@ def autograd_function(func):
     copy_doc(wrapper, func)
     return wrapper
 
+def broadcast(*args: Tensor) -> List[Tensor]:
+    """
+    This function broadcasts the input arguments to match the shape of each other.
+    """
+    shapes = [arg.shape for arg in args]
+    broadcast_shape = compute_broadcast_shape(*shapes)
+    return (expand_to_shape(arg, broadcast_shape) for arg in args)
 
+def compute_broadcast_shape(*shapes: Tuple[int]) -> Tuple[int]:
+    reversed_shapes = [shape[::-1] for shape in shapes]
+    broadcast_shape = []
+    for dims in zip_longest(*reversed_shapes, fillvalue=1):
+        greater_than_one_dims = [dim for dim in dims if dim > 1]
+        if len(set(greater_than_one_dims)) > 1:
+            raise ValueError("operands could not be broadcast together with shapes " + ' '.join(map(str, shapes)))
+        broadcast_shape.append(max(dims))
+    return tuple(broadcast_shape[::-1])
 
+def squeeze_first_dim(inp: Any, len: int=1)-> Union[Array, MultiArray]:
+    assert isinstance(inp, (sfix,cfix,sint,cint,regint,Array,SubMultiArray,MultiArray)), "Input must be a scale(sfix,cfix,sint,cint,regint) or a array(Array,SubMultiArray,MultiArray)"
+    if isinstance(inp, (sfix,cfix,sint,cint,regint)):
+        res = Array(len, type(inp))
+        res.assign_all(inp)
+    else:
+        shape = (inp.length,) if isinstance(inp, Array) else inp.sizes
+        res = MultiArray([len,*shape], inp.value_type)
+        for i in range(len):
+            res[i] = inp
+    return res
+
+def expand_to_shape(inp: Tensor, target_shape: Tuple[int])-> Tensor:
+    """
+    This function expands the inp to match the target_shape using broadcasting rules.
+    """
+    assert isinstance(inp, Tensor), "Input must be a Tensor"
+    input_shape = inp.shape
+    input = inp.value
+    # Calculate the difference in dimensions between the input and target
+    diff_dim = len(target_shape) - len(input_shape)
+    
+    # If the input tensor has fewer dimensions than target shape, add dimensions to the front
+    if diff_dim > 0:
+        for _ in range(diff_dim):
+            input = squeeze_first_dim(input)
+    
+    res = MultiArray(list(target_shape), input.value_type)
+
+    def expand_dim(obj: Union[Array, MultiArray], res: MultiArray, dim: int) -> Union[Array, MultiArray]:
+        """
+        This is a recursive helper function to expand the list along the specified dimension.
+        """
+        # If the current dimension is less than the number of dimensions in target shape
+        if dim >= len(target_shape):
+            return obj
+        
+        # Get the shape of the current input tensor
+        current_shape = (obj.length,) if isinstance(obj, Array) else obj.sizes
+        # If the size at the current dimension is 1, replicate the element to match target size
+        if current_shape[0] == 1 and target_shape[dim] != 1:
+            obj = squeeze_first_dim(obj[0], target_shape[dim])
+        # Continue to expand each item in the current list if not in the last dimension
+        if dim + 1 < len(target_shape):
+            for i in range(target_shape[dim]):
+                res[i] = expand_dim(obj[i], res[i], dim + 1)
+            return res
+        else:
+            return obj
+            
+    return Tensor(expand_dim(input, res, 0))
