@@ -507,11 +507,19 @@ class Tensor():
         @buildingblock(get_program().globalbuildingblock)
         def propagate(dl_doutputs,operation):
             dl_dy,=dl_doutputs
-            inputTensor=tensors[operation.inputs[0]]
-            dl_dy.reshape_without_malloc(dl_d[operation.inputs[0]],inputTensor.shape)
+            dl_d[operation.inputs[0]].assign(dl_dy)
         global op_id
-        if prepare: 
-            new_value=MultiArray(sizes,self.value.value_type)
+        if prepare:
+            if isinstance(sizes,int): #sizes must be a list ?
+                new_value=Array(sizes,self.value.value_type)
+            else:
+                if -1 in sizes:
+                    assert sizes.count(-1)==1,"-1 Occurs More than Once "
+                    product=reduce(lambda x,y:x*y,self.shape)
+                    tmp=reduce(lambda x,y:x*y,sizes)
+                    assert product%(-tmp)==0,"Invalid Dimension"
+                    sizes[sizes.index(-1)]=product/(-tmp)
+                new_value=MultiArray(sizes,self.value.value_type)
             output=Tensor(new_value)
             operation=Operation(inputs=[self.name],outputs=[output.name],propagate=propagate)
             gradient_operation.append(operation)
@@ -521,8 +529,8 @@ class Tensor():
         else:
             operation=gradient_operation[op_id_store[op_id]]
             outputs=operation.outputs
-            output=tensors[outputs[0]]
-            self.value.reshape_without_malloc(output.value,sizes)
+            output=tensors[outputs[0]] 
+            output.value.assign(self.value)
             op_id+=1
         return output
 
@@ -535,12 +543,12 @@ class Tensor():
             inv_new_perm=[None]*L
             for i in range(L):
                 inv_new_perm[new_perm[i]]=i #s2[s1[i]]=i
-            dl_dinput=dl_dy.permute(inv_new_perm)            
-            dl_d[operation.inputs[0]][:]+=dl_dinput[:]
+            self.value.permute_without_malloc(dl_d[operation.inputs[0]],inv_new_perm)
         global op_id
         if prepare: 
             assert isinstance(self.value,MultiArray),"Error,Permute operation must be MultiArray"#置换维度，那么肯定是MultiArray吧
-            new_value = self.value.permute(new_perm)
+            target_size=self.value.tuple_permute(self.shape,new_perm) #just for calling of tuple_permute function
+            new_value = MultiArray(target_size,self.value.value_type)
             output=Tensor(new_value)
             operation=Operation(inputs=[self.name],outputs=[output.name],propagate=propagate)
             gradient_operation.append(operation)
@@ -551,6 +559,7 @@ class Tensor():
             operation=gradient_operation[op_id_store[op_id]]
             outputs=operation.outputs
             output=tensors[outputs[0]]
+            self.value.permute_without_malloc(output.value,new_perm) #output的值在参数中传入后被修改
             op_id+=1
         return output
     
