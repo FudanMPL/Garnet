@@ -5919,7 +5919,9 @@ class Array(_vectorizable):
             res=MultiArray(sizes,self.value_type)
             res.assign(self)
             return res
-        
+    
+            
+    
         
         
     def Array(self, size):
@@ -6754,6 +6756,12 @@ class MultiArray(SubMultiArray):
         res = MultiArray(new_sizes, self.value_type)
         self.permute_singledim(new_perm, indices, i, res)
         return res
+    def permute_without_malloc(self, res , new_perm):
+        assert len(new_perm) == len(self.sizes)
+        i = 0
+        indices = ()
+        self.permute_singledim(new_perm, indices, i, res)
+        
     
     
     def reshape(self, sizes):
@@ -6762,9 +6770,6 @@ class MultiArray(SubMultiArray):
         res.view(*sizes)
         return res
     
-    def reshape_without_malloc(self, data,sizes):
-        data.assign(self) #assign self to res
-        data.view(*sizes)
         
   
     def view(self, *sizes):

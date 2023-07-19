@@ -74,6 +74,7 @@ def test_sin2():
 
 @autograd_function
 def test_permute():
+    print_ln('test_permute():')
     XMultiArray = MultiArray([ROW, COL,4], sfix)
     for i in range(0,ROW):
         for  j in range(0,COL):
@@ -97,7 +98,8 @@ def test_permute():
 
 
 @autograd_function
-def test_reshape():
+def test_reshape_MultiArrayToMultiArray():
+    print_ln('test_reshape_MultiArrayToMultiArray()')
     XMultiArray = MultiArray([ROW, COL,4], sfix)
     for i in range(0,ROW):
         for  j in range(0,COL):
@@ -116,8 +118,43 @@ def test_reshape():
     input2.value.print_reveal_nested()
     input1.grad.print_reveal_nested()
 
+@autograd_function
+def test_reshape_ArrayToMultiArray():
+    print_ln('test_reshape_ArrayToMultiArray()')
+    xArray.print_reveal_nested()
+    input1 = Tensor(xArray)
+
+    input2 = input1.reshape([2,5])
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    input2 = input1.reshape([2,5])
+    input2.backward()
+    input2.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
 
 
-test_reshape()
+@autograd_function
+def test_reshape_MultiArrayToArray():
+    print_ln('test_reshape_MultiArrayToArray()')
+    xMultiArray.print_reveal_nested()
+    input1 = Tensor(xMultiArray)
+
+    input2 = input1.reshape(ROW*COL)
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    input2 = input1.reshape(ROW*COL)
+    input2.backward()
+    input2.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+
+
+test_reshape_MultiArrayToMultiArray()
+test_reshape_ArrayToMultiArray()
+test_reshape_MultiArrayToArray()
+
 #test_transpose()
-#test_permute()
+test_permute()
