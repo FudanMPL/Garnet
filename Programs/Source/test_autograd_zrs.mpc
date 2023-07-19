@@ -103,15 +103,15 @@ def test_reshape():
         for  j in range(0,COL):
             for k in range(0,4):
                 XMultiArray[i][j][k] = sfix(i-j+k)
-    xArray.print_reveal_nested()
-    input1 = Tensor(xArray)
+    XMultiArray.print_reveal_nested()
+    input1 = Tensor(XMultiArray)
 
-    input2 = input1.reshape([2,5])
+    input2 = input1.reshape([6,4])
 
     tensor.train()
     tensor.reset_op_id()
 
-    input2 = input1.reshape([2,5])
+    input2 = input1.reshape([6,4])
     input2.backward()
     input2.value.print_reveal_nested()
     input1.grad.print_reveal_nested()

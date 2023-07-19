@@ -6761,6 +6761,10 @@ class MultiArray(SubMultiArray):
         res.assign(self) #assign self to res
         res.view(*sizes)
         return res
+    
+    def reshape_without_malloc(self, data,sizes):
+        data.assign(self) #assign self to res
+        data.view(*sizes)
         
   
     def view(self, *sizes):
