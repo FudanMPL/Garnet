@@ -840,6 +840,7 @@ class Tensor():
             output.value[:]=mpc_math.sin(input.value[:])
             op_id+=1
             return output
+
     def mean(self):
         # backward
         @buildingblock(get_program().globalbuildingblock)
@@ -999,8 +1000,7 @@ class Tensor():
                 inter = MultiArray(self.value.sizes, self.value.value_type)
             operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=[inter])
             gradient_operation.append(operation)
-            operation_id = len(gradient_operation) - 1
-            
+            operation_id = len(gradient_operation) - 1       
             op_id_store[op_id] = operation_id
             op_id += 1
         else:
