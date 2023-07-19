@@ -1,13 +1,18 @@
-from tensor import Tensor
+from tensor import Tensor,autograd_function
 import tensor
 program.options_from_args()
-ROW=3
-COL=3
-LENGTH=10
 
-xArray = Array(LENGTH,sfix)
-for i in range(0,LENGTH):
-    xArray[i]=sfix(i-LENGTH/2)
+@autograd_function
+def test_mul():
+    i, j = 3, 3
+    x = MultiArray([i, j], sfix)
+    x.assign_all(1)
+    x.print_reveal_nested()
+    y = MultiArray([i, j], sfix)
+    y.assign_all(5)
+    y.print_reveal_nested()
+    input1 = Tensor(x)
+    input2 = Tensor(y)
 
 xMultiArray = MultiArray([ROW, COL], sfix)
 for i in range(0,ROW):
@@ -20,34 +25,122 @@ def test_single_operation(func,Value):
     output = getattr(input, func)() 
     tensor.train()
     tensor.reset_op_id()
-    output = getattr(input, func)()
-    output.backward()
-    output.value.print_reveal_nested()
-    input.grad.print_reveal_nested()
-    tensor.reset_op_id()
-    tensor.reset_operation()
 
+    input3 = input1 *input2
+
+    input3.backward()
+    input1.grad.print_reveal_nested()
+    input2.grad.print_reveal_nested()
+
+@autograd_function
+def test_abs():
+    i, j = 3, 3
+    x = MultiArray([i, j], sfix)
+    for i in range(0,3):
+        for  j in range(0,3):
+            x[i][j] = sfix(i-j)
+    x.print_reveal_nested()
+    input1 = Tensor(x)
+
+    input2 = input1.abs()
+    
 
 # test for Array and MultiArray
 def test_sin():  
     test_single_operation('sin',xArray)
     test_single_operation('sin',xMultiArray)
 
-def test_abs():
-    test_single_operation('abs',xArray)
-    test_single_operation('abs',xMultiArray)
+    input2 = input1.abs()
+    input2.value.print_reveal_nested()
+    input2.backward()
+    
+    input1.grad.print_reveal_nested()
 
+@autograd_function
 def test_exp():
-   # test_single_operation('exp',xArray)
-    test_single_operation('exp',xMultiArray)
+    i, j = 3, 3
+    x = MultiArray([i, j], sfix)
+    for i in range(0,3):
+        for  j in range(0,3):
+            x[i][j] = sfix(i+j)
+    x.print_reveal_nested()
+    input1 = Tensor(x)
 
+    input2 = input1.exp()
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    input2 = input1.exp()
+    input2.backward()
+    input2.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+
+@autograd_function
 def test_log():
-    test_single_operation('log',xArray)
-    test_single_operation('log',xMultiArray)
+    i, j = 3, 3
+    x = MultiArray([i, j], sfix)
+    for i in range(0,3):
+        for  j in range(0,3):
+            x[i][j] = sfix(i+j)
+    x.print_reveal_nested()
+    input1 = Tensor(x)
+
+    input2 = input1.log()
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    input2 = input1.log()
+    input2.backward()
+    input2.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+
+@autograd_function
+def test_pow(pow):
+    i, j = 3, 3
+    x = MultiArray([i, j], sfix)
+    for i in range(0,3):
+        for  j in range(0,3):
+            x[i][j] = sfix(i+j)
+    x.print_reveal_nested()
+    input1 = Tensor(x)
+
+    input2 = input1.pow(pow)
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    input2 = input1.pow(pow)
+    input2.backward()
+    input2.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+
+@autograd_function
+def test_sum():
+    i, j = 3, 3
+    x = MultiArray([i, j], sfix)
+    for i in range(0,3):
+        for  j in range(0,3):
+            x[i][j] = sfix(i+j)
+    x.print_reveal_nested()
+    input1 = Tensor(x)
+
+    input2 = input1.sum()
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    input2 = input1.sum()
+    input2.backward()
+    input2.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
 
 
-
-#test_abs()
+test_mul()
+test_abs()
 test_exp()
 test_log()
-test_sin()
+test_pow(3)
+test_sum()
+#test_mean()

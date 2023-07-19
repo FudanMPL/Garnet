@@ -5912,7 +5912,11 @@ class Array(_vectorizable):
                                     'with Batcher\'s odd-even mergesort')
             from . import sorting
             sorting.radix_sort(self, self, n_bits=n_bits)
-
+    def reshape(self,sizes):
+        if len(sizes)>1:
+            res=MultiArray(sizes,self.value_type)
+            res.assign(self)
+            return res
     def Array(self, size):
         # compatibility with registers
         return Array(size, self.value_type)
@@ -6124,9 +6128,7 @@ class SubMultiArray(_vectorizable):
         Vector with potential asterisks. The potential retrieves
         all entry where the first dimension index is 0, and the third
         dimension index is 1::
-
             a.get_vector_by_indices(0, None, 1)
-
         """
         addresses = self.get_addresses(*indices)
         return self.value_type.load_mem(addresses)
@@ -6665,6 +6667,7 @@ class SubMultiArray(_vectorizable):
         return '%s multi-array of lengths %s at %s' % (self.value_type,
                                                        self.sizes, self.address)
 
+
 class MultiArray(SubMultiArray):
     """
     Multidimensional array. The access operator (``a[i]``) allows to a
@@ -6712,7 +6715,7 @@ class MultiArray(SubMultiArray):
     def alloc(self):
         self.array.alloc()
 
-    def tuple_permute(self, tuple, perm):
+    def tuple_permute(self, tuple, perm): #按照perm顺序进行重新排列
         res = ()
         for i, x  in enumerate(perm):
             res = res[:] + (tuple[x],)
@@ -6724,12 +6727,11 @@ class MultiArray(SubMultiArray):
                 tmp_indices = indices[:] + (j,)
                 tmp = self.get_vector_by_indices(*tmp_indices)
                 new_indices = self.tuple_permute(tmp_indices, new_perm)
-                res.assign_vector_by_indices(tmp, *new_indices)
+                res.assign_vector_by_indices(tmp,*new_indices)
             return
         for j in range(self.sizes[i]):
             tmp_indices = indices[:] + (j,)
             self.permute_singledim(new_perm, tmp_indices, i+1, res)
-
 
     def permute(self, new_perm):
         assert len(new_perm) == len(self.sizes)
@@ -6739,7 +6741,15 @@ class MultiArray(SubMultiArray):
         res = MultiArray(new_sizes, self.value_type)
         self.permute_singledim(new_perm, indices, i, res)
         return res
-
+    
+    
+    def reshape(self, sizes):
+        res=MultiArray(self.sizes,self.value_type)
+        res.assign(self) #assign self to res
+        res.view(*sizes)
+        return res
+        
+  
     def view(self, *sizes):
         assert self.value_type.n_elements() == 1
         tmp = self.total_size()
@@ -6756,10 +6766,10 @@ class MultiArray(SubMultiArray):
                 continue
             assert tmp % x == 0
             tmp = tmp / x
-            
         if is_negative_one: 
             tmp_sizes[negative_index] = int(tmp)
         self.sizes = tuple(tmp_sizes)
+        
 
     def mean(self, dim):
         assert dim < len(self.sizes)
@@ -6792,7 +6802,9 @@ class MultiArray(SubMultiArray):
         return res
 
     def delete(self):
-            self.array.delete()
+        self.array.delete()
+
+ 
 
 class Matrix(MultiArray):
     """ Matrix.

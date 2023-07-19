@@ -40,23 +40,7 @@ op_id = 0
 op_id_store = {}
 
 
-def fresh_name():
-    global _name
-    name = f'v{_name}'
-    _name += 1
-    return name
 
-def train():
-    global prepare
-    prepare = False
-
-def same_shape(sizes1, sizes2):
-    if len(sizes1) != len(sizes2):
-        return False
-    for i in range(0, len(sizes1)):
-        if sizes1[i] != sizes2[i]:
-            return False
-    return True
 
 def element_wise_mul(self, other):
     # backward
@@ -187,6 +171,9 @@ class Tensor():
         return var
 
     def backward(self):
+        global prepare
+        if prepare:
+            return 0
         length = len(gradient_operation)
         index = 0
         dl_d[self.name].assign_all(1)
@@ -241,39 +228,199 @@ class Tensor():
 
     def __getitem__(self, index):
         #todo
-        return self    
+        return Tensor(self.value[index])
     
-    def view(self):
-        #todo
-        return self
+    def view(self,sizes): 
+        @buildingblock(get_program().globalbuildingblock)
+        def propagate(dl_doutputs,operation):
+            dl_dy,=dl_doutputs
+            inputTensor=tensors[operation.inputs[0]]
+            dl_dinput=dl_dy.view(inputTensor.shape)
+            dl_d[operation.inputs[0]][:]+=dl_dinput[:]
+        global op_id
+        if prepare: 
+            #todo Array->MultiArray?  
+            # Array<-MultiArray?
+            new_value=self.value.view(sizes)
+            output=Tensor(new_value)
+            operation=Operation(inputs=[self.name],outputs=[output.name],propagate=propagate)
+            gradient_operation.append(operation)
+            operation_id=len(gradient_operation)-1
+            op_id_store[op_id]=operation_id
+            op_id+=1
+        else:
+            operation=gradient_operation[op_id_store[op_id]]
+            outputs=operation.outputs
+            output=tensors[outputs[0]]
+            op_id+=1
+        return output
+            
     
-    def squeeze(self):
-        #todo
-        return self
+    def squeeze(self,dim=None):
+        @buildingblock(get_program().globalbuildingblock)
+        def propagate(dl_doutputs,operation):
+            dl_dy,=dl_doutputs
+            inv_new_sizes=tensors[operation.inputs[0]].shape
+            dl_d[operation.inputs[0]][:]+= tensors[operation.inputs[0]].value.reshape(inv_new_sizes)[:]
+        global op_id
+        if prepare: 
+            if dim:
+                new_sizes=self.shape
+                assert dim<len(self.shape),"Invalid Dimension"
+                del new_sizes[dim]
+            else:
+                new_sizes=[x for x in self.shape if x!=1]                
+            new_value=self.value.reshape(new_sizes)
+            output=Tensor(new_value)
+            operation=Operation(inputs=[self.name],outputs=[output.name],propagate=propagate)
+            gradient_operation.append(operation)
+            operation_id=len(gradient_operation)-1
+            op_id_store[op_id]=operation_id
+            op_id+=1
+        else:
+            operation=gradient_operation[op_id_store[op_id]]
+            outputs=operation.outputs
+            output=tensors[outputs[0]]
+            op_id+=1
+        return output
 
-    def unsqueeze(self):
-        #todo
-        return self
+    def unsqueeze(self,dim):
+        @buildingblock(get_program().globalbuildingblock)
+        def propagate(dl_doutputs,operation):
+            inv_new_sizes=tensors[operation.inputs[0]].shape
+            dl_d[operation.inputs[0]][:]+= tensors[operation.inputs[0]].value.reshape(inv_new_sizes)[:]
+        global op_id
+        if prepare: 
+            new_sizes=self.shape
+            assert dim<len(self.shape),"Invalid Dimension"
+            new_sizes.insert(dim,1)              
+            new_value=self.value.reshape(new_sizes)
+            output=Tensor(new_value)
+            operation=Operation(inputs=[self.name],outputs=[output.name],propagate=propagate)
+            gradient_operation.append(operation)
+            operation_id=len(gradient_operation)-1
+            op_id_store[op_id]=operation_id
+            op_id+=1
+        else:
+            operation=gradient_operation[op_id_store[op_id]]
+            outputs=operation.outputs
+            output=tensors[outputs[0]]
+            op_id+=1
+        return output
 
     def gather(self):
         #todo
         return self
     
     def reshape(self, sizes):
-        #todo
-        return self
+        @buildingblock(get_program().globalbuildingblock)
+        def propagate(dl_doutputs,operation):
+            dl_dy,=dl_doutputs
+            inputTensor=tensors[operation.inputs[0]]
+            dl_dinput=dl_dy.reshape(inputTensor.shape)
+            dl_d[operation.inputs[0]][:]+=dl_dinput[:]
+        global op_id
+        if prepare: 
+            new_value=self.value.reshape(sizes)
+            output=Tensor(new_value)
+            operation=Operation(inputs=[self.name],outputs=[output.name],propagate=propagate)
+            gradient_operation.append(operation)
+            operation_id=len(gradient_operation)-1
+            op_id_store[op_id]=operation_id
+            op_id+=1
+        else:
+            operation=gradient_operation[op_id_store[op_id]]
+            outputs=operation.outputs
+            output=tensors[outputs[0]]
+            op_id+=1
+        return output
 
-    def permute(self, sizes):
-        #todo 
-        return self
+
+    def permute(self, new_perm): #todo :这里的参数不应该是list类型的new-perm，而应该是*newperm :pytorch中：x.permute(2, 0, 1)
+        @buildingblock(get_program().globalbuildingblock)
+        def propagate(dl_doutputs,operation):
+            dl_dy,=dl_doutputs
+            L=len(self.shape)
+            inv_new_perm=[None]*L
+            for i in range(L):
+                inv_new_perm[new_perm[i]]=i #s2[s1[i]]=i
+            dl_dinput=dl_dy.permute(inv_new_perm)            
+            dl_d[operation.inputs[0]][:]+=dl_dinput[:]
+        global op_id
+        if prepare: 
+            assert isinstance(self.value,MultiArray),"Error,Permute operation must be MultiArray"#置换维度，那么肯定是MultiArray吧
+            new_value = self.value.permute(new_perm)
+            output=Tensor(new_value)
+            operation=Operation(inputs=[self.name],outputs=[output.name],propagate=propagate)
+            gradient_operation.append(operation)
+            operation_id=len(gradient_operation)-1
+            op_id_store[op_id]=operation_id
+            op_id+=1
+        else:
+            operation=gradient_operation[op_id_store[op_id]]
+            outputs=operation.outputs
+            output=tensors[outputs[0]]
+            op_id+=1
+        return output
+    
     
     def transpose(self):
-        #todo
-        return self
+        @buildingblock(get_program().globalbuildingblock)
+        def propagate(dl_doutputs,operation):
+            dl_dy,=dl_doutputs
+            assert len(dl_dy.sizes)==2,'Invalid dimension'
+            dl_d[operation.inputs[0]][:]+=dl_dy.transpose()[:]
+        global op_id
+        if prepare:
+            if isinstance(self.value,Array):
+                new_value=self.value
+                output=Tensor(new_value)
+            else:
+                assert len(self.value.sizes)==2,'Invalid dimension'
+                new_sizes=[self.value.sizes[1],self.value.sizes[0]]
+                new_value=MultiArray(new_sizes,self.value.value_type)
+                output=Tensor(new_value)
+            operation=Operation(inputs=[self.name],outputs=[output.name],propagate=propagate)
+            gradient_operation.append(operation)
+            operation_id=len(gradient_operation)-1
+            op_id_store[op_id]=operation_id
+            op_id+=1
+        else:
+            operation=gradient_operation[op_id_store[op_id]]
+            inputs=operation.inputs
+            output=Tensor(tensors[inputs[0]].value.transpose())
+        return output
 
-    def concate(self, other):
-        #todo
-        return self
+
+    def concate(self, other,axis=0):#按照axis指定维度进行拼接
+        @buildingblock(get_program().globalbuildingblock)
+        def propagate(dl_doutputs,operation):
+            pass
+        global op_id
+        if prepare: 
+            assert self.value.value_type is other.value.value_type,"Invalid value_type"
+            assert len(self.sizes)==len(other.sizes)==1 or self.sizes[0]==self.sizes[1],"Invaild dim" #判断维度是不是适合连接
+            if isinstance(self.value,Array):
+                target_len=self.value.length + other.value.length
+                new_value=Array(target_len,self.value.value_type)
+                output=Tensor(new_value)
+            if isinstance(self.value,MultiArray):
+                target_size=other.shape
+                target_size[axis]+=self.shape[axis]
+                new_value=Array(target_size,self.value.value_type)
+                output=Tensor(new_value)
+            operation=Operation(inputs=[self.name],outputs=[output.name],propagate=propagate)
+            gradient_operation.append(operation)
+            operation_id=len(gradient_operation)-1             
+            op_id_store[op_id]=operation_id
+            op_id+=1
+        else:
+            operation=gradient_operation[op_id_store[op_id]]
+            inputs=operation.inputs
+            outputs=operation.outputs
+            output=tensors[outputs[0]]
+            op_id+=1
+        return output
 
     def abs(self):
         # backward
@@ -303,11 +450,9 @@ class Tensor():
             op_id_store[op_id] = operation_id
             op_id += 1
         else:
-            print(op_id)
             operation = gradient_operation[op_id_store[op_id]]
             inputs = operation.inputs
             outputs = operation.outputs
-            
             input = tensors[inputs[0]]
             output = tensors[outputs[0]]
             
@@ -444,14 +589,39 @@ class Tensor():
         return output
 
     def cos(self):
-        #todo
-        return self
+        @buildingblock(get_program().globalbuildingblock)
+        def propagate(dl_doutputs,operation): #dl_outputs is Tensor.value
+            dl_dx,=dl_doutputs
+            dl_dself=dl_d[operation.inputs[0]]
+            dl_dself[:] += dl_dx[:]*(-mpc_math.sin(self.value[:]))
+        global op_id
+        if prepare:
+            if isinstance(self.value,Array): #Array is instance of tensor?
+                new_value=Array(self.value.length,self.value.value_type) #
+                output=Tensor(new_value)
+            else:
+                new_value=MultiArray(self.value.sizes,self.value.value_type)
+                output=Tensor(new_value)
+            operation=Operation(inputs=[self.name],outputs=[output.name],propagate=propagate)
+            gradient_operation.append(operation)
+            operation_id=len(gradient_operation)-1
+            op_id_store[op_id]=operation_id
+            op_id+=1
+        else:
+            operation=gradient_operation[op_id_store[op_id]]
+            inputs=operation.inputs
+            outputs=operation.outputs
+            input = tensors[inputs[0]] #input is Tensor
+            output = tensors[outputs[0]]
+            output.value[:]=mpc_math.cos(input.value[:])
+            op_id+=1
+            return output
 
     def sin(self):
         @buildingblock(get_program().globalbuildingblock)
         def propagate(dl_doutputs,operation): #dl_outputs is Tensor.value
             dl_dx,=dl_doutputs
-            dl_dself=dl_d[self.name]
+            dl_dself=dl_d[operation.inputs[0]]
             dl_dself[:] += dl_dx[:]*mpc_math.cos(self.value[:])
         global op_id
         if prepare:
@@ -475,11 +645,6 @@ class Tensor():
             output.value[:]=mpc_math.sin(input.value[:])
             op_id+=1
             return output
-
-                
-            
-
-
     def mean(self):
         # backward
         @buildingblock(get_program().globalbuildingblock)
@@ -575,8 +740,11 @@ class Tensor():
 
     
 # reset operation
-def reset_operation():
+def reset_gloabal_store():
     gradient_operation.clear()
+    tensors.clear()
+    dl_d.clear()
+    op_id_store.clear()
 
 #call this function after each iteration
 def reset_op_id():
@@ -595,6 +763,33 @@ def add_operation(operation):
     global gradient_operation
     gradient_operation.append(operation)
 
+def fresh_name():
+    global _name
+    name = f'v{_name}'
+    _name += 1
+    return name
 
+def train():
+    global prepare
+    prepare = False
 
+def untrain():
+    global prepare
+    prepare = True
 
+def same_shape(sizes1, sizes2):
+    if len(sizes1) != len(sizes2):
+        return False
+    for i in range(0, len(sizes1)):
+        if sizes1[i] != sizes2[i]:
+            return False
+    return True
+
+def autograd_function(func):
+    def wrapper(*args, **kw):
+        func(*args, **kw)
+        untrain()
+        reset_op_id()
+        reset_gloabal_store()
+    copy_doc(wrapper, func)
+    return wrapper
