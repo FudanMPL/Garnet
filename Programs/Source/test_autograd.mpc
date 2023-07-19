@@ -332,14 +332,12 @@ def test_neg():
     input1.grad.print_reveal_nested()
 
 test_mul()
-<<<<<<< HEAD
 test_abs()
 test_exp()
 test_log()
 test_pow(3)
 test_sum()
 #test_mean()
-=======
 test_add()
 test_sub()
 
@@ -358,4 +356,3 @@ test_sub()
 #test_divc()
 
 #test_neg()
->>>>>>> 76d61a2a497091c0496cc0ad52550ffad29d8e9f
