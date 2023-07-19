@@ -508,11 +508,10 @@ class Tensor():
         def propagate(dl_doutputs,operation):
             dl_dy,=dl_doutputs
             inputTensor=tensors[operation.inputs[0]]
-            dl_dinput=dl_dy.reshape(inputTensor.shape)
-            dl_d[operation.inputs[0]][:]+=dl_dinput[:]
+            dl_dy.reshape_without_malloc(dl_d[operation.inputs[0]],inputTensor.shape)
         global op_id
         if prepare: 
-            new_value=self.value.reshape(sizes)
+            new_value=MultiArray(sizes,self.value.value_type)
             output=Tensor(new_value)
             operation=Operation(inputs=[self.name],outputs=[output.name],propagate=propagate)
             gradient_operation.append(operation)
@@ -523,6 +522,7 @@ class Tensor():
             operation=gradient_operation[op_id_store[op_id]]
             outputs=operation.outputs
             output=tensors[outputs[0]]
+            self.value.reshape_without_malloc(output.value,sizes)
             op_id+=1
         return output
 
@@ -590,7 +590,7 @@ class Tensor():
         global op_id
         if prepare: 
             assert self.value.value_type is other.value.value_type,"Invalid value_type"
-            assert len(self.sizes)==len(other.sizes)==1 or self.sizes[0]==self.sizes[1],"Invaild dim" #判断维度是不是适合连接
+            assert len(self.sizes)==len(other.sizes)==1 or len(set(self.shape+other.shape))==len(self.shape)+1,"Invaild Dimension" #判断维度是不是适合连接
             if isinstance(self.value,Array):
                 target_len=self.value.length + other.value.length
                 new_value=Array(target_len,self.value.value_type)
@@ -608,6 +608,11 @@ class Tensor():
         else:
             operation=gradient_operation[op_id_store[op_id]]
             #todo concate operation
+            mul_arr=[]
+            tmp=1
+            for i in reversed(self.shape):
+                mul_arr.insert(0,tmp)
+                tmp*=i
             output=None
             op_id+=1
         return output
