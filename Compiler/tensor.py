@@ -425,14 +425,21 @@ class Tensor():
         @buildingblock(get_program().globalbuildingblock)
         def propagate(dl_doutputs,operation):
             dl_dy,=dl_doutputs
-            inputTensor=tensors[operation.inputs[0]]
-            dl_dinput=dl_dy.view(inputTensor.shape)
-            dl_d[operation.inputs[0]][:]+=dl_dinput[:]
+            dl_d[operation.inputs[0]].assign(dl_dy)
         global op_id
         if prepare: 
-            #todo Array->MultiArray?  
-            # Array<-MultiArray?
-            new_value=self.value.view(sizes)
+            product=reduce(lambda x,y:x*y,self.shape)
+            if isinstance(sizes,int):
+                assert sizes==product,"Invalid Dimension"
+                new_value=Array(sizes,self.value.value_type)
+            else:
+                assert all(isinstance(x,int) and x>0 for x in sizes),"Invalid Dimensiopn"
+                if -1 in sizes:
+                    assert sizes.count(-1)==1,"-1 Occurs More than Once "
+                    tmp=reduce(lambda x,y:x*y,sizes)
+                    assert product%(-tmp)==0,"Invalid Dimension"
+                    sizes[sizes.index(-1)]=product/(-tmp)
+                new_value=MultiArray(sizes,self.value.value_type)
             output=Tensor(new_value)
             operation=Operation(inputs=[self.name],outputs=[output.name],propagate=propagate)
             gradient_operation.append(operation)
@@ -442,7 +449,8 @@ class Tensor():
         else:
             operation=gradient_operation[op_id_store[op_id]]
             outputs=operation.outputs
-            output=tensors[outputs[0]]
+            output=tensors[outputs[0]] 
+            output.value.assign(self.value)
             op_id+=1
         return output
             
@@ -451,17 +459,20 @@ class Tensor():
         @buildingblock(get_program().globalbuildingblock)
         def propagate(dl_doutputs,operation):
             dl_dy,=dl_doutputs
-            inv_new_sizes=tensors[operation.inputs[0]].shape
-            dl_d[operation.inputs[0]][:]+= tensors[operation.inputs[0]].value.reshape(inv_new_sizes)[:]
+            dl_d[operation.inputs[0]].assign(dl_dy)
         global op_id
         if prepare: 
             if dim:
-                new_sizes=self.shape
+                new_sizes=list(self.shape)
                 assert dim<len(self.shape),"Invalid Dimension"
                 del new_sizes[dim]
             else:
-                new_sizes=[x for x in self.shape if x!=1]                
-            new_value=self.value.reshape(new_sizes)
+                new_sizes=[x for x in self.shape if x!=1]  
+            if len(new_sizes)>1:
+                new_value=MultiArray(new_sizes,self.value.value_type)
+            else:
+                assert len(new_sizes)==1 and new_sizes[0]>0,"Invalid Dimension"  
+                new_value=Array(new_sizes[0],value_type=self.value.value_type) 
             output=Tensor(new_value)
             operation=Operation(inputs=[self.name],outputs=[output.name],propagate=propagate)
             gradient_operation.append(operation)
@@ -472,20 +483,20 @@ class Tensor():
             operation=gradient_operation[op_id_store[op_id]]
             outputs=operation.outputs
             output=tensors[outputs[0]]
+            output.value.assign(self.value)
             op_id+=1
         return output
 
     def unsqueeze(self,dim):
         @buildingblock(get_program().globalbuildingblock)
         def propagate(dl_doutputs,operation):
-            inv_new_sizes=tensors[operation.inputs[0]].shape
-            dl_d[operation.inputs[0]][:]+= tensors[operation.inputs[0]].value.reshape(inv_new_sizes)[:]
+            dl_d[operation.inputs[0]].assign(dl_doutputs[0])
         global op_id
         if prepare: 
-            new_sizes=self.shape
-            assert dim<len(self.shape),"Invalid Dimension"
+            new_sizes=list(self.shape)
+            assert isinstance(dim,int) and dim<len(self.shape) and dim>=-len(self.shape),"Invalid Dimension"
             new_sizes.insert(dim,1)              
-            new_value=self.value.reshape(new_sizes)
+            new_value=MultiArray(new_sizes,self.value.value_type)
             output=Tensor(new_value)
             operation=Operation(inputs=[self.name],outputs=[output.name],propagate=propagate)
             gradient_operation.append(operation)
@@ -496,6 +507,7 @@ class Tensor():
             operation=gradient_operation[op_id_store[op_id]]
             outputs=operation.outputs
             output=tensors[outputs[0]]
+            output.value.assign(self.value)
             op_id+=1
         return output
 
@@ -509,13 +521,15 @@ class Tensor():
             dl_dy,=dl_doutputs
             dl_d[operation.inputs[0]].assign(dl_dy)
         global op_id
-        if prepare:
-            if isinstance(sizes,int): #sizes must be a list ?
+        if prepare: 
+            product=reduce(lambda x,y:x*y,self.shape)
+            if isinstance(sizes,int):
+                assert sizes==product,"Invalid Dimension"
                 new_value=Array(sizes,self.value.value_type)
             else:
+                assert all(isinstance(x,int) and x>0 for x in sizes),"Invalid Dimensiopn"
                 if -1 in sizes:
                     assert sizes.count(-1)==1,"-1 Occurs More than Once "
-                    product=reduce(lambda x,y:x*y,self.shape)
                     tmp=reduce(lambda x,y:x*y,sizes)
                     assert product%(-tmp)==0,"Invalid Dimension"
                     sizes[sizes.index(-1)]=product/(-tmp)
@@ -567,19 +581,20 @@ class Tensor():
     def transpose(self):
         @buildingblock(get_program().globalbuildingblock)
         def propagate(dl_doutputs,operation):
-            dl_dy,=dl_doutputs
-            assert len(dl_dy.sizes)==2,'Invalid dimension'
-            dl_d[operation.inputs[0]][:]+=dl_dy.transpose()[:]
+            if isinstance(dl_doutputs[0],Array):
+                print("asdsfsdfg")
+                dl_d[operation.inputs[0]][:]+=dl_doutputs[0][:]
+            else:
+                dl_d[operation.inputs[0]][:]+=dl_doutputs[0].transpose()[:]
         global op_id
         if prepare:
             if isinstance(self.value,Array):
                 new_value=self.value
-                output=Tensor(new_value)
             else:
                 assert len(self.value.sizes)==2,'Invalid dimension'
                 new_sizes=[self.value.sizes[1],self.value.sizes[0]]
                 new_value=MultiArray(new_sizes,self.value.value_type)
-                output=Tensor(new_value)
+            output=Tensor(new_value)
             operation=Operation(inputs=[self.name],outputs=[output.name],propagate=propagate)
             gradient_operation.append(operation)
             operation_id=len(gradient_operation)-1
@@ -587,8 +602,13 @@ class Tensor():
             op_id+=1
         else:
             operation=gradient_operation[op_id_store[op_id]]
-            inputs=operation.inputs
-            output=Tensor(tensors[inputs[0]].value.transpose())
+            input=tensors[operation.inputs[0]]
+            output=tensors[operation.outputs[0]]
+            if len(self.shape)==1:#in this case:Array
+                output.value[:]=input.value[:]
+            else:
+                output.value=input.value.transpose()
+            op_id+=1
         return output
 
 
