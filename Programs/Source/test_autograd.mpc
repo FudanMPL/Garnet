@@ -262,7 +262,11 @@ def test_divc():
 #test_var()
 #test_std()
 
-test_addc()
-test_subc()
-test_mulc()
-test_divc()
+#test_addc()
+#test_subc()
+#test_mulc()
+#test_divc()
+
+@for_range(100)
+def _(i):
+    tmp = Matrix(10, 10, unreduced_sfix)
