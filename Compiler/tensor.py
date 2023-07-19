@@ -582,14 +582,13 @@ class Tensor():
         @buildingblock(get_program().globalbuildingblock)
         def propagate(dl_doutputs,operation):
             if isinstance(dl_doutputs[0],Array):
-                print("asdsfsdfg")
                 dl_d[operation.inputs[0]][:]+=dl_doutputs[0][:]
             else:
                 dl_d[operation.inputs[0]][:]+=dl_doutputs[0].transpose()[:]
         global op_id
         if prepare:
             if isinstance(self.value,Array):
-                new_value=self.value
+                new_value=Array(self.shape[0],self.value.value_type)
             else:
                 assert len(self.value.sizes)==2,'Invalid dimension'
                 new_sizes=[self.value.sizes[1],self.value.sizes[0]]
@@ -1064,6 +1063,7 @@ class Tensor():
 def reset_gloabal_store():
     gradient_operation.clear()
     for key, item in tensors.items():
+        print(key)
         item.value.delete()    
     tensors.clear()
     for key, item in dl_d.items():

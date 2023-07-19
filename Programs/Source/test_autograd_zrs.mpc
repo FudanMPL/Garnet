@@ -233,13 +233,15 @@ def test_transpose_MultiArray():
 
 
 
+
 test_squeeze()
 test_unsqueeze()
 test_permute()
-#test_transpose_Array() #todo fix the bug
+test_transpose_Array() #todo fix the bug
 test_transpose_MultiArray()
 
 test_reshape_MultiArrayToMultiArray()
 test_reshape_ArrayToMultiArray()
 test_reshape_MultiArrayToArray()
+
 
