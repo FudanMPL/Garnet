@@ -642,7 +642,7 @@ def norm_simplified_SQ(b, k):
 # @return g: approximated sqrt
 def sqrt_simplified_fx(x):
     # fix theta (number of iterations)
-    theta = max(int(math.ceil(math.log(x.k))), 6)
+    theta = 6
 
     # process to use 2^(m/2) approximation
     m_odd, m, w = norm_simplified_SQ(x.v, x.k)
@@ -960,30 +960,7 @@ def InvertSqrt(x, old=False):
 def ltz(x):
     return x<0
 
-def argmax(x):
-    len=x.length
-    len2=(int)(len*(len-1)/2)
-    temp=type(x[0]).Array(len2)
-    count=0
-    for i in range(len-1):
-        for j in range(i+1,len):
-            temp[count]=x[i]-x[j]
-            count=count+1
-    temp2=ltz(temp.get_vector())
-    count=0
-    acc=type(x[0]).Array(len)
-    for i in range(len-1):
-        for j in range(i+1,len):
-            acc[i]=acc[i]+temp2[count]
-            acc[j]=acc[j]+1-temp2[count]
-            count=count+1
-        acc[i]=acc[i]-1
-    acc[len-1]=acc[len-1]-1
-    return ltz(acc.get_vector())
 
-def max(x):
-    arg=argmax(x)
-    return type(x[0]).dot_product(x,arg)
 
 def logsum(x):
     maximum=max(x)

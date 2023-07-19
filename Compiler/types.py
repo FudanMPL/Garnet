@@ -5912,11 +5912,16 @@ class Array(_vectorizable):
                                     'with Batcher\'s odd-even mergesort')
             from . import sorting
             sorting.radix_sort(self, self, n_bits=n_bits)
+   
+   
     def reshape(self,sizes):
         if len(sizes)>1:
             res=MultiArray(sizes,self.value_type)
             res.assign(self)
             return res
+        
+        
+        
     def Array(self, size):
         # compatibility with registers
         return Array(size, self.value_type)
@@ -6715,19 +6720,27 @@ class MultiArray(SubMultiArray):
     def alloc(self):
         self.array.alloc()
 
-    def tuple_permute(self, tuple, perm): #按照perm顺序进行重新排列
+    def tuple_permute(self, tuple, perm):
+        """
+        Permute a tuple according to a permutation.
+        example: self.tuple_permute((3,2,5), (2,0,1)) = (5,3,2)
+        """
         res = ()
-        for i, x  in enumerate(perm):
+        for _, x  in enumerate(perm):
             res = res[:] + (tuple[x],)
         return res
 
     def permute_singledim(self, new_perm, indices, i, res):
         if i == len(self.sizes) - 1:
             for j in range(self.sizes[i]):
+                # get all the indices, like (0,0,0), (0,0,1), (0,0,2)...
                 tmp_indices = indices[:] + (j,)
+                # get value at that index
                 tmp = self.get_vector_by_indices(*tmp_indices)
+                # permute the indices
                 new_indices = self.tuple_permute(tmp_indices, new_perm)
-                res.assign_vector_by_indices(tmp,*new_indices)
+                # assign the value to the new indices
+                res.assign_vector_by_indices(tmp, *new_indices)
             return
         for j in range(self.sizes[i]):
             tmp_indices = indices[:] + (j,)
