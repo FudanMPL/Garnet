@@ -3,16 +3,24 @@ import tensor
 program.options_from_args()
 ROW=2
 COL=3
+HEIGHT=4
 LENGTH=10
 
-xArray = Array(LENGTH,sfix)
+xArray = Array(LENGTH, sfix)
 for i in range(0,LENGTH):
     xArray[i]=sfix(i-LENGTH/2)
 
-xMultiArray = MultiArray([ROW, COL], sfix)
+xMultiArray_2 = MultiArray([ROW, COL], sfix)
 for i in range(0,ROW):
     for  j in range(0,COL):
-        xMultiArray[i][j] = sfix(i-j)
+        xMultiArray_2[i][j] = sfix(i-j)
+
+xMultiArray_3 = MultiArray([ROW, COL,HEIGHT], sfix)
+for i in range(0,ROW):
+    for  j in range(0,COL):
+        for k in range(0,HEIGHT):
+            xMultiArray_3[i][j][k] = sfix(i-j+k)
+
 
 def test_single_operation(func,Value):
     Value.print_reveal_nested()
@@ -32,35 +40,29 @@ def test_single_operation(func,Value):
 # test for Array and MultiArray
 def test_sin():
     test_single_operation('sin',xArray)
-    test_single_operation('sin',xMultiArray)
+    test_single_operation('sin',xMultiArray_2)
 
 def test_abs():
     test_single_operation('abs',xArray)
-    test_single_operation('abs',xMultiArray)
+    test_single_operation('abs',xMultiArray_2)
 
 def test_exp():
    # test_single_operation('exp',xArray)
-    test_single_operation('exp',xMultiArray)
+    test_single_operation('exp',xMultiArray_2)
 
 def test_log():
     test_single_operation('log',xArray)
-    test_single_operation('log',xMultiArray)
+    test_single_operation('log',xMultiArray_2)
 
 def test_sum():
     test_single_operation('sum',xArray)
-    test_single_operation('sum',xMultiArray)
-
-def test_transpose():
-    #test_single_operation('sum',xArray)  #todo
-    test_single_operation('transpose',xMultiArray)
-
-
+    test_single_operation('sum',xMultiArray_2)
 
 
 @autograd_function
 def test_sin2():
-    xMultiArray.print_reveal_nested()
-    input1 = Tensor(xMultiArray)
+    xMultiArray_2.print_reveal_nested()
+    input1 = Tensor(xMultiArray_2)
 
     input2 = input1.sin()
 
@@ -74,14 +76,19 @@ def test_sin2():
 
 @autograd_function
 def test_permute():
+    xMultiArray_3 = MultiArray([ROW, COL,HEIGHT], sfix)
+    for i in range(0,ROW):
+        for  j in range(0,COL):
+            for k in range(0,HEIGHT):
+                xMultiArray_3[i][j][k] = sfix(i-j+k)
     print_ln('test_permute():')
-    XMultiArray = MultiArray([ROW, COL,4], sfix)
+    xMultiArray_3 = MultiArray([ROW, COL,4], sfix)
     for i in range(0,ROW):
         for  j in range(0,COL):
             for k in range(0,4):
-                XMultiArray[i][j][k] = sfix(i-j+k)
-    XMultiArray.print_reveal_nested()
-    input1 = Tensor(XMultiArray)
+                xMultiArray_3[i][j][k] = sfix(i-j+k)
+    xMultiArray_3.print_reveal_nested()
+    input1 = Tensor(xMultiArray_3)
 
     input2 = input1.permute([1,2,0])
     input3=input2.sin()
@@ -100,13 +107,8 @@ def test_permute():
 @autograd_function
 def test_reshape_MultiArrayToMultiArray():
     print_ln('test_reshape_MultiArrayToMultiArray()')
-    XMultiArray = MultiArray([ROW, COL,4], sfix)
-    for i in range(0,ROW):
-        for  j in range(0,COL):
-            for k in range(0,4):
-                XMultiArray[i][j][k] = sfix(i-j+k)
-    XMultiArray.print_reveal_nested()
-    input1 = Tensor(XMultiArray)
+    xMultiArray_3.print_reveal_nested()
+    input1 = Tensor(xMultiArray_3)
 
     input2 = input1.reshape([6,4])
 
@@ -138,8 +140,8 @@ def test_reshape_ArrayToMultiArray():
 @autograd_function
 def test_reshape_MultiArrayToArray():
     print_ln('test_reshape_MultiArrayToArray()')
-    xMultiArray.print_reveal_nested()
-    input1 = Tensor(xMultiArray)
+    xMultiArray_2.print_reveal_nested()
+    input1 = Tensor(xMultiArray_2)
 
     input2 = input1.reshape(ROW*COL)
 
@@ -151,10 +153,95 @@ def test_reshape_MultiArrayToArray():
     input2.value.print_reveal_nested()
     input1.grad.print_reveal_nested()
 
+@autograd_function
+def test_squeeze():
+    xMultiArray_3_tmp = MultiArray([ROW, 1,HEIGHT], sfix)
+    for i in range(0,ROW):
+        for  j in range(0,1):
+            for k in range(0,HEIGHT):
+                xMultiArray_3_tmp[i][j][k] = sfix(i-j+k)
+    print_ln('test_squeeze():')
+    xMultiArray_3_tmp.print_reveal_nested()
+    input1 = Tensor(xMultiArray_3_tmp)
+
+    input2 = input1.squeeze(1)
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    input2 =  input1.squeeze(1)
+    input2.backward()
+    input2.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+
+@autograd_function
+def test_unsqueeze():
+    print_ln('test_unsqueeze():')
+    xMultiArray_2 = MultiArray([ROW, COL], sfix)
+    for i in range(0,ROW):
+        for  j in range(0,COL):
+            xMultiArray_2[i][j] = sfix(i-j)
+    xMultiArray_2.print_reveal_nested()
+    input1 = Tensor(xMultiArray_2)
+
+    input2 = input1.unsqueeze(0)
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    input2 = input1.unsqueeze(0)
+    input2.backward()
+    input2.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+
+@autograd_function
+def test_transpose_Array():
+    print_ln('test_transpose_Array():')
+    xArray = Array(LENGTH, sfix)
+    for i in range(0,LENGTH):
+        xArray[i]=sfix(i-LENGTH/2)
+    xArray.print_reveal_nested()
+    input1 = Tensor(xArray)
+    input2 = input1.transpose()
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    input2 = input1.transpose()
+    input2.backward()
+    input2.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+
+@autograd_function
+def test_transpose_MultiArray():
+    print_ln('test_transpose_MultiArray():')
+    xMultiArray_2 = MultiArray([ROW, COL], sfix)
+    for i in range(0,ROW):
+        for  j in range(0,COL):
+            xMultiArray_2[i][j] = sfix(i-j)
+    xMultiArray_2.print_reveal_nested()
+    input1 = Tensor(xMultiArray_2)
+    input2 = input1.transpose()
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    input2 = input1.transpose()
+    input2.backward()
+    input2.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+
+
+
+
+test_squeeze()
+test_unsqueeze()
+test_permute()
+test_transpose_Array() #todo fix the bug
+test_transpose_MultiArray()
 
 test_reshape_MultiArrayToMultiArray()
 test_reshape_ArrayToMultiArray()
 test_reshape_MultiArrayToArray()
 
-#test_transpose()
-test_permute()
+

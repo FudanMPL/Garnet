@@ -6550,7 +6550,6 @@ class SubMultiArray(_vectorizable):
 
     def transpose(self):
         """ Matrix transpose.
-
         :param self: two-dimensional """
         assert len(self.sizes) == 2
         res = Matrix(self.sizes[1], self.sizes[0], self.value_type)
