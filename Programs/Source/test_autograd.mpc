@@ -348,9 +348,15 @@ def test_neg():
     input2.value.print_reveal_nested()
     input1.grad.print_reveal_nested()
 
-#test_mul()
-#test_add()
-#test_sub()
+test_mul()
+test_abs()
+test_exp()
+test_log()
+test_pow(3)
+test_sum()
+#test_mean()
+test_add()
+test_sub()
 
 #test_abs()
 #test_exp()

@@ -5919,7 +5919,9 @@ class Array(_vectorizable):
             res=MultiArray(sizes,self.value_type)
             res.assign(self)
             return res
-        
+    
+            
+    
         
         
     def Array(self, size):
@@ -6548,7 +6550,6 @@ class SubMultiArray(_vectorizable):
 
     def transpose(self):
         """ Matrix transpose.
-
         :param self: two-dimensional """
         assert len(self.sizes) == 2
         res = Matrix(self.sizes[1], self.sizes[0], self.value_type)
@@ -6754,6 +6755,12 @@ class MultiArray(SubMultiArray):
         res = MultiArray(new_sizes, self.value_type)
         self.permute_singledim(new_perm, indices, i, res)
         return res
+    def permute_without_malloc(self, res , new_perm):
+        assert len(new_perm) == len(self.sizes)
+        i = 0
+        indices = ()
+        self.permute_singledim(new_perm, indices, i, res)
+        
     
     
     def reshape(self, sizes):
@@ -6761,6 +6768,7 @@ class MultiArray(SubMultiArray):
         res.assign(self) #assign self to res
         res.view(*sizes)
         return res
+    
         
   
     def view(self, *sizes):
