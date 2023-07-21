@@ -614,34 +614,46 @@ class Tensor():
     def concate(self, other,axis=0):#按照axis指定维度进行拼接
         @buildingblock(get_program().globalbuildingblock)
         def propagate(dl_doutputs,operation):
-            pass
+            input1=tensors[operation.inputs[0]]
+            input2=tensors[operation.inputs[1]]
+            size_pre=reduce(lambda x,y:x*y,input1.shape[axis:])
+            size_next=reduce(lambda x,y:x*y,input2.shape[axis:])       
+            for i in range(input1.value.length//size_pre):
+                input1.grad.assign_vector(dl_doutputs[0].get_vector(i*size_pre,size_pre),i*size_pre)
+                input2.grad.assign_vector(dl_doutputs[0].get_vector(i*size_next,size_next),i*size_next)   
         global op_id
         if prepare: 
             assert self.value.value_type is other.value.value_type,"Invalid value_type"
-            assert len(self.sizes)==len(other.sizes)==1 or len(set(self.shape+other.shape))==len(self.shape)+1,"Invaild Dimension" #判断维度是不是适合连接
-            if isinstance(self.value,Array):
+            if isinstance(self.value,Array) and isinstance(other.value,Array):
                 target_len=self.value.length + other.value.length
                 new_value=Array(target_len,self.value.value_type)
-                output=Tensor(new_value)
-            if isinstance(self.value,MultiArray):
-                target_size=other.shape
-                target_size[axis]+=self.shape[axis]
-                new_value=Array(target_size,self.value.value_type)
-                output=Tensor(new_value)
-            operation=Operation(inputs=[self.name],outputs=[output.name],propagate=propagate)
+            else:
+                assert len(self.shape)==len(other.shape) ,"Inequal Dimension"
+                for i in range(len(self.shape)):
+                    if i != axis and self.shape[i] != other.shape[i]:
+                        raise ValueError("Invalid Dimension") 
+                target_size=other.value.shape
+                target_size[axis]+=self.value.shape[axis]
+                new_value=MultiArray(target_size,self.value.value_type)
+            output=Tensor(new_value)
+            operation=Operation(inputs=[self.name,other.name],outputs=[output.name],propagate=propagate)
             gradient_operation.append(operation)
             operation_id=len(gradient_operation)-1             
             op_id_store[op_id]=operation_id
             op_id+=1
         else:
             operation=gradient_operation[op_id_store[op_id]]
-            #todo concate operation
-            mul_arr=[]
-            tmp=1
-            for i in reversed(self.shape):
-                mul_arr.insert(0,tmp)
-                tmp*=i
-            output=None
+            size_pre=reduce(lambda x,y:x*y,self.shape[axis:])
+            size_next=reduce(lambda x,y:x*y,other.shape[axis:])
+            input1=tensors[operation.inputs[0]]
+            input2=tensors[operation.inputs[1]]
+            output=tensors[operation.outputs[0]]
+            index=0    
+            for i in range(self.value.length//size_pre):
+                output.value.assign_vector(input1.value.get_vector(i*size_pre,size_pre),index)
+                index+=size_pre
+                output.value.assign_vector(input2.value.get_vector(i*size_next,size_next),index)
+                index+=size_next
             op_id+=1
         return output
 
@@ -1063,7 +1075,6 @@ class Tensor():
 def reset_gloabal_store():
     gradient_operation.clear()
     for key, item in tensors.items():
-        print(key)
         item.value.delete()    
     tensors.clear()
     for key, item in dl_d.items():
