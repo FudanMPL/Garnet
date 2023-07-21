@@ -421,7 +421,7 @@ class Tensor():
             return dl_dinputs
         # forward
         global op_id
-        if prepare:    
+        if prepare:   
             new_value = MultiArray([self.value.sizes[0], other.value.sizes[1]], other.value.value_type)
             output = Tensor(new_value)
             operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
@@ -436,7 +436,13 @@ class Tensor():
             input1 = tensors[inputs[0]]
             input2 = tensors[inputs[1]]
             output = tensors[outputs[0]]
-            output.value[:] = input1.value[:] + input2.value[:] #todo        
+            
+            
+            
+            output.value[:] = input1.value[:] + input2.value[:] #todo  
+            
+            
+                  
             op_id += 1# record the input and output of the op
         return output
 
