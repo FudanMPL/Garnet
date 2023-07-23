@@ -361,8 +361,13 @@ class Tensor():
             self.grad.assign_all(0)
             dl_d[self.name] = self.grad
             tensors[self.name] = self
-
-
+    @property
+    def grad(self):
+        if self.grad is not None:
+            return self.grad
+        else:
+            raise CompilerError('Get gradient from a Tensor with req_grad False')
+                  
 
     def set_req_grad(self, req_grad):
         self.req_grad = req_grad
