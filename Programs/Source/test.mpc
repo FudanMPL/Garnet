@@ -1,3 +1,12 @@
-a = sint.get_input_from(0, size=1)
 
-print_ln("a[0] = %s", a[0].reveal())
+n = 10
+a = sint.Array(n)
+x = sint(0)
+@for_range(n)
+def _(i):
+    global x
+    a[i] = i
+    x = x+1
+a.print_reveal_nested()
+actual = x.reveal()
+print_ln('expected 10, got %s', actual)
