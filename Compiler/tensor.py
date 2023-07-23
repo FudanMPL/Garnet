@@ -360,14 +360,10 @@ class Tensor():
             self.grad = self.value.same_shape()
             self.grad.assign_all(0)
             dl_d[self.name] = self.grad
-            tensors[self.name] = self
-    @property
-    def grad(self):
-        if self.grad is not None:
-            return self.grad
         else:
-            raise CompilerError('Get gradient from a Tensor with req_grad False')
-                  
+            self.grad = None
+        tensors[self.name] = self
+                 
 
     def set_req_grad(self, req_grad):
         self.req_grad = req_grad
@@ -384,6 +380,8 @@ class Tensor():
     def backward(self):
         global prepare
         if prepare:
+            return 0
+        if not self.req_grad:
             return 0
         length = len(gradient_operation)
         index = 0
@@ -713,15 +711,19 @@ class Tensor():
             if isinstance(self.value,Array) and isinstance(other.value,Array):
                 target_len=self.value.length + other.value.length
                 new_value=Array(target_len,self.value.value_type)
-            if isinstance(self.value,MultiArray):
-                target_size=other.shape
-                target_size[axis]+=self.shape[axis]
+            else:
+                assert len(self.shape)==len(other.shape) ,"Inequal Dimension"
+                for i in range(len(self.shape)):
+                    if i != axis and self.shape[i] != other.shape[i]:
+                        raise ValueError("Invalid Dimension") 
+                target_size=other.value.shape
+                target_size[axis]+=self.value.shape[axis]
                 new_value=MultiArray(target_size,self.value.value_type)
             output=Tensor(new_value, req_grad=self.req_grad or other.req_grad)
             if self.req_grad or other.req_grad:
-                operation=Operation(inputs=[self.name],outputs=[output.name],propagate=propagate)
+                operation=Operation(inputs=[self.name, other.name],outputs=[output.name],propagate=propagate)
             else:
-                operation=Operation(inputs=[self.name],outputs=[output.name],propagate=fake_propagate)
+                operation=Operation(inputs=[self.name, other.name],outputs=[output.name],propagate=fake_propagate)
             gradient_operation.append(operation)
             operation_id=len(gradient_operation)-1             
             op_id_store[op_id]=operation_id
@@ -777,7 +779,7 @@ class Tensor():
             outputs = operation.outputs
             input = tensors[inputs[0]]
             output = tensors[outputs[0]]
-            
+            input.value.print_reveal_nested()
             c = input.value[:] > 0
             operation.intermediate[0].assign_vector(c) # write to mem
             
