@@ -39,6 +39,17 @@ op_id = 0
 #op_id_store stores the correlation among op_ids and operation ids.
 op_id_store = {}
 
+# def matrix_reconst(self, mat):
+#     r = mat.value.length/mat.size[0]
+#     c = mat.size[0]
+#     new_matrix = MultiArray([r, c], mat.value.value_type)
+#     @for_range(r)
+#     def _(i):
+#         @for_range(c)
+#         def _(j):
+#             new_matrix[i][j] = 
+#     return new_matrix
+    
 
 def fake_propagate(dl_doutputs, operation):
     pass
@@ -72,7 +83,21 @@ def element_wise_add(self, other):
         input1 = tensors[inputs[0]]
         input2 = tensors[inputs[1]]
         output = tensors[outputs[0]]
-        output.value[:] = input1.value[:] + input2.value[:] #todo        
+        
+        len1 = input1.value.total_size()
+        len2 = input2.value.total_size()
+        v1 = input1.value.get_vector(0, len1)
+        v2 = input2.value.get_vector(0, len2)
+        if len1 < len2:
+            len1, len2 = len2, len1
+            v1, v2 = v2, v1
+
+        # print(type(v1))
+        # for i in range(0, int(len1/len2)):
+        #     for j in range(0, len2):
+        #         v1[i+j] += v2[j]
+
+        output.value.assign_vector(v1)
         op_id += 1# record the input and output of the op
     return output
 
@@ -386,8 +411,43 @@ class Tensor():
         return self
     
     def mm(self, other):
-        #todo
-        return self
+        # backward
+        @buildingblock(get_program().globalbuildingblock)
+        def propagate(dl_doutputs, operation):
+            dl_dx, = dl_doutputs
+            inputs = operation.inputs
+            dl_dself =  dl_d[inputs[0]] # partial derivate of r = 1
+            dl_dother = dl_d[inputs[1]] # partial derivate of r = 1
+            dl_dself[:] += dl_dx[:]
+            dl_dother[:] += dl_dx[:]
+            dl_dinputs = [dl_dself, dl_dother]
+            return dl_dinputs
+        # forward
+        global op_id
+        if prepare:   
+            new_value = MultiArray([self.value.sizes[0], other.value.sizes[1]], other.value.value_type)
+            output = Tensor(new_value)
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
+            gradient_operation.append(operation)
+            operation_id = len(gradient_operation) - 1
+            op_id_store[op_id] = operation_id
+            op_id += 1
+        else:
+            operation = gradient_operation[op_id_store[op_id]]
+            inputs = operation.inputs
+            outputs = operation.outputs
+            input1 = tensors[inputs[0]]
+            input2 = tensors[inputs[1]]
+            output = tensors[outputs[0]]
+            
+            
+            
+            output.value[:] = input1.value[:] + input2.value[:] #todo  
+            
+            
+                  
+            op_id += 1# record the input and output of the op
+        return output
 
     def dot(self, other):
         #todo
@@ -635,12 +695,17 @@ class Tensor():
     def concate(self, other,axis=0):#按照axis指定维度进行拼接
         @buildingblock(get_program().globalbuildingblock)
         def propagate(dl_doutputs,operation):
-            pass
+            input1=tensors[operation.inputs[0]]
+            input2=tensors[operation.inputs[1]]
+            size_pre=reduce(lambda x,y:x*y,input1.shape[axis:])
+            size_next=reduce(lambda x,y:x*y,input2.shape[axis:])       
+            for i in range(input1.value.length//size_pre):
+                input1.grad.assign_vector(dl_doutputs[0].get_vector(i*size_pre,size_pre),i*size_pre)
+                input2.grad.assign_vector(dl_doutputs[0].get_vector(i*size_next,size_next),i*size_next)   
         global op_id
         if prepare: 
             assert self.value.value_type is other.value.value_type,"Invalid value_type"
-            assert len(self.sizes)==len(other.sizes)==1 or len(set(self.shape+other.shape))==len(self.shape)+1,"Invaild Dimension" #判断维度是不是适合连接
-            if isinstance(self.value,Array):
+            if isinstance(self.value,Array) and isinstance(other.value,Array):
                 target_len=self.value.length + other.value.length
                 new_value=Array(target_len,self.value.value_type)
             if isinstance(self.value,MultiArray):
@@ -658,13 +723,17 @@ class Tensor():
             op_id+=1
         else:
             operation=gradient_operation[op_id_store[op_id]]
-            #todo concate operation
-            mul_arr=[]
-            tmp=1
-            for i in reversed(self.shape):
-                mul_arr.insert(0,tmp)
-                tmp*=i
-            output=None
+            size_pre=reduce(lambda x,y:x*y,self.shape[axis:])
+            size_next=reduce(lambda x,y:x*y,other.shape[axis:])
+            input1=tensors[operation.inputs[0]]
+            input2=tensors[operation.inputs[1]]
+            output=tensors[operation.outputs[0]]
+            index=0    
+            for i in range(self.value.length//size_pre):
+                output.value.assign_vector(input1.value.get_vector(i*size_pre,size_pre),index)
+                index+=size_pre
+                output.value.assign_vector(input2.value.get_vector(i*size_next,size_next),index)
+                index+=size_next
             op_id+=1
         return output
 
@@ -906,11 +975,7 @@ class Tensor():
             inputs = operation.inputs
             dl_dself = dl_d[inputs[0]]
             
-            num = 1
-            for si in self.value.sizes:
-                num = num * si
-            
-            dl_dself[:] += dl_dx[0] / num
+            dl_dself[:] += dl_dx[0] / self.value.total_size()
             dl_dinputs = [dl_dself]
             return dl_dinputs
         # forward
@@ -934,10 +999,7 @@ class Tensor():
             input = tensors[inputs[0]]
             output = tensors[outputs[0]]
 
-            num = 1
-            for si in self.value.sizes:
-                num = num * si
-            output.value[:] = sum(input.value[:]) / num
+            output.value[:] = sum(input.value[:]) / self.value.total_size()
             
             op_id += 1
         # record the input and output of the op
@@ -986,14 +1048,11 @@ class Tensor():
         def propagate(dl_doutputs, operation):
             dl_dx, = dl_doutputs
             inputs = operation.inputs
-            mean = operation.intermediate[0]
+            dmean = operation.intermediate[0]
             stdvalue = operation.intermediate[1]
             dl_dself = dl_d[inputs[0]]
             
-            num = 1
-            for si in self.value.sizes:
-                num = num * si
-            dl_dself[:] += dl_dx[0] / stdvalue[0] / (num-1) * (self.value[:] - mean[0] ) 
+            dl_dself[:] += dl_dx[0] / stdvalue[0] / (self.value.total_size()-1) * dmean[:]
             dl_dinputs = [dl_dself]
             return dl_dinputs
         # forward
@@ -1003,7 +1062,6 @@ class Tensor():
             output = Tensor(new_value, req_grad=self.req_grad)
             if isinstance(self.value, Array):    
                 inter1 = Array(self.value.length, self.value.value_type)
-                inter2 = Array(self.value.length, self.value.value_type)
             else:
                 inter1 = MultiArray(self.value.sizes, self.value.value_type)
                 inter2 = MultiArray(self.value.sizes, self.value.value_type)
@@ -1023,14 +1081,11 @@ class Tensor():
             input = tensors[inputs[0]]
             output = tensors[outputs[0]]
 
-            num = 1
-            for si in self.value.sizes:
-                num = num * si
-            mean = sum(input.value[:]) / num
+            mean = sum(input.value[:]) / self.value.total_size()
             dmean = input.value[:] - mean
-            stdvalue = mpc_math.sqrt(sum(dmean ** 2) / (num-1))
+            stdvalue = mpc_math.sqrt(sum(dmean ** 2) / (self.value.total_size()-1))
             
-            operation.intermediate[0].assign_vector(mean)
+            operation.intermediate[0].assign_vector(dmean)
             operation.intermediate[1].assign_vector(stdvalue)
             output.value[:] = stdvalue
             
@@ -1044,13 +1099,10 @@ class Tensor():
         def propagate(dl_doutputs, operation):
             dl_dx, = dl_doutputs
             inputs = operation.inputs
-            mean = operation.intermediate[0] # reuse the intervalue in mem
+            dmean = operation.intermediate[0] # reuse the intervalue in mem
             dl_dself = dl_d[inputs[0]]
             
-            num = 1
-            for si in self.value.sizes:
-                num = num * si
-            dl_dself[:] += 2 / (num-1) * (self.value[:] - mean[0] ) * dl_dx[0]
+            dl_dself[:] += 2 / (self.value.total_size()-1) * dmean[:] * dl_dx[0]
             dl_dinputs = [dl_dself]
             return dl_dinputs
         # forward
@@ -1077,14 +1129,11 @@ class Tensor():
             input = tensors[inputs[0]]
             output = tensors[outputs[0]]
 
-            num = 1
-            for si in self.value.sizes:
-                num = num * si
-            mean = sum(input.value[:]) / num
+            mean = sum(input.value[:]) / self.value.total_size()
             dmean = input.value[:] - mean
-            output.value[:] = sum(dmean ** 2) / (num-1)
+            output.value[:] = sum(dmean ** 2) / (self.value.total_size()-1)
             
-            operation.intermediate[0].assign_vector(mean)
+            operation.intermediate[0].assign_vector(dmean)
             
             op_id += 1
         # record the input and output of the op
@@ -1102,7 +1151,6 @@ class Tensor():
 def reset_gloabal_store():
     gradient_operation.clear()
     for key, item in tensors.items():
-        print(key)
         item.value.delete()    
     tensors.clear()
     for key, item in dl_d.items():

@@ -66,9 +66,6 @@ class Parameter(Tensor):
     def __repr__(self):
         return 'Parameter containing:\n' + super().__repr__()
 
-
-
-
 class Module():
     def   __init__(self):
         self.training = True
