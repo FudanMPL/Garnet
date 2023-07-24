@@ -6717,7 +6717,7 @@ class MultiArray(SubMultiArray):
     
     @property
     def length(self):
-        return reduce(lambda x,y:x*y,self.sizes)
+        return reduce(operator.mul,self.sizes[:])
 
     @address.setter
     def address(self, value):
@@ -6826,6 +6826,25 @@ class MultiArray(SubMultiArray):
         res /= div
         div.delete()
         return res
+    
+
+    def mm(self,other,res=None): #not MP-SPDZ,added by zhou
+        assert self.value_type==other.value_type,"Invalid Data Type"
+        assert len(self.shape)==2 and self.shape[1]==other.sizes[0] ,"Invalid Dimension"
+        if isinstance(other,Array):
+            output_col=1
+        else:
+            output_col=other.shape[1]
+        N=self.shape[0]
+        n_threads=1 if N>=1000 else 20
+        if res is None:
+            res=MultiArray([self.shape[0],output_col],self.value_type)
+        @library.multithread(n_threads,N)
+        def _(base, size):
+            res.assign_part_vector(self.direct_mul(other,indices=(regint.inc(size,base=base),regint.inc(self.shape[1]), regint.inc(self.shape[1]),regint.inc(output_col))),base)
+        return res
+
+        
 
     def delete(self):
         self.array.delete()

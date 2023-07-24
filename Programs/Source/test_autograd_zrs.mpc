@@ -299,6 +299,36 @@ def test_concate_MultiArray():
     input2.grad.print_reveal_nested()
 
 
+@autograd_function
+def test_mm_MultiArray():
+    print_ln('test_mm_MultiArray():')
+    xMultiArray_2_1 = MultiArray([ROW, COL], sfix)
+    for i in range(0,ROW):
+        for  j in range(0,COL):
+            xMultiArray_2_1[i][j] = sfix(1)
+
+    xMultiArray_2_2 = MultiArray([COL, ROW], sfix)
+    for i in range(0,COL):
+        for  j in range(0,ROW):
+            xMultiArray_2_2[i][j] = sfix(1)
+
+
+    xMultiArray_2_1.print_reveal_nested()
+    xMultiArray_2_2.print_reveal_nested()
+    input1 = Tensor(xMultiArray_2_1)
+    input2 = Tensor(xMultiArray_2_2)
+    output = input1.mm(input2)
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    output = input1.mm(input2)
+    output.backward()
+    output.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+    input2.grad.print_reveal_nested()
+
+
 #test_squeeze()
 #test_unsqueeze()
 #test_permute()
@@ -310,20 +340,5 @@ def test_concate_MultiArray():
 
 #test_concate_Array()
 #test_concate_MultiArray()
+test_mm_MultiArray()
 
-regint.inc(10,1,2,3)
-
- @multithread(self.n_threads, N, max_size)
-        def _(base, size):
-            X_sub = sfix.Matrix(self.N, self.d_in, address=self.X.address)
-            prod.assign_part_vector(
-X_sub.direct_mul(self.W, indices=(batch.get_vector(base, size), regint.inc(self.d_in),regint.inc(self.d_in), regint.inc(self.d_out))), base)
-
-
-
- return self.value_type.direct_matrix_mul(self.address, other.address,
-                                                 self.sizes[0], *other_sizes,
-                                                 reduce=reduce, indices=indices)
-
- matmulsm(res, regint(A), regint(B), len(indices[0]), len(indices[1]),
-                 len(indices[3]), *(list(indices) + [m, l]))

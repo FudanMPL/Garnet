@@ -207,14 +207,13 @@ def ops_mul_constant(self, c):
 
 def ops_sin(self):
     @buildingblock(get_program().globalbuildingblock)
-    def propagate(dl_doutputs,oparation):
-        dl_dx, = dl_doutputs
-        dx_dself = Tensor(mpc_math.scos(self.value))
-        dl_dself = dl_dx * dx_dself
-        return [dl_dself]
-
+    def propagate(dl_doutputs,operation):
+        dl_d[operation.inputs[0]][:] += mpc_math.cos(dl_doutputs[0])[:]
     if prepare:
-        new_value=MultiArray([self.value.sizes[0], self.value.sizes[1]],self.value.value_type)
+        if isinstance(self.value,Array):
+            new_value=Array(self.length,self.value.value_type)
+        else:
+            new_value=MultiArray(self.value.shape,self.value.value_type)
         output = Tensor(new_value)
         operation=Operation(inputs=[self.name],outputs=[output.name],propagate=propagate)
         gradient_operation.append(operation)
@@ -224,11 +223,9 @@ def ops_sin(self):
         op_id+=1
     else:
         operation=gradient_operation[op_id_store[op_id]]
-        inputs=operation.inputs
-        outputs=operation.outputs
-        input=tensors[inputs[0]]
-        output=tensors[outputs[0]]
-        output.value[:]=Tensor(mpc_math.ssin(self.value))
+        input=tensors[operation.inputs[0]]
+        output=tensors[operation.outputs[0]]
+        output.value[:]=mpc_math.sin(input.value)[:]
         op_id+=1
     return output
 
@@ -411,14 +408,11 @@ class Tensor():
         # backward
         @buildingblock(get_program().globalbuildingblock)
         def propagate(dl_doutputs, operation):
-            dl_dx, = dl_doutputs
-            inputs = operation.inputs
-            dl_dself =  dl_d[inputs[0]] # C=AB partial derivate of dA=dC*B^T
-            dl_dother = dl_d[inputs[1]] # C=AB partial derivate of dB=A^T*dC
-            dl_dself[:] += dl_dx[:]
-            dl_dother[:] += dl_dx[:]
-            dl_dinputs = [dl_dself, dl_dother]
-            return dl_dinputs
+            dl_dy, = dl_doutputs
+            input1 = tensors[operation.inputs[0]]
+            input2 = tensors[operation.inputs[1]]
+            dl_d[operation.inputs[0]][:]+=dl_dy.mm(input2.value.transpose())[:]# C=AB partial derivate of dA=dC*B^T
+            dl_d[operation.inputs[1]][:]+=input1.value.transpose().mm(dl_dy)[:] # C=AB partial derivate of dB=A^T*dC
         # forward
         global op_id
         if prepare:
@@ -437,15 +431,7 @@ class Tensor():
             input1 = tensors[inputs[0]]
             input2 = tensors[inputs[1]]
             output = tensors[outputs[0]]
-            @for_range(input1.shape[0])
-            def _(i):
-                @for_range(input2.shape[1])
-                def _(j):
-                    tmp=0
-                    for_range(input1.shape[1])
-                    def _(k):
-                        tmp+=(input1.value[i][k]*input2.value[k][j])
-                    output.value[i][j]=tmp                  
+            input1.value.mm(input2.value,output.value)  
             op_id += 1# record the input and output of the op
         return output
 

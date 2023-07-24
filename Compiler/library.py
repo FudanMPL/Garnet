@@ -1179,7 +1179,7 @@ def multithread(n_threads, n_items=None, max_size=None):
 
     .. code::
 
-        @multithread(8, 25)
+        @multithread(3, 25)
         def f(base, size):
             ...
     """
