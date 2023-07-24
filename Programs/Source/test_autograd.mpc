@@ -12,12 +12,12 @@ def test_mul():
     y = MultiArray([i, j], sfix)
     y.assign_all(5)
     y.print_reveal_nested()
-    input1 = Tensor(x)
-    input2 = Tensor(y)
+    input1 = Tensor(x, req_grad = True)
+    input2 = Tensor(y, req_grad = True)
 
 def test_single_operation(func,Value):
     Value.print_reveal_nested()
-    input = Tensor(Value)
+    input = Tensor(Value, req_grad = True)
     output = getattr(input, func)() 
     tensor.train()
     tensor.reset_op_id()
@@ -31,6 +31,7 @@ def test_single_operation(func,Value):
 @autograd_function
 def test_add():
     print_ln('test_add')
+    print_ln('test_add')
     i, j = 3, 3
     x = MultiArray([i, j], sfix)
     x.assign_all(2)
@@ -38,8 +39,8 @@ def test_add():
     y = MultiArray([i, 1], sfix)
     y.assign_all(5)
     y.print_reveal_nested()
-    input1 = Tensor(x)
-    input2 = Tensor(y)
+    input1 = Tensor(x, req_grad = True)
+    input2 = Tensor(y, req_grad = True)
 
     input3 = input1 +input2
 
@@ -62,8 +63,8 @@ def test_sub():
     y = MultiArray([i, j], sfix)
     y.assign_all(5)
     y.print_reveal_nested()
-    input1 = Tensor(x)
-    input2 = Tensor(y)
+    input1 = Tensor(x, req_grad = True)
+    input2 = Tensor(y, req_grad = True)
 
     input3 = input1 -input2
 
@@ -78,37 +79,32 @@ def test_sub():
 
 @autograd_function
 def test_abs():
+    print_ln('test_abs')
     i, j = 3, 3
     x = MultiArray([i, j], sfix)
     for i in range(0,3):
         for  j in range(0,3):
             x[i][j] = sfix(i-j)
     x.print_reveal_nested()
-    input1 = Tensor(x)
-
+    input1 = Tensor(x, req_grad = True)
     input2 = input1.abs()
-    
-
-# test for Array and MultiArray
-def test_sin():  
-    test_single_operation('sin',xArray)
-    test_single_operation('sin',xMultiArray)
-
+    tensor.train()
+    tensor.reset_op_id()
     input2 = input1.abs()
     input2.value.print_reveal_nested()
     input2.backward()
-    
     input1.grad.print_reveal_nested()
 
 @autograd_function
 def test_exp():
+    print_ln('test_exp')
     i, j = 3, 3
     x = MultiArray([i, j], sfix)
     for i in range(0,3):
         for  j in range(0,3):
             x[i][j] = sfix(i+j)
     x.print_reveal_nested()
-    input1 = Tensor(x)
+    input1 = Tensor(x, req_grad = True)
 
     input2 = input1.exp()
 
@@ -122,13 +118,14 @@ def test_exp():
 
 @autograd_function
 def test_log():
+    print_ln('test_log')
     i, j = 3, 3
     x = MultiArray([i, j], sfix)
     for i in range(0,3):
         for  j in range(0,3):
             x[i][j] = sfix(i+j)
     x.print_reveal_nested()
-    input1 = Tensor(x)
+    input1 = Tensor(x, req_grad = True)
 
     input2 = input1.log()
 
@@ -148,7 +145,7 @@ def test_pow(pow):
         for  j in range(0,3):
             x[i][j] = sfix(i+j)
     x.print_reveal_nested()
-    input1 = Tensor(x)
+    input1 = Tensor(x, req_grad = True)
 
     input2 = input1.pow(pow)
 
@@ -168,7 +165,7 @@ def test_sum():
         for  j in range(0,3):
             x[i][j] = sfix(i+j)
     x.print_reveal_nested()
-    input1 = Tensor(x)
+    input1 = Tensor(x, req_grad = True)
 
     input2 = input1.sum()
 
@@ -189,7 +186,7 @@ def test_mean():
         for  j in range(0,3):
             x[i][j] = sfix(i+j)
     x.print_reveal_nested()
-    input1 = Tensor(x)
+    input1 = Tensor(x, req_grad = True)
 
     input2 = input1.mean()
 
@@ -210,7 +207,7 @@ def test_var():
         for  j in range(0,3):
             x[i][j] = sfix(i+j)
     x.print_reveal_nested()
-    input1 = Tensor(x)
+    input1 = Tensor(x, req_grad = True)
 
     input2 = input1.var()
 
@@ -231,7 +228,7 @@ def test_std():
         for  j in range(0,3):
             x[i][j] = sfix(i+j)
     x.print_reveal_nested()
-    input1 = Tensor(x)
+    input1 = Tensor(x, req_grad = True)
 
     input2 = input1.std()
 
@@ -252,7 +249,7 @@ def test_addc():
         for  j in range(0,3):
             x[i][j] = sfix(i+j)
     x.print_reveal_nested()
-    input1 = Tensor(x)
+    input1 = Tensor(x, req_grad = True)
 
     input2 = input1 + 1
 
@@ -273,7 +270,7 @@ def test_subc():
         for  j in range(0,3):
             x[i][j] = sfix(i+j)
     x.print_reveal_nested()
-    input1 = Tensor(x)
+    input1 = Tensor(x, req_grad = True)
 
     input2 = input1 - 1
 
@@ -294,7 +291,7 @@ def test_mulc():
         for  j in range(0,3):
             x[i][j] = sfix(i+j)
     x.print_reveal_nested()
-    input1 = Tensor(x)
+    input1 = Tensor(x, req_grad = True)
 
     input2 = input1 * 2
 
@@ -315,7 +312,7 @@ def test_divc():
         for  j in range(0,3):
             x[i][j] = sfix(i+j)
     x.print_reveal_nested()
-    input1 = Tensor(x)
+    input1 = Tensor(x, req_grad = True)
 
     input2 = input1 / 2
 
@@ -336,7 +333,7 @@ def test_neg():
         for  j in range(0,3):
             x[i][j] = sfix(i+j)
     x.print_reveal_nested()
-    input1 = Tensor(x)
+    input1 = Tensor(x, req_grad = True)
 
     input2 = -input1
 

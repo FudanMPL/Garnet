@@ -24,7 +24,7 @@ for i in range(0,ROW):
 
 def test_single_operation(func,Value):
     Value.print_reveal_nested()
-    input = Tensor(Value)
+    input = Tensor(Value, req_grad = True)
     output = getattr(input, func)() 
     tensor.train()
     tensor.reset_op_id()
@@ -62,7 +62,7 @@ def test_sum():
 @autograd_function
 def test_sin2():
     xMultiArray_2.print_reveal_nested()
-    input1 = Tensor(xMultiArray_2)
+    input1 = Tensor(xMultiArray_2, req_grad = True)
 
     input2 = input1.sin()
 
@@ -88,7 +88,7 @@ def test_permute():
             for k in range(0,4):
                 xMultiArray_3[i][j][k] = sfix(i-j+k)
     xMultiArray_3.print_reveal_nested()
-    input1 = Tensor(xMultiArray_3)
+    input1 = Tensor(xMultiArray_3, req_grad = True)
 
     input2 = input1.permute([1,2,0])
     input3=input2.sin()
@@ -108,7 +108,7 @@ def test_permute():
 def test_reshape_MultiArrayToMultiArray():
     print_ln('test_reshape_MultiArrayToMultiArray()')
     xMultiArray_3.print_reveal_nested()
-    input1 = Tensor(xMultiArray_3)
+    input1 = Tensor(xMultiArray_3, req_grad = True)
 
     input2 = input1.reshape([6,4])
 
@@ -124,7 +124,7 @@ def test_reshape_MultiArrayToMultiArray():
 def test_reshape_ArrayToMultiArray():
     print_ln('test_reshape_ArrayToMultiArray()')
     xArray.print_reveal_nested()
-    input1 = Tensor(xArray)
+    input1 = Tensor(xArray, req_grad = True)
 
     input2 = input1.reshape([2,5])
 
@@ -141,7 +141,7 @@ def test_reshape_ArrayToMultiArray():
 def test_reshape_MultiArrayToArray():
     print_ln('test_reshape_MultiArrayToArray()')
     xMultiArray_2.print_reveal_nested()
-    input1 = Tensor(xMultiArray_2)
+    input1 = Tensor(xMultiArray_2, req_grad = True)
 
     input2 = input1.reshape(ROW*COL)
 
@@ -162,7 +162,7 @@ def test_squeeze():
                 xMultiArray_3_tmp[i][j][k] = sfix(i-j+k)
     print_ln('test_squeeze():')
     xMultiArray_3_tmp.print_reveal_nested()
-    input1 = Tensor(xMultiArray_3_tmp)
+    input1 = Tensor(xMultiArray_3_tmp, req_grad = True)
 
     input2 = input1.squeeze(1)
 
@@ -182,7 +182,7 @@ def test_unsqueeze():
         for  j in range(0,COL):
             xMultiArray_2[i][j] = sfix(i-j)
     xMultiArray_2.print_reveal_nested()
-    input1 = Tensor(xMultiArray_2)
+    input1 = Tensor(xMultiArray_2, req_grad = True)
 
     input2 = input1.unsqueeze(0)
 
@@ -201,7 +201,7 @@ def test_transpose_Array():
     for i in range(0,LENGTH):
         xArray[i]=sfix(i-LENGTH/2)
     xArray.print_reveal_nested()
-    input1 = Tensor(xArray)
+    input1 = Tensor(xArray, req_grad = True)
     input2 = input1.transpose()
 
     tensor.train()
@@ -220,7 +220,7 @@ def test_transpose_MultiArray():
         for  j in range(0,COL):
             xMultiArray_2[i][j] = sfix(i-j)
     xMultiArray_2.print_reveal_nested()
-    input1 = Tensor(xMultiArray_2)
+    input1 = Tensor(xMultiArray_2, req_grad = True)
     input2 = input1.transpose()
 
     tensor.train()
@@ -232,16 +232,82 @@ def test_transpose_MultiArray():
     input1.grad.print_reveal_nested()
 
 
+@autograd_function
+def test_concate_Array():
+    print_ln('test_concate_Array():')
+    xArray_1 = Array(LENGTH, sfix)
+    for i in range(0,LENGTH):
+        xArray_1[i]=sfix(i-LENGTH/2)
+    xArray_2 = Array(5, sfix)
+    for i in range(0,5):
+        xArray_2[i]=sfix(i+10+LENGTH/2)
+    print_str("Array1 and Array2:\n")
+    xArray_1.print_reveal_nested()
+    xArray_2.print_reveal_nested()
+    input1 = Tensor(xArray_1, req_grad = True)
+    input2 = Tensor(xArray_2, req_grad = True)
+    output=input1.concate(input2)
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    output=input1.concate(input2)
+    
+    output.backward()
+    print_str("The output of Array1 concate Array2:\n")
+    output.value.print_reveal_nested()
+    print_str("The grad of Array1 and Array2:\n")
+    input1.grad.print_reveal_nested()
+    input2.grad.print_reveal_nested()
 
 
-test_squeeze()
-test_unsqueeze()
-test_permute()
-test_transpose_Array() #todo fix the bug
-test_transpose_MultiArray()
 
-test_reshape_MultiArrayToMultiArray()
-test_reshape_ArrayToMultiArray()
-test_reshape_MultiArrayToArray()
+@autograd_function
+def test_concate_MultiArray():
+    print_ln('test_concate_MultiArray():')
+    xMultiArray_3_1 = MultiArray([ROW, COL+2,HEIGHT], sfix)
+    for i in range(0,ROW):
+        for  j in range(0,COL+2):
+            for k in range(0,HEIGHT):
+                xMultiArray_3_1[i][j][k] = sfix(i+j+k+100)
+    
+    xMultiArray_3_2 = MultiArray([ROW, COL,HEIGHT], sfix)
+    for i in range(0,ROW):
+        for  j in range(0,COL):
+            for k in range(0,HEIGHT):
+                xMultiArray_3_2[i][j][k] = sfix(i+j+k)
 
+
+    print_str("3-Dimension MultiArray1 and MultiArray2:\n")
+    xMultiArray_3_1.print_reveal_nested()
+    xMultiArray_3_2.print_reveal_nested()
+
+    input1 = Tensor(xMultiArray_3_1, req_grad = True)
+    input2 = Tensor(xMultiArray_3_2, req_grad = True)
+    output=input1.concate(input2,1)
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    output=input1.concate(input2,1)
+    
+    output.backward()
+    print_str("The output of 3-Dimension MultiArray1 concate MultiArray2 in axis=1:\n")
+    output.value.print_reveal_nested()
+    print_str("The grad of MultiArray1 and MultiArray2:\n")
+    input1.grad.print_reveal_nested()
+    input2.grad.print_reveal_nested()
+
+
+#test_squeeze()
+#test_unsqueeze()
+#test_permute()
+#test_transpose_Array() #todo fix the bug
+#test_transpose_MultiArray()
+#test_reshape_MultiArrayToMultiArray()
+#test_reshape_ArrayToMultiArray()
+#test_reshape_MultiArrayToArray()
+
+test_concate_Array()
+test_concate_MultiArray()
 

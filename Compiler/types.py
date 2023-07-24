@@ -6050,6 +6050,7 @@ class SubMultiArray(_vectorizable):
         :param vector: vector of matching size convertible to relevant basic type
         :param base: compile-time (int) """
         assert self.value_type.n_elements() == 1
+        # print(f'vector.size={vector.size}. self.total_size()={self.total_size()}\n')
         assert vector.size <= self.total_size()
         self.value_type.conv(vector).store_in_mem(self.address + base)
 
@@ -6713,6 +6714,10 @@ class MultiArray(SubMultiArray):
     @property
     def address(self):
         return self.array.address
+    
+    @property
+    def length(self):
+        return reduce(lambda x,y:x*y,self.sizes)
 
     @address.setter
     def address(self, value):
