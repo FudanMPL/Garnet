@@ -413,15 +413,16 @@ class Tensor():
         def propagate(dl_doutputs, operation):
             dl_dx, = dl_doutputs
             inputs = operation.inputs
-            dl_dself =  dl_d[inputs[0]] # partial derivate of r = 1
-            dl_dother = dl_d[inputs[1]] # partial derivate of r = 1
+            dl_dself =  dl_d[inputs[0]] # C=AB partial derivate of dA=dC*B^T
+            dl_dother = dl_d[inputs[1]] # C=AB partial derivate of dB=A^T*dC
             dl_dself[:] += dl_dx[:]
             dl_dother[:] += dl_dx[:]
             dl_dinputs = [dl_dself, dl_dother]
             return dl_dinputs
         # forward
         global op_id
-        if prepare:   
+        if prepare:
+            assert len(self.shape)==len(other.shape)==2 and self.shape[1]==other.shape[0],"Invalid Dimension"
             new_value = MultiArray([self.value.sizes[0], other.value.sizes[1]], other.value.value_type)
             output = Tensor(new_value)
             operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
@@ -436,13 +437,15 @@ class Tensor():
             input1 = tensors[inputs[0]]
             input2 = tensors[inputs[1]]
             output = tensors[outputs[0]]
-            
-            
-            
-            output.value[:] = input1.value[:] + input2.value[:] #todo  
-            
-            
-                  
+            @for_range(input1.shape[0])
+            def _(i):
+                @for_range(input2.shape[1])
+                def _(j):
+                    tmp=0
+                    for_range(input1.shape[1])
+                    def _(k):
+                        tmp+=(input1.value[i][k]*input2.value[k][j])
+                    output.value[i][j]=tmp                  
             op_id += 1# record the input and output of the op
         return output
 

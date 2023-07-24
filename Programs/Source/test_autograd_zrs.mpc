@@ -308,6 +308,22 @@ def test_concate_MultiArray():
 #test_reshape_ArrayToMultiArray()
 #test_reshape_MultiArrayToArray()
 
-test_concate_Array()
-test_concate_MultiArray()
+#test_concate_Array()
+#test_concate_MultiArray()
 
+regint.inc(10,1,2,3)
+
+ @multithread(self.n_threads, N, max_size)
+        def _(base, size):
+            X_sub = sfix.Matrix(self.N, self.d_in, address=self.X.address)
+            prod.assign_part_vector(
+X_sub.direct_mul(self.W, indices=(batch.get_vector(base, size), regint.inc(self.d_in),regint.inc(self.d_in), regint.inc(self.d_out))), base)
+
+
+
+ return self.value_type.direct_matrix_mul(self.address, other.address,
+                                                 self.sizes[0], *other_sizes,
+                                                 reduce=reduce, indices=indices)
+
+ matmulsm(res, regint(A), regint(B), len(indices[0]), len(indices[1]),
+                 len(indices[3]), *(list(indices) + [m, l]))

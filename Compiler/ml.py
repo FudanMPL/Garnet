@@ -844,6 +844,8 @@ class Dense(DenseBase):
         else:
             prod = self.f_input
         max_size = program.Program.prog.budget // self.d_out
+        
+        #标记一下，矩阵乘
         @multithread(self.n_threads, N, max_size)
         def _(base, size):
             X_sub = sfix.Matrix(self.N, self.d_in, address=self.X.address)
