@@ -39,16 +39,19 @@ op_id = 0
 #op_id_store stores the correlation among op_ids and operation ids.
 op_id_store = {}
 
-# def matrix_reconst(self, mat):
-#     r = mat.value.length/mat.size[0]
-#     c = mat.size[0]
-#     new_matrix = MultiArray([r, c], mat.value.value_type)
-#     @for_range(r)
-#     def _(i):
-#         @for_range(c)
-#         def _(j):
-#             new_matrix[i][j] = 
-#     return new_matrix
+def matrix_reconst(mat, other_sizes):
+    
+    ds = len(mat.sizes) - len(other_sizes)
+    new_sizes = []
+    for i in range(ds, len(mat.sizes)):
+        new_sizes.append(mat.sizes[i])
+    for i in range(0, ds):
+        new_sizes.append(mat.sizes[i])
+    print(new_sizes)
+    
+    new_matrix = MultiArray(new_sizes, mat.value_type)
+
+    return new_matrix
     
 
 def element_wise_add(self, other):
@@ -83,18 +86,15 @@ def element_wise_add(self, other):
         
         len1 = input1.value.total_size()
         len2 = input2.value.total_size()
-        v1 = input1.value.get_vector(0, len1)
-        v2 = input2.value.get_vector(0, len2)
+        v1 = input1.value
+        v2 = input2.value
         if len1 < len2:
             len1, len2 = len2, len1
             v1, v2 = v2, v1
 
-        # print(type(v1))
-        # for i in range(0, int(len1/len2)):
-        #     for j in range(0, len2):
-        #         v1[i+j] += v2[j]
-
-        output.value.assign_vector(v1)
+        for i in range(0, int(len1/len2)):
+            v3 = v1.get_vector(i*len2, len2) + v2.get_vector(0, len2)
+            output.value.assign_vector(v3, i*len2)
         op_id += 1# record the input and output of the op
     return output
 

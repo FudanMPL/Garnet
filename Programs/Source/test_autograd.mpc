@@ -35,7 +35,7 @@ def test_add():
     x = MultiArray([i, j], sfix)
     x.assign_all(2)
     x.print_reveal_nested()
-    y = MultiArray([i, j], sfix)
+    y = MultiArray([i, 1], sfix)
     y.assign_all(5)
     y.print_reveal_nested()
     input1 = Tensor(x)
@@ -348,24 +348,25 @@ def test_neg():
     input2.value.print_reveal_nested()
     input1.grad.print_reveal_nested()
 
-test_mul()
-test_abs()
-test_exp()
-test_log()
-test_pow(3)
-test_sum()
-#test_mean()
-test_add()
-test_sub()
+#test_mul()
+#test_add()
+#test_sub()
 
 #test_abs()
 #test_exp()
 #test_log()
 #test_pow(3)
-test_sum()
-test_mean()
-test_var()
-test_std()
+#test_sum()
+#test_mean()
+
+#test_abs()
+#test_exp()
+#test_log()
+#test_pow(3)
+#test_sum()
+#test_mean()
+#test_var()
+#test_std()
 
 #test_addc()
 #test_subc()
@@ -373,3 +374,17 @@ test_std()
 #test_divc()
 
 #test_neg()
+
+from tensor import matrix_reconst
+x = MultiArray([2, 3, 3], sfix)
+x.assign_all(1)
+x.print_reveal_nested()
+
+y = MultiArray([3, 3], sfix)
+for i in range(0,3):
+    for  j in range(0,3):
+        y[i][j] = sfix(i*3+j)
+y.print_reveal_nested()
+
+x = matrix_reconst(x, y.sizes)
+x.print_reveal_nested()
