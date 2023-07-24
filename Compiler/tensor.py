@@ -73,8 +73,11 @@ def element_wise_add(self, other):
     global op_id
     if prepare:    
         new_value = MultiArray([self.value.sizes[0], other.value.sizes[1]], other.value.value_type)
-        output = Tensor(new_value)
-        operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
+        output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
+        if self.req_grad or other.req_grad:
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
+        else:
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate)
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
@@ -117,8 +120,11 @@ def element_wise_sub(self, other):
     global op_id
     if prepare:    
         new_value = MultiArray([self.value.sizes[0], other.value.sizes[1]], other.value.value_type)
-        output = Tensor(new_value)
-        operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
+        output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
+        if self.req_grad or other.req_grad:
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
+        else:
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate)
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
@@ -150,8 +156,11 @@ def element_wise_mul(self, other):
     global op_id
     if prepare:    
         new_value = MultiArray([self.value.sizes[0], other.value.sizes[1]], other.value.value_type)
-        output = Tensor(new_value)
-        operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
+        output = Tensor(new_value,req_grad=self.req_grad or other.grad)
+        if self.req_grad or other.grad:
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
+        else:
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate)
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
@@ -184,12 +193,13 @@ def ops_mul_constant(self, c):
     if prepare:    
         if isinstance(self.value, Array):    
             new_value = Array(self.value.length, self.value.value_type)
-            output = Tensor(new_value)
         else:
             new_value = MultiArray(self.value.sizes, self.value.value_type)
-            output = Tensor(new_value)
-            
-        operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
+        output = Tensor(new_value, req_grad=self.req_grad)
+        if self.req_grad:
+            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
+        else:
+            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate)
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
             
@@ -218,8 +228,11 @@ def ops_sin(self):
 
     if prepare:
         new_value=MultiArray([self.value.sizes[0], self.value.sizes[1]],self.value.value_type)
-        output = Tensor(new_value)
-        operation=Operation(inputs=[self.name],outputs=[output.name],propagate=propagate)
+        output = Tensor(new_value, req_grad=self.req_grad)
+        if self.req_grad:
+            operation=Operation(inputs=[self.name],outputs=[output.name],propagate=propagate)
+        else:
+            operation=Operation(inputs=[self.name],outputs=[output.name],propagate=fake_propagate)
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         global op_id
@@ -238,55 +251,12 @@ def ops_sin(self):
 
 
 def mat_mul(self, other):
-    @buildingblock(get_program().globalbuildingblock)
-    def propagate(dl_doutputs, operation):
-        dl_dx, = dl_doutputs
-        inputs = operation.inputs
-        dl_dself =  dl_d[inputs[0]]# partial derivate of r = self*other
-        dl_dother = dl_d[inputs[1]] # partial derivate of r = self*other
-        dl_dself[:] += dl_dx[:] * other.value[:] #todo
-        dl_dother[:] += dl_dx[:] * self.value[:] # todo
-        dl_dinputs = [dl_dself, dl_dother]
-        return dl_dinputs
-
-    if prepare:    
-        new_value = MultiArray([self.value.sizes[0], other.value.sizes[1]], other.value.value_type)
-        output = Tensor(new_value)
-        operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
-        gradient_operation.append(operation)
-        operation_id = len(gradient_operation) - 1
-        global op_id
-        op_id_store[op_id] = operation_id
-        op_id += 1
-    else:
-        operation = gradient_operation[op_id_store[op_id]]
-        inputs = operation.inputs
-        outputs = operation.outputs
-        input1 = tensors[inputs[0]]
-        input2 = tensors[inputs[1]]
-        output = tensors[outputs[0]]
-        output.value[:] = input1.value[:] * input2.value[:] #todo        
-        op_id += 1
 
     # record the input and output of the op
-    return output    
+    return 0    
 
 def ops_add(self, other):
-    x = Tensor(self.value + other.value)
-    print(f'{x.name} = {self.name} + {other.name}')
-
-    def propagate(dl_doutputs):
-        dl_dx, = dl_doutputs
-        dx_dself = Tensor(1.)
-        dx_dother = Tensor(1.)
-        dl_dself = dl_dx * dx_dself
-        dl_dother = dl_dx * dx_dother
-        return [dl_dself, dl_dother]
-
-    # record the input and output of the op
-    operation = Operation(inputs=[self.name, other.name], outputs=[x.name], propagate=propagate)
-    gradient_operation.append(operation)
-    return x
+    return 0
 
 def ops_add_constant(self, c):
     # backward
@@ -303,12 +273,13 @@ def ops_add_constant(self, c):
     if prepare:    
         if isinstance(self.value, Array):    
             new_value = Array(self.value.length, self.value.value_type)
-            output = Tensor(new_value)
         else:
             new_value = MultiArray(self.value.sizes, self.value.value_type)
-            output = Tensor(new_value)
-            
-        operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
+        output = Tensor(new_value, req_grad=self.req_grad)
+        if self.req_grad:
+            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
+        else:
+            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate)
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
             
@@ -328,20 +299,8 @@ def ops_add_constant(self, c):
         return output
 
 def ops_sub(self, other):
-    x = Tensor(self.value - other.value)
 
-    def propagate(dl_doutputs):
-        dl_dx, = dl_doutputs
-        dx_dself = Tensor(1.)
-        dx_dother = Tensor(-1.)
-        dl_dself = dl_dx * dx_dself
-        dl_dother = dl_dx * dx_dother
-        return [dl_dself, dl_dother]
-
-    # record the input and output of the op
-    operation = Operation(inputs=[self.name, other.name], outputs=[x.name], propagate=propagate)
-    gradient_operation.append(operation)
-    return x
+    return 0
 
 # def compare_shape(shape1, shape2):
 #     if len(shape1) == len(shape2):
@@ -779,7 +738,6 @@ class Tensor():
             outputs = operation.outputs
             input = tensors[inputs[0]]
             output = tensors[outputs[0]]
-            input.value.print_reveal_nested()
             c = input.value[:] > 0
             operation.intermediate[0].assign_vector(c) # write to mem
             
@@ -924,7 +882,7 @@ class Tensor():
                 new_value=Array(self.value.length,self.value.value_type) #
             else:
                 new_value=MultiArray(self.value.sizes,self.value.value_type)
-            output=Tensor(new_value, self.req_grad)
+            output=Tensor(new_value, req_grad=self.req_grad)
             if self.req_grad:
                 operation=Operation(inputs=[self.name],outputs=[output.name],propagate=propagate)
             else:
@@ -955,7 +913,7 @@ class Tensor():
                 new_value=Array(self.value.length,self.value.value_type) #
             else:
                 new_value=MultiArray(self.value.sizes,self.value.value_type)
-            output=Tensor(new_value, self.req_grad)
+            output=Tensor(new_value, req_grad=self.req_grad)
             if self.req_grad:
                 operation=Operation(inputs=[self.name],outputs=[output.name],propagate=propagate)
             else:
@@ -981,7 +939,6 @@ class Tensor():
             dl_dx, = dl_doutputs
             inputs = operation.inputs
             dl_dself = dl_d[inputs[0]]
-            
             dl_dself[:] += dl_dx[0] / self.value.total_size()
             dl_dinputs = [dl_dself]
             return dl_dinputs
@@ -989,7 +946,7 @@ class Tensor():
         global op_id
         if prepare:    
             new_value = Array(1, self.value.value_type)
-            output = Tensor(new_value, self.req_grad)
+            output = Tensor(new_value, req_grad = self.req_grad)
             if self.req_grad:
                 operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
             else:
@@ -1066,12 +1023,13 @@ class Tensor():
         global op_id
         if prepare:    
             new_value = Array(1, self.value.value_type)
-            output = Tensor(new_value, req_grad=self.req_grad)
+            output = Tensor(new_value, req_grad = self.req_grad)
+            
             if isinstance(self.value, Array):    
                 inter1 = Array(self.value.length, self.value.value_type)
             else:
                 inter1 = MultiArray(self.value.sizes, self.value.value_type)
-                inter2 = MultiArray(self.value.sizes, self.value.value_type)
+            inter2 = Array(1, self.value.value_type)
             if self.req_grad:
                 operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=[inter1, inter2])
             else:
@@ -1116,7 +1074,7 @@ class Tensor():
         global op_id
         if prepare:    
             new_value = Array(1, self.value.value_type)
-            output = Tensor(new_value, self.req_grad)
+            output = Tensor(new_value, req_grad = self.req_grad)
             if isinstance(self.value, Array):    
                 inter = Array(self.value.length, self.value.value_type)
             else:
