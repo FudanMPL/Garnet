@@ -355,8 +355,11 @@ class Tensor():
         if prepare:
             assert len(self.shape)==len(other.shape)==2 and self.shape[1]==other.shape[0],"Invalid Dimension"
             new_value = MultiArray([self.value.sizes[0], other.value.sizes[1]], other.value.value_type)
-            output = Tensor(new_value)
-            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
+            output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
+            if self.req_grad or other.req_grad:
+                operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
+            else:
+                operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate)
             gradient_operation.append(operation)
             operation_id = len(gradient_operation) - 1
             op_id_store[op_id] = operation_id

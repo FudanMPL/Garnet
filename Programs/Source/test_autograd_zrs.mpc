@@ -315,8 +315,8 @@ def test_mm_MultiArray():
 
     xMultiArray_2_1.print_reveal_nested()
     xMultiArray_2_2.print_reveal_nested()
-    input1 = Tensor(xMultiArray_2_1)
-    input2 = Tensor(xMultiArray_2_2)
+    input1 = Tensor(xMultiArray_2_1, req_grad = True)
+    input2 = Tensor(xMultiArray_2_2, req_grad = True)
     output = input1.mm(input2)
 
     tensor.train()
