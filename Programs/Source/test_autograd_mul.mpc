@@ -66,12 +66,22 @@ def test_bmm():
     x.assign_all(1)
     x.print_reveal_nested()
 
-    y = MultiArray([4,4,3], sfix)
+    y = MultiArray([4,3], sfix)
     y.assign_all(2)
     y.print_reveal_nested()
 
-    res = x.bmm(y)
-    res.print_reveal_nested()
+    input1 = Tensor(x, req_grad = True)
+    input2 = Tensor(y, req_grad = True)
+    output = input1.single_bmm(input2)
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    output = input1.single_bmm(input2)
+    output.backward()
+    output.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+    input2.grad.print_reveal_nested()
 
 #test_single_bmm()
 test_bmm()
