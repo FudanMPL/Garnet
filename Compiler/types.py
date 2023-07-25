@@ -6847,6 +6847,27 @@ class MultiArray(SubMultiArray):
             res.assign_part_vector(self.direct_mul(other,indices=(regint.inc(size,base=base),regint.inc(self.shape[1]), regint.inc(self.shape[1]),regint.inc(output_col))),base)
         return res 
 
+    def single_bmm(self, other, res = None):
+        '''
+        self: [batch, n, m]
+        other: [m, p]
+        res: [batch, n, p]
+        '''
+        assert self.value_type == other.value_type, "Invalid Data Type"
+        assert len(self.shape) >= 3 and self.shape[-1] == other.sizes[0], "Invalid Dimension"
+        batch,n,m = self.shape
+        self.view(batch*n, m)
+        if res is not None:
+            res.view(batch*n, -1)
+        res = self.mm(other,res)
+        res.view(batch,n,-1)
+        return res
+    
+    def bmm(self, other, res = None):
+        assert len(self.shape)==len(other.sizes)==3 and self.shape[-1]==other.sizes[1], "Invalid Dimension"
+        out_shape = [self.shape[0], self.shape[1], other.shape[-1]]
+        return
+
     def delete(self):
         self.array.delete()
 
