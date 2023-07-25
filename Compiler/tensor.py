@@ -431,7 +431,7 @@ class Tensor():
             input1 = tensors[operation.inputs[0]]
             input2 = tensors[operation.inputs[1]]
             if self.req_grad:
-                dl_d[operation.inputs[0]][:]+=dl_dy.mm(input2.value.transpose())[:]# C=AB partial derivate of dA=dC*B^T
+                dl_d[operation.inputs[0]][:]+=dl_dy.mm(input2.value.transpose())[:] # C=AB partial derivate of dA=dC*B^T
             if other.req_grad:
                 dl_d[operation.inputs[1]][:]+=input1.value.transpose().mm(dl_dy)[:] # C=AB partial derivate of dB=A^T*dC
         # forward
@@ -459,23 +459,24 @@ class Tensor():
             op_id += 1# record the input and output of the op
         return output
 
-    def bmm(self, other):
+    def single_bmm(self, other):
         # backward
         @buildingblock(get_program().globalbuildingblock)
         def propagate(dl_doutputs, operation):
             dl_dy, = dl_doutputs
-            input1 = tensors[operation.inputs[0]]
-            input2 = tensors[operation.inputs[1]]
+            input1, input2 = tensors[operation.inputs[0]], tensors[operation.inputs[1]]
             if self.req_grad:
-                dl_d[operation.inputs[0]][:]+=dl_dy.mm(input2.value.transpose())[:]# C=AB partial derivate of dA=dC*B^T
+                dl_d[operation.inputs[0]][:]+=dl_dy.single_bmm(input2.value.transpose())[:]
             if other.req_grad:
-                dl_d[operation.inputs[1]][:]+=input1.value.transpose().mm(dl_dy)[:] # C=AB partial derivate of dB=A^T*dC
+                # shenhao: need to revise permute
+                dl_d[operation.inputs[1]][:]+=input1.value.permute([0,2,1]).bmm(dl_dy,reduce=True)[:]
         # forward
         global op_id
         if prepare:
-            assert len(self.shape)==len(other.shape)==2 and self.shape[1]==other.shape[0],"Invalid Dimension"
-            new_value = MultiArray([self.value.sizes[0], other.value.sizes[1]], other.value.value_type)
-            output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
+            assert len(self.sizes) >= 3 and self.sizes[-1] == other.sizes[0], "Invalid Dimension"
+            b,n,m = reduce(operator.mul, self.shape[:-2]), self.shape[-2],self.shape[-1]
+            p = other.sizes[-1]
+            output = Tensor(MultiArray([b, n, p], other.value.value_type), req_grad=self.req_grad or other.req_grad)
             if self.req_grad or other.req_grad:
                 operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
             else:
@@ -486,13 +487,10 @@ class Tensor():
             op_id += 1
         else:
             operation = gradient_operation[op_id_store[op_id]]
-            inputs = operation.inputs
-            outputs = operation.outputs
-            input1 = tensors[inputs[0]]
-            input2 = tensors[inputs[1]]
-            output = tensors[outputs[0]]
-            input1.value.mm(input2.value,output.value)  
-            op_id += 1# record the input and output of the op
+            inputs, outputs = operation.inputs, operation.outputs
+            input1, input2, output = tensors[inputs[0]], tensors[inputs[1]], tensors[outputs[0]]
+            input1.value.single_bmm(input2.value,output.value)  
+            op_id += 1
         return output
 
     def dot(self, other):
@@ -526,9 +524,9 @@ class Tensor():
         #todo
         return self
 
-    def __getitem__(self, index):
-        #todo
-        return Tensor(self.value[index])
+    # def __getitem__(self, index):
+    #     # it may be discarded
+    #     return Tensor(self.value[index])
     
     def view(self,sizes): 
         @buildingblock(get_program().globalbuildingblock)
