@@ -1,21 +1,17 @@
 m,n= 1000,500
 x = MultiArray([m,n],sfix)
 y=MultiArray([n,1],sfix)
-z=MultiArray([m,1],sfix)
 x.assign_all(1)
 y.assign_all(1)
+x.print_reveal_nested()
+y.print_reveal_nested()
+z=MultiArray([m,1],sfix)
+
+#z=x.dot(y,n_threads=10)
+
+@multithread(20,1000)
+def _(base, size):
+    z.assign_part_vector(x.direct_mul(y,indices=(regint.inc(size,base=base),regint.inc(n), regint.inc(n),regint.inc(1))),base)
 
 
-@for_range(m)
-def _(i):
-    @for_range(1)
-    def _(j):
-        tmp=sfix(0)
-        @for_range(n)
-        def _(k):
-            tmp.update(tmp+x[i][k]*y[k][j])
-        print_ln(str(j))
-        new_indices=(i,j)
-        z.assign_vector_by_indices(tmp, *new_indices)                
-        
 z.print_reveal_nested()

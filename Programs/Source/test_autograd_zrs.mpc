@@ -329,6 +329,38 @@ def test_mm_MultiArray():
     input2.grad.print_reveal_nested()
 
 
+@autograd_function
+def test_mm_MultiArray_Array():
+    print_ln('test_mm_MultiArray():')
+    xMultiArray_2_1 = MultiArray([ROW, COL], sfix)
+    for i in range(0,ROW):
+        for  j in range(0,COL):
+            xMultiArray_2_1[i][j] = sfix(1)
+
+    xMultiArray_2_2 = MultiArray([COL, ROW], sfix)
+    for i in range(0,COL):
+        for  j in range(0,ROW):
+            xMultiArray_2_2[i][j] = sfix(1)
+
+
+    xMultiArray_2_1.print_reveal_nested()
+    xMultiArray_2_2.print_reveal_nested()
+    input1 = Tensor(xMultiArray_2_1, req_grad = True)
+    input2 = Tensor(xMultiArray_2_2, req_grad = True)
+    output = input1.mm(input2)
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    output = input1.mm(input2)
+    output.backward()
+    output.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+    input2.grad.print_reveal_nested()
+
+
+
+
 #test_squeeze()
 #test_unsqueeze()
 #test_permute()
@@ -340,5 +372,28 @@ def test_mm_MultiArray():
 
 #test_concate_Array()
 #test_concate_MultiArray()
-test_mm_MultiArray()
+#test_mm_MultiArray()
+
+xMultiArray_2_1 = MultiArray([ROW, COL], sfix)
+for i in range(0,ROW):
+    for  j in range(0,COL):
+        xMultiArray_2_1[i][j] = sfix(1)
+
+xMultiArray_2_2 = MultiArray([COL, ROW], sfix)
+for i in range(0,COL):
+    for  j in range(0,ROW):
+        xMultiArray_2_2[i][j] = sfix(1)
+
+
+xMultiArray_2_3 = MultiArray([ROW, COL], sfix)
+for i in range(0,ROW):
+    for j in range(0,COL):
+        xMultiArray_2_3[i][j] = sfix(1)
+
+xMultiArray_2_1.print_reveal_nested()
+xMultiArray_2_2.print_reveal_nested()
+
+xMultiArray = MultiArray([COL, COL], sfix)
+xMultiArray.assign(xMultiArray_2_1.direct_trans_mul(xMultiArray_2_3))
+xMultiArray.print_reveal_nested()
 

@@ -6843,6 +6843,13 @@ class MultiArray(SubMultiArray):
         def _(base, size):
             res.assign_part_vector(self.direct_mul(other,indices=(regint.inc(size,base=base),regint.inc(self.shape[1]), regint.inc(self.shape[1]),regint.inc(output_col))),base)
         return res
+    
+    @classmethod
+    def mm(cls,x,y,res=None):
+        pass
+        
+        
+        
 
         
 
