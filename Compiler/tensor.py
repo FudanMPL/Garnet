@@ -346,8 +346,10 @@ class Tensor():
             dl_dy, = dl_doutputs
             input1 = tensors[operation.inputs[0]]
             input2 = tensors[operation.inputs[1]]
-            dl_d[operation.inputs[0]][:]+=dl_dy.mm(input2.value.transpose())[:]# C=AB partial derivate of dA=dC*B^T
-            dl_d[operation.inputs[1]][:]+=input1.value.transpose().mm(dl_dy)[:] # C=AB partial derivate of dB=A^T*dC
+            if self.req_grad:
+                dl_d[operation.inputs[0]][:]+=dl_dy.mm(input2.value.transpose())[:]# C=AB partial derivate of dA=dC*B^T
+            if other.req_grad:
+                dl_d[operation.inputs[1]][:]+=input1.value.transpose().mm(dl_dy)[:] # C=AB partial derivate of dB=A^T*dC
         # forward
         global op_id
         if prepare:
@@ -619,10 +621,17 @@ class Tensor():
             input1=tensors[operation.inputs[0]]
             input2=tensors[operation.inputs[1]]
             size_pre=reduce(lambda x,y:x*y,input1.shape[axis:])
-            size_next=reduce(lambda x,y:x*y,input2.shape[axis:])       
-            for i in range(input1.value.length//size_pre):
-                input1.grad.assign_vector(dl_doutputs[0].get_vector(i*size_pre,size_pre),i*size_pre)
-                input2.grad.assign_vector(dl_doutputs[0].get_vector(i*size_next,size_next),i*size_next)   
+            size_next=reduce(lambda x,y:x*y,input2.shape[axis:]) 
+            if input1.req_grad and input2.req_grad:      
+                for i in range(input1.value.length//size_pre):
+                    input1.grad.assign_vector(dl_doutputs[0].get_vector(i*size_pre,size_pre),i*size_pre)
+                    input2.grad.assign_vector(dl_doutputs[0].get_vector(i*size_next,size_next),i*size_next)
+            elif input1.req_grad:
+                for i in range(input1.value.length//size_pre):
+                    input1.grad.assign_vector(dl_doutputs[0].get_vector(i*size_pre,size_pre),i*size_pre)
+            elif input2.req_grad:
+                for i in range(input1.value.length//size_pre):
+                    input2.grad.assign_vector(dl_doutputs[0].get_vector(i*size_next,size_next),i*size_next)                
         global op_id
         if prepare: 
             assert self.value.value_type is other.value.value_type,"Invalid value_type"
