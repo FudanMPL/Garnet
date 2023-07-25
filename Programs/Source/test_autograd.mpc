@@ -345,16 +345,24 @@ def test_neg():
     input2.value.print_reveal_nested()
     input1.grad.print_reveal_nested()
 
-
-
+def test_getitem():
+    i, j = 3, 3
+    x = MultiArray([i, j], sfix)
+    for i in range(0,3):
+        for  j in range(0,3):
+            x[i][j] = sfix(i+j)
+    x.print_reveal_nested()
+    x[0].print_reveal_nested()
+    
+test_getitem()
 #test_abs()
 #test_exp()
 #test_log()
 #test_pow(3)
-test_sum()
-test_mean()
-test_var()
-test_std()
+#test_sum()
+#test_mean()
+#test_var()
+#test_std()
 
 #test_addc()
 #test_subc()

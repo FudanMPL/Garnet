@@ -276,23 +276,42 @@ def ops_sub(self, other):
 #         return -1
 
 class Tensor():
-    def __init__(self, value, name=None, req_grad = False):
-        assert isinstance(value, Array) or isinstance(value, MultiArray)
-        self.value = value
+    def __init__(self, value, value_type = None,name=None, req_grad = False, grad = None):
+        assert isinstance(value, Array) or isinstance(value, MultiArray) or isinstance(value, list)
+        assert isinstance(grad, Array) or isinstance(grad, MultiArray) or grad is None
+        if isinstance(value, list):
+            if len(value) == 0 or value_type is None:
+                raise CompilerError("the shape of a tensor must be a not-null list and value type must be determined")
+            if len(value) == 1:
+                self.value = Array(value[0], value_type)
+            if len(value) > 1:
+                self.value = MultiArray(value, value_type)
+            self.shape = tuple(value)
+        else:    
+            self.value = value
+            self.shape = value.sizes
         self.name = name or fresh_name()
-        self.shape = value.sizes
+        self.value_type = self.value.value_type
         self.req_grad = req_grad
-        if is_train and req_grad:
-            self.grad = self.value.same_shape()
-            self.grad.assign_all(0)
-            dl_d[self.name] = self.grad
+        self.sub_cache = {}
+        if grad is not None:
+            self.grad = grad
+            dl_d[name] = self.grad
         else:
-            self.grad = None
-        tensors[self.name] = self
-                 
+            if is_train and req_grad:
+                self.grad = self.value.same_shape()
+                self.grad.assign_all(0)
+                dl_d[self.name] = self.grad
+            else:
+                self.grad = None
+        tensors[self.name] = self 
 
     def set_req_grad(self, req_grad):
         self.req_grad = req_grad
+
+    @property
+    def sizes(self):
+        return self.value.sizes
 
     def __repr__(self):
         return self.value
@@ -333,6 +352,68 @@ class Tensor():
 
     def __matmul__(self, other):
         return self.mm(other)
+
+    def __getitem__(self, index):
+        """ Part access.
+
+        :param index: public (regint/cint/int)
+        :return: :py:class:`Array` if one-dimensional, :py:class:`SubMultiArray` otherwise"""
+        if isinstance(index, slice) and index == slice(None):
+            return self
+        if isinstance(index, int) and index < 0:
+            index += self.sizes[0]
+        key = program.curr_block, str(index)
+        if key not in self.sub_cache:
+            if util.is_constant(index) and \
+               (index >= self.sizes[0] or index < 0):
+                raise CompilerError('index out of range')
+            elif self.check_indices:
+                library.runtime_error_if(index >= self.sizes[0],
+                                         'overflow: %s/%s',
+                                         index, self.sizes)
+            if len(self.sizes) == 2:
+                new_value = \
+                        Array(self.sizes[1], self.value.value_type, \
+                              self.value.address + index * self.sizes[1] *
+                              self.value.value_type.n_elements() * \
+                              self.value.value_type.mem_size(), \
+                              debug=self.debug)
+                if self.req_grad:
+                    new_grad = \
+                            Array(self.sizes[1], self.grad.value_type, \
+                                self.grad.address + index * self.sizes[1] *
+                                self.grad.value_type.n_elements() * \
+                                self.grad.value_type.mem_size(), \
+                                debug=self.debug)
+                else:
+                    new_grad = None
+            else:
+                new_value = \
+                        SubMultiArray(self.sizes[1:], self.value.value_type, \
+                                      self.value.address, index, debug=self.debug)
+                if self.req_grad:
+                    new_grad = \
+                            SubMultiArray(self.sizes[1:], self.grad.value_type, \
+                                        self.grad.address, index, debug=self.debug)
+                else:
+                    new_grad = None
+        res = Tensor(new_value, req_grad=self.req_grad, grad=new_grad)
+        self.sub_cache[key] = res        
+        res.check_indices = self.check_indices
+        return res
+
+    # def __setitem__(self, index, other):
+    #     """ Part assignment.
+
+    #     :param index: public (regint/cint/int)
+    #     :param other: container of matching size and type """
+    #     if isinstance(other, self.value_type):
+    #         if isinstance(index, slice) and index == slice(None):
+    #             return self.value.assign(other)
+    #         self.value[index].assgin(other)
+
+
+
 
     def mul(self, other):
         # todo
@@ -381,7 +462,7 @@ class Tensor():
     def dot(self, other):
         #todo
         return self
-    
+
     def matmul(self, other):
         # todo, may not implement
         return self
