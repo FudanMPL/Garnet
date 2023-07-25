@@ -331,6 +331,9 @@ class Tensor():
             return ops_mul_constant(self, other)
         return element_wise_mul(self, other)
 
+    def __matmul__(self, other):
+        return self.mm(other)
+
     def mul(self, other):
         # todo
         return self

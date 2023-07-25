@@ -64,7 +64,7 @@ from . import instructions
 from .util import is_zero, is_one
 import operator
 from functools import reduce
-import re
+import re,os
 from Compiler.cost_config import Cost
 
 class ClientMessageType:
@@ -6711,6 +6711,14 @@ class MultiArray(SubMultiArray):
         if len(sizes) < 2:
             raise CompilerError('Use Array')
 
+    def __mul__(self, other):
+        # todo element-wise multiplication
+        pass
+
+    def __matmul__(self, other):
+        # legacy function
+        return self.mm(other)
+    
     @property
     def address(self):
         return self.array.address
@@ -6760,22 +6768,19 @@ class MultiArray(SubMultiArray):
         res = MultiArray(new_sizes, self.value_type)
         self.permute_singledim(new_perm, indices, i, res)
         return res
+    
     def permute_without_malloc(self, res , new_perm):
         assert len(new_perm) == len(self.sizes)
         i = 0
         indices = ()
         self.permute_singledim(new_perm, indices, i, res)
         
-    
-    
     def reshape(self, sizes):
         res=MultiArray(self.sizes,self.value_type)
         res.assign(self) #assign self to res
         res.view(*sizes)
         return res
     
-        
-  
     def view(self, *sizes):
         assert self.value_type.n_elements() == 1
         tmp = self.total_size()
@@ -6796,7 +6801,6 @@ class MultiArray(SubMultiArray):
             tmp_sizes[negative_index] = int(tmp)
         self.sizes = tuple(tmp_sizes)
         
-
     def mean(self, dim):
         assert dim < len(self.sizes)
         new_sizes = self.sizes[:dim] +  self.sizes[dim+1:]
@@ -6827,7 +6831,6 @@ class MultiArray(SubMultiArray):
         div.delete()
         return res
     
-
     def mm(self,other,res=None): #not MP-SPDZ,added by zhou
         assert self.value_type==other.value_type,"Invalid Data Type"
         assert len(self.shape)==2 and self.shape[1]==other.sizes[0] ,"Invalid Dimension"
@@ -6836,20 +6839,16 @@ class MultiArray(SubMultiArray):
         else:
             output_col=other.shape[1]
         N=self.shape[0]
-        n_threads=1 if N>=1000 else 20
+        n_threads=1 if N>=100 else os.cpu_count()
         if res is None:
             res=MultiArray([self.shape[0],output_col],self.value_type)
         @library.multithread(n_threads,N)
         def _(base, size):
             res.assign_part_vector(self.direct_mul(other,indices=(regint.inc(size,base=base),regint.inc(self.shape[1]), regint.inc(self.shape[1]),regint.inc(output_col))),base)
-        return res
-
-        
+        return res 
 
     def delete(self):
         self.array.delete()
-
- 
 
 class Matrix(MultiArray):
     """ Matrix.
