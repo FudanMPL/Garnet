@@ -47,21 +47,31 @@ def test_mm():
     #input2.grad.print_reveal_nested()
 
 @autograd_function
-def test_bmm():
-    print_ln('test_mm:')
-    x = MultiArray([3,2,4], sfix)
-    for i in range(3):
-        for j in range(2):
-            for k in range(4):
-                x[i][j][k] = sfix(i+j+k)
-    print_ln('x.shape=3*2*4')
+def test_single_bmm():
+    print_ln('test_single_mm:')
+    x = MultiArray([2,3,3,2,4], sfix)
+    x.assign_all(1)
     x.print_reveal_nested()
-    
+
     y = MultiArray([4,3], sfix)
     y.assign_all(2)
     y.print_reveal_nested()
+
     res = x.single_bmm(y)
     res.print_reveal_nested()
-    #print_ln('%s', res.reveal())
 
+def test_bmm():
+    print_ln('test_bmm:')
+    x = MultiArray([4,2,4], sfix)
+    x.assign_all(1)
+    x.print_reveal_nested()
+
+    y = MultiArray([4,4,3], sfix)
+    y.assign_all(2)
+    y.print_reveal_nested()
+
+    res = x.bmm(y)
+    res.print_reveal_nested()
+
+#test_single_bmm()
 test_bmm()

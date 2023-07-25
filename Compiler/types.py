@@ -6280,13 +6280,15 @@ class SubMultiArray(_vectorizable):
 
     def __mul__(self, other):
         # legacy function
+        # From shenhao: you need to add matmul which is differ from dot because it uses matrix
         return self.mul(other)
 
     def mul(self, other, res_params=None):
         # legacy function
         return self.dot(other, res_params)
 
-    def dot(self, other, res_params=None, n_threads=None):
+    # From shenhao: you need to add matmul which is differ from dot because it uses matrix and it need to explicitly create space
+    def dot(self, other, res_params=None, n_threads=None): 
         """ Matrix-matrix and matrix-vector multiplication.
 
         :param self: two-dimensional
@@ -6833,19 +6835,20 @@ class MultiArray(SubMultiArray):
     
     def mm(self,other,res=None): #not MP-SPDZ,added by zhou
         assert self.value_type==other.value_type,"Invalid Data Type"
-        assert len(self.shape)==2 and self.shape[1]==other.sizes[0] ,"Invalid Dimension"
+        assert len(self.sizes)==2 and self.sizes[1]==other.sizes[0] ,"Invalid Dimension"
         if isinstance(other,Array):
             output_col=1
         else:
             output_col=other.shape[1]
         N=self.shape[0]
-        n_threads=1 if N>=100 else os.cpu_count()
+        n_threads=1 if N>=10 else os.cpu_count()
         if res is None:
             res=MultiArray([self.shape[0],output_col],self.value_type)
         @library.multithread(n_threads,N)
         def _(base, size):
             res.assign_part_vector(self.direct_mul(other,indices=(regint.inc(size,base=base),regint.inc(self.shape[1]), regint.inc(self.shape[1]),regint.inc(output_col))),base)
-        return res 
+            # res.assign_part_vector(self.get_part(base,size).direct_mul(other),base) # it uses address not create new. These two are the same in time and online or offline round.
+        return res
 
     def single_bmm(self, other, res = None):
         '''
@@ -6854,8 +6857,8 @@ class MultiArray(SubMultiArray):
         res: [batch, n, p]
         '''
         assert self.value_type == other.value_type, "Invalid Data Type"
-        assert len(self.shape) >= 3 and self.shape[-1] == other.sizes[0], "Invalid Dimension"
-        batch,n,m = self.shape
+        assert len(self.sizes) >= 3 and self.sizes[-1] == other.sizes[0], "Invalid Dimension"
+        batch,n,m = reduce(operator.mul, self.shape[:-2]), self.shape[-2],self.shape[-1]
         self.view(batch*n, m)
         if res is not None:
             res.view(batch*n, -1)
@@ -6864,9 +6867,24 @@ class MultiArray(SubMultiArray):
         return res
     
     def bmm(self, other, res = None):
-        assert len(self.shape)==len(other.sizes)==3 and self.shape[-1]==other.sizes[1], "Invalid Dimension"
-        out_shape = [self.shape[0], self.shape[1], other.shape[-1]]
-        return
+        '''
+        self: [batch, n, m]
+        other: [batch, m, p]
+        res: [batch, n, p]
+        '''
+        assert self.value_type == other.value_type, "Invalid Data Type"
+        assert len(self.sizes)==len(other.sizes)==3 and self.sizes[0]==other.sizes[0] and self.shape[-1]==other.sizes[-2], "Invalid Dimension"
+        b,n,m = self.sizes
+        p = other.sizes[-1]
+        if res is None:
+            res = MultiArray([b,n,p], self.value_type)
+        
+        n_threads = 1 if self.shape[0] >= 10 else os.cpu_count()
+        @library.for_range_opt_multithread(n_threads, b)
+        def _(i):
+            # self[i] is SubMultiArray
+            res[i] = self[i]*other[i] # it may create so much unknown space @zrs, you need to add mm in SubMultiArray
+        return res
 
     def delete(self):
         self.array.delete()
