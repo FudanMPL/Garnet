@@ -6929,10 +6929,12 @@ class MultiArray(SubMultiArray):
         else:
             # @library.for_range_opt_multithread(n_threads, b)
             index = 0
-            for i in range(n):
-                for _ in range(b):
+            @library.for_range_opt_multithread(n_threads,n)
+            def _(i):
+                @library.for_range_opt_multithread(n_threads, b)
+                def _():
                     params.assign_vector(self[i].get_vector(i*m,m), index)
-                    index += m
+                    index.update(index+m)
             other.view(b*m,p)
             res = params.mm(other)
             other.view(b,m,p)
