@@ -6888,7 +6888,7 @@ class MultiArray(SubMultiArray):
         if res is not None:
             res.view(b*n, -1)
         res = self.mm(other,res)
-        self.view(b,n,m)
+        self.view(*batch,n,m)
         res.view(*batch,n,-1)
         return res
     
