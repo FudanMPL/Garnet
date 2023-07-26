@@ -6882,13 +6882,14 @@ class MultiArray(SubMultiArray):
         # print(self.sizes,other.sizes)
         assert self.value_type == other.value_type, "Invalid Data Type"
         assert len(self.sizes) >= 3 and self.sizes[-1] == other.sizes[0], "Invalid Dimension"
-        b,n,m = reduce(operator.mul, self.shape[:-2]), self.shape[-2],self.shape[-1]
+        batch = self.shape[:-2]
+        b,n,m = reduce(operator.mul, batch), self.shape[-2],self.shape[-1]
         self.view(b*n, m)
         if res is not None:
             res.view(b*n, -1)
         res = self.mm(other,res)
         self.view(b,n,m)
-        res.view(b,n,-1)
+        res.view(*batch,n,-1)
         return res
     
     def bmm(self, other, res = None, reduce = False, params = None):
