@@ -5914,13 +5914,15 @@ class Array(_vectorizable):
             sorting.radix_sort(self, self, n_bits=n_bits)
    
    
-    def reshape(self,sizes): #not in MP-SPDZ,added by zhou
+    def reshape(self,sizes):
         if len(sizes)>1:
             res=MultiArray(sizes,self.value_type)
             res.assign(self)
             return res
+    
+            
+    
         
-
         
     def Array(self, size):
         # compatibility with registers
@@ -6854,11 +6856,13 @@ class MultiArray(SubMultiArray):
         div.delete()
         return res
     
-
-    def mm(self,other,res=None): #not MP-SPDZ,added by zhou,For example:we compute A*B,call A.mm(B)
+    def mm(self,other,res=None): #not MP-SPDZ,added by zhou
         assert self.value_type==other.value_type,"Invalid Data Type"
-        assert len(self.shape)==len(other.shape)==2 and self.shape[1]==other.shape[0],"Invalid Dimension"
-        output_col=other.shape[1]
+        assert len(self.sizes)==2 and self.sizes[1]==other.sizes[0] ,"Invalid Dimension"
+        if isinstance(other,Array):
+            output_col=1
+        else:
+            output_col=other.shape[1]
         N=self.shape[0]
         n_threads=1 if N>=10 else os.cpu_count()
         if res is None:
@@ -6879,7 +6883,7 @@ class MultiArray(SubMultiArray):
         assert self.value_type == other.value_type, "Invalid Data Type"
         assert len(self.sizes) >= 3 and self.sizes[-1] == other.sizes[0], "Invalid Dimension"
         batch = self.shape[:-2]
-        b,n,m = reduce(operator.mul, batch), self.shape[-2],self.shape[-1]
+        b,n,m = reduce(operator.mul, batch) if len(batch)>= 2 else batch[0], self.shape[-2],self.shape[-1]
         self.view(b*n, m)
         if res is not None:
             res.view(b*n, -1)
@@ -6896,8 +6900,9 @@ class MultiArray(SubMultiArray):
         """
         # print(self.sizes,other.sizes)
         assert self.value_type == other.value_type, "Invalid Data Type"
-        assert len(self.sizes)==len(other.sizes)==3 and self.sizes[0]==other.sizes[0] and self.shape[-1]==other.sizes[-2], "Invalid Dimension"
-        b,n,m = self.sizes
+        assert len(self.sizes)==len(other.sizes)>=3 and self.sizes[:-2]==other.sizes[:-2] and self.shape[-1]==other.sizes[-2], "Invalid Dimension"
+        batch = self.shape[:-2]
+        b,n,m = reduce(operator.mul, batch) if len(batch)>= 2 else batch[0], self.shape[-2],self.shape[-1]
         p = other.sizes[-1]
 
         if not res and reduce:
