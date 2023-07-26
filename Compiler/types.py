@@ -6881,7 +6881,7 @@ class MultiArray(SubMultiArray):
         print(self.sizes,other.sizes)
         assert self.value_type == other.value_type, "Invalid Data Type"
         assert len(self.sizes)==len(other.sizes)==3 and self.sizes[0]==other.sizes[0] and self.shape[-1]==other.sizes[-2], "Invalid Dimension"
-        b,n,m = self.sizes
+        b,n,_ = self.sizes
         p = other.sizes[-1]
 
         if not res and reduce:
@@ -6889,9 +6889,9 @@ class MultiArray(SubMultiArray):
         elif not res and not reduce:
             res = MultiArray([b,n,p], self.value_type)
         elif res and reduce:
-            assert res.sizes == [n,p], "Invalid Output Dimension"
+            assert res.sizes == (n,p), "Invalid Output Dimension"
         else:
-            assert res.sizes == [b,n,p], "Invalid Output Dimension"
+            assert res.sizes == (b,n,p), "Invalid Output Dimension"
 
         n_threads = 1 if self.shape[0] >= 10 else os.cpu_count()
         if not reduce:
@@ -6904,8 +6904,12 @@ class MultiArray(SubMultiArray):
             # @library.for_range_opt_multithread(n_threads, b)
             @library.for_range_opt(b)
             def _(i):
-                nonlocal res # why?
-                res += self[i]*other[i]
+                # nonlocal res # why? i think it is because of assignment operation.
+                # res += self[i]*other[i]
+                print("reduce",(self[i]*other[i]).sizes)
+                res.assign_vector(res.get_vector()+(self[i]*other[i]).get_vector())
+                print("res", res.sizes)
+        print("res123123", res.sizes)
         return res
 
     def delete(self):

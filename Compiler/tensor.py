@@ -479,7 +479,7 @@ class Tensor():
         global op_id
         if prepare:
             assert len(self.sizes) >= 3 and self.sizes[-1] == other.sizes[0], "Invalid Dimension"
-            b, n, m = reduce(operator.mul, self.shape[:-2]), self.shape[-2], self.shape[-1]
+            b, n, _ = reduce(operator.mul, self.shape[:-2]), self.shape[-2], self.shape[-1]
             p = other.sizes[-1]
             output = Tensor(MultiArray([b, n, p], other.value.value_type), req_grad=self.req_grad or other.req_grad)
             if self.req_grad or other.req_grad:
@@ -495,6 +495,41 @@ class Tensor():
             inputs, outputs = operation.inputs, operation.outputs
             input1, input2, output = tensors[inputs[0]], tensors[inputs[1]], tensors[outputs[0]]
             input1.value.single_bmm(input2.value, output.value)
+            op_id += 1
+        return output
+    
+    def bmm(self, other):
+        # backward
+        @buildingblock(get_program().globalbuildingblock)
+        def propagate(dl_doutputs, operation):
+            dl_dy, = dl_doutputs
+            input1, input2 = tensors[operation.inputs[0]], tensors[operation.inputs[1]]
+            if self.req_grad:
+                dl_d[operation.inputs[0]][:] += dl_dy.bmm(input2.value.permute([0, 2, 1]), reduce=False)[:]
+            if other.req_grad:
+                # shenhao: need to revise permute
+                dl_d[operation.inputs[1]][:] += input1.value.permute([0, 2, 1]).bmm(dl_dy, reduce=False)[:]
+        # forward
+        global op_id
+        if prepare:
+            assert len(self.sizes) == len(other.sizes) == 3 and self.sizes[0] == other.sizes[0] and self.shape[-1] == other.sizes[-2], "Invalid Dimension"
+            b, n, _ = reduce(operator.mul, self.shape[:-2]), self.shape[-2], self.shape[-1]
+            p = other.sizes[-1]
+            output = Tensor(MultiArray([b, n, p], other.value.value_type), req_grad=self.req_grad or other.req_grad)
+            if self.req_grad or other.req_grad:
+                operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
+            else:
+                operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate)
+            gradient_operation.append(operation)
+            operation_id = len(gradient_operation) - 1
+            op_id_store[op_id] = operation_id
+            op_id += 1
+        else:
+            operation = gradient_operation[op_id_store[op_id]]
+            inputs, outputs = operation.inputs, operation.outputs
+            input1, input2, output = tensors[inputs[0]], tensors[inputs[1]], tensors[outputs[0]]
+            # print(input1.value.sizes, input2.value.sizes, output.value.sizes)
+            input1.value.bmm(input2.value, output.value)
             op_id += 1
         return output
 
