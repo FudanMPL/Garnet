@@ -5914,15 +5914,13 @@ class Array(_vectorizable):
             sorting.radix_sort(self, self, n_bits=n_bits)
    
    
-    def reshape(self,sizes):
+    def reshape(self,sizes): #not in MP-SPDZ,added by zhou
         if len(sizes)>1:
             res=MultiArray(sizes,self.value_type)
             res.assign(self)
             return res
-    
-            
-    
         
+
         
     def Array(self, size):
         # compatibility with registers
@@ -6828,13 +6826,10 @@ class MultiArray(SubMultiArray):
         return res
     
 
-    def mm(self,other,res=None): #not MP-SPDZ,added by zhou
+    def mm(self,other,res=None): #not MP-SPDZ,added by zhou,For example:we compute A*B,call A.mm(B)
         assert self.value_type==other.value_type,"Invalid Data Type"
-        assert len(self.shape)==2 and self.shape[1]==other.sizes[0] ,"Invalid Dimension"
-        if isinstance(other,Array):
-            output_col=1
-        else:
-            output_col=other.shape[1]
+        assert len(self.shape)==len(other.shape)==2 and self.shape[1]==other.shape[0],"Invalid Dimension"
+        output_col=other.shape[1]
         N=self.shape[0]
         n_threads=1 if N>=1000 else 20
         if res is None:
@@ -6844,15 +6839,6 @@ class MultiArray(SubMultiArray):
             res.assign_part_vector(self.direct_mul(other,indices=(regint.inc(size,base=base),regint.inc(self.shape[1]), regint.inc(self.shape[1]),regint.inc(output_col))),base)
         return res
     
-    @classmethod
-    def mm(cls,x,y,res=None):
-        pass
-        
-        
-        
-
-        
-
     def delete(self):
         self.array.delete()
 
