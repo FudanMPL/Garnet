@@ -68,8 +68,8 @@ class HeapORAM(object):
         return self.make_entry(*entry), state
     def add(self, index, entry, state):
         self.oram.add(Entry(MemValue(index), \
-                                [MemValue(i) for i in entry.data()], \
-                                entry.empty), state=state)
+                            [MemValue(i) for i in entry.data()], \
+                            entry.empty), state=state)
     def __len__(self):
         return len(self.oram)
 
