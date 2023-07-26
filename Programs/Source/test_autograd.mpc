@@ -30,13 +30,13 @@ def test_single_operation(func,Value):
 
 @autograd_function
 def test_add():
-    print_ln('test_add')
-    print_ln('test_add')
+    print_ln('test_add_input: ')
     i, j = 3, 3
     x = MultiArray([i, j], sfix)
-    x.assign_all(2)
+    for i in range(0, i*j):
+        x.assign_vector(regint(i), i)
     x.print_reveal_nested()
-    y = MultiArray([i, 1], sfix)
+    y = Array(1, sfix)
     y.assign_all(5)
     y.print_reveal_nested()
     input1 = Tensor(x, req_grad = True)
@@ -47,9 +47,11 @@ def test_add():
     tensor.train()
     tensor.reset_op_id()
 
+    print_ln('test_add_output: ')
     input3 = input1 +input2
     input3.value.print_reveal_nested()
     input3.backward()
+    print_ln('test_add_backward: ')
     input1.grad.print_reveal_nested()
     input2.grad.print_reveal_nested()
 
@@ -346,7 +348,7 @@ def test_neg():
     input1.grad.print_reveal_nested()
 
 #test_mul()
-#test_add()
+test_add()
 #test_sub()
 
 #test_abs()
@@ -356,6 +358,16 @@ def test_neg():
 #test_sum()
 #test_mean()
 
+def test_getitem():
+    i, j = 3, 3
+    x = MultiArray([i, j], sfix)
+    for i in range(0,3):
+        for  j in range(0,3):
+            x[i][j] = sfix(i+j)
+    x.print_reveal_nested()
+    x[0].print_reveal_nested()
+    
+#test_getitem()
 #test_abs()
 #test_exp()
 #test_log()
@@ -371,15 +383,3 @@ def test_neg():
 #test_divc()
 
 #test_neg()
-
-from tensor import matrix_reconst
-x = MultiArray([2, 2, 3, 3], sfix)
-x.assign_all(1)
-y = MultiArray([3, 3], sfix)
-for i in range(0,3):
-    for  j in range(0,3):
-        y[i][j] = sfix(i*3+j)
-y.print_reveal_nested()
-
-x = matrix_reconst(x, y.sizes)
-x.print_reveal_nested()

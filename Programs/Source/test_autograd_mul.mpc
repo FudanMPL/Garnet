@@ -1,0 +1,87 @@
+from tensor import Tensor,autograd_function
+import tensor
+program.options_from_args()
+
+ROW, COL = 3, 3
+
+@autograd_function
+def test_regint():
+    print_ln('test_regint')
+    i, j = 3, 3
+    x = MultiArray([i, j], sfix)
+    x.assign_all(1)
+    x.print_reveal_nested()
+    # get a vector by the specific indices
+    x_vec = x.get_vector_by_indices(None,1)
+    print_ln('%s', x_vec.reveal())
+    # get a range
+    slice = regint.inc(10,1,2,3)
+    print_ln('expected %s', slice[:])
+
+@autograd_function
+def test_mm():
+    print_ln('test_mm:')
+    x = MultiArray([ROW, COL], sfix)
+    for i in range(0,ROW):
+        for  j in range(0,COL):
+            x[i][j] = sfix(1)
+
+    y = MultiArray([COL, ROW], sfix)
+    y.assign_all(2)
+
+    x.print_reveal_nested()
+    y.print_reveal_nested()
+    input1 = Tensor(x, req_grad = True)
+    input2 = Tensor(y, req_grad = True)
+    res = input1.value@input2.value
+    res.print_reveal_nested()
+    print_ln('%s', type(res))
+
+    #tensor.train()
+    #tensor.reset_op_id()
+
+    #output = input1.mm(input2)
+    #output.backward()
+    #output.value.print_reveal_nested()
+    #input1.grad.print_reveal_nested()
+    #input2.grad.print_reveal_nested()
+
+@autograd_function
+def test_single_bmm():
+    print_ln('test_single_mm:')
+    x = MultiArray([2,3,3,2,4], sfix)
+    x.assign_all(1)
+    x.print_reveal_nested()
+
+    y = MultiArray([4,3], sfix)
+    y.assign_all(2)
+    y.print_reveal_nested()
+
+    res = x.single_bmm(y)
+    res.print_reveal_nested()
+
+def test_bmm():
+    print_ln('test_bmm:')
+    x = MultiArray([4,2,4], sfix)
+    x.assign_all(1)
+    x.print_reveal_nested()
+
+    y = MultiArray([4,3], sfix)
+    y.assign_all(2)
+    y.print_reveal_nested()
+
+    input1 = Tensor(x, req_grad = True)
+    input2 = Tensor(y, req_grad = True)
+    output = input1.single_bmm(input2)
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    output = input1.single_bmm(input2)
+    output.backward()
+    output.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+    input2.grad.print_reveal_nested()
+
+#test_single_bmm()
+test_bmm()

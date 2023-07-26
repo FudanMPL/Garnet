@@ -1,11 +1,21 @@
-n = 1000000
-x = sint.Array(n)
-x.assign_vector(regint.inc(n))
+m,n= 1000,500
+x = MultiArray([m,n],sfix)
+y=MultiArray([n,1],sfix)
+z=MultiArray([m,1],sfix)
+x.assign_all(1)
+y.assign_all(1)
 
-@multithread(2, n)
-def _(base, size):
-    x.assign_vector(x.get_vector(base, size) ** 2, base)
 
-print_ln('%s', x[2].reveal())
-crash(x[2].reveal() != 4)
-crash(x[n - 1].reveal() != (n - 1) ** 2)
+@for_range(m)
+def _(i):
+    @for_range(1)
+    def _(j):
+        tmp=sfix(0)
+        @for_range(n)
+        def _(k):
+            tmp.update(tmp+x[i][k]*y[k][j])
+        print_ln(str(j))
+        new_indices=(i,j)
+        z.assign_vector_by_indices(tmp, *new_indices)                
+        
+z.print_reveal_nested()
