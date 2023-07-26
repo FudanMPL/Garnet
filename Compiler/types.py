@@ -6927,7 +6927,6 @@ class MultiArray(SubMultiArray):
                 res[i] = self[i]*other[i] # it may create so much unknown space @zrs, you need to add mm in SubMultiArray
                 # res.assign_part_vector(self[i].direct_mul(other[i]),i)   
         else:
-            # @library.for_range_opt_multithread(n_threads, b)
             index = 0
             @library.for_range_opt_multithread(n_threads,n)
             def _(i):
