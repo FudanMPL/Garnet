@@ -45,8 +45,10 @@ def matrix_reconst(mat, other_sizes):
     new_sizes = []
     for i in range(ds, len(mat.sizes)):
         new_sizes.append(mat.sizes[i])
+    newd = 1
     for i in range(0, ds):
-        new_sizes.append(mat.sizes[i])
+        newd *= mat.sizes[i]
+    new_sizes.append(newd)
     print(new_sizes)
     
     new_matrix = MultiArray(new_sizes, mat.value_type)
