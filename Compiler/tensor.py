@@ -749,13 +749,14 @@ class Tensor():
             input1=tensors[operation.inputs[0]]
             input2=tensors[operation.inputs[1]]
             output=tensors[operation.outputs[0]]
-            index=0    
-            for i in range(input1.value.length//size_pre):  
+            index=regint(0)    
+            @for_range(input1.value.length//size_pre)
+            def _(i):  
                 #can not convert this to @for_range for the error info of "local variable 'index' referenced before assignment"
                 output.value.assign_vector(input1.value.get_vector(i*size_pre,size_pre),index)
-                index+=size_pre
+                index.update(index+size_pre)
                 output.value.assign_vector(input2.value.get_vector(i*size_next,size_next),index)
-                index+=size_next
+                index.update(index+size_next)
             op_id+=1
         return output
 
