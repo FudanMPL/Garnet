@@ -42,6 +42,25 @@ op_id = 0
 # op_id_store stores the correlation among op_ids and operation ids.
 op_id_store = {}
 
+def fake_propagate(dl_doutputs, operation):
+    pass
+
+def check_boardcast_size(size1, size2):
+    if len(size1)<len(size2):
+        size1, size2 = size2, size1
+    flag = 0
+    for i in range(1, len(size2)+1):
+        print(size1[-i], size2[-i])
+        if size1[-i]!=size2[-i]:
+            if size2[-i] == 1:
+                flag = 1
+            else:
+                return False
+        else:
+            if flag == 1:
+                return False
+    return True
+            
 def matrix_reconst(matrix, new_size):
     assert matrix.total_size()%new_size==0, "Invalid Dimension"
     r = new_size
@@ -56,11 +75,6 @@ def matrix_reconst(matrix, new_size):
             v = matrix.get_vector(j*r+i, 1)
             new_matrix.assign_vector(v, i*c+j)
     return new_matrix
-    
-
-def fake_propagate(dl_doutputs, operation):
-    pass
-
 
 def element_wise_add(self, other):
     # backward
@@ -96,6 +110,7 @@ def element_wise_add(self, other):
     global op_id
     if prepare:
         # check shape
+        assert check_boardcast_size(self.value.sizes, other.value.sizes), "Invalid Dimension"
         if isinstance(self.value, MultiArray):
             if self.value.total_size()>other.value.total_size():
                 new_value = MultiArray(self.value.sizes, self.value.value_type)
