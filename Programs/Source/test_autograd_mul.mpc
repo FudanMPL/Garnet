@@ -43,11 +43,16 @@ def test_basic_function():
     x.print_reveal_nested()
 
     y = MultiArray([4,2,4], sfix)
-    y.assign_all(1)
-    z = x.get_vector()+y.get_vector()
-    print_ln('%s', len(z))
-    print_ln('%s', z.reveal())
-    x.assign_vector(z)
+    y.assign_all(2)
+    #z = x.get_vector()+y.get_vector()
+    #print_ln('%s', len(z))
+    #print_ln('%s', z.reveal())
+    #x.assign_vector(z)
+    #x.print_reveal_nested()
+
+    x[:] += y[:]
+    x.print_reveal_nested()
+    y.delete()
     x.print_reveal_nested()
 
 @autograd_function
@@ -101,14 +106,24 @@ def test_forward_bmm():
     y.assign_all(2)
     y.print_reveal_nested()
 
-    res = x.bmm(y, is_reduce=True)
+    trans_x = MultiArray([2,3,4,3], sfix)
+    trans_x.assign_all(2)
+    trans_x.print_reveal_nested()
+
+    trans_y = MultiArray([2,3,3,4], sfix)
+    trans_y.assign_all(2)
+    trans_y.print_reveal_nested()
+
+    #res = x.bmm(y, is_reduce=True)
+    res = x.bmm_trans_to(trans_y, is_reduce=True)
+    res = trans_x.trans_bmm_to(y, is_reduce=False)
     print_ln('res.sizes=%s', res.sizes)
     res.print_reveal_nested()
 
 @autograd_function
 def test_single_bmm():
     print_ln('test_bmm:')
-    x = MultiArray([4,2,4], sfix)
+    x = MultiArray([2,4,2,4], sfix)
     x.assign_all(1)
     x.print_reveal_nested()
 
@@ -117,7 +132,7 @@ def test_single_bmm():
     y.print_reveal_nested()
 
     input1 = Tensor(x, req_grad = True)
-    input2 = Tensor(y, req_grad = False)
+    input2 = Tensor(y, req_grad = True)
     output = input1.single_bmm(input2)
 
     tensor.train()
@@ -132,11 +147,11 @@ def test_single_bmm():
 @autograd_function
 def test_bmm():
     print_ln('test_bmm:')
-    x = MultiArray([4,2,4], sfix)
+    x = MultiArray([2,4,2,4], sfix)
     x.assign_all(1)
     x.print_reveal_nested()
 
-    y = MultiArray([4,4,3], sfix)
+    y = MultiArray([2,4,4,3], sfix)
     y.assign_all(2)
     y.print_reveal_nested()
 
@@ -154,7 +169,7 @@ def test_bmm():
     input2.grad.print_reveal_nested()
 
 #test_concate()
-test_forward_bmm()
+#test_forward_bmm()
 #test_basic_function()
-#test_single_bmm()
+test_single_bmm()
 #test_bmm()
