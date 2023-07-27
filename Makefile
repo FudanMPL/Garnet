@@ -204,7 +204,7 @@ Fake-Offline.x: Utils/Fake-Offline.o $(VM)
 
 
 tree-inference.x: Machines/tree-inference.cpp  $(MINI_OT) $(SHAREDLIB)
-	$(CXX) -o $@ $(CFLAGS) $^ $(LDLIBS) -L/usr/local/opt/seal/lib -lseal.4.1 $(SHAREDLIB)
+	$(CXX) -o $@ $(CFLAGS) $^ $(LDLIBS) -I/usr/local/include/SEAL-4.1/ -L/usr/local/lib  -lseal-4.1 $(SHAREDLIB)
 
 
 %.x: Machines/%.o $(MINI_OT) $(SHAREDLIB)

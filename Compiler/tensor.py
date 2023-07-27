@@ -423,12 +423,61 @@ class Tensor():
     def mul(self, other):
         # todo
         return self
-
-    def mv(self, other):
-        # todo
-        return self
-
-    def mm(self, other):
+    
+    def mv(self, other,out=None):
+        # mul of Two-dimension * Array,return an output,whose type is Tensor and value is Array
+        @buildingblock(get_program().globalbuildingblock)
+        def propagate(dl_doutputs, operation):
+            dl_dy,=dl_doutputs
+            input1=tensors[operation.inputs[0]]
+            input2=tensors[operation.inputs[1]]
+            #compute dB=A^T*dC
+            @for_range(input1.shape[1])
+            def _(i):
+                tmp=self.value.value_type(0)
+                @for_range(input1.shape[0])
+                def _(k):
+                    tmp.update(tmp+input1.value[k][i]*dl_dy[k])       
+                dl_d[operation.inputs[1]][i]+=tmp
+            # #compute dA=dC*B^T
+            @for_range(input1.shape[0])
+            def _(i):
+                @for_range(input1.shape[1])
+                def _(j):
+                    dl_d[operation.inputs[0]][i][j]+=(dl_dy[i]*input2.value[j])
+        global op_id
+        if prepare:
+            assert self.value.value_type==other.value.value_type,"Invalid Data Type"
+            assert isinstance(self.value,MultiArray) and isinstance(other.value,Array),"The first parameter is Not MultiArray or the second parameter is not Array"
+            assert len(self.shape)==2 and len(other.shape)==1 and self.shape[1]==other.shape[0],"Invalid Dimension"
+            if out:
+                new_value=out
+            else:
+                new_value = Array(self.shape[0], self.value.value_type)
+            output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
+            if self.req_grad or other.req_grad:
+                operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
+            else:
+                operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate)
+            gradient_operation.append(operation)
+            operation_id = len(gradient_operation)-1
+            op_id_store[op_id] = operation_id
+            op_id += 1
+        else:
+            operation = gradient_operation[op_id_store[op_id]]
+            inputs = operation.inputs
+            outputs = operation.outputs
+            input1 = tensors[inputs[0]]
+            input2 = tensors[inputs[1]]
+            output = tensors[outputs[0]]
+            n_threads=10 if input1.shape[0]>=1000 else 1
+            @multithread(n_threads,input1.shape[0])
+            def _(base, size):
+                output.value.assign_part_vector(input1.value.direct_mul(input2.value,indices=(regint.inc(size,base=base),regint.inc(input1.shape[1]), regint.inc(input2.shape[0]),regint.inc(1))),base)
+            op_id += 1# record the input and output of the op
+        return output
+    
+    def mm(self, other): #Two-dimension * two-dimension,return an output,whose type is Tensor.
         # backward
         @buildingblock(get_program().globalbuildingblock)
         def propagate(dl_doutputs, operation):
@@ -436,14 +485,16 @@ class Tensor():
             input1 = tensors[operation.inputs[0]]
             input2 = tensors[operation.inputs[1]]
             if self.req_grad:
-                dl_d[operation.inputs[0]][:] += dl_dy.mm(input2.value.transpose())[:]  # C=AB partial derivate of dA=dC*B^T
+                dl_dy.mul_trans_to(input2.value,dl_d[operation.inputs[0]],n_threads=10 if input1.shape[0]>=1000 else 1)
+                # C=AB partial derivate of dA=dC*B^T
             if other.req_grad:
-                dl_d[operation.inputs[1]][:] += input1.value.transpose().mm(dl_dy)[:]  # C=AB partial derivate of dB=A^T*dC
-        # forward
+                input1.value.trans_mul_to(dl_dy,dl_d[operation.inputs[1]],n_threads=10 if input1.shape[0]>=1000 else 1)
+                # C=AB partial derivate of dB=A^T*dC
         global op_id
         if prepare:
-            assert len(self.shape) == len(other.shape) == 2 and self.shape[1] == other.shape[0], "Invalid Dimension"
-            new_value = MultiArray([self.value.sizes[0], other.value.sizes[1]], other.value.value_type)
+            assert self.value.value_type==other.value.value_type,"Invalid Data Type"
+            assert len(self.shape)==len(other.shape)==2 and self.shape[1]==other.shape[0],"Invalid Dimension"
+            new_value = MultiArray([self.value.sizes[0], other.value.sizes[1]], self.value.value_type)
             output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
             if self.req_grad or other.req_grad:
                 operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
@@ -482,16 +533,17 @@ class Tensor():
             if other.req_grad:
                 # shenhao: need to revise permute
                 input1.value.permute_without_malloc(input1_T, [0, 2, 1])
-                dl_d[operation.inputs[1]][:] += input1_T.bmm(dl_dy, reduce=True, params=params)[:]
+                dl_d[operation.inputs[1]][:] += input1_T.bmm(dl_dy, is_reduce=True, params=params)[:]
         # forward
         global op_id
         if prepare:
             assert len(self.sizes) >= 3 and self.sizes[-1] == other.sizes[0], "Invalid Dimension"
-            b, n, m = reduce(operator.mul, self.shape[:-2]), self.shape[-2], self.shape[-1]
+            batch = self.sizes[:-2]
+            b, n, m = reduce(operator.mul, batch), self.shape[-2], self.shape[-1]
             p = other.sizes[-1]
-            params = MultiArray([n, b*m], self.value.value_type)
-            input1_T = MultiArray([b, m, n], self.value.value_type)
-            output = Tensor(MultiArray([b, n, p], other.value.value_type), req_grad=self.req_grad or other.req_grad)
+            params = MultiArray([m, b*n], self.value.value_type)
+            input1_T = MultiArray([*batch, m, n], self.value.value_type)
+            output = Tensor(MultiArray([*batch, n, p], other.value.value_type), req_grad=self.req_grad or other.req_grad)
             if self.req_grad or other.req_grad:
                 operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
             else:
@@ -525,7 +577,6 @@ class Tensor():
                 input2.value.permute_without_malloc(input2_T, [0, 2, 1])
                 dl_d[operation.inputs[0]][:] += dl_dy.bmm(input2_T)[:]
             if other.req_grad:
-                # shenhao: need to revise permute
                 input1.value.permute_without_malloc(input1_T, [0, 2, 1])
                 dl_d[operation.inputs[1]][:] += input1_T.bmm(dl_dy, params=params)[:]
         # forward
@@ -555,9 +606,38 @@ class Tensor():
         return output
 
     def dot(self, other):
-        # todo
-        return self
-
+        #Mul of two Array 
+        @buildingblock(get_program().globalbuildingblock)
+        def propagate(dl_doutputs, operation):
+            dl_dy,=dl_doutputs
+            dl_d[operation.inputs[0]][:]+= tensors[operation.inputs[1]].value[:]*dl_dy #dA=dC*B
+            dl_d[operation.inputs[1]][:]+= tensors[operation.inputs[0]].value[:]*dl_dy #dB=dC*A
+        global op_id
+        if prepare:
+            assert self.value.value_type==other.value.value_type,"Invalid Data Type"
+            assert isinstance(self.value,Array) and isinstance(other.value,Array),"Not Array error"
+            assert self.shape[0]==other.shape[0],"Invalid Dimension"
+            new_value=Array(1,self.value.value_type)
+            output=Tensor(new_value,req_grad=self.req_grad or other.req_grad)
+            if self.req_grad or other.req_grad:
+                operation=Operation(inputs=[self.name,other.name],outputs=[output.name],propagate=propagate)
+            else:
+                operation=Operation(inputs=[self.name,other.name],outputs=[output.name],propagate=fake_propagate)
+            gradient_operation.append(operation)
+            operation_id = len(gradient_operation) - 1
+            op_id_store[op_id] = operation_id
+            op_id += 1
+        else:
+            operation=gradient_operation[op_id_store[op_id]]
+            input1=tensors[operation.inputs[0]]
+            input2=tensors[operation.inputs[1]]
+            output=tensors[operation.outputs[0]]
+            @for_range(self.shape[0])
+            def _(i):
+                output.value[0]+=(input1.value[i]*input2.value[i])
+            op_id+=1
+        return output
+    
     def matmul(self, other):
         # todo, may not implement
         return self
@@ -729,13 +809,14 @@ class Tensor():
 
     def permute(self, new_perm):  # todo :这里的参数不应该是list类型的new-perm，而应该是*newperm :pytorch中：x.permute(2, 0, 1)
         @buildingblock(get_program().globalbuildingblock)
-        def propagate(dl_doutputs, operation):
-            dl_dy, = dl_doutputs
-            L = len(self.shape)
-            inv_new_perm = [None]*L
-            for i in range(L):
-                inv_new_perm[new_perm[i]] = i  # s2[s1[i]]=i
-            self.value.permute_without_malloc(dl_d[operation.inputs[0]], inv_new_perm)
+        def propagate(dl_doutputs,operation):
+            dl_dy,=dl_doutputs
+            L=len(self.shape)
+            inv_new_perm=[None]*L
+            @for_range(L)
+            def _(i):
+                inv_new_perm[new_perm[i]]=i #s2[s1[i]]=i
+            self.value.permute_without_malloc(dl_d[operation.inputs[0]],inv_new_perm)
         global op_id
         if prepare:
             assert isinstance(self.value, MultiArray), "Error,Permute operation must be MultiArray"  # 置换维度，那么肯定是MultiArray吧
@@ -795,21 +876,24 @@ class Tensor():
 
     def concate(self, other, axis=0):  # 按照axis指定维度进行拼接
         @buildingblock(get_program().globalbuildingblock)
-        def propagate(dl_doutputs, operation):
-            input1 = tensors[operation.inputs[0]]
-            input2 = tensors[operation.inputs[1]]
-            size_pre = reduce(lambda x, y: x*y, input1.shape[axis:])
-            size_next = reduce(lambda x, y: x*y, input2.shape[axis:])
+        def propagate(dl_doutputs,operation):
+            input1=tensors[operation.inputs[0]]
+            input2=tensors[operation.inputs[1]]
+            size_pre=reduce(lambda x,y:x*y,input1.shape[axis:])
+            size_next=reduce(lambda x,y:x*y,input2.shape[axis:]) 
             if input1.req_grad and input2.req_grad:
-                for i in range(input1.value.length//size_pre):
-                    input1.grad.assign_vector(dl_doutputs[0].get_vector(i*size_pre, size_pre), i*size_pre)
-                    input2.grad.assign_vector(dl_doutputs[0].get_vector(i*size_next, size_next), i*size_next)
+                @for_range(input1.value.length//size_pre)
+                def _(i):    
+                    input1.grad.assign_vector(dl_doutputs[0].get_vector(i*size_pre,size_pre),i*size_pre)
+                    input2.grad.assign_vector(dl_doutputs[0].get_vector(i*size_next,size_next),i*size_next)
             elif input1.req_grad:
-                for i in range(input1.value.length//size_pre):
-                    input1.grad.assign_vector(dl_doutputs[0].get_vector(i*size_pre, size_pre), i*size_pre)
+                @for_range(input1.value.length//size_pre)
+                def _(i):
+                    input1.grad.assign_vector(dl_doutputs[0].get_vector(i*size_pre,size_pre),i*size_pre)
             elif input2.req_grad:
-                for i in range(input1.value.length//size_pre):
-                    input2.grad.assign_vector(dl_doutputs[0].get_vector(i*size_next, size_next), i*size_next)
+                @for_range(input1.value.length//size_pre)
+                def _(i):
+                    input2.grad.assign_vector(dl_doutputs[0].get_vector(i*size_next,size_next),i*size_next)                
         global op_id
         if prepare:
             assert self.value.value_type is other.value.value_type, "Invalid value_type"
@@ -817,7 +901,7 @@ class Tensor():
                 target_len = self.value.length + other.value.length
                 new_value = Array(target_len, self.value.value_type)
             else:
-                assert len(self.shape) == len(other.shape), "Inequal Dimension"
+                assert len(self.shape)==len(other.shape),"Inequal Dimension"
                 for i in range(len(self.shape)):
                     if i != axis and self.shape[i] != other.shape[i]:
                         raise ValueError("Invalid Dimension")
@@ -834,19 +918,21 @@ class Tensor():
             op_id_store[op_id] = operation_id
             op_id += 1
         else:
-            operation = gradient_operation[op_id_store[op_id]]
-            size_pre = reduce(lambda x, y: x*y, self.shape[axis:])
-            size_next = reduce(lambda x, y: x*y, other.shape[axis:])
-            input1 = tensors[operation.inputs[0]]
-            input2 = tensors[operation.inputs[1]]
-            output = tensors[operation.outputs[0]]
-            index = 0
-            for i in range(self.value.length//size_pre):
-                output.value.assign_vector(input1.value.get_vector(i*size_pre, size_pre), index)
-                index += size_pre
-                output.value.assign_vector(input2.value.get_vector(i*size_next, size_next), index)
-                index += size_next
-            op_id += 1
+            operation=gradient_operation[op_id_store[op_id]]
+            size_pre=reduce(lambda x,y:x*y,self.shape[axis:])
+            size_next=reduce(lambda x,y:x*y,other.shape[axis:])
+            input1=tensors[operation.inputs[0]]
+            input2=tensors[operation.inputs[1]]
+            output=tensors[operation.outputs[0]]
+            index=regint(0)    
+            @for_range(input1.value.length//size_pre)
+            def _(i):  
+                #can not convert this to @for_range for the error info of "local variable 'index' referenced before assignment"
+                output.value.assign_vector(input1.value.get_vector(i*size_pre,size_pre),index)
+                index.update(index+size_pre)
+                output.value.assign_vector(input2.value.get_vector(i*size_next,size_next),index)
+                index.update(index+size_next)
+            op_id+=1
         return output
 
     def abs(self):

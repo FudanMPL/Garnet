@@ -93,16 +93,16 @@ def test_forward_single_bmm():
 @autograd_function
 def test_forward_bmm():
     print_ln('test_single_bmm:')
-    x = MultiArray([3,2,4], sfix)
+    x = MultiArray([2,3,2,4], sfix)
     x.assign_all(1)
     x.print_reveal_nested()
 
-    y = MultiArray([3,4,3], sfix)
+    y = MultiArray([2,3,4,3], sfix)
     y.assign_all(2)
     y.print_reveal_nested()
 
-    res = MultiArray([2,3], sfix)
-    res = x.bmm(y, reduce=True)
+    res = x.bmm(y, is_reduce=True)
+    print_ln('res.sizes=%s', res.sizes)
     res.print_reveal_nested()
 
 @autograd_function
@@ -117,7 +117,7 @@ def test_single_bmm():
     y.print_reveal_nested()
 
     input1 = Tensor(x, req_grad = True)
-    input2 = Tensor(y, req_grad = True)
+    input2 = Tensor(y, req_grad = False)
     output = input1.single_bmm(input2)
 
     tensor.train()
@@ -154,7 +154,7 @@ def test_bmm():
     input2.grad.print_reveal_nested()
 
 #test_concate()
-#test_forward_bmm()
+test_forward_bmm()
 #test_basic_function()
 test_single_bmm()
 #test_bmm()
