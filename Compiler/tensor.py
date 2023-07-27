@@ -42,21 +42,38 @@ op_id = 0
 # op_id_store stores the correlation among op_ids and operation ids.
 op_id_store = {}
 
-# def matrix_reconst(self, mat):
-#     r = mat.value.length/mat.size[0]
-#     c = mat.size[0]
-#     new_matrix = MultiArray([r, c], mat.value.value_type)
-#     @for_range(r)
-#     def _(i):
-#         @for_range(c)
-#         def _(j):
-#             new_matrix[i][j] =
-#     return new_matrix
-
-
 def fake_propagate(dl_doutputs, operation):
     pass
 
+def check_boardcast_size(size1, size2):
+    if len(size1)<len(size2):
+        size1, size2 = size2, size1
+    flag = 0
+    for i in range(1, len(size2)+1):
+        if size1[-i]!=size2[-i]:
+            if size2[-i] == 1:
+                flag = 1
+            else:
+                return False
+        else:
+            if flag == 1:
+                return False
+    return True
+            
+def matrix_reconst(matrix, new_size):
+    assert matrix.total_size()%new_size==0, "Invalid Dimension"
+    r = new_size
+    c = matrix.total_size() // r
+    new_matrix = MultiArray([r, c], matrix.value_type)
+    # for i in range(0, r):
+    #     for j in range(0, c):
+    @for_range(r)
+    def _(i):
+        @for_range(c)
+        def _(j):
+            v = matrix.get_vector(j*r+i, 1)
+            new_matrix.assign_vector(v, i*c+j)
+    return new_matrix
 
 def element_wise_add(self, other):
     # backward
@@ -64,17 +81,47 @@ def element_wise_add(self, other):
     def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
         inputs = operation.inputs
+        
         dl_dself = dl_d[inputs[0]]  # partial derivate of r = 1
         dl_dother = dl_d[inputs[1]]  # partial derivate of r = 1
-        dl_dself[:] += dl_dx[:]
-        dl_dother[:] += dl_dx[:]
+        
+        # swap to ensure v1 size is bigger than v2 size  
+        v1, v2 = dl_dself, dl_dother
+        req_grad1, req_grad2 = self.req_grad, other.req_grad
+        if dl_dself.total_size()<dl_dother.total_size():
+            v1, v2 = v2, v1
+            req_grad1, req_grad2 = req_grad2, req_grad1
+        # v1 back directly 
+        if req_grad1:
+            v1[:] += dl_dx[:]
+        # broadcasted v2 back with reduce
+        if req_grad2:
+            dl_dx_rec = matrix_reconst(dl_dx, v2.total_size())
+            # for i in range(0, v2.total_size()):
+            @for_range(v2.total_size())
+            def _(i):
+                vsum = sum(dl_dx_rec.get_vector(i, dl_dx_rec.sizes[1]))
+                v2.assign_vector(vsum, i) 
+        
         dl_dinputs = [dl_dself, dl_dother]
         return dl_dinputs
     # forward
     global op_id
     if prepare:
-        new_value = MultiArray([self.value.sizes[0], other.value.sizes[1]], other.value.value_type)
+        # check shape
+        assert check_boardcast_size(self.value.sizes, other.value.sizes), "Invalid Dimension"
+        if isinstance(self.value, MultiArray):
+            if self.value.total_size()>other.value.total_size():
+                new_value = MultiArray(self.value.sizes, self.value.value_type)
+            else:
+                new_value = MultiArray(other.value.sizes, self.value.value_type)
+        else:
+            if self.value.total_size()>other.value.total_size():
+                new_value = Array(self.value.sizes[0], self.value.value_type)
+            else:
+                new_value = Array(other.value.sizes[0], self.value.value_type)
         output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
+        # check whether require grad
         if self.req_grad or other.req_grad:
             operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
         else:
@@ -91,16 +138,21 @@ def element_wise_add(self, other):
         input2 = tensors[inputs[1]]
         output = tensors[outputs[0]]
 
-        len1 = input1.value.total_size()
-        len2 = input2.value.total_size()
-        v1 = input1.value.get_vector(0, len1)
-        v2 = input2.value.get_vector(0, len2)
-        if len1 < len2:
-            len1, len2 = len2, len1
+        # swap to ensure v1 size is bigger than v2 size  
+        v1, v2= input1.value, input2.value
+        if input1.value.total_size() < input2.value.total_size():
             v1, v2 = v2, v1
 
-        output.value.assign_vector(v1)
-        op_id += 1  # record the input and output of the op
+        len1, len2 = v1.total_size(), v2.total_size()
+        assert len1 % len2==0, "Invalid Dimension"
+        # for i in range(0, len1//len2):
+        #     v3 = v1.get_vector(i*len2, len2) + v2.get_vector(0, len2)
+        #     output.value.assign_vector(v3, i*len2)
+        @for_range(len1//len2)
+        def _(i):
+            v3 = v1.get_vector(i*len2, len2) + v2.get_vector(0, len2)
+            output.value.assign_vector(v3, i*len2)
+        op_id += 1# record the input and output of the op
     return output
 
 
@@ -319,6 +371,14 @@ class Tensor():
     def sizes(self):
         return self.value.sizes
 
+    @property
+    def dim(self):
+        return len(self.value.sizes)
+    
+    @property
+    def length(self):
+        return self.value.length
+    
     def __repr__(self):
         return self.value
     # We need to start with some tensors whose values were not computed
@@ -359,7 +419,15 @@ class Tensor():
         return element_wise_mul(self, other)
 
     def __matmul__(self, other):
-        return self.mm(other)
+        assert self.dim >= other.dim >= 2, "Invalid Dimension"
+        if self.dim == other.dim == 2:
+            return self.mm(other)
+        elif other.dim == 2:
+            return self.single_bmm(other)
+        elif self.dim == other.dim >= 2:
+            return self.bmm(other)
+        else:
+            raise CompilerError("Invalid Dimension: The multiplication does not match")
 
     def __getitem__(self, index):
         """ Part access.
@@ -563,9 +631,9 @@ class Tensor():
         '''
         Performs a batch matrix-matrix product of matrices stored in self and other.
         Note: This function does not broadcast
-        :param self.shape: [b, n, m]
-        :param other.shape: [b, m, p]
-        :return: return.shape: [b, n, p]
+        :param self.shape: [*b, n, m]
+        :param other.shape: [*b, m, p]
+        :return: return.shape: [*b, n, p]
         '''
         # backward
         @buildingblock(get_program().globalbuildingblock)
@@ -649,6 +717,7 @@ class Tensor():
         if isinstance(other, (int, float)):
             return ops_add_constant(self, other)
         return element_wise_add(self, other)
+    
 
     def __sub__(self, other):
         if isinstance(other, (int, float)):
