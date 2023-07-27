@@ -533,15 +533,14 @@ class Tensor():
             if other.req_grad:
                 # shenhao: need to revise permute
                 input1.value.permute_without_malloc(input1_T, [0, 2, 1])
-                dl_d[operation.inputs[1]][:] += input1_T.bmm(dl_dy, is_reduce=True, params=params)[:]
+                dl_d[operation.inputs[1]][:] += input1_T.bmm(dl_dy, is_reduce=True)[:]
         # forward
         global op_id
         if prepare:
             assert len(self.sizes) >= 3 and self.sizes[-1] == other.sizes[0], "Invalid Dimension"
             batch = self.sizes[:-2]
-            b, n, m = reduce(operator.mul, batch), self.shape[-2], self.shape[-1]
+            n, m = self.shape[-2], self.shape[-1]
             p = other.sizes[-1]
-            params = MultiArray([m, b*n], self.value.value_type)
             input1_T = MultiArray([*batch, m, n], self.value.value_type)
             output = Tensor(MultiArray([*batch, n, p], other.value.value_type), req_grad=self.req_grad or other.req_grad)
             if self.req_grad or other.req_grad:
@@ -578,14 +577,13 @@ class Tensor():
                 dl_d[operation.inputs[0]][:] += dl_dy.bmm(input2_T)[:]
             if other.req_grad:
                 input1.value.permute_without_malloc(input1_T, [0, 2, 1])
-                dl_d[operation.inputs[1]][:] += input1_T.bmm(dl_dy, params=params)[:]
+                dl_d[operation.inputs[1]][:] += input1_T.bmm(dl_dy)[:]
         # forward
         global op_id
         if prepare:
             assert len(self.sizes) == len(other.sizes) == 3 and self.sizes[0] == other.sizes[0] and self.shape[-1] == other.sizes[-2], "Invalid Dimension"
             b, n, m = reduce(operator.mul, self.shape[:-2]), self.shape[-2], self.shape[-1]
             p = other.sizes[-1]
-            params = MultiArray([n, b*m], self.value.value_type)
             input1_T = MultiArray([b, m, n], self.value.value_type)
             input2_T = MultiArray([b, p, m], self.value.value_type)
             output = Tensor(MultiArray([b, n, p], other.value.value_type), req_grad=self.req_grad or other.req_grad)
