@@ -6286,6 +6286,7 @@ class SubMultiArray(_vectorizable):
         return self.dot(other, res_params)
     
     def matmul(self, other, res=None, n_threads=None):
+        
         assert self.value_type==other.value_type,"Invalid Data Type"
         assert len(self.sizes)==2 and self.sizes[1]==other.sizes[0] ,"Invalid Dimension"
 
@@ -6298,6 +6299,7 @@ class SubMultiArray(_vectorizable):
 
         n_threads=1 if row >= 10 else os.cpu_count()
         max_size = _register.maximum_size // out_col
+        
         @library.multithread(n_threads, row, max_size)
         def _(base, size):
             res.assign_part_vector(self.direct_mul(other,indices=(regint.inc(size,base=base),regint.inc(inter), regint.inc(inter),regint.inc(out_col))),base)
@@ -6305,7 +6307,7 @@ class SubMultiArray(_vectorizable):
         return res
     
     # From shenhao: you need to add matmul which is differ from dot because it uses matrix and it need to explicitly create space
-    def dot(self, other, res_params=None, n_threads=None): 
+    def dot(self, other, res_params=None, n_threads=None,res_matrix=None): 
         """ Matrix-matrix and matrix-vector multiplication.
         Note: i think res_params is not used for now
         :param self: two-dimensional
@@ -6338,10 +6340,12 @@ class SubMultiArray(_vectorizable):
                 t.params = res_params
             else:
                 t = self.value_type
-            res_matrix = Matrix(self.sizes[0], other.sizes[1], t)
+            if res_matrix is None:
+                res_matrix = Matrix(self.sizes[0], other.sizes[1], t)
             # res_matrix = MultiArray([self.sizes[0], other.sizes[1]], t)
             try:
                 try:
+                    print("111")
                     self.value_type.direct_matrix_mul
                     max_size = _register.maximum_size // res_matrix.sizes[1]
                     @library.multithread(n_threads, self.sizes[0], max_size)
@@ -6697,7 +6701,6 @@ class SubMultiArray(_vectorizable):
         return '%s multi-array of lengths %s at %s' % (self.value_type,
                                                        self.sizes, self.address)
 
-
 class MultiArray(SubMultiArray):
     """
     Multidimensional array. The access operator (``a[i]``) allows to a
@@ -6915,11 +6918,22 @@ class MultiArray(SubMultiArray):
         
         n_threads = 1 if self.shape[0] >= 10 else os.cpu_count()
         if not reduce:
-            @library.for_range_opt_multithread(n_threads, b)
+            # a=regint(0)
+            # print(type(self[0]))
+            res=MultiArray([self[0].shape[0], other[0].shape[1]], self.value_type)
+            @library.for_range(b)
             def _(i):
                 # self[i] is SubMultiArray
-                # self[i].matmul(other[i], tmp) # todo revise SubMultiArray.matmul
-                res[i] = self[i]*other[i] # it may create so much unknown space @zrs, you need to add mm in SubMultiArray
+                # self[i].matmul(other[i]) # todo revise SubMultiArray.matmul
+                x=self[i]
+                y=other[i]
+                x.dot(y,res)
+                # print("_____________")
+                # @library.multithread(1, self[i].shape[0])
+                # def _(base, size):
+                #     res.assign_part_vector(x.get_part(base, size).direct_mul(y), base)
+                # a.update(a+1)
+                # res[i] = self[i]*other[i] # it may create so much unknown space @zrs, you need to add mm in SubMultiArray
                 # res.assign_part_vector(self[i].direct_mul(other[i]),i)   
         else:
             # @library.for_range_opt_multithread(n_threads, b)
