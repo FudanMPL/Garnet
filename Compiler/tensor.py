@@ -50,7 +50,6 @@ def check_boardcast_size(size1, size2):
         size1, size2 = size2, size1
     flag = 0
     for i in range(1, len(size2)+1):
-        print(size1[-i], size2[-i])
         if size1[-i]!=size2[-i]:
             if size2[-i] == 1:
                 flag = 1
