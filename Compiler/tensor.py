@@ -50,7 +50,6 @@ def check_boardcast_size(size1, size2):
         size1, size2 = size2, size1
     flag = 0
     for i in range(1, len(size2)+1):
-        print(size1[-i], size2[-i])
         if size1[-i]!=size2[-i]:
             if size2[-i] == 1:
                 flag = 1
@@ -372,6 +371,14 @@ class Tensor():
     def sizes(self):
         return self.value.sizes
 
+    @property
+    def dim(self):
+        return len(self.value.sizes)
+    
+    @property
+    def length(self):
+        return self.value.length
+    
     def __repr__(self):
         return self.value
     # We need to start with some tensors whose values were not computed
@@ -412,7 +419,15 @@ class Tensor():
         return element_wise_mul(self, other)
 
     def __matmul__(self, other):
-        return self.mm(other)
+        assert self.dim >= other.dim >= 2, "Invalid Dimension"
+        if self.dim == other.dim == 2:
+            return self.mm(other)
+        elif other.dim == 2:
+            return self.single_bmm(other)
+        elif self.dim == other.dim >= 2:
+            return self.bmm(other)
+        else:
+            raise CompilerError("Invalid Dimension: The multiplication does not match")
 
     def __getitem__(self, index):
         """ Part access.
@@ -484,7 +499,7 @@ class Tensor():
             dl_dy,=dl_doutputs
             input1=tensors[operation.inputs[0]]
             input2=tensors[operation.inputs[1]]
-            #compute dB=A^T*dC
+            # compute dB=A^T*dC
             @for_range(input1.shape[1])
             def _(i):
                 tmp=self.value.value_type(0)
@@ -492,7 +507,7 @@ class Tensor():
                 def _(k):
                     tmp.update(tmp+input1.value[k][i]*dl_dy[k])       
                 dl_d[operation.inputs[1]][i]+=tmp
-            # #compute dA=dC*B^T
+            # compute dA=dC*B^T
             @for_range(input1.shape[0])
             def _(i):
                 @for_range(input1.shape[1])
@@ -582,19 +597,19 @@ class Tensor():
             dl_dy, = dl_doutputs
             input1, input2 = tensors[operation.inputs[0]], tensors[operation.inputs[1]]
             if self.req_grad:
-                dl_d[operation.inputs[0]][:] += dl_dy.single_bmm(input2.value.transpose())[:]
+                cur_dinput1 = dl_dy.single_bmm_trans_to(input2.value)
+                dl_d[operation.inputs[0]][:] += cur_dinput1[:]
+                cur_dinput1.delete()
             if other.req_grad:
                 # shenhao: need to revise permute
-                input1.value.permute_without_malloc(input1_T, [0, 2, 1])
-                dl_d[operation.inputs[1]][:] += input1_T.bmm(dl_dy, is_reduce=True)[:]
+                cur_dinput2 = input1.value.trans_bmm_to(dl_dy, is_reduce=True)
+                dl_d[operation.inputs[1]][:] += cur_dinput2[:]
+                cur_dinput2.delete()
         # forward
         global op_id
         if prepare:
             assert len(self.sizes) >= 3 and self.sizes[-1] == other.sizes[0], "Invalid Dimension"
-            batch = self.sizes[:-2]
-            n, m = self.shape[-2], self.shape[-1]
-            p = other.sizes[-1]
-            input1_T = MultiArray([*batch, m, n], self.value.value_type)
+            batch, n, p = self.sizes[:-2], self.sizes[-2], other.sizes[-1]
             output = Tensor(MultiArray([*batch, n, p], other.value.value_type), req_grad=self.req_grad or other.req_grad)
             if self.req_grad or other.req_grad:
                 operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
@@ -616,9 +631,9 @@ class Tensor():
         '''
         Performs a batch matrix-matrix product of matrices stored in self and other.
         Note: This function does not broadcast
-        :param self.shape: [b, n, m]
-        :param other.shape: [b, m, p]
-        :return: return.shape: [b, n, p]
+        :param self.shape: [*b, n, m]
+        :param other.shape: [*b, m, p]
+        :return: return.shape: [*b, n, p]
         '''
         # backward
         @buildingblock(get_program().globalbuildingblock)
@@ -626,20 +641,19 @@ class Tensor():
             dl_dy, = dl_doutputs
             input1, input2 = tensors[operation.inputs[0]], tensors[operation.inputs[1]]
             if self.req_grad:
-                input2.value.permute_without_malloc(input2_T, [0, 2, 1])
-                dl_d[operation.inputs[0]][:] += dl_dy.bmm(input2_T)[:]
+                cur_dinput1 = dl_dy.bmm_trans_to(input2.value)
+                dl_d[operation.inputs[0]][:] += cur_dinput1[:]
+                cur_dinput1.delete()
             if other.req_grad:
-                input1.value.permute_without_malloc(input1_T, [0, 2, 1])
-                dl_d[operation.inputs[1]][:] += input1_T.bmm(dl_dy)[:]
+                cur_dinput2 = input1.value.trans_bmm_to(dl_dy)
+                dl_d[operation.inputs[1]][:] += cur_dinput2[:]
+                cur_dinput2.delete()
         # forward
         global op_id
         if prepare:
-            assert len(self.sizes) == len(other.sizes) == 3 and self.sizes[0] == other.sizes[0] and self.shape[-1] == other.sizes[-2], "Invalid Dimension"
-            b, n, m = reduce(operator.mul, self.shape[:-2]), self.shape[-2], self.shape[-1]
-            p = other.sizes[-1]
-            input1_T = MultiArray([b, m, n], self.value.value_type)
-            input2_T = MultiArray([b, p, m], self.value.value_type)
-            output = Tensor(MultiArray([b, n, p], other.value.value_type), req_grad=self.req_grad or other.req_grad)
+            assert len(self.sizes) == len(other.sizes) >= 3 and self.sizes[:-2] == other.sizes[:-2] and self.sizes[-1] == other.sizes[-2], "Invalid Dimension"
+            batch, n, p = self.sizes[:-2], self.sizes[-2], other.sizes[-1]
+            output = Tensor(MultiArray([*batch, n, p], other.value.value_type), req_grad=self.req_grad or other.req_grad)
             if self.req_grad or other.req_grad:
                 operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
             else:
