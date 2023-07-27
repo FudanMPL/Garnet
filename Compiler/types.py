@@ -6926,7 +6926,7 @@ class MultiArray(SubMultiArray):
                 # res.assign_part_vector(self[i].direct_mul(other[i]),i)   
         else:
             # @library.for_range_opt_multithread(n_threads, b)
-            index = 0
+            index = 0 #todo
             for i in range(n):
                 for _ in range(b):
                     params.assign_vector(self[i].get_vector(i*m,m), index)
@@ -6936,11 +6936,11 @@ class MultiArray(SubMultiArray):
             other.view(b,m,p)
             
             # Not very efficient
-            """  @library.for_range_opt(b)
-            def _(i):
-                # nonlocal res # why? i think it is because of assignment operation.
-                # res += self[i]*other[i]
-                res.assign_vector(res.get_vector()+(self[i]*other[i]).get_vector())  """
+            # @library.for_range_opt(b)
+            # def _(i):
+            #     # nonlocal res # why? i think it is because of assignment operation.
+            #     # res += self[i]*other[i]
+            #     res.assign_vector(res.get_vector()+(self[i]*other[i]).get_vector())
                
         return res
 
