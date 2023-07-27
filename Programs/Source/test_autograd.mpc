@@ -31,11 +31,10 @@ def test_single_operation(func,Value):
 @autograd_function
 def test_add():
     print_ln('test_add_input: ')
-    i, j = 5, 5
-    x = MultiArray([i, j], sfix)
+    x = MultiArray([3, 3, 2], sfix)
     x.assign_all(1)
     x.print_reveal_nested()
-    y = Array(1, sfix)
+    y = MultiArray([1, 2], sfix)
     y.assign_all(5)
     y.print_reveal_nested()
     input1 = Tensor(x, req_grad = True)
