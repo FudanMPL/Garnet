@@ -533,8 +533,7 @@ class Tensor():
             if other.req_grad:
                 # shenhao: need to revise permute
                 input1.value.permute_without_malloc(input1_T, [0, 2, 1])
-                print(type(input1_T),input1_T.sizes,dl_dy.sizes,params.sizes)
-                dl_d[operation.inputs[1]][:] += input1_T.bmm(dl_dy, reduce=True, params=params)[:]
+                dl_d[operation.inputs[1]][:] += input1_T.bmm(dl_dy, is_reduce=True, params=params)[:]
         # forward
         global op_id
         if prepare:
@@ -578,7 +577,6 @@ class Tensor():
                 input2.value.permute_without_malloc(input2_T, [0, 2, 1])
                 dl_d[operation.inputs[0]][:] += dl_dy.bmm(input2_T)[:]
             if other.req_grad:
-                # shenhao: need to revise permute
                 input1.value.permute_without_malloc(input1_T, [0, 2, 1])
                 dl_d[operation.inputs[1]][:] += input1_T.bmm(dl_dy, params=params)[:]
         # forward
