@@ -6891,7 +6891,7 @@ class MultiArray(SubMultiArray):
         res.view(*batch,n,-1)
         return res
     
-    def bmm(self, other, res = None, is_reduce = False, params = None):
+    def bmm(self, other, res = None, is_reduce = False):
         """
         :param self.sizes: (batch, n, m)
         :param other.sizes: (batch, m, p)
@@ -6906,38 +6906,33 @@ class MultiArray(SubMultiArray):
 
         if not res and is_reduce:
             res = MultiArray([n,p], self.value_type)
-            if not params:
-                params = MultiArray([n,b*m], self.value_type)
         elif not res and not is_reduce:
             res = MultiArray([*batch,n,p], self.value_type)
         elif res and is_reduce:
-            assert res.sizes == (n,p), "Invalid Output Dimension"
-            if not params:
-                params = MultiArray([n, b*m], self.value_type)
+            assert res.sizes == (n,p), "Invalid Output Dimension"     
         else:
             assert res.sizes == (*batch,n,p), "Invalid Output Dimension"
         
         self.view(b,n,m)
-        print(self.sizes,other.sizes)
         n_threads = os.cpu_count()
         if not is_reduce:
             other.view(b,m,p), res.view(b,n,p)
             @library.for_range_opt_multithread(n_threads, b)
             def _(i):
                 # self[i] is SubMultiArray
-                # self[i].matmul(other[i], tmp) # todo revise SubMultiArray.matmul
-                res[i] = self[i].matmul(other[i]) # whether to use address?
-                # res[i] = self[i].matmul(other[i]) # it may create so much unknown space @zrs, you need to add mm in SubMultiArray
+                self[i].matmul(other[i], res[i]) # whether to use address?
                 # res.assign_part_vector(self[i].direct_mul(other[i]),i)
             res.view(*batch,n,p)
         else:
-            other.view(b*m, p), params.view(n, b*m)
-            index = 0
-            for i in range(n):
-                for _ in range(b):
-                    params.assign_vector(self[i].get_vector(i*m,m), index)
-                    index+=m
-            res = params.mm(other)
+            other.view(b*m, p)
+            concate_x = MultiArray([n, b*m], self.value_type)
+            index = regint(0)
+            @library.for_range_parallel(n_threads, [n,b])
+            def _(i,_):
+                concate_x.assign_vector(self[i].get_vector(i*m,m), index)
+                index.update(index + m)
+            concate_x.mm(other, res)
+            concate_x.delete()
 
             # Not very efficient
             """  @library.for_range_opt(b)
