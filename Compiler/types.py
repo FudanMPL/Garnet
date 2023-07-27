@@ -5914,13 +5914,15 @@ class Array(_vectorizable):
             sorting.radix_sort(self, self, n_bits=n_bits)
    
    
-    def reshape(self,sizes): #not in MP-SPDZ,added by zhou
+    def reshape(self,sizes):
         if len(sizes)>1:
             res=MultiArray(sizes,self.value_type)
             res.assign(self)
             return res
+    
+            
+    
         
-
         
     def Array(self, size):
         # compatibility with registers
@@ -6279,7 +6281,7 @@ class SubMultiArray(_vectorizable):
     def __mul__(self, other):
         # legacy function
         # From shenhao: you need to add matmul which is differ from dot because it uses matrix
-        return self.dot(other)
+        return self.mul(other)
 
     def mul(self, other, res_params=None):
         # legacy function
@@ -6297,7 +6299,6 @@ class SubMultiArray(_vectorizable):
         if res is None:
             res=MultiArray([row, out_col], self.value_type)
 
-        n_threads=1 if row >= 10 else os.cpu_count()
         max_size = _register.maximum_size // out_col
         
         @library.multithread(n_threads, row, max_size)
@@ -6772,17 +6773,21 @@ class MultiArray(SubMultiArray):
 
     def permute_singledim(self, new_perm, indices, i, res):
         if i == len(self.sizes) - 1:
-            for j in range(self.sizes[i]):
+            # for j in range(self.sizes[i]):
+            @library.for_range(self.sizes[i])
+            def _(j):
                 # get all the indices, like (0,0,0), (0,0,1), (0,0,2)...
                 tmp_indices = indices[:] + (j,)
                 # get value at that index
                 tmp = self.get_vector_by_indices(*tmp_indices)
-                # permute the indices
                 new_indices = self.tuple_permute(tmp_indices, new_perm)
                 # assign the value to the new indices
+                print(new_indices)
                 res.assign_vector_by_indices(tmp, *new_indices)
+                # res.print_reveal_nested()
             return
-        for j in range(self.sizes[i]):
+        @library.for_range(self.sizes[i])
+        def _(j):
             tmp_indices = indices[:] + (j,)
             self.permute_singledim(new_perm, tmp_indices, i+1, res)
 
@@ -6857,13 +6862,15 @@ class MultiArray(SubMultiArray):
         div.delete()
         return res
     
-
-    def mm(self,other,res=None): #not MP-SPDZ,added by zhou,For example:we compute A*B,call A.mm(B)
+    def mm(self,other,res=None): #not MP-SPDZ,added by zhou
         assert self.value_type==other.value_type,"Invalid Data Type"
-        assert len(self.shape)==len(other.shape)==2 and self.shape[1]==other.shape[0],"Invalid Dimension"
-        output_col=other.shape[1]
+        assert len(self.sizes)==2 and self.sizes[1]==other.sizes[0] ,"Invalid Dimension"
+        if isinstance(other,Array):
+            output_col=1
+        else:
+            output_col=other.shape[1]
         N=self.shape[0]
-        n_threads=1 if N>=10 else os.cpu_count()
+        n_threads=1 if N<=1000 else os.cpu_count()
         if res is None:
             res=MultiArray([self.shape[0],output_col],self.value_type)
         @library.multithread(n_threads,N)
@@ -6881,8 +6888,8 @@ class MultiArray(SubMultiArray):
         # print(self.sizes,other.sizes)
         assert self.value_type == other.value_type, "Invalid Data Type"
         assert len(self.sizes) >= 3 and self.sizes[-1] == other.sizes[0], "Invalid Dimension"
-        batch = self.shape[:-2]
-        b,n,m = reduce(operator.mul, batch), self.shape[-2],self.shape[-1]
+        batch = self.sizes[:-2]
+        b,n,m = reduce(operator.mul, batch) if len(batch)>= 2 else batch[0], self.shape[-2],self.shape[-1]
         self.view(b*n, m)
         if res is not None:
             res.view(b*n, -1)
@@ -6891,7 +6898,7 @@ class MultiArray(SubMultiArray):
         res.view(*batch,n,-1)
         return res
     
-    def bmm(self, other, res = None, reduce = False, params = None):
+    def bmm(self, other, res = None, is_reduce = False):
         """
         :param self.sizes: (batch, n, m)
         :param other.sizes: (batch, m, p)
@@ -6899,60 +6906,49 @@ class MultiArray(SubMultiArray):
         """
         # print(self.sizes,other.sizes)
         assert self.value_type == other.value_type, "Invalid Data Type"
-        assert len(self.sizes)==len(other.sizes)==3 and self.sizes[0]==other.sizes[0] and self.shape[-1]==other.sizes[-2], "Invalid Dimension"
-        b,n,m = self.sizes
+        assert len(self.sizes)==len(other.sizes)>=3 and self.sizes[:-2]==other.sizes[:-2] and self.shape[-1]==other.sizes[-2], "Invalid Dimension"
+        batch = self.sizes[:-2]
+        b,n,m = reduce(operator.mul, batch) if len(batch)>= 2 else batch[0], self.shape[-2],self.shape[-1]
         p = other.sizes[-1]
 
-        if not res and reduce:
+        if not res and is_reduce:
             res = MultiArray([n,p], self.value_type)
-            if not params:
-                params = MultiArray([n,b*m], self.value_type)
-        elif not res and not reduce:
-            res = MultiArray([b,n,p], self.value_type)
-        elif res and reduce:
-            assert res.sizes == (n,p), "Invalid Output Dimension"
-            if not params:
-                params = MultiArray([n, b*m], self.value_type)
+        elif not res and not is_reduce:
+            res = MultiArray([*batch,n,p], self.value_type)
+        elif res and is_reduce:
+            assert res.sizes == (n,p), "Invalid Output Dimension"     
         else:
-            assert res.sizes == (b,n,p), "Invalid Output Dimension"
+            assert res.sizes == (*batch,n,p), "Invalid Output Dimension"
         
-        n_threads = 1 if self.shape[0] >= 10 else os.cpu_count()
-        if not reduce:
-            # a=regint(0)
-            # print(type(self[0]))
-            res=MultiArray([self[0].shape[0], other[0].shape[1]], self.value_type)
-            @library.for_range(b)
-            def _(i):
-                # self[i] is SubMultiArray
-                # self[i].matmul(other[i]) # todo revise SubMultiArray.matmul
-                x=self[i]
-                y=other[i]
-                x.dot(y,res)
-                # print("_____________")
-                # @library.multithread(1, self[i].shape[0])
-                # def _(base, size):
-                #     res.assign_part_vector(x.get_part(base, size).direct_mul(y), base)
-                # a.update(a+1)
-                # res[i] = self[i]*other[i] # it may create so much unknown space @zrs, you need to add mm in SubMultiArray
-                # res.assign_part_vector(self[i].direct_mul(other[i]),i)   
-        else:
+        self.view(b,n,m)
+        n_threads = os.cpu_count()
+        if not is_reduce:
+            other.view(b,m,p), res.view(b,n,p)
             # @library.for_range_opt_multithread(n_threads, b)
-            index = 0
-            for i in range(n):
-                for _ in range(b):
-                    params.assign_vector(self[i].get_vector(i*m,m), index)
-                    index += m
-            other.view(b*m,p)
-            res = params.mm(other)
-            other.view(b,m,p)
-            
+            # def _(i):
+            for i in range(b):
+                # self[i] is SubMultiArray
+                self[i].matmul(other[i], res[i]) # whether to use address?
+                # res.assign_part_vector(self[i].direct_mul(other[i]),i)
+            res.view(*batch,n,p)
+        else:
+            other.view(b*m, p)
+            concate_x = MultiArray([n, b*m], self.value_type)
+            index = regint(0)
+            @library.for_range_parallel(n_threads, [n,b])
+            def _(i,_):
+                concate_x.assign_vector(self[i].get_vector(i*m,m), index)
+                index.update(index + m)
+            concate_x.mm(other, res)
+            concate_x.delete()
+
             # Not very efficient
             """  @library.for_range_opt(b)
             def _(i):
                 # nonlocal res # why? i think it is because of assignment operation.
                 # res += self[i]*other[i]
                 res.assign_vector(res.get_vector()+(self[i]*other[i]).get_vector())  """
-               
+        self.view(*batch,n,m), other.view(*batch,m,p),
         return res
 
     def delete(self):

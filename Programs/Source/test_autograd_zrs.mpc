@@ -76,31 +76,24 @@ def test_sin2():
 
 @autograd_function
 def test_permute():
-    xMultiArray_3 = MultiArray([ROW, COL,HEIGHT], sfix)
-    for i in range(0,ROW):
-        for  j in range(0,COL):
-            for k in range(0,HEIGHT):
-                xMultiArray_3[i][j][k] = sfix(i-j+k)
     print_ln('test_permute():')
     xMultiArray_3 = MultiArray([ROW, COL,4], sfix)
     for i in range(0,ROW):
         for  j in range(0,COL):
             for k in range(0,4):
-                xMultiArray_3[i][j][k] = sfix(i-j+k)
+                xMultiArray_3[i][j][k] = sfix(i*12+j*4+k)
     xMultiArray_3.print_reveal_nested()
     input1 = Tensor(xMultiArray_3, req_grad = True)
 
     input2 = input1.permute([1,2,0])
-    input3=input2.sin()
+    
 
     tensor.train()
     tensor.reset_op_id()
 
     input2 = input1.permute([1,2,0])
-    input3=input2.sin()
-
-    input3.backward()
-    input3.value.print_reveal_nested()
+    input2.backward()
+    input2.value.print_reveal_nested()
     input1.grad.print_reveal_nested()
 
 
@@ -382,12 +375,12 @@ def test_dot():
 
 
 
-test_mv_MultiArray_Array()
+#test_mv_MultiArray_Array()
 #test_dot()
 
 #test_squeeze()
 #test_unsqueeze()
-#test_permute()
+test_permute()
 #test_transpose_Array() #todo fix the bug
 #test_transpose_MultiArray()
 #test_reshape_MultiArrayToMultiArray()
@@ -395,8 +388,11 @@ test_mv_MultiArray_Array()
 #test_reshape_MultiArrayToArray()
 
 #test_concate_Array()
-test_concate_MultiArray()
+#test_concate_MultiArray()
 #test_mm_MultiArray()
+
+
+
 
 
 
