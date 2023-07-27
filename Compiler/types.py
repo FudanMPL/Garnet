@@ -5993,6 +5993,10 @@ class SubMultiArray(_vectorizable):
     def shape(self):
         return list(self.sizes)
 
+    @property
+    def dim(self):
+        return len(self.sizes)
+
     def __setitem__(self, index, other):
         """ Part assignment.
 
@@ -6893,9 +6897,14 @@ class MultiArray(SubMultiArray):
     
     def bmm(self, other, res = None, is_reduce = False):
         """
+        # batch can be int or *list(int)
         :param self.sizes: (batch, n, m)
         :param other.sizes: (batch, m, p)
-        :return: res.sizes: (batch, n, p)
+        :param res.sizes: (batch, n, p) if not reduce else (n, p)
+        :param is_reduce: whether to reduce the first dimension
+        :return: 
+            if not reduce: sizes: (batch, n, p)
+            if reduce: sizes: (n, p)
         """
         # print(self.sizes,other.sizes)
         assert self.value_type == other.value_type, "Invalid Data Type"
@@ -6920,13 +6929,14 @@ class MultiArray(SubMultiArray):
             @library.for_range_opt_multithread(n_threads, b)
             def _(i):
                 # self[i] is SubMultiArray
-                self[i].matmul(other[i], res[i]) # whether to use address?
+                self[i].matmul(other[i], res[i])
                 # res.assign_part_vector(self[i].direct_mul(other[i]),i)
             res.view(*batch,n,p)
         else:
             other.view(b*m, p)
             concate_x = MultiArray([n, b*m], self.value_type)
             index = regint(0)
+            
             @library.for_range_parallel(n_threads, [n,b])
             def _(i,_):
                 concate_x.assign_vector(self[i].get_vector(i*m,m), index)
@@ -6934,12 +6944,13 @@ class MultiArray(SubMultiArray):
             concate_x.mm(other, res)
             concate_x.delete()
 
-            # Not very efficient
+            # Not very efficient method
             """  @library.for_range_opt(b)
             def _(i):
                 # nonlocal res # why? i think it is because of assignment operation.
                 # res += self[i]*other[i]
                 res.assign_vector(res.get_vector()+(self[i]*other[i]).get_vector())  """
+            
         self.view(*batch,n,m), other.view(*batch,m,p),
         return res
 

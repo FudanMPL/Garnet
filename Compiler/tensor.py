@@ -371,6 +371,14 @@ class Tensor():
     def sizes(self):
         return self.value.sizes
 
+    @property
+    def dim(self):
+        return len(self.value.sizes)
+    
+    @property
+    def length(self):
+        return self.value.length
+    
     def __repr__(self):
         return self.value
     # We need to start with some tensors whose values were not computed
@@ -411,7 +419,15 @@ class Tensor():
         return element_wise_mul(self, other)
 
     def __matmul__(self, other):
-        return self.mm(other)
+        assert self.dim >= other.dim >= 2, "Invalid Dimension"
+        if self.dim == other.dim == 2:
+            return self.mm(other)
+        elif other.dim == 2:
+            return self.single_bmm(other)
+        elif self.dim == other.dim >= 2:
+            return self.bmm(other)
+        else:
+            raise CompilerError("Invalid Dimension: The multiplication does not match")
 
     def __getitem__(self, index):
         """ Part access.
@@ -615,9 +631,9 @@ class Tensor():
         '''
         Performs a batch matrix-matrix product of matrices stored in self and other.
         Note: This function does not broadcast
-        :param self.shape: [b, n, m]
-        :param other.shape: [b, m, p]
-        :return: return.shape: [b, n, p]
+        :param self.shape: [*b, n, m]
+        :param other.shape: [*b, m, p]
+        :return: return.shape: [*b, n, p]
         '''
         # backward
         @buildingblock(get_program().globalbuildingblock)
