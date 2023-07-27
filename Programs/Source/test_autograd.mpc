@@ -31,10 +31,9 @@ def test_single_operation(func,Value):
 @autograd_function
 def test_add():
     print_ln('test_add_input: ')
-    i, j = 3, 3
+    i, j = 5, 5
     x = MultiArray([i, j], sfix)
-    for i in range(0, i*j):
-        x.assign_vector(regint(i), i)
+    x.assign_all(1)
     x.print_reveal_nested()
     y = Array(1, sfix)
     y.assign_all(5)

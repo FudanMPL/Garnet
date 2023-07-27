@@ -42,19 +42,18 @@ op_id = 0
 # op_id_store stores the correlation among op_ids and operation ids.
 op_id_store = {}
 
-def matrix_reconst(mat, other_sizes):
-    r = 1
-    for si in other_sizes:
-        r *= si
-    c = 1
-    for si in mat.sizes:
-        c *= si
-    c //= r
-    new_matrix = MultiArray([r, c], mat.value_type)
-
-    for i in range(0, r):
-        for j in range(0, c):
-            v = mat.get_vector(j*r+i, 1)
+def matrix_reconst(matrix, new_size):
+    assert matrix.total_size()%new_size==0, "Invalid Dimension"
+    r = new_size
+    c = matrix.total_size() // r
+    new_matrix = MultiArray([r, c], matrix.value_type)
+    # for i in range(0, r):
+    #     for j in range(0, c):
+    @for_range(r)
+    def _(i):
+        @for_range(c)
+        def _(j):
+            v = matrix.get_vector(j*r+i, 1)
             new_matrix.assign_vector(v, i*c+j)
     return new_matrix
     
@@ -79,12 +78,15 @@ def element_wise_add(self, other):
         if dl_dself.total_size()<dl_dother.total_size():
             v1, v2 = v2, v1
             req_grad1, req_grad2 = req_grad2, req_grad1
-        
+        # v1 back directly 
         if req_grad1:
             v1[:] += dl_dx[:]
+        # broadcasted v2 back with reduce
         if req_grad2:
-            dl_dx_rec = matrix_reconst(dl_dx, v2.sizes)
-            for i in range(0, v2.total_size()):
+            dl_dx_rec = matrix_reconst(dl_dx, v2.total_size())
+            # for i in range(0, v2.total_size()):
+            @for_range(v2.total_size())
+            def _(i):
                 vsum = sum(dl_dx_rec.get_vector(i, dl_dx_rec.sizes[1]))
                 v2.assign_vector(vsum, i) 
         
@@ -128,7 +130,12 @@ def element_wise_add(self, other):
             v1, v2 = v2, v1
 
         len1, len2 = v1.total_size(), v2.total_size()
-        for i in range(0, len1//len2):
+        assert len1 % len2==0, "Invalid Dimension"
+        # for i in range(0, len1//len2):
+        #     v3 = v1.get_vector(i*len2, len2) + v2.get_vector(0, len2)
+        #     output.value.assign_vector(v3, i*len2)
+        @for_range(len1//len2)
+        def _(i):
             v3 = v1.get_vector(i*len2, len2) + v2.get_vector(0, len2)
             output.value.assign_vector(v3, i*len2)
         op_id += 1# record the input and output of the op
