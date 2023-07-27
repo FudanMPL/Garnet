@@ -329,6 +329,62 @@ def test_mm_MultiArray():
     input2.grad.print_reveal_nested()
 
 
+@autograd_function
+def test_mv_MultiArray_Array():
+    print_ln('test_mv_MultiArray_Array():')
+    xMultiArray_1 = MultiArray([ROW, COL], sfix)
+    xMultiArray_1.assign_all(1)
+
+    xArray_2 = Array(COL, sfix)
+    xArray_2.assign_all(1)
+
+
+    xMultiArray_1.print_reveal_nested()
+    xArray_2.print_reveal_nested()
+    input1 = Tensor(xMultiArray_1, req_grad = True)
+    input2 = Tensor(xArray_2, req_grad = True)
+    output = input1.mv(input2)
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    output = input1.mv(input2)
+    output.backward()
+    output.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+    input2.grad.print_reveal_nested()
+
+@autograd_function
+def test_dot():
+    print_ln('test_dot():')
+    xArray_1 = Array(COL, sfix)
+    xArray_1.assign_all(2)
+
+    xArray_2 = Array(COL, sfix)
+    xArray_2.assign_all(3)
+
+
+    xArray_1.print_reveal_nested()
+    xArray_2.print_reveal_nested()
+    input1 = Tensor(xArray_1, req_grad = True)
+    input2 = Tensor(xArray_2, req_grad = True)
+    output = input1.dot(input2)
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    output = input1.dot(input2)
+    output.backward()
+    output.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+    input2.grad.print_reveal_nested()
+
+
+
+
+test_mv_MultiArray_Array()
+#test_dot()
+
 #test_squeeze()
 #test_unsqueeze()
 #test_permute()
@@ -339,6 +395,8 @@ def test_mm_MultiArray():
 #test_reshape_MultiArrayToArray()
 
 #test_concate_Array()
-#test_concate_MultiArray()
-test_mm_MultiArray()
+test_concate_MultiArray()
+#test_mm_MultiArray()
+
+
 

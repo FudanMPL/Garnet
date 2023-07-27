@@ -6281,7 +6281,7 @@ class SubMultiArray(_vectorizable):
     def __mul__(self, other):
         # legacy function
         # From shenhao: you need to add matmul which is differ from dot because it uses matrix
-        return self.dot(other)
+        return self.mul(other)
 
     def mul(self, other, res_params=None):
         # legacy function
@@ -6298,7 +6298,6 @@ class SubMultiArray(_vectorizable):
         if res is None:
             res=MultiArray([row, out_col], self.value_type)
 
-        n_threads=1 if row >= 10 else os.cpu_count()
         max_size = _register.maximum_size // out_col
         @library.multithread(n_threads, row, max_size)
         def _(base, size):
@@ -6864,7 +6863,7 @@ class MultiArray(SubMultiArray):
         else:
             output_col=other.shape[1]
         N=self.shape[0]
-        n_threads=1 if N>=10 else os.cpu_count()
+        n_threads=1 if N<=1000 else os.cpu_count()
         if res is None:
             res=MultiArray([self.shape[0],output_col],self.value_type)
         @library.multithread(n_threads,N)
@@ -6882,16 +6881,17 @@ class MultiArray(SubMultiArray):
         # print(self.sizes,other.sizes)
         assert self.value_type == other.value_type, "Invalid Data Type"
         assert len(self.sizes) >= 3 and self.sizes[-1] == other.sizes[0], "Invalid Dimension"
-        b,n,m = reduce(operator.mul, self.shape[:-2]), self.shape[-2],self.shape[-1]
+        batch = self.sizes[:-2]
+        b,n,m = reduce(operator.mul, batch) if len(batch)>= 2 else batch[0], self.shape[-2],self.shape[-1]
         self.view(b*n, m)
         if res is not None:
             res.view(b*n, -1)
         res = self.mm(other,res)
-        self.view(b,n,m)
-        res.view(b,n,-1)
+        self.view(*batch,n,m)
+        res.view(*batch,n,-1)
         return res
     
-    def bmm(self, other, res = None, reduce = False, params = None):
+    def bmm(self, other, res = None, is_reduce = False):
         """
         :param self.sizes: (batch, n, m)
         :param other.sizes: (batch, m, p)
@@ -6899,49 +6899,48 @@ class MultiArray(SubMultiArray):
         """
         # print(self.sizes,other.sizes)
         assert self.value_type == other.value_type, "Invalid Data Type"
-        assert len(self.sizes)==len(other.sizes)==3 and self.sizes[0]==other.sizes[0] and self.shape[-1]==other.sizes[-2], "Invalid Dimension"
-        b,n,m = self.sizes
+        assert len(self.sizes)==len(other.sizes)>=3 and self.sizes[:-2]==other.sizes[:-2] and self.shape[-1]==other.sizes[-2], "Invalid Dimension"
+        batch = self.sizes[:-2]
+        b,n,m = reduce(operator.mul, batch) if len(batch)>= 2 else batch[0], self.shape[-2],self.shape[-1]
         p = other.sizes[-1]
 
-        if not res and reduce:
+        if not res and is_reduce:
             res = MultiArray([n,p], self.value_type)
-            if not params:
-                params = MultiArray([n,b*m], self.value_type)
-        elif not res and not reduce:
-            res = MultiArray([b,n,p], self.value_type)
-        elif res and reduce:
-            assert res.sizes == (n,p), "Invalid Output Dimension"
-            if not params:
-                params = MultiArray([n, b*m], self.value_type)
+        elif not res and not is_reduce:
+            res = MultiArray([*batch,n,p], self.value_type)
+        elif res and is_reduce:
+            assert res.sizes == (n,p), "Invalid Output Dimension"     
         else:
-            assert res.sizes == (b,n,p), "Invalid Output Dimension"
+            assert res.sizes == (*batch,n,p), "Invalid Output Dimension"
         
-        n_threads = 1 if self.shape[0] >= 10 else os.cpu_count()
-        if not reduce:
+        self.view(b,n,m)
+        n_threads = os.cpu_count()
+        if not is_reduce:
+            other.view(b,m,p), res.view(b,n,p)
             @library.for_range_opt_multithread(n_threads, b)
             def _(i):
                 # self[i] is SubMultiArray
-                # self[i].matmul(other[i], tmp) # todo revise SubMultiArray.matmul
-                res[i] = self[i]*other[i] # it may create so much unknown space @zrs, you need to add mm in SubMultiArray
-                # res.assign_part_vector(self[i].direct_mul(other[i]),i)   
+                self[i].matmul(other[i], res[i]) # whether to use address?
+                # res.assign_part_vector(self[i].direct_mul(other[i]),i)
+            res.view(*batch,n,p)
         else:
-            # @library.for_range_opt_multithread(n_threads, b)
-            index = 0
-            for i in range(n):
-                for _ in range(b):
-                    params.assign_vector(self[i].get_vector(i*m,m), index)
-                    index += m
-            other.view(b*m,p)
-            res = params.mm(other)
-            other.view(b,m,p)
-            
+            other.view(b*m, p)
+            concate_x = MultiArray([n, b*m], self.value_type)
+            index = regint(0)
+            @library.for_range_parallel(n_threads, [n,b])
+            def _(i,_):
+                concate_x.assign_vector(self[i].get_vector(i*m,m), index)
+                index.update(index + m)
+            concate_x.mm(other, res)
+            concate_x.delete()
+
             # Not very efficient
             """  @library.for_range_opt(b)
             def _(i):
                 # nonlocal res # why? i think it is because of assignment operation.
                 # res += self[i]*other[i]
                 res.assign_vector(res.get_vector()+(self[i]*other[i]).get_vector())  """
-               
+        self.view(*batch,n,m), other.view(*batch,m,p),
         return res
 
     def delete(self):

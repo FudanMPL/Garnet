@@ -57,7 +57,7 @@ Scripts/setup-ssl.sh 2
 
 以tutorial.mpc的测试程序为例
 
- 设置输入、编辑mpc程序、设置环参数
+ 设置输入、编译mpc程序、设置环参数
 
 ```
 echo 1 2 3 4 > Player-Data/Input-P0-0
@@ -167,7 +167,7 @@ Scripts/ring.sh torch_ckplus48_lenet_selected
 
 
 
-## 运行XGBoost模型安全训练与预测
+## 运行XGBoost模型安全训练
 ### 环境配置
 首先修改CONFIG.mine文件（没有的话需要新建一个，请注意不是CONFIG文件），在开头加入如下一行代码。
 ```
@@ -204,7 +204,7 @@ pip install pandas
 
 在准备好csv格式的数据集后，运行python Scripts/data_prepare_for_xgboost [数据集名] 从而生成符合框架的数据格式，生成的文件为Player-Data/Input-P0-0。运行该脚本后，控制台会输出训练集所包含的训练样本数，特征数，测试集所包含的样本数，特征数。例如:
 ```
-python ./Scripts/data_prepare_for_decision_tree.py IRIS
+python ./Scripts/data_prepare_for_xgboost.py IRIS
 
 以下为控制台输出
 file: ./Data/IRIS_train.csv
@@ -316,6 +316,53 @@ program.use_split(3)
 |  5  | Cancer | 100% | 94.64% |
 |  6  | Tic-tac-toe | 90.95% | 88.42% |
 
+## 基于向量空间秘密共享的安全计算协议使用
+
+向量空间秘密共享（Vector Space Secret Shaing）是Song等人发表于ACM CCS‘22 的安全多方学习框架pMPL所使用的底层秘密共享技术。
+在Garnet中向量空间秘密共享技术所对应的虚拟机是vss-party。vss-party基于MP-SPDZ原生的semi-party和hemi-party。vss-party实现了基于向量空间秘密共享的三方安全计算操作（目前只支持64位）。
+
+### 基础设置
+
+设置ssl
+
+```
+Scripts/setup-ssl.sh 3
+```
+
+### 编译tutorial程序
+
+设置输入、编译mpc程序、设置环参数
+
+```
+echo 1 2 3 4 > Player-Data/Input-P0-0
+echo 1 2 3 4 > Player-Data/Input-P1-0
+echo 1 2 3 4 > Player-Data/Input-P2-0
+./compile.py -R 64 tutorial
+```
+
+### 编译vss-party虚拟机
+
+```
+make -j 8 vss-party.x
+```
+  
+### 运行vss-party虚拟机
+
+ 在三个终端分别运行
+
+```
+./vss-party.x 0 tutorial
+./vss-party.x 1 tutorial
+./vss-party.x 2 tutorial
+```
+
+ 或使用脚本
+
+```
+chmod +x Scripts/vss.sh
+Scripts/vss.sh tutorial
+```
+
 ## 运行Function Secret Sharing与Replicated Secret Sharing混合协议
 本协议通过Function Secret Sharing减小比较的通信量（通信轮次待优化），在乘法、加法运算时转换回Replicated Secret Sharing进行计算，兼容NFGen并提供分段时的加速。
 
@@ -340,6 +387,7 @@ make -j 8 fss-ring-party.x
 
 最后，生成Offline需要的内容
 ```
+make -j 8 Fake-Offline.x
 ./Fake-Offline.x 3 -e 15,31,63
 ```
 
@@ -393,14 +441,11 @@ Consider adding the following at the beginning of 'test_sfix.mpc':
 
 通过上述结果可以看到通信量减少了～10倍，通信轮次的减少以及本地计算的加速将在后续版本陆续更新，敬请期待。
 
-# 基于NFGen的非线性函数近似计算
-
-
-# 基于NFGen的非线性函数近似计算
+## 基于NFGen的非线性函数近似计算
 
 清华团队Xiaoyu Fan等人发表在CCS'2022上的论文NFGen中，提出了NFGen工具包。NFGen利用离散分段多项式，自动化综合考虑后端MPC协议的开销、近似精度等指标，生成较优的近似多项式，再利用后端的MPC协议库进行计算并生成对应的代码模板。在Garnet中基于NfGen的多项式生成模块实现了GFA，general nonlinear-function approximation，通用非线性函数近似计算模块，能支持复杂非线性函数的mpc友好的计算，并可结合Function Secret Sharing进一步提高效率。
 
-## 1 Garnet预设非线性函数
+### 1 Garnet预设非线性函数
 
 从预设函数库中导入所需函数如sigmoid，即直接带有近似计算
 
@@ -427,7 +472,7 @@ x = sfix(0)
 y = sigmoid(x)
 ```
 
-## 2 自定义函数近似优化
+### 2 自定义函数近似优化
 
 使用GFA模块可生成自定函数的近似计算多项式，在Source/test_gfa.mpc中以自定义的sigmoid函数为例
 
@@ -481,7 +526,7 @@ Global data sent = 3.42998 MB (all parties)
 模型训练开销Profiling是指给定一个mpc语言描述的机器学习模型训练过程，在编译阶段通过对指令进行分析量化每个算子（全连接层、激活函数层、卷积层等）的通信量与通信轮次，为MPC-Friendly模型的设计提供重要参考。目前Garnet中模型训练开销Profiling支持四种协议，包括SecureML、ABY、ABY3、BGW。
 
 ### 环境配置
-在主目录（/Garnet）下提供了requirements.txt和fine-tuning.yaml用于配置环境，可以在主目录下执行以下命令完成环境配置
+在主目录（/Garnet）下提供了requirements.txt用于配置环境，可以在主目录下执行以下命令完成环境配置.
 
 ```
 pip install -r ./requirements.txt 
@@ -510,7 +555,7 @@ stop_profiling() # stopping model trainging cost profiling
 ```
 随后，在Garnet文件夹下运行如下命令，在包含100条100维数据的数据集上训练一个逻辑回归模型并对其训练开销进行Progfiling，并指定底层协议为ABY3。
 ```
-python compile.py -R 64 split 3 --profiling -Q ABY3 logreg 100 100
+python compile.py -R 64 -Z 3 --profiling -Q ABY3 logreg 100 100
 ```
 输出为
 ```
@@ -561,5 +606,133 @@ class ABY3(Cost):
    }
 ```
 其中share, open, muls, matmuls为必须配置的基础算子，bit_share以及ands在涉及bit share运算时需要配置。此外，bit_length指数据表示的位长，kapaa指计算安全参数，precision指定点数中小数的精度，n_parties指涉及运算的参与方的数量。
+
+## XGboost推理
+
+目前支持两种XGboost推理，一种是基于秘密分享下的安全推理，另外一种是两方下的同态加密安全推理。
+
+使用这两种安全推理的前三个步骤是一致的：
+
+（1）首先根据需要修改Programs/Source/xgboost-inference.mpc文件。需要修改的配置如下：
+
+```
+m = 4 # 特征数
+h = 2 # 树高
+tree_number = 2 # 树的数量
+n_threads = 4 # 最大线程数
+test_samples = 51 # 测试样本数
+attribute_max_values = [ # 各个特征的最大值，用于在两方同态加密下使用
+100,
+100,
+100,
+100
+]
+
+```
+
+（2）编译该mpc文件
+
+```
+python3 ./compile.py -R 64 xgboost-inference
+```
+
+（3）准备数据
+
+我们假设，模型被第0方持有，数据被第1方持有。
+
+（1）我们首先在Player-Data/Input-P0-0中写入xgboost模型数据。例如，一个由3颗树高为2的决策树模型所组成的xgboost的数据如下。其中，每一行代表一个节点。如果当前行有三个整数值，则代表这一行的节点是内部节点。三个值分别代表节点的编码，节点分裂使用的是第几个属性以及节点分裂的属性阈值。如果当前行有1个整数值和一个浮点数，则代表这一行是叶子节点，整数值代表叶子节点的编号，浮点值则代表叶子节点的预测值。每一层的编号从0-2^h-1。其中，编号为k且在第i层，则它的左子节点为第i+1层编号为k的节点，右子节点为第i+1层编号为k+2^i的节点。
+    注意：请确保输入的xgboost模型数据需要保证为满二叉树的结构，即第0层有1个节点，第一层有2个节点，以此类推。考虑到，某些节点可能只有左子节点或者右子节点，因此，不存在的节点的数据可以由-1进行占位。
+
+
+```
+0 2 26
+0 2 10
+1 2 49
+0 0.909088
+1 0.467285
+2 0.997375
+3 0.0177917
+0 2 26
+0 1 42
+1 3 16
+0 0.50116
+1 0.247406
+2 0.455734
+3 -0.0153046
+0 2 48
+0 2 26
+1 0 57
+0 0.251801
+1 -0.205444
+2 0.134003
+3 0.00747681
+
+```
+
+（2）我们在Player-Data/Input-P1-0中写入需要推理的数据。首先写入所有数据的真实标签，如果没有的话，可以使用任意数据进行占位。之后依次写入每一个属性。例如，以下的数据代表51条需要进行推理的数据。第一行代表所有数据的标签，第二行代表所有数据的第一个属性值，以此类推。
+
+```
+1 1 2 1 1 0 1 2 2 1 0 2 0 0 0 0 1 1 1 0 0 1 1 1 0 0 1 2 2 0 0 0 0 1 0 0 2 0 2 1 0 2 0 1 1 0 2 1 1 0 2
+58 57 50 62 61 60 56 51 54 56 72 48 57 58 63 67 70 63 67 74 63 67 68 60 62 77 66 50 58 65 63 67 63 65 69 73 46 63 55 56 71 50 61 62 52 77 54 64 51 64 50
+27 28 35 29 30 30 30 33 39 29 36 30 25 27 28 25 32 23 31 28 25 30 28 29 28 30 30 33 40 30 29 31 34 28 32 29 32 27 42 25 30 32 30 22 27 38 34 32 25 28 35
+41 45 13 43 46 48 45 17 13 36 61 14 50 51 51 58 47 44 47 61 50 50 48 45 48 61 44 14 12 55 56 56 56 46 57 63 14 49 14 39 59 12 49 45 39 67 15 45 30 56 16
+10 13 3 13 14 18 15 5 4 13 25 3 20 19 15 18 14 13 15 19 19 17 14 15 18 23 14 20 20 18 18 24 24 15 23 18 20 18 20 11 21 20 18 15 14 22 4 15 11 21 6
+
+```
+
+(4) 编译虚拟机并运行
+
+这里分为两种情况：
+
+第一种是使用秘密分享进行推理，那么就编译相应的秘密分享下的虚拟机并运行。我们假设使用的虚拟机是replicated-ring-party.x，运行以下两行代码：
+
+```
+make -j 6 replicated-ring-party.x
+./Scripts/ring.sh xgboost-inference
+```
+
+第二种是使用同态加密进行推理。首先需要保证服务器上已经安装好了微软的seal库，如果没有，则进行安装。
+
+安装命令如下, 或者参照微软的教程https://github.com/microsoft/SEAL
+```
+git clone https://github.com/microsoft/SEAL.git
+cd SEAL
+cmake -S . -B build -DSEAL_BUILD_EXAMPLES=ON #下载依赖项，如果报错就重新运行，可能是网络问题
+cmake --build build #生成静态库libseal-<version>.a
+sudo cmake --install build #将SEAL添加到/usr/local
+
+```
+
+
+
+之后运行以下命令进行编译虚拟机
+
+```
+make -j 6 tree-inference.x
+```
+
+在两个终端下分别运行:
+
+```
+./tree-inference.x 0 -pn 10000
+```
+
+```
+./tree-inference.x 1 -pn 10000
+```
+
+#### 更多同态参数调节：
+
+如果需要调节同态加密的参数以及使用的推理时表示小数位数的精度等，可以修改Machines/TreeInferenceServer.h 中的参数，
+
+```
+const size_t poly_modulus_degree = 8192; // 多项式的阶数
+const uint64_t plain_modulus = 1024; // 明文的模数
+const int scale_for_decimal_part = 100; // 用于表示小数的部分，即一个小数a会被表示为 int(a*scale_for_decimal_part)
+const int value_max_threhold = 1000; // 当属性值的最大值大于该值时，会进行二维压缩。即一个长度为n的向量被压缩成两个长度根号n的向量
+```
+
+
+
 ## 联系我们
 如果您对项目有任何疑问，请在GitHub仓库上创建issue或者发送邮件到dsglab@fudan.edu.cn。

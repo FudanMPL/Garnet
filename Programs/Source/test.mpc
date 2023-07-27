@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 
 n = 10
 a = sint.Array(n)
@@ -10,3 +11,9 @@ def _(i):
 a.print_reveal_nested()
 actual = x.reveal()
 print_ln('expected 10, got %s', actual)
+=======
+a = sint(2, 4)
+b = sint(0, 1)
+c = a * b
+print_ln("c = %s", c.reveal())
+>>>>>>> 261d5e4d57e370ae8c65b10dde55fee3a6a9b60c

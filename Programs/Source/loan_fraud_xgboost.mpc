@@ -1,0 +1,27 @@
+
+m = 4 # 特征数
+n_train = 100 # 训练样本数量
+h = 3 # 树高
+tree_number = 3 # 树的数量
+
+n_threads = 4 # 最大线程数
+learning_rate = 0.5 # 学习率
+
+program.use_trunc_pr=True
+import xgboost, util, math
+
+xgboost.learning_rate = learning_rate
+train = sfix.Array(n_train), sint.Matrix(m, n_train)
+
+
+for x in train:
+    x.input_from(0)
+
+trainer = xgboost.XGBoost(
+   train[1], train[0], h=h, tree_number=tree_number, attr_lengths=None,
+   n_threads=n_threads)
+trainer.fit()
+
+
+
+trainer.reveal_and_print()
