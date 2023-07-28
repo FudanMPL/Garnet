@@ -6315,8 +6315,8 @@ class SubMultiArray(_vectorizable):
             # res.assign_part_vector(self.get_part(base,size).direct_mul(other),base) # it uses address not create new. These two are the same in time and online or offline round.
         return res
     
-    # From shenhao: you need to add matmul which is differ from dot because it uses matrix and it need to explicitly create space
-    def dot(self, other, res_params=None, n_threads=None,res_matrix=None): 
+    # Finished: you need to add matmul which is differ from dot because it uses matrix and it need to explicitly create space
+    def dot(self, other, res_params=None, n_threads=None, res_matrix=None): 
         """ Matrix-matrix and matrix-vector multiplication.
         Note: i think res_params is not used for now
         :param self: two-dimensional
@@ -6970,7 +6970,7 @@ class MultiArray(SubMultiArray):
         assert self.value_type == other.value_type, "Invalid Data Type"
         assert len(self.sizes) >= 3 and len(other.sizes) == 2 and self.sizes[-1] == other.sizes[-1], "Invalid Dimension"
 
-        # For shenhao: you can delete this init because res = self.single_bmm(trans_other, res) achieves the same
+        # Finished: you can delete this init because res = self.single_bmm(trans_other, res) achieves the same
         # if not res:
         #     res = MultiArray([*self.sizes[:-2], self.sizes[-2], other.sizes[0]], self.value_type)
 
