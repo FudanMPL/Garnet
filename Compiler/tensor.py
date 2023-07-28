@@ -489,29 +489,36 @@ class Tensor():
             dl_dy,=dl_doutputs
             input1=tensors[operation.inputs[0]]
             input2=tensors[operation.inputs[1]]
-            # compute dB=A^T*dC
-            @for_range(input1.shape[1])
-            def _(i):
-                tmp=self.value.value_type(0)
-                @for_range(input1.shape[0])
-                def _(k):
-                    tmp.update(tmp+input1.value[k][i]*dl_dy[k])       
-                dl_d[operation.inputs[1]][i]+=tmp
-            # compute dA=dC*B^T
-            @for_range(input1.shape[0])
-            def _(i):
-                @for_range(input1.shape[1])
-                def _(j):
-                    dl_d[operation.inputs[0]][i][j]+=(dl_dy[i]*input2.value[j])
+           
+            input2_Matrix=Matrix(input2.shape[0],1,input2.value.value_type,address=input2.value.address)
+            save1_sizes=input1.shape
+            input1.value.view(reduce(operator.mul,save1_sizes[:-1]),save1_sizes[-1])
+            # compute dB=A^T*dC+dB
+            # compute dA=dC*B^T+dA
+            dl_d[operation.inputs[0]].view(reduce(operator.mul,save1_sizes[:-1]),save1_sizes[-1])
+            if isinstance(dl_dy,Array):                
+                dl_dy_Matrix=Matrix(dl_dy.sizes[0],1,dl_dy.value_type,address=dl_dy.address)
+                
+                input1.value.trans_mul_add_to(dl_dy_Matrix,dl_d[operation.inputs[1]])
+                
+                dl_dy_Matrix.mul_trans_add_to(input2_Matrix,dl_d[operation.inputs[0]])
+            else:
+                input1.value.trans_mul_add_to(dl_dy,dl_d[operation.inputs[1]])
+                dl_dy.mul_trans_add_to(input2_Matrix,dl_d[operation.inputs[0]])
+            dl_d[operation.inputs[0]].view(*list(save1_sizes))
+            input1.value.view(*list(save1_sizes))
+            
         global op_id
         if prepare:
             assert self.value.value_type==other.value.value_type,"Invalid Data Type"
             assert isinstance(self.value,MultiArray) and isinstance(other.value,Array),"The first parameter is Not MultiArray or the second parameter is not Array"
-            assert len(self.shape)==2 and len(other.shape)==1 and self.shape[1]==other.shape[0],"Invalid Dimension"
+            assert len(other.shape)==1 and self.shape[-1]==other.shape[0],"Invalid Dimension"
             if out:
                 new_value=out
-            else:
+            elif len(self.shape)==2:
                 new_value = Array(self.shape[0], self.value.value_type)
+            else:
+                new_value = MultiArray(list(self.shape[:-1]), self.value.value_type)
             output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
             if self.req_grad or other.req_grad:
                 operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
@@ -528,10 +535,11 @@ class Tensor():
             input1 = tensors[inputs[0]]
             input2 = tensors[inputs[1]]
             output = tensors[outputs[0]]
-            n_threads=10 if input1.shape[0]>=1000 else 1
-            @multithread(n_threads,input1.shape[0])
-            def _(base, size):
-                output.value.assign_part_vector(input1.value.direct_mul(input2.value,indices=(regint.inc(size,base=base),regint.inc(input1.shape[1]), regint.inc(input2.shape[0]),regint.inc(1))),base)
+            input1.value.mv(input2.value,output.value)
+            # n_threads=10 if input1.shape[0]>=1000 else 1
+            # @multithread(n_threads,input1.shape[0])
+            # def _(base, size):
+            #     output.value.assign_part_vector(input1.value.direct_mul(input2.value,indices=(regint.inc(size,base=base),regint.inc(input1.shape[1]), regint.inc(input2.shape[0]),regint.inc(1))),base)
             op_id += 1# record the input and output of the op
         return output
     

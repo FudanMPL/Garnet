@@ -6333,8 +6333,6 @@ class SubMultiArray(_vectorizable):
             if self.value_type.n_elements() == 1:
                 matrix = Matrix(len(other), 1, other.value_type, \
                                 address=other.address)
-                # matrix = MultiArray([len(other), 1], other.value_type, \
-                #                     address=other.address)
                 res = self * matrix
                 return Array(res.sizes[0], res.value_type, address=res.address)
             else:
@@ -6359,7 +6357,6 @@ class SubMultiArray(_vectorizable):
             # res_matrix = MultiArray([self.sizes[0], other.sizes[1]], t)
             try:
                 try:
-                    print("111")
                     self.value_type.direct_matrix_mul
                     max_size = _register.maximum_size // res_matrix.sizes[1]
                     @library.multithread(n_threads, self.sizes[0], max_size)
@@ -6932,16 +6929,14 @@ class MultiArray(SubMultiArray):
         first_dim=reduce(operator.mul,self.sizes[:-1])
         second_dim=self.sizes[-1]
         self.view(first_dim,second_dim)
-        n_threads=10 if first_dim>=1000 else 1
-        # for base in range(first_dim):
-        # @library.for_range(first_dim)
-        # def _(base):
-        @library.for_range_opt_multithread(n_threads,first_dim)
-        def _(base):
-            res.assign_part_vector(self.get_part(base,second_dim).direct_mul(other),base)
+        matrix = Matrix(len(other), 1, other.value_type, address=other.address)
+        if isinstance(res, Array):
+            tmp_res = Matrix(len(res), 1, other.value_type, address=res.address)
+            self.dot(matrix, res_matrix= tmp_res)
+        else:
+            self.dot(matrix, res_matrix= res)
         self.view(*save_sizes)
         
-    
     
     def mm(self, other, res=None):  # not MP-SPDZ,added by zhou
         assert self.value_type == other.value_type, "Invalid Data Type"

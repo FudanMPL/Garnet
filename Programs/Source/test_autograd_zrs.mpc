@@ -375,7 +375,7 @@ def test_dot():
 
 
 
-#test_mv_MultiArray_Array()
+test_mv_MultiArray_Array()
 #test_dot()
 
 #test_squeeze()
@@ -392,7 +392,7 @@ def test_dot():
 #test_mm_MultiArray()
 
 
-
+'''
 xMultiArray_3 = MultiArray([ROW, COL,HEIGHT], sfix)
 for i in range(0,ROW):
     for  j in range(0,COL):
@@ -424,4 +424,5 @@ xMultiArray_3.mv(Array2,res)
 xMultiArray_3.print_reveal_nested()
 Array2.print_reveal_nested()
 res.print_reveal_nested()
+'''
 
