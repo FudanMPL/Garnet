@@ -419,15 +419,7 @@ class Tensor():
         return element_wise_mul(self, other)
 
     def __matmul__(self, other):
-        assert self.dim >= other.dim >= 2, "Invalid Dimension"
-        if self.dim == other.dim == 2:
-            return self.mm(other)
-        elif other.dim == 2:
-            return self.single_bmm(other)
-        elif self.dim == other.dim >= 2:
-            return self.bmm(other)
-        else:
-            raise CompilerError("Invalid Dimension: The multiplication does not match")
+        return self.matmul(other)
 
     def __getitem__(self, index):
         """ Part access.
@@ -704,8 +696,21 @@ class Tensor():
         return output
     
     def matmul(self, other):
-        # todo, may not implement
-        return self
+        assert self.dim >= other.dim, "The former must be higher dimensional than the latter"
+        if self.dim == other.dim:
+            if self.dim == 1:
+                return self.dot(other)
+            elif self.dim == 2:
+                return self.mm(other)
+            else:
+                return self.bmm(other)
+        else:
+            if other.dim == 1:
+                return self.mv(other)
+            elif other.dim == 2:
+                return self.single_bmm(other)
+            else:
+                raise CompilerError("Invalid Dimension: The multiplication does not match")
 
     def div(self, other):
         # todo
