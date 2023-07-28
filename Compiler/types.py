@@ -5683,6 +5683,11 @@ class Array(_vectorizable):
         :returns: Array of same type
         """
         return Array(size, self.value_type, self.get_address(base))
+    
+    def assign_part_vector(self,vector,base=0): #added by zhou
+        assert self.value_type.n_elements()==1
+        vector.store_in_mem(self.address+base)
+    
 
     def get(self, indices):
         """ Vector from arbitrary indices.
@@ -6921,6 +6926,22 @@ class MultiArray(SubMultiArray):
         res /= div
         div.delete()
         return res
+    
+    def mv(self,other,res=None): # not MP-SPDZ,added by zhou
+        save_sizes=self.sizes
+        first_dim=reduce(operator.mul,self.sizes[:-1])
+        second_dim=self.sizes[-1]
+        self.view(first_dim,second_dim)
+        n_threads=10 if first_dim>=1000 else 1
+        # for base in range(first_dim):
+        # @library.for_range(first_dim)
+        # def _(base):
+        @library.for_range_opt_multithread(n_threads,first_dim)
+        def _(base):
+            res.assign_part_vector(self.get_part(base,second_dim).direct_mul(other),base)
+        self.view(*save_sizes)
+        
+    
     
     def mm(self, other, res=None):  # not MP-SPDZ,added by zhou
         assert self.value_type == other.value_type, "Invalid Data Type"
