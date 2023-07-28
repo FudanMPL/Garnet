@@ -1,4 +1,5 @@
 import Compiler.tensor as tensor
+from Compiler.tensor import *
 
 
 def relu(input, inplace=False):
@@ -45,6 +46,10 @@ def dropout(input):
     return input
 
 
+def one_hot(input):
+    return input
+
+
 def normalize(input):
     return input
 
@@ -65,8 +70,10 @@ def l1_loss(input):
     return input
 
 
-def mse_loss(input):
-    return input
+def mse_loss(input, target, reduction='mean'):
+    if reduction == 'mean':
+        loss = (input - target).pow(2).mean()
+    return loss
 
 
 def binary_cross_entropy(input):
