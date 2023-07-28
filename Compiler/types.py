@@ -5469,6 +5469,10 @@ class Array(_vectorizable):
     def shape(self):
         return [self.length]
 
+    @property
+    def dim(self):
+        return 1
+        
     def delete(self):
         self.value_type.free(self.address)
         self.address = None
@@ -6284,7 +6288,7 @@ class SubMultiArray(_vectorizable):
 
     def __mul__(self, other):
         # legacy function
-        # From shenhao: you need to add matmul which is differ from dot because it uses matrix
+        # Finished: you need to add matmul which is differ from dot because it uses matrix
         return self.mul(other)
 
     def mul(self, other, res_params=None):
@@ -6311,8 +6315,13 @@ class SubMultiArray(_vectorizable):
             # res.assign_part_vector(self.get_part(base,size).direct_mul(other),base) # it uses address not create new. These two are the same in time and online or offline round.
         return res
     
+<<<<<<< HEAD
     # From shenhao: you need to add matmul which is differ from dot because it uses matrix and it need to explicitly create space
     def dot(self, other, res_params=None, n_threads=None,res_matrix=None): 
+=======
+    # Finished: you need to add matmul which is differ from dot because it uses matrix and it need to explicitly create space
+    def dot(self, other, res_params=None, n_threads=None): 
+>>>>>>> dabded091a500253b893ab154d77eb0c9915fb09
         """ Matrix-matrix and matrix-vector multiplication.
         Note: i think res_params is not used for now
         :param self: two-dimensional
@@ -6782,9 +6791,26 @@ class MultiArray(SubMultiArray):
         pass
 
     def __matmul__(self, other):
-        # legacy function
-        return self.mm(other)
+        return self.matmul(other)
     
+    def matmul(self, other):
+        # mv or does not work for now
+        assert self.dim >= other.dim, "The former must be higher dimensional than the latter"
+        if self.dim == other.dim:
+            if self.dim == 1:
+                return self.dot(other)
+            elif self.dim == 2:
+                return self.mm(other)
+            else:
+                return self.bmm(other)
+        else:
+            if other.dim == 1:
+                return self.mv(other)
+            elif other.dim == 2:
+                return self.single_bmm(other)
+            else:
+                raise CompilerError("Invalid Dimension: The multiplication does not match")
+
     @property
     def address(self):
         return self.array.address
@@ -6901,43 +6927,126 @@ class MultiArray(SubMultiArray):
         div.delete()
         return res
     
-    def mm(self,other,res=None): #not MP-SPDZ,added by zhou
-        assert self.value_type==other.value_type,"Invalid Data Type"
-        assert len(self.sizes)==2 and self.sizes[1]==other.sizes[0] ,"Invalid Dimension"
-        if isinstance(other,Array):
-            output_col=1
+    def mm(self, other, res=None):  # not MP-SPDZ,added by zhou
+        assert self.value_type == other.value_type, "Invalid Data Type"
+        assert len(self.sizes) == 2 and self.sizes[1] == other.sizes[0], "Invalid Dimension"
+        if isinstance(other, Array):
+            output_col = 1
         else:
-            output_col=other.shape[1]
-        N=self.shape[0]
-        n_threads=1 if N<=1000 else os.cpu_count()
+            output_col = other.shape[1]
+        N = self.shape[0]
+        n_threads = os.cpu_count()
         if res is None:
-            res=MultiArray([self.shape[0],output_col],self.value_type)
-        @library.multithread(n_threads,N)
+            res = MultiArray([self.shape[0], output_col], self.value_type)
+
+        @library.multithread(n_threads, N)
         def _(base, size):
-            res.assign_part_vector(self.direct_mul(other,indices=(regint.inc(size,base=base),regint.inc(self.shape[1]), regint.inc(self.shape[1]),regint.inc(output_col))),base)
+            res.assign_part_vector(self.direct_mul(other, indices=(regint.inc(size, base=base), regint.inc(self.shape[1]), regint.inc(self.shape[1]), regint.inc(output_col))), base)
             # res.assign_part_vector(self.get_part(base,size).direct_mul(other),base) # it uses address not create new. These two are the same in time and online or offline round.
         return res
 
-    def single_bmm(self, other, res = None): # i think single_bmm is a part of mm
+    def single_bmm(self, other, res=None):  # i think single_bmm is a part of mm
         """
         :param self.sizes: (batch, n, m) # batch can be int or *list(int)
-        :param other.sizes: (m, p) or m
+        :param other.sizes: (m, p) but it can run accurately when other is a vector: (m)
         :return: res.sizes: (batch, n, p)
         """
         # print(self.sizes,other.sizes)
         assert self.value_type == other.value_type, "Invalid Data Type"
-        assert len(self.sizes) >= 3 and self.sizes[-1] == other.sizes[0], "Invalid Dimension"
+        assert len(self.sizes) >= 3 and len(other.sizes) == 2 and self.sizes[-1] == other.sizes[0], "Invalid Dimension"
+
         batch = self.sizes[:-2]
-        b,n,m = reduce(operator.mul, batch) if len(batch)>= 2 else batch[0], self.shape[-2],self.shape[-1]
+        b, n, m = reduce(operator.mul, batch) if len(batch) >= 2 else batch[0], self.shape[-2], self.shape[-1]
+
         self.view(b*n, m)
         if res is not None:
             res.view(b*n, -1)
-        res = self.mm(other,res)
-        self.view(*batch,n,m)
-        res.view(*batch,n,-1)
+        res = self.mm(other, res)
+        self.view(*batch, n, m)
+        res.view(*batch, n, -1)
         return res
-    
-    def bmm(self, other, res = None, is_reduce = False):
+
+    def single_bmm_trans_to(self, other, res=None):
+        """
+        :param self.sizes: (batch, n, m) # batch can be int or *list(int)
+        :param other.sizes: (p, m)
+        :return: res.sizes: (batch, n, p)
+        """
+        assert self.value_type == other.value_type, "Invalid Data Type"
+        assert len(self.sizes) >= 3 and len(other.sizes) == 2 and self.sizes[-1] == other.sizes[-1], "Invalid Dimension"
+
+        # For shenhao: you can delete this init because res = self.single_bmm(trans_other, res) achieves the same
+        # if not res:
+        #     res = MultiArray([*self.sizes[:-2], self.sizes[-2], other.sizes[0]], self.value_type)
+
+        trans_other = MultiArray(other.sizes[::-1], self.value_type)
+
+        other.permute_without_malloc(trans_other, [1, 0])
+        res = self.single_bmm(trans_other, res)
+
+        trans_other.delete()
+
+        return res
+
+    def trans_bmm_to(self, other, res=None, is_reduce=False):
+        """
+        # batch can be int or *list(int)
+        :param self.sizes: (batch, n, m)
+        :param other.sizes: (batch, n, p)
+        :param res.sizes: (batch, m, p) if not reduce else (m, p)
+        :param is_reduce: whether to reduce the first dimension
+        :return: 
+            if not reduce: sizes: (batch, m, p)
+            if reduce: sizes: (m, p)
+        """
+        assert self.value_type == other.value_type, "Invalid Data Type"
+        assert len(self.sizes) == len(other.sizes) >= 3 and self.sizes[:-2] == other.sizes[:-2] and self.shape[-2] == other.sizes[-2], "Invalid Dimension"
+
+        # if not res and is_reduce:
+        #     res = MultiArray([self.sizes[-1], other.sizes[-1]], self.value_type)
+        # if not res and not is_reduce:
+        #     res = MultiArray([*self.sizes[:-2], self.sizes[-1], other.sizes[-1]], self.value_type)
+
+        trans_self = MultiArray([*self.sizes[:-2], self.sizes[-1], self.sizes[-2]], self.value_type)
+        reverse_perm = [i for i in range(self.dim-2)] + [self.dim-1, self.dim-2]
+
+        self.permute_without_malloc(trans_self, reverse_perm)
+        res = trans_self.bmm(other, res, is_reduce)
+
+        trans_self.delete()
+
+        return res
+
+    def bmm_trans_to(self, other, res=None, is_reduce=False):
+        """
+        # batch can be int or *list(int)
+        :param self.sizes: (batch, n, m)
+        :param other.sizes: (batch, p, m)
+        :param res.sizes: (batch, n, p) if not reduce else (n, p)
+        :param is_reduce: whether to reduce the first dimension
+        :return: 
+            if not reduce: sizes: (batch, n, p)
+            if reduce: sizes: (n, p)
+        """
+        assert self.value_type == other.value_type, "Invalid Data Type"
+        assert len(self.sizes) == len(other.sizes) >= 3 and self.sizes[:-2] == other.sizes[:-2] and self.shape[-1] == other.sizes[-1], "Invalid Dimension"
+
+        # if not res and is_reduce:
+        #     res = MultiArray([self.sizes[-2], other.sizes[-2]], self.value_type)
+        # if not res and not is_reduce:
+        #     res = MultiArray([*self.sizes[:-2], self.sizes[-2], other.sizes[-2]], self.value_type)
+
+        trans_other = MultiArray([*other.sizes[:-2], other.sizes[-1], other.sizes[-2]], other.value_type)
+        reverse_perm = [i for i in range(self.dim-2)] + [self.dim-1, self.dim-2]
+
+        other.permute_without_malloc(trans_other, reverse_perm)
+        res = self.bmm(trans_other, res, is_reduce)
+
+        trans_other.delete()
+
+        return res
+
+    def bmm(self, other, res=None, is_reduce=False):
         """
         # batch can be int or *list(int)
         :param self.sizes: (batch, n, m)
@@ -6948,41 +7057,46 @@ class MultiArray(SubMultiArray):
             if not reduce: sizes: (batch, n, p)
             if reduce: sizes: (n, p)
         """
-        # print(self.sizes,other.sizes)
         assert self.value_type == other.value_type, "Invalid Data Type"
-        assert len(self.sizes)==len(other.sizes)>=3 and self.sizes[:-2]==other.sizes[:-2] and self.shape[-1]==other.sizes[-2], "Invalid Dimension"
+        assert len(self.sizes) == len(other.sizes) >= 3 and self.sizes[:-2] == other.sizes[:-2] and self.shape[-1] == other.sizes[-2], "Invalid Dimension"
         batch = self.sizes[:-2]
-        b,n,m = reduce(operator.mul, batch) if len(batch)>= 2 else batch[0], self.shape[-2],self.shape[-1]
+        b, n, m = reduce(operator.mul, batch) if len(batch) >= 2 else batch[0], self.shape[-2], self.shape[-1]
         p = other.sizes[-1]
 
         if not res and is_reduce:
-            res = MultiArray([n,p], self.value_type)
+            res = MultiArray([n, p], self.value_type)
         elif not res and not is_reduce:
-            res = MultiArray([*batch,n,p], self.value_type)
+            res = MultiArray([*batch, n, p], self.value_type)
         elif res and is_reduce:
-            assert res.sizes == (n,p), "Invalid Output Dimension"     
+            assert res.sizes == (n, p), "Invalid Output Dimension"
         else:
-            assert res.sizes == (*batch,n,p), "Invalid Output Dimension"
-        
-        self.view(b,n,m)
+            assert res.sizes == (*batch, n, p), "Invalid Output Dimension"
+
+        self.view(b, n, m)
         n_threads = os.cpu_count()
         if not is_reduce:
+<<<<<<< HEAD
             other.view(b,m,p), res.view(b,n,p)
             # @library.for_range_opt_multithread(n_threads, b)
             # def _(i):
             for i in range(b):
+=======
+            other.view(b, m, p), res.view(b, n, p)
+            @library.for_range_opt_multithread(n_threads, b)
+            def _(i):
+>>>>>>> dabded091a500253b893ab154d77eb0c9915fb09
                 # self[i] is SubMultiArray
                 self[i].matmul(other[i], res[i])
                 # res.assign_part_vector(self[i].direct_mul(other[i]),i)
-            res.view(*batch,n,p)
+            res.view(*batch, n, p)
         else:
             other.view(b*m, p)
             concate_x = MultiArray([n, b*m], self.value_type)
             index = regint(0)
-            
-            @library.for_range_parallel(n_threads, [n,b])
-            def _(i,_):
-                concate_x.assign_vector(self[i].get_vector(i*m,m), index)
+
+            @library.for_range_parallel(n_threads, [n, b])
+            def _(i, _):
+                concate_x.assign_vector(self[i].get_vector(i*m, m), index)
                 index.update(index + m)
             concate_x.mm(other, res)
             concate_x.delete()
@@ -6993,9 +7107,10 @@ class MultiArray(SubMultiArray):
                 # nonlocal res # why? i think it is because of assignment operation.
                 # res += self[i]*other[i]
                 res.assign_vector(res.get_vector()+(self[i]*other[i]).get_vector())  """
-            
-        self.view(*batch,n,m), other.view(*batch,m,p),
+
+        self.view(*batch, n, m), other.view(*batch, m, p),
         return res
+
 
     def delete(self):
         self.array.delete()

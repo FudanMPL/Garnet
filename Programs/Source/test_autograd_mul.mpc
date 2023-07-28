@@ -1,4 +1,4 @@
-from tensor import Tensor,autograd_function
+from tensor import Tensor, autograd_function
 import tensor
 program.options_from_args()
 
@@ -12,50 +12,55 @@ def test_regint():
     x.assign_all(1)
     x.print_reveal_nested()
     # get a vector by the specific indices
-    x_vec = x.get_vector_by_indices(None,1)
+    x_vec = x.get_vector_by_indices(None, 1)
     print_ln('%s', x_vec.reveal())
     # get a range
-    slice = regint.inc(10,1,2,3)
+    slice = regint.inc(10, 1, 2, 3)
     print_ln('expected %s', slice[:])
 
 @autograd_function
 def test_concate():
     print_ln('test_concate:')
-    x = MultiArray([3,4,2], sfix)
+    x = MultiArray([3, 4, 2], sfix)
     for i in range(3):
         for j in range(4):
             for k in range(2):
                 x[i][j][k] = sfix(3*i+j+k)
     x.print_reveal_nested()
-    y = MultiArray([4,6], sfix)
+    y = MultiArray([4, 6], sfix)
     index = 0
     for i in range(4):
         for b in range(3):
-            y.assign_vector(x[b].get_vector(i*2,2), index)
+            y.assign_vector(x[b].get_vector(i*2, 2), index)
             index += 2
     y.print_reveal_nested()
 
 @autograd_function
 def test_basic_function():
     print_ln('test_basic_function:')
-    x = MultiArray([4,2,4], sfix)
+    x = MultiArray([4, 2, 4], sfix)
     x.assign_all(1)
     x.print_reveal_nested()
 
-    y = MultiArray([4,2,4], sfix)
-    y.assign_all(1)
-    z = x.get_vector()+y.get_vector()
-    print_ln('%s', len(z))
-    print_ln('%s', z.reveal())
-    x.assign_vector(z)
+    y = MultiArray([4, 2, 4], sfix)
+    y.assign_all(2)
+    # z = x.get_vector()+y.get_vector()
+    # print_ln('%s', len(z))
+    # print_ln('%s', z.reveal())
+    # x.assign_vector(z)
+    # x.print_reveal_nested()
+
+    x[:] += y[:]
+    x.print_reveal_nested()
+    y.delete()
     x.print_reveal_nested()
 
 @autograd_function
 def test_mm():
     print_ln('test_mm:')
     x = MultiArray([ROW, COL], sfix)
-    for i in range(0,ROW):
-        for j in range(0,COL):
+    for i in range(0, ROW):
+        for j in range(0, COL):
             x[i][j] = sfix(1)
 
     y = MultiArray([COL, ROW], sfix)
@@ -63,8 +68,8 @@ def test_mm():
 
     x.print_reveal_nested()
     y.print_reveal_nested()
-    input1 = Tensor(x, req_grad = True)
-    input2 = Tensor(y, req_grad = True)
+    input1 = Tensor(x, req_grad=True)
+    input2 = Tensor(y, req_grad=True)
     output = input1.value@input2.value
 
     tensor.train()
@@ -78,14 +83,14 @@ def test_mm():
 
 @autograd_function
 def test_forward_single_bmm():
-    print_ln('test_single_bmm:')
-    x = MultiArray([2,3,3,2,4], sfix)
+    print_ln('test_forward_single_bmm:')
+    x = MultiArray([2, 3, 3, 2, 4], sfix)
     x.assign_all(1)
-    x.print_reveal_nested()
+    # x.print_reveal_nested()
 
-    y = MultiArray([4,3], sfix)
+    y = MultiArray([4, 3], sfix)
     y.assign_all(2)
-    y.print_reveal_nested()
+    # y.print_reveal_nested()
 
     res = x.single_bmm(y)
     res.print_reveal_nested()
@@ -93,31 +98,50 @@ def test_forward_single_bmm():
 @autograd_function
 def test_forward_bmm():
     print_ln('test_single_bmm:')
+<<<<<<< HEAD
     x = MultiArray([200,3,2,4], sfix)
+=======
+    x = MultiArray([2, 3, 2, 4], sfix)
+>>>>>>> dabded091a500253b893ab154d77eb0c9915fb09
     x.assign_all(1)
-    x.print_reveal_nested()
+    # x.print_reveal_nested()
 
+<<<<<<< HEAD
     y = MultiArray([200,3,4,3], sfix)
+=======
+    y = MultiArray([2, 3, 4, 3], sfix)
+>>>>>>> dabded091a500253b893ab154d77eb0c9915fb09
     y.assign_all(2)
-    y.print_reveal_nested()
+    # y.print_reveal_nested()
+
+    trans_x = MultiArray([2, 3, 4, 3], sfix)
+    trans_x.assign_all(2)
+    # trans_x.print_reveal_nested()
+
+    trans_y = MultiArray([2, 3, 3, 4], sfix)
+    trans_y.assign_all(2)
+    # trans_y.print_reveal_nested()
 
     res = x.bmm(y, is_reduce=True)
-    print_ln('res.sizes=%s', res.sizes)
+    res.print_reveal_nested()
+    res = x.bmm_trans_to(trans_y, is_reduce=True)
+    res.print_reveal_nested()
+    res = trans_x.trans_bmm_to(y, is_reduce=False)
     res.print_reveal_nested()
 
 @autograd_function
 def test_single_bmm():
     print_ln('test_bmm:')
-    x = MultiArray([4,2,4], sfix)
+    x = MultiArray([2, 4, 2, 4], sfix)
     x.assign_all(1)
     x.print_reveal_nested()
 
-    y = MultiArray([4,3], sfix)
+    y = MultiArray([4, 3], sfix)
     y.assign_all(2)
     y.print_reveal_nested()
 
-    input1 = Tensor(x, req_grad = True)
-    input2 = Tensor(y, req_grad = False)
+    input1 = Tensor(x, req_grad=True)
+    input2 = Tensor(y, req_grad=True)
     output = input1.single_bmm(input2)
 
     tensor.train()
@@ -128,20 +152,21 @@ def test_single_bmm():
     output.value.print_reveal_nested()
     input1.grad.print_reveal_nested()
     input2.grad.print_reveal_nested()
+
 
 @autograd_function
 def test_bmm():
     print_ln('test_bmm:')
-    x = MultiArray([4,2,4], sfix)
+    x = MultiArray([2, 4, 2, 4], sfix)
     x.assign_all(1)
     x.print_reveal_nested()
 
-    y = MultiArray([4,4,3], sfix)
+    y = MultiArray([2, 4, 4, 3], sfix)
     y.assign_all(2)
     y.print_reveal_nested()
 
-    input1 = Tensor(x, req_grad = True)
-    input2 = Tensor(y, req_grad = True)
+    input1 = Tensor(x, req_grad=True)
+    input2 = Tensor(y, req_grad=True)
     output = input1.bmm(input2)
 
     tensor.train()
@@ -153,8 +178,9 @@ def test_bmm():
     input1.grad.print_reveal_nested()
     input2.grad.print_reveal_nested()
 
-#test_concate()
-test_forward_bmm()
-#test_basic_function()
-#test_single_bmm()
-#test_bmm()
+# test_concate()
+test_forward_single_bmm()
+# test_forward_bmm()
+# test_basic_function()
+# test_single_bmm()
+# test_bmm()
