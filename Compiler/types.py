@@ -6315,13 +6315,8 @@ class SubMultiArray(_vectorizable):
             # res.assign_part_vector(self.get_part(base,size).direct_mul(other),base) # it uses address not create new. These two are the same in time and online or offline round.
         return res
     
-<<<<<<< HEAD
     # From shenhao: you need to add matmul which is differ from dot because it uses matrix and it need to explicitly create space
     def dot(self, other, res_params=None, n_threads=None,res_matrix=None): 
-=======
-    # Finished: you need to add matmul which is differ from dot because it uses matrix and it need to explicitly create space
-    def dot(self, other, res_params=None, n_threads=None): 
->>>>>>> dabded091a500253b893ab154d77eb0c9915fb09
         """ Matrix-matrix and matrix-vector multiplication.
         Note: i think res_params is not used for now
         :param self: two-dimensional
@@ -7075,16 +7070,9 @@ class MultiArray(SubMultiArray):
         self.view(b, n, m)
         n_threads = os.cpu_count()
         if not is_reduce:
-<<<<<<< HEAD
-            other.view(b,m,p), res.view(b,n,p)
-            # @library.for_range_opt_multithread(n_threads, b)
-            # def _(i):
-            for i in range(b):
-=======
             other.view(b, m, p), res.view(b, n, p)
             @library.for_range_opt_multithread(n_threads, b)
             def _(i):
->>>>>>> dabded091a500253b893ab154d77eb0c9915fb09
                 # self[i] is SubMultiArray
                 self[i].matmul(other[i], res[i])
                 # res.assign_part_vector(self[i].direct_mul(other[i]),i)
