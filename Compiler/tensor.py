@@ -331,8 +331,6 @@ def ops_sub(self, other):
 
 #     else:
 #         return -1
-
-
 class Tensor():
     def __init__(self, value, value_type=None, name=None, req_grad=False, grad=None):
         assert isinstance(value, Array) or isinstance(value, MultiArray) or isinstance(value, list)
@@ -553,11 +551,11 @@ class Tensor():
             input1 = tensors[operation.inputs[0]]
             input2 = tensors[operation.inputs[1]]
             if self.req_grad:
-                dl_dy.mul_trans_to(input2.value,dl_d[operation.inputs[0]],n_threads=10 if input1.shape[0]>=1000 else 1)
-                # C=AB partial derivate of dA=dC*B^T
+                dl_dy.mul_trans_add_to(input2.value,dl_d[operation.inputs[0]],n_threads=10 if input1.shape[0]>=1000 else 1)
+                # C=AB partial derivate of dA=dC*B^T+dA
             if other.req_grad:
-                input1.value.trans_mul_to(dl_dy,dl_d[operation.inputs[1]],n_threads=10 if input1.shape[0]>=1000 else 1)
-                # C=AB partial derivate of dB=A^T*dC
+                input1.value.trans_mul_add_to(dl_dy,dl_d[operation.inputs[1]],n_threads=10 if input1.shape[0]>=1000 else 1)
+                # C=AB partial derivate of dB=A^T*dC+dB
         global op_id
         if prepare:
             assert self.value.value_type==other.value.value_type,"Invalid Data Type"
@@ -676,8 +674,8 @@ class Tensor():
         @buildingblock(get_program().globalbuildingblock)
         def propagate(dl_doutputs, operation):
             dl_dy,=dl_doutputs
-            dl_d[operation.inputs[0]][:]+= tensors[operation.inputs[1]].value[:]*dl_dy #dA=dC*B
-            dl_d[operation.inputs[1]][:]+= tensors[operation.inputs[0]].value[:]*dl_dy #dB=dC*A
+            dl_d[operation.inputs[0]][:]+= tensors[operation.inputs[1]].value[:]*dl_dy #dA=dC*B+dA
+            dl_d[operation.inputs[1]][:]+= tensors[operation.inputs[0]].value[:]*dl_dy #dB=dC*A+dB
         global op_id
         if prepare:
             assert self.value.value_type==other.value.value_type,"Invalid Data Type"
@@ -1422,8 +1420,6 @@ def reset_gloabal_store():
     op_id_store.clear()
 
 # call this function after each iteration
-
-
 def reset_op_id():
     global op_id
     op_id = 0

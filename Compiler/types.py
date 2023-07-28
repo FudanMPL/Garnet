@@ -6481,6 +6481,24 @@ class SubMultiArray(_vectorizable):
             indices = [regint(i), regint.inc(self.sizes[0])]
             indices += [regint.inc(i) for i in other.sizes]
             res[i] = self.direct_trans_mul(other, indices=indices)
+            
+    
+    def trans_mul_add_to(self, other, res, n_threads=None):
+        """
+        Matrix multiplication with the transpose of :py:obj:`self`
+        in the virtual machine.
+
+        :param self: :py:class:`Matrix` / 2-dimensional :py:class:`MultiArray`
+        :param other: :py:class:`Matrix` / 2-dimensional :py:class:`MultiArray`
+        :param res: matrix of matching dimension to store (grad_result+res)
+        :param n_threads: number of threads (default: single thread)
+        """
+        @library.for_range_multithread(n_threads, 1, self.sizes[1])
+        def _(i):
+            indices = [regint(i), regint.inc(self.sizes[0])]
+            indices += [regint.inc(i) for i in other.sizes]
+            res[i] += self.direct_trans_mul(other, indices=indices)
+    
 
     def mul_trans_to(self, other, res, n_threads=None):
         """
@@ -6497,6 +6515,23 @@ class SubMultiArray(_vectorizable):
             indices = [regint(i), regint.inc(self.sizes[1])]
             indices += [regint.inc(i) for i in reversed(other.sizes)]
             res[i] = self.direct_mul_trans(other, indices=indices)
+    
+    def mul_trans_add_to(self, other, res, n_threads=None): #not in MP-SPDZ,added by zhou
+        """
+        Matrix multiplication with the transpose of :py:obj:`other`
+        in the virtual machine.
+
+        :param self: :py:class:`Matrix` / 2-dimensional :py:class:`MultiArray`
+        :param other: :py:class:`Matrix` / 2-dimensional :py:class:`MultiArray`
+        :param res: matrix of matching dimension to store (grad_result + res)
+        :param n_threads: number of threads (default: single thread)
+        """
+        @library.for_range_multithread(n_threads, 1, self.sizes[0])
+        def _(i):
+            indices = [regint(i), regint.inc(self.sizes[1])]
+            indices += [regint.inc(i) for i in reversed(other.sizes)]
+            res[i] += self.direct_mul_trans(other, indices=indices)
+    
 
     def direct_mul_to_matrix(self, other):
         # Obsolete. Use dot().

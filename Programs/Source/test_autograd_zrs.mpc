@@ -295,14 +295,14 @@ def test_concate_MultiArray():
 @autograd_function
 def test_mm_MultiArray():
     print_ln('test_mm_MultiArray():')
-    xMultiArray_2_1 = MultiArray([ROW, COL], sfix)
-    for i in range(0,ROW):
+    xMultiArray_2_1 = MultiArray([COL, COL], sfix)
+    for i in range(0,COL):
         for  j in range(0,COL):
             xMultiArray_2_1[i][j] = sfix(1)
 
-    xMultiArray_2_2 = MultiArray([COL, ROW], sfix)
+    xMultiArray_2_2 = MultiArray([COL, COL], sfix)
     for i in range(0,COL):
-        for  j in range(0,ROW):
+        for  j in range(0,COL):
             xMultiArray_2_2[i][j] = sfix(1)
 
 
@@ -310,12 +310,12 @@ def test_mm_MultiArray():
     xMultiArray_2_2.print_reveal_nested()
     input1 = Tensor(xMultiArray_2_1, req_grad = True)
     input2 = Tensor(xMultiArray_2_2, req_grad = True)
-    output = input1.mm(input2)
+    output = input1.mm(input2)+input1
 
     tensor.train()
     tensor.reset_op_id()
 
-    output = input1.mm(input2)
+    output = input1.mm(input2)+input1
     output.backward()
     output.value.print_reveal_nested()
     input1.grad.print_reveal_nested()
@@ -389,7 +389,7 @@ test_permute()
 
 #test_concate_Array()
 #test_concate_MultiArray()
-#test_mm_MultiArray()
+test_mm_MultiArray()
 
 
 
