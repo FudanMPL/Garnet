@@ -6296,6 +6296,7 @@ class SubMultiArray(_vectorizable):
         return self.dot(other, res_params)
     
     def matmul(self, other, res=None, n_threads=None):
+        
         assert self.value_type==other.value_type,"Invalid Data Type"
         assert len(self.sizes)==2 and self.sizes[1]==other.sizes[0] ,"Invalid Dimension"
 
@@ -6307,6 +6308,7 @@ class SubMultiArray(_vectorizable):
             res=MultiArray([row, out_col], self.value_type)
 
         max_size = _register.maximum_size // out_col
+        
         @library.multithread(n_threads, row, max_size)
         def _(base, size):
             res.assign_part_vector(self.direct_mul(other,indices=(regint.inc(size,base=base),regint.inc(inter), regint.inc(inter),regint.inc(out_col))),base)
@@ -6314,7 +6316,7 @@ class SubMultiArray(_vectorizable):
         return res
     
     # Finished: you need to add matmul which is differ from dot because it uses matrix and it need to explicitly create space
-    def dot(self, other, res_params=None, n_threads=None): 
+    def dot(self, other, res_params=None, n_threads=None, res_matrix=None): 
         """ Matrix-matrix and matrix-vector multiplication.
         Note: i think res_params is not used for now
         :param self: two-dimensional
@@ -6347,10 +6349,12 @@ class SubMultiArray(_vectorizable):
                 t.params = res_params
             else:
                 t = self.value_type
-            res_matrix = Matrix(self.sizes[0], other.sizes[1], t)
+            if res_matrix is None:
+                res_matrix = Matrix(self.sizes[0], other.sizes[1], t)
             # res_matrix = MultiArray([self.sizes[0], other.sizes[1]], t)
             try:
                 try:
+                    print("111")
                     self.value_type.direct_matrix_mul
                     max_size = _register.maximum_size // res_matrix.sizes[1]
                     @library.multithread(n_threads, self.sizes[0], max_size)
@@ -6481,6 +6485,24 @@ class SubMultiArray(_vectorizable):
             indices = [regint(i), regint.inc(self.sizes[0])]
             indices += [regint.inc(i) for i in other.sizes]
             res[i] = self.direct_trans_mul(other, indices=indices)
+            
+    
+    def trans_mul_add_to(self, other, res, n_threads=None):
+        """
+        Matrix multiplication with the transpose of :py:obj:`self`
+        in the virtual machine.
+
+        :param self: :py:class:`Matrix` / 2-dimensional :py:class:`MultiArray`
+        :param other: :py:class:`Matrix` / 2-dimensional :py:class:`MultiArray`
+        :param res: matrix of matching dimension to store (grad_result+res)
+        :param n_threads: number of threads (default: single thread)
+        """
+        @library.for_range_multithread(n_threads, 1, self.sizes[1])
+        def _(i):
+            indices = [regint(i), regint.inc(self.sizes[0])]
+            indices += [regint.inc(i) for i in other.sizes]
+            res[i] += self.direct_trans_mul(other, indices=indices)
+    
 
     def mul_trans_to(self, other, res, n_threads=None):
         """
@@ -6497,6 +6519,23 @@ class SubMultiArray(_vectorizable):
             indices = [regint(i), regint.inc(self.sizes[1])]
             indices += [regint.inc(i) for i in reversed(other.sizes)]
             res[i] = self.direct_mul_trans(other, indices=indices)
+    
+    def mul_trans_add_to(self, other, res, n_threads=None): #not in MP-SPDZ,added by zhou
+        """
+        Matrix multiplication with the transpose of :py:obj:`other`
+        in the virtual machine.
+
+        :param self: :py:class:`Matrix` / 2-dimensional :py:class:`MultiArray`
+        :param other: :py:class:`Matrix` / 2-dimensional :py:class:`MultiArray`
+        :param res: matrix of matching dimension to store (grad_result + res)
+        :param n_threads: number of threads (default: single thread)
+        """
+        @library.for_range_multithread(n_threads, 1, self.sizes[0])
+        def _(i):
+            indices = [regint(i), regint.inc(self.sizes[1])]
+            indices += [regint.inc(i) for i in reversed(other.sizes)]
+            res[i] += self.direct_mul_trans(other, indices=indices)
+    
 
     def direct_mul_to_matrix(self, other):
         # Obsolete. Use dot().
@@ -6706,7 +6745,6 @@ class SubMultiArray(_vectorizable):
         return '%s multi-array of lengths %s at %s' % (self.value_type,
                                                        self.sizes, self.address)
 
-
 class MultiArray(SubMultiArray):
     """
     Multidimensional array. The access operator (``a[i]``) allows to a
@@ -6795,17 +6833,21 @@ class MultiArray(SubMultiArray):
 
     def permute_singledim(self, new_perm, indices, i, res):
         if i == len(self.sizes) - 1:
-            for j in range(self.sizes[i]):
+            # for j in range(self.sizes[i]):
+            @library.for_range(self.sizes[i])
+            def _(j):
                 # get all the indices, like (0,0,0), (0,0,1), (0,0,2)...
                 tmp_indices = indices[:] + (j,)
                 # get value at that index
                 tmp = self.get_vector_by_indices(*tmp_indices)
-                # permute the indices
                 new_indices = self.tuple_permute(tmp_indices, new_perm)
                 # assign the value to the new indices
+                print(new_indices)
                 res.assign_vector_by_indices(tmp, *new_indices)
+                # res.print_reveal_nested()
             return
-        for j in range(self.sizes[i]):
+        @library.for_range(self.sizes[i])
+        def _(j):
             tmp_indices = indices[:] + (j,)
             self.permute_singledim(new_perm, tmp_indices, i+1, res)
 
@@ -6928,7 +6970,7 @@ class MultiArray(SubMultiArray):
         assert self.value_type == other.value_type, "Invalid Data Type"
         assert len(self.sizes) >= 3 and len(other.sizes) == 2 and self.sizes[-1] == other.sizes[-1], "Invalid Dimension"
 
-        # For shenhao: you can delete this init because res = self.single_bmm(trans_other, res) achieves the same
+        # Finished: you can delete this init because res = self.single_bmm(trans_other, res) achieves the same
         # if not res:
         #     res = MultiArray([*self.sizes[:-2], self.sizes[-2], other.sizes[0]], self.value_type)
 

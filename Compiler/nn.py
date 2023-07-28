@@ -16,6 +16,7 @@ from Compiler.comparison import CarryOutRawLE
 from Compiler.GC.types import sbitint
 from functools import reduce
 
+
 def _addindent(s_, numSpaces):
     s = s_.split('\n')
     # don't do anything for single-line stuff
@@ -27,11 +28,14 @@ def _addindent(s_, numSpaces):
     s = first + '\n' + s
     return s
 
+
 r"""This tracks hooks common to all modules that are executed immediately before
 .registering the buffer/module/parameter"""
 _global_buffer_registration_hooks: Dict[int, Callable] = OrderedDict()
 _global_module_registration_hooks: Dict[int, Callable] = OrderedDict()
 _global_parameter_registration_hooks: Dict[int, Callable] = OrderedDict()
+
+
 class Parameter(Tensor):
     r"""A kind of Tensor that is to be considered a module parameter.
 
@@ -62,18 +66,19 @@ class Parameter(Tensor):
             return data
         else:
             raise RuntimeError(f"Parameter can only be created from tensor or parameter")
-            
+
     def __repr__(self):
         return 'Parameter containing:\n' + super().__repr__()
 
+
 class Module():
-    def   __init__(self):
+    def __init__(self):
         self.training = True
         self._parameters: Dict[str, Optional[Parameter]] = OrderedDict()
         self._buffers: Dict[str, Optional[Tensor]] = OrderedDict()
         self._modules: Dict[str, Optional['Module']] = OrderedDict()
         self._non_persistent_buffers_set: Set[str] = set()
-    
+
     def register_buffer(self, name: str, tensor: Optional[Tensor], persistent: bool = True) -> None:
         r"""Adds a buffer to the module.
 
@@ -120,7 +125,6 @@ class Module():
                             .format((type(tensor).__name__), name))
         else:
             self._buffers[name] = tensor
-
 
     def register_parameter(self, name: str, param: Optional[Parameter]) -> None:
         r"""Adds a parameter to the module.
@@ -183,7 +187,7 @@ class Module():
                 type(module).__name__))
         elif not isinstance(name, str):
             raise TypeError("module name should be a string. Got {}".format(
-               type(name).__name__))
+                type(name).__name__))
         elif hasattr(self, name) and name not in self._modules:
             raise KeyError("attribute '{}' already exists".format(name))
         elif '.' in name:
@@ -199,7 +203,6 @@ class Module():
     def register_module(self, name: str, module: Optional['Module']) -> None:
         r"""Alias for :func:`add_module`."""
         self.add_module(name, module)
-
 
     def get_submodule(self, target: str) -> "Module":
         """
@@ -306,7 +309,7 @@ class Module():
                                  "nn.Parameter")
 
         return param
-    
+
     def get_buffer(self, target: str) -> "Tensor":
         """
         Returns the buffer given by ``target`` if it exists,
@@ -359,7 +362,7 @@ class Module():
                 return modules[name]
         raise AttributeError("'{}' object has no attribute '{}'".format(
             type(self).__name__, name))
-    
+
     def __setattr__(self, name: str, value: Union[Tensor, 'Module']) -> None:
         def remove_from(*dicts_or_sets):
             for d in dicts_or_sets:
@@ -399,7 +402,7 @@ class Module():
         elif name in self._modules:
             del self._modules[name]
         else:
-            object.__delattr__(self, name)    
+            object.__delattr__(self, name)
 
     def _named_members(self, get_members_fn, prefix='', recurse=True):
         r"""Helper method for yielding various names + members of modules."""
@@ -413,6 +416,7 @@ class Module():
                 memo.add(v)
                 name = module_prefix + ('.' if module_prefix else '') + k
                 yield name, v
+
     def parameters(self, recurse: bool = True) -> Iterator[Parameter]:
         r"""Returns an iterator over module parameters.
 
@@ -632,11 +636,11 @@ class Module():
         self.training = mode
         for module in self.children():
             module.train(mode)
-        return self   
+        return self
 
     def setup(self, data_loader):
-        #todo, setup tensor space of the model, call it before training or evaluation
-        return self 
+        # todo, setup tensor space of the model, call it before training or evaluation
+        return self
 
     def requires_grad_(self: T, requires_grad: bool = True) -> T:
         r"""Change if autograd should record operations on parameters in this
@@ -737,8 +741,7 @@ class Module():
         keys = [key for key in keys if not key[0].isdigit()]
 
         return sorted(keys)
-    
-    
+
     def _call_impl(self, *args, **kwargs):
         forward_call = self.forward
         break_point()
@@ -747,8 +750,8 @@ class Module():
 
         return result
 
-    
-    __call__ : Callable[..., Any] = _call_impl
+    __call__: Callable[..., Any] = _call_impl
+
 
 class Sequential(Module):
     r"""A sequential container.

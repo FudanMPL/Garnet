@@ -98,11 +98,19 @@ def test_forward_single_bmm():
 @autograd_function
 def test_forward_bmm():
     print_ln('test_single_bmm:')
+<<<<<<< HEAD
+    x = MultiArray([200,3,2,4], sfix)
+=======
     x = MultiArray([2, 3, 2, 4], sfix)
+>>>>>>> dabded091a500253b893ab154d77eb0c9915fb09
     x.assign_all(1)
     # x.print_reveal_nested()
 
+<<<<<<< HEAD
+    y = MultiArray([200,3,4,3], sfix)
+=======
     y = MultiArray([2, 3, 4, 3], sfix)
+>>>>>>> dabded091a500253b893ab154d77eb0c9915fb09
     y.assign_all(2)
     # y.print_reveal_nested()
 
