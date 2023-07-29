@@ -6465,6 +6465,7 @@ class SubMultiArray(_vectorizable):
         if indices is None:
             assert self.sizes[0] == other.sizes[0]
             indices = [regint.inc(i) for i in self.sizes[::-1] + other.sizes]
+        print(indices)
         assert len(indices[1]) == len(indices[2])
         indices = list(indices)
         indices[1] *= self.sizes[1]

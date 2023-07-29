@@ -503,8 +503,11 @@ class Tensor():
                 
                 dl_dy_Matrix.mul_trans_add_to(input2_Matrix,dl_d[operation.inputs[0]])
             else:
+                save2_sizes=dl_dy.sizes
+                dl_dy.view(dl_dy.length,1)
                 input1.value.trans_mul_add_to(dl_dy,dl_d[operation.inputs[1]])
                 dl_dy.mul_trans_add_to(input2_Matrix,dl_d[operation.inputs[0]])
+                dl_dy.view(*list(save2_sizes))
             dl_d[operation.inputs[0]].view(*list(save1_sizes))
             input1.value.view(*list(save1_sizes))
             
