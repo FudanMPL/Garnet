@@ -93,6 +93,33 @@ def test_sub():
     input2.grad.print_reveal_nested()
 
 @autograd_function
+def test_div():
+    print_ln('test_div_input: ')
+    x = MultiArray([3, 3, 2], sfix)
+    x[0].assign_all(1)
+    x[1].assign_all(2)
+    x[2].assign_all(3)
+    x.print_reveal_nested()
+    y = MultiArray([1, 2], sfix)
+    y.assign_all(5)
+    y.print_reveal_nested()
+    input1 = Tensor(x, req_grad = True)
+    input2 = Tensor(y, req_grad = True)
+
+    input3 = input1 / input2
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    print_ln('test_div_output: ')
+    input3 = input1 / input2
+    input3.value.print_reveal_nested()
+    input3.backward()
+    print_ln('test_div_backward: ')
+    input1.grad.print_reveal_nested()
+    input2.grad.print_reveal_nested()
+
+@autograd_function
 def test_abs():
     print_ln('test_abs')
     i, j = 3, 3
@@ -361,9 +388,9 @@ def test_neg():
     input1.grad.print_reveal_nested()
 
 test_mul()
-test_add()
-test_sub()
-
+#test_add()
+#test_sub()
+test_div()
 #test_abs()
 #test_exp()
 #test_log()
