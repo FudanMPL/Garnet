@@ -4,16 +4,30 @@ program.options_from_args()
 
 @autograd_function
 def test_mul():
-    print_ln('test_mul')
-    i, j = 3, 3
-    x = MultiArray([i, j], sfix)
-    x.assign_all(2)
+    print_ln('test_mul_input: ')
+    x = MultiArray([3, 3, 2], sfix)
+    x[0].assign_all(1)
+    x[1].assign_all(2)
+    x[2].assign_all(3)
     x.print_reveal_nested()
-    y = MultiArray([i, j], sfix)
+    y = MultiArray([1, 2], sfix)
     y.assign_all(5)
     y.print_reveal_nested()
     input1 = Tensor(x, req_grad = True)
     input2 = Tensor(y, req_grad = True)
+
+    input3 = input1 * input2
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    print_ln('test_mul_output: ')
+    input3 = input1 * input2
+    input3.value.print_reveal_nested()
+    input3.backward()
+    print_ln('test_add_backward: ')
+    input1.grad.print_reveal_nested()
+    input2.grad.print_reveal_nested()
 
 def test_single_operation(func,Value):
     Value.print_reveal_nested()
@@ -55,25 +69,26 @@ def test_add():
 
 @autograd_function
 def test_sub():
-    print_ln('test_sub')
-    i, j = 3, 3
-    x = MultiArray([i, j], sfix)
-    x.assign_all(2)
+    print_ln('test_sub_input: ')
+    x = MultiArray([3, 3, 2], sfix)
+    x.assign_all(1)
     x.print_reveal_nested()
-    y = MultiArray([i, j], sfix)
+    y = MultiArray([1, 2], sfix)
     y.assign_all(5)
     y.print_reveal_nested()
     input1 = Tensor(x, req_grad = True)
     input2 = Tensor(y, req_grad = True)
 
-    input3 = input1 -input2
+    input3 = input1 - input2
 
     tensor.train()
     tensor.reset_op_id()
 
-    input3 = input1 -input2
+    print_ln('test_add_output: ')
+    input3 = input1 - input2
     input3.value.print_reveal_nested()
     input3.backward()
+    print_ln('test_add_backward: ')
     input1.grad.print_reveal_nested()
     input2.grad.print_reveal_nested()
 
@@ -345,9 +360,9 @@ def test_neg():
     input2.value.print_reveal_nested()
     input1.grad.print_reveal_nested()
 
-#test_mul()
+test_mul()
 test_add()
-#test_sub()
+test_sub()
 
 #test_abs()
 #test_exp()

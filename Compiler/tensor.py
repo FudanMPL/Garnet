@@ -100,7 +100,7 @@ def element_wise_add(self, other):
             # for i in range(0, v2.total_size()):
             @for_range(v2.total_size())
             def _(i):
-                vsum = sum(dl_dx_rec.get_vector(i, dl_dx_rec.sizes[1]))
+                vsum = sum(dl_dx_rec.get_vector(i*dl_dx_rec.sizes[1], dl_dx_rec.sizes[1]))
                 v2.assign_vector(vsum, i) 
         
         dl_dinputs = [dl_dself, dl_dother]
@@ -162,17 +162,53 @@ def element_wise_sub(self, other):
     def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
         inputs = operation.inputs
+        
         dl_dself = dl_d[inputs[0]]  # partial derivate of r = 1
-        dl_dother = dl_d[inputs[1]]  # partial derivate of r = -1
-        dl_dself[:] += dl_dx[:]
-        dl_dother[:] += - dl_dx[:]
+        dl_dother = dl_d[inputs[1]]  # partial derivate of r = 1
+        
+        # swap to ensure v1 size is bigger than v2 size  
+        v1, v2 = dl_dself, dl_dother
+        req_grad1, req_grad2 = self.req_grad, other.req_grad
+        # v1 back directly 
+        if req_grad1:
+            if dl_dself.total_size()<dl_dother.total_size():
+                dl_dx_rec = matrix_reconst(dl_dx, v2.total_size())
+                @for_range(v1.total_size())
+                def _(i):
+                    vsum = sum(dl_dx_rec.get_vector(i*dl_dx_rec.sizes[1], dl_dx_rec.sizes[1]))
+                    v1.assign_vector(vsum, i)                 
+            else:
+                v1[:] += dl_dx[:]
+        # broadcasted v2 back with reduce
+        if req_grad2:
+            if dl_dself.total_size()<dl_dother.total_size():
+                v2[:] += -1 * dl_dx[:]         
+            else:
+                dl_dx_rec = matrix_reconst(dl_dx, v2.total_size())
+                @for_range(v2.total_size())
+                def _(i):
+                    vsum = -1 * sum(dl_dx_rec.get_vector(i*dl_dx_rec.sizes[1], dl_dx_rec.sizes[1]))
+                    v2.assign_vector(vsum, i)     
+
         dl_dinputs = [dl_dself, dl_dother]
         return dl_dinputs
     # forward
     global op_id
     if prepare:
-        new_value = MultiArray([self.value.sizes[0], other.value.sizes[1]], other.value.value_type)
+        # check shape
+        assert check_boardcast_size(self.value.sizes, other.value.sizes), "Invalid Dimension"
+        if isinstance(self.value, MultiArray):
+            if self.value.total_size()>other.value.total_size():
+                new_value = MultiArray(self.value.sizes, self.value.value_type)
+            else:
+                new_value = MultiArray(other.value.sizes, self.value.value_type)
+        else:
+            if self.value.total_size()>other.value.total_size():
+                new_value = Array(self.value.sizes[0], self.value.value_type)
+            else:
+                new_value = Array(other.value.sizes[0], self.value.value_type)
         output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
+        # check whether require grad
         if self.req_grad or other.req_grad:
             operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
         else:
@@ -188,8 +224,28 @@ def element_wise_sub(self, other):
         input1 = tensors[inputs[0]]
         input2 = tensors[inputs[1]]
         output = tensors[outputs[0]]
-        output.value[:] = input1.value[:] - input2.value[:]  # todo
-        op_id += 1  # record the input and output of the op
+
+        # swap to ensure v1 size is bigger than v2 size  
+        v1, v2= input1.value, input2.value
+        # if input1.value.total_size() < input2.value.total_size():
+        #     v1, v2 = v2, v1
+
+        len1, len2 = v1.total_size(), v2.total_size()
+        assert len1 % len2==0, "Invalid Dimension"
+        # for i in range(0, len1//len2):
+        #     v3 = v1.get_vector(i*len2, len2) + v2.get_vector(0, len2)
+        #     output.value.assign_vector(v3, i*len2)
+        if input1.value.total_size() > input2.value.total_size():
+            @for_range(len1//len2)
+            def _(i):
+                v3 = v1.get_vector(i*len2, len2) - v2.get_vector(0, len2)
+                output.value.assign_vector(v3, i*len2)
+        else:
+            @for_range(len2//len1)
+            def _(i):
+                v3 = v1.get_vector(0, len1) - v2.get_vector(i*len1, len1)
+                output.value.assign_vector(v3, i*len1)  
+        op_id += 1# record the input and output of the op
     return output
 
 
@@ -199,18 +255,56 @@ def element_wise_mul(self, other):
     def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
         inputs = operation.inputs
-        dl_dself = dl_d[inputs[0]]  # partial derivate of r = self*other
-        dl_dother = dl_d[inputs[1]]  # partial derivate of r = self*other
-        dl_dself[:] += dl_dx[:] * other.value[:]  # todo
-        dl_dother[:] += dl_dx[:] * self.value[:]  # todo
+        
+        dl_dself = dl_d[inputs[0]]  # partial derivate of r = 1
+        dl_dother = dl_d[inputs[1]]  # partial derivate of r = 1
+        
+        # swap to ensure v1 size is bigger than v2 size  
+        v1, v2 = dl_dself, dl_dother
+        req_grad1, req_grad2 = self.req_grad, other.req_grad
+        input1=tensors[operation.inputs[0]]
+        input2=tensors[operation.inputs[1]]
+        if dl_dself.total_size()<dl_dother.total_size():
+            v1, v2 = v2, v1
+            req_grad1, req_grad2 = req_grad2, req_grad1
+            input1, input2 = input2, input1
+        # v1 back directly 
+        len1, len2 = v1.total_size(), v2.total_size()
+        if req_grad1:
+            @for_range_opt(len1//len2)
+            def _(i):
+                v3 = dl_dx.get_vector(i*len2, len2) * input2.value.get_vector(0, len2)
+                v1.assign_vector(v3, i*len2)           
+        # broadcasted v2 back with reduce
+        if req_grad2:
+            dl_dx_rec = matrix_reconst(dl_dx, v2.total_size())
+            input1_rec = matrix_reconst(input1.value, v2.total_size())
+            # for i in range(0, v2.total_size()):
+            @for_range_opt(v2.total_size())
+            def _(i):
+                v3 = dl_dx.value_type.dot_product(dl_dx_rec.get_vector(i*dl_dx_rec.sizes[1], dl_dx_rec.sizes[1]), input1_rec.get_vector(i*dl_dx_rec.sizes[1], dl_dx_rec.sizes[1]))
+                v2.assign_vector(v3, i)    
+        
         dl_dinputs = [dl_dself, dl_dother]
         return dl_dinputs
     # forward
     global op_id
     if prepare:
-        new_value = MultiArray([self.value.sizes[0], other.value.sizes[1]], other.value.value_type)
-        output = Tensor(new_value, req_grad=self.req_grad or other.grad)
-        if self.req_grad or other.grad:
+        # check shape
+        assert check_boardcast_size(self.value.sizes, other.value.sizes), "Invalid Dimension"
+        if isinstance(self.value, MultiArray):
+            if self.value.total_size()>other.value.total_size():
+                new_value = MultiArray(self.value.sizes, self.value.value_type)
+            else:
+                new_value = MultiArray(other.value.sizes, self.value.value_type)
+        else:
+            if self.value.total_size()>other.value.total_size():
+                new_value = Array(self.value.sizes[0], self.value.value_type)
+            else:
+                new_value = Array(other.value.sizes[0], self.value.value_type)
+        output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
+        # check whether require grad
+        if self.req_grad or other.req_grad:
             operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
         else:
             operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate)
@@ -225,10 +319,23 @@ def element_wise_mul(self, other):
         input1 = tensors[inputs[0]]
         input2 = tensors[inputs[1]]
         output = tensors[outputs[0]]
-        output.value[:] = input1.value[:] * input2.value[:]  # todo
-        op_id += 1  # record the input and output of the op
-    return output
 
+        # swap to ensure v1 size is bigger than v2 size  
+        v1, v2= input1.value, input2.value
+        if input1.value.total_size() < input2.value.total_size():
+            v1, v2 = v2, v1
+
+        len1, len2 = v1.total_size(), v2.total_size()
+        assert len1 % len2==0, "Invalid Dimension"
+        # for i in range(0, len1//len2):
+        #     v3 = v1.get_vector(i*len2, len2) + v2.get_vector(0, len2)
+        #     output.value.assign_vector(v3, i*len2)
+        @for_range_opt(len1//len2)
+        def _(i):
+            v3 = v1.get_vector(i*len2, len2) * v2.get_vector(0, len2)
+            output.value.assign_vector(v3, i*len2)
+        op_id += 1# record the input and output of the op
+    return output
 
 def ops_mul_constant(self, c):
     # backward
@@ -477,6 +584,21 @@ class Tensor():
     #         if isinstance(index, slice) and index == slice(None):
     #             return self.value.assign(other)
     #         self.value[index].assgin(other)
+
+    @classmethod
+    def ones():
+        return 0
+
+    @classmethod
+    def zeros():
+        return 0
+
+    @classmethod
+    def eye():
+        return 0
+
+    def random_initialize(self):
+        return 0
 
     def mul(self, other):
         # todo
