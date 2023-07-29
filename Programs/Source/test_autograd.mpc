@@ -388,8 +388,8 @@ def test_neg():
     input1.grad.print_reveal_nested()
 
 test_mul()
-#test_add()
-#test_sub()
+test_add()
+test_sub()
 test_div()
 #test_abs()
 #test_exp()

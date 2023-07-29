@@ -60,11 +60,13 @@ def check_boardcast_size(size1, size2):
                 return False
     return True
             
-def matrix_reconst(matrix, new_size):
-    assert matrix.total_size()%new_size==0, "Invalid Dimension"
-    r = new_size
-    c = matrix.total_size() // r
-    new_matrix = MultiArray([r, c], matrix.value_type)
+# As A * boardcast(B), the matrix is A here need reconstruct, 
+# the new_matrix is a prepared memory for the result of reconstructed A and 
+# the new_matrix is a [r, c] MultiArray which c is the total_size of B and
+# r is the division of the total_size of A and B 
+def matrix_reconst(matrix, new_matrix):
+    r, c = new_matrix.sizes
+    # new_matrix = MultiArray([r, c], matrix.value_type)
     # for i in range(0, r):
     #     for j in range(0, c):
     @for_range(r)
@@ -81,7 +83,7 @@ def element_wise_add(self, other):
     def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
         inputs = operation.inputs
-        
+        temp_matrix = operation.intermediate[0]
         dl_dself = dl_d[inputs[0]]  # partial derivate of r = 1
         dl_dother = dl_d[inputs[1]]  # partial derivate of r = 1
         
@@ -96,7 +98,7 @@ def element_wise_add(self, other):
             v1[:] += dl_dx[:]
         # broadcasted v2 back with reduce
         if req_grad2:
-            dl_dx_rec = matrix_reconst(dl_dx, v2.total_size())
+            dl_dx_rec = matrix_reconst(dl_dx, temp_matrix)
             # for i in range(0, v2.total_size()):
             @for_range(v2.total_size())
             def _(i):
@@ -110,6 +112,7 @@ def element_wise_add(self, other):
     if prepare:
         # check shape
         assert check_boardcast_size(self.value.sizes, other.value.sizes), "Invalid Dimension"
+        temp_matrix = MultiArray([other.value.total_size(), self.value.total_size()//other.value.total_size()], self.value.value_type)
         if isinstance(self.value, MultiArray) or isinstance(other.value, Multiarray):
             if self.value.total_size()>other.value.total_size():
                 new_value = MultiArray(self.value.sizes, self.value.value_type)
@@ -123,9 +126,9 @@ def element_wise_add(self, other):
         output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
         # check whether require grad
         if self.req_grad or other.req_grad:
-            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate, intermediate=[temp_matrix])
         else:
-            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate)
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate, intermediate=[temp_matrix])
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
@@ -162,7 +165,7 @@ def element_wise_sub(self, other):
     def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
         inputs = operation.inputs
-        
+        temp_matrix = operation.intermediate[0]
         dl_dself = dl_d[inputs[0]]  # partial derivate of r = 1
         dl_dother = dl_d[inputs[1]]  # partial derivate of r = 1
         
@@ -184,7 +187,7 @@ def element_wise_sub(self, other):
             if dl_dself.total_size()<dl_dother.total_size():
                 v2[:] += -1 * dl_dx[:]         
             else:
-                dl_dx_rec = matrix_reconst(dl_dx, v2.total_size())
+                dl_dx_rec = dl_dx_rec = matrix_reconst(dl_dx, temp_matrix)
                 @for_range(v2.total_size())
                 def _(i):
                     vsum = -1 * sum(dl_dx_rec.get_vector(i*dl_dx_rec.sizes[1], dl_dx_rec.sizes[1]))
@@ -197,6 +200,7 @@ def element_wise_sub(self, other):
     if prepare:
         # check shape
         assert check_boardcast_size(self.value.sizes, other.value.sizes), "Invalid Dimension"
+        temp_matrix = MultiArray([other.value.total_size(), self.value.total_size()//other.value.total_size()], self.value.value_type)
         if isinstance(self.value, MultiArray) or isinstance(other.value, Multiarray):
             if self.value.total_size()>other.value.total_size():
                 new_value = MultiArray(self.value.sizes, self.value.value_type)
@@ -210,9 +214,9 @@ def element_wise_sub(self, other):
         output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
         # check whether require grad
         if self.req_grad or other.req_grad:
-            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate, intermediate=[temp_matrix])
         else:
-            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate)
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate, intermediate=[temp_matrix])
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
@@ -255,7 +259,8 @@ def element_wise_mul(self, other):
     def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
         inputs = operation.inputs
-        
+        temp1_matrix = operation.intermediate[0]
+        temp2_matrix = operation.intermediate[1]
         dl_dself = dl_d[inputs[0]]  # partial derivate of r = 1
         dl_dother = dl_d[inputs[1]]  # partial derivate of r = 1
         
@@ -277,8 +282,8 @@ def element_wise_mul(self, other):
                 v1.assign_vector(v3, i*len2)           
         # broadcasted v2 back with reduce
         if req_grad2:
-            dl_dx_rec = matrix_reconst(dl_dx, v2.total_size())
-            input1_rec = matrix_reconst(input1.value, v2.total_size())
+            dl_dx_rec = matrix_reconst(dl_dx, temp1_matrix)
+            input1_rec = matrix_reconst(input1.value, temp2_matrix)
             # for i in range(0, v2.total_size()):
             @for_range_opt(v2.total_size())
             def _(i):
@@ -292,6 +297,8 @@ def element_wise_mul(self, other):
     if prepare:
         # check shape
         assert check_boardcast_size(self.value.sizes, other.value.sizes), "Invalid Dimension"
+        temp1_matrix = MultiArray([other.value.total_size(), self.value.total_size()//other.value.total_size()], self.value.value_type)
+        temp2_matrix = MultiArray([other.value.total_size(), self.value.total_size()//other.value.total_size()], self.value.value_type)
         if isinstance(self.value, MultiArray) or isinstance(other.value, Multiarray):
             if self.value.total_size()>other.value.total_size():
                 new_value = MultiArray(self.value.sizes, self.value.value_type)
@@ -305,9 +312,9 @@ def element_wise_mul(self, other):
         output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
         # check whether require grad
         if self.req_grad or other.req_grad:
-            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate, intermediate=[temp1_matrix, temp2_matrix])
         else:
-            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate)
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate, intermediate=[temp1_matrix, temp2_matrix])
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
@@ -344,6 +351,8 @@ def element_wise_div(self, other):
         dl_dx, = dl_doutputs
         inputs = operation.inputs
         inter = operation.intermediate[0]  # reuse the intervalue in mem
+        temp1_matrix = operation.intermediate[1]
+        temp2_matrix = operation.intermediate[2]
         dl_dself = dl_d[inputs[0]]  # partial derivate of r = 1
         dl_dother = dl_d[inputs[1]]  # partial derivate of r = 1
         input1=tensors[operation.inputs[0]]
@@ -356,8 +365,8 @@ def element_wise_div(self, other):
         # v1 back directly 
         if req_grad1:
             if dl_dself.total_size()<dl_dother.total_size():
-                dl_dx_rec = matrix_reconst(dl_dx, v1.total_size())
-                inter_res = matrix_reconst(inter, v1.total_size())
+                dl_dx_rec = matrix_reconst(dl_dx, temp1_matrix)
+                inter_res = matrix_reconst(inter, temp2_matrix)
                 @for_range_opt(v1.total_size())
                 def _(i):
                     v3 = dl_dx.value_type.dot_product(dl_dx_rec.get_vector(i*dl_dx_rec.sizes[1], dl_dx_rec.sizes[1]), inter_res.get_vector(i*dl_dx_rec.sizes[1], dl_dx_rec.sizes[1]))
@@ -376,8 +385,8 @@ def element_wise_div(self, other):
                     v3 = v2.get_vector(i*len1, len1) * input1.get_vector(0, len1)
                     v2.assign_vector(v3, i*len1)                       
             else:
-                dl_dx_rec = matrix_reconst(dl_dx, v2.total_size()) 
-                input1_rec = matrix_reconst(input1.value, v2.total_size())     
+                dl_dx_rec = matrix_reconst(dl_dx, temp1_matrix)
+                input1_rec = matrix_reconst(input1.value, temp2_matrix)   
                 tmp_inter = -1 * inter[:] * inter[:]
                 @for_range_opt(v2.total_size())
                 def _(i):
@@ -392,6 +401,8 @@ def element_wise_div(self, other):
     if prepare:
         # check shape
         assert check_boardcast_size(self.value.sizes, other.value.sizes), "Invalid Dimension"
+        temp1_matrix = MultiArray([other.value.total_size(), self.value.total_size()//other.value.total_size()], self.value.value_type)
+        temp2_matrix = MultiArray([other.value.total_size(), self.value.total_size()//other.value.total_size()], self.value.value_type)
         if isinstance(self.value, MultiArray) or isinstance(other.value, Multiarray):
             if self.value.total_size()>other.value.total_size():
                 new_value = MultiArray(self.value.sizes, self.value.value_type)
@@ -406,9 +417,9 @@ def element_wise_div(self, other):
         output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
         # check whether require grad
         if self.req_grad or other.req_grad:
-            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate, intermediate=[inter])
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate, intermediate=[inter, temp1_matrix, temp2_matrix])
         else:
-            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate, intermediate=[inter])
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate, intermediate=[inter, temp1_matrix, temp2_matrix])
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
