@@ -1985,11 +1985,14 @@ def Norm(b, k, f, kappa, simplex_flag=False):
 def set_global_buildingblock(name):
     instructions.program.globalbuildingblock = name
 
+def get_global_buildingblock():
+    return instructions.program.globalbuildingblock
+
 def buildingblock(name):
     def decorator(func):
         def wrapper(*args, **kw):
-            old_name = instructions.program.globalbuildingblock 
-            set_global_buildingblock(name)
+            old_name = get_global_buildingblock()
+            set_global_buildingblock(old_name+'-'+name)
             get_tape().start_new_basicblock(name = name+"-start")
             res = func(*args, **kw)
             get_tape().start_new_basicblock(name = name + "-close")
@@ -1997,6 +2000,7 @@ def buildingblock(name):
         copy_doc(wrapper, func)
         return wrapper
     return decorator
+
 
 def start_profiling():
     break_point()

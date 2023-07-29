@@ -348,6 +348,36 @@ def test_mv_MultiArray_Array():
     input2.grad.print_reveal_nested()
 
 @autograd_function
+def test_mv_3Dim_MultiArray_Array():
+    print_ln('test_mv_3Dim_MultiArray_Array():')
+    xMultiArray_3 = MultiArray([ROW, COL,HEIGHT], sfix)
+    for i in range(0,ROW):
+        for  j in range(0,COL):
+            for k in range(0,HEIGHT):
+                xMultiArray_3[i][j][k] = sfix(1)
+
+    xArray_2 = Array(HEIGHT, sfix)
+    xArray_2.assign_all(1)
+
+    xMultiArray_3.print_reveal_nested()
+    xArray_2.print_reveal_nested()
+    input1 = Tensor(xMultiArray_3, req_grad = True)
+    input2 = Tensor(xArray_2, req_grad = True)
+    output = input1.mv(input2)
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    output = input1.mv(input2)
+    output.backward()
+    output.value.print_reveal_nested()
+    print_ln("The grad is:")
+    input1.grad.print_reveal_nested()
+    input2.grad.print_reveal_nested()
+
+
+
+@autograd_function
 def test_dot():
     print_ln('test_dot():')
     xArray_1 = Array(COL, sfix)
@@ -374,7 +404,7 @@ def test_dot():
 
 
 
-
+test_mv_3Dim_MultiArray_Array()
 #test_mv_MultiArray_Array()
 #test_dot()
 
@@ -392,7 +422,7 @@ def test_dot():
 #test_mm_MultiArray()
 
 
-
+'''
 xMultiArray_3 = MultiArray([ROW, COL,HEIGHT], sfix)
 for i in range(0,ROW):
     for  j in range(0,COL):
@@ -424,4 +454,5 @@ xMultiArray_3.mv(Array2,res)
 xMultiArray_3.print_reveal_nested()
 Array2.print_reveal_nested()
 res.print_reveal_nested()
+'''
 
