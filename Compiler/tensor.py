@@ -1654,6 +1654,21 @@ class Tensor():
         # record the input and output of the op
         return output
 
+    def norm(self, dim=None, keepdim=False):
+        pass
+
+    def softmax(self, dim=None):
+        pass
+
+    def relu(self):
+        pass
+    
+    def sigmoid(self):
+        pass
+
+    def tanh(self):
+        pass
+    
     def size(self):
         return self.value.sizes
 
