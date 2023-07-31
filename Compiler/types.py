@@ -6949,15 +6949,17 @@ class MultiArray(SubMultiArray):
         #         tmp_value+=self.get_vector_by_indices(*tmp_indices)
         #     res.assign_vector(tmp_value, i)
         new_sizes = self.sizes[:dim] +  self.sizes[dim+1:]
-        res = MultiArray(new_sizes, self.value_type) 
+        res = MultiArray(new_sizes, self.value_type)
+        new_num = res.total_size()
         
         index_groups = self.getIndexGroups_by_dim(dim)
-        for i in range(len(index_groups)):
+        for i in range(new_num):
             tmp_value = self.value_type(0)
             indices = index_groups[i]
             for j in indices:
                 tmp_value+=self.get_vector_by_indices(*j)
-            res.assign_vector(tmp_value, i)  
+            res.assign_vector(tmp_value, i)
+            
         res /= cint(self.sizes[dim])
         return res
     
@@ -7151,7 +7153,27 @@ class MultiArray(SubMultiArray):
 
         self.view(*batch, n, m), other.view(*batch, m, p),
         return res
-
+    
+    def sum(self, dim=-1, keepdims=True): # TODO: code review
+        dim = len(self.sizes)-1 if dim == -1 else dim
+        if isinstance(self, Array):
+            new_sizes = 1
+        else:
+            new_sizes = self.sizes[:dim] +  self.sizes[dim+1:]
+        if len(new_sizes) <= 1:
+            res = Array(new_sizes[0], self.value_type)
+        else:
+            res = MultiArray(new_sizes, self.value_type)
+        index_groups = self.getIndexGroups_by_dim(dim)
+        for i in range(len(index_groups)):
+            summary = self.value_type(0)
+            for j in index_groups[i]:
+                summary += self.get_vector_by_indices(*j)
+            res.assign_vector(summary, i)
+        if keepdims:
+            new_sizes = self.sizes[:dim] + (1,) +self.sizes[dim+1:]
+            res.view(*new_sizes)
+        return res
 
     def delete(self):
         self.array.delete()

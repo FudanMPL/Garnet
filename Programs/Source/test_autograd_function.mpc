@@ -1,6 +1,7 @@
-from tensor import Tensor, autograd_function
+from tensor import Tensor, autograd_function, softmax_last_dim
 import functional as F
 import tensor
+from ml import softmax
 program.options_from_args()
 
 @autograd_function
@@ -13,5 +14,21 @@ def test_one_hot():
     output = F.one_hot(indice, num_classes)
     output.value.print_reveal_nested()
 
+@autograd_function
+def test_softmax():
+    print_ln('test_softmax')
+    x = MultiArray([10, 2], sfix)
+    for i in range(10):
+        for j in range(2):
+                x[i][j] = sfix(1)
+    x.print_reveal_nested()
+    res = softmax_last_dim(x)
+    res.print_reveal_nested()
+    y = Array(5, sfix)
+    y.assign_all(1)
+    res = softmax_last_dim(y)
+    res.print_reveal_nested()
+        
 
-test_one_hot()
+#test_one_hot()
+test_softmax()

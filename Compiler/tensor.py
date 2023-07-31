@@ -201,7 +201,7 @@ def element_wise_sub(self, other):
         # check shape
         assert check_boardcast_size(self.value.sizes, other.value.sizes), "Invalid Dimension"
         temp_matrix = MultiArray([other.value.total_size(), self.value.total_size()//other.value.total_size()], self.value.value_type)
-        if isinstance(self.value, MultiArray) or isinstance(other.value, Multiarray):
+        if isinstance(self.value, MultiArray) or isinstance(other.value, MultiArray):
             if self.value.total_size()>other.value.total_size():
                 new_value = MultiArray(self.value.sizes, self.value.value_type)
             else:
@@ -299,7 +299,7 @@ def element_wise_mul(self, other):
         assert check_boardcast_size(self.value.sizes, other.value.sizes), "Invalid Dimension"
         temp1_matrix = MultiArray([other.value.total_size(), self.value.total_size()//other.value.total_size()], self.value.value_type)
         temp2_matrix = MultiArray([other.value.total_size(), self.value.total_size()//other.value.total_size()], self.value.value_type)
-        if isinstance(self.value, MultiArray) or isinstance(other.value, Multiarray):
+        if isinstance(self.value, MultiArray) or isinstance(other.value, MultiArray):
             if self.value.total_size()>other.value.total_size():
                 new_value = MultiArray(self.value.sizes, self.value.value_type)
             else:
@@ -403,7 +403,7 @@ def element_wise_div(self, other):
         assert check_boardcast_size(self.value.sizes, other.value.sizes), "Invalid Dimension"
         temp1_matrix = MultiArray([other.value.total_size(), self.value.total_size()//other.value.total_size()], self.value.value_type)
         temp2_matrix = MultiArray([other.value.total_size(), self.value.total_size()//other.value.total_size()], self.value.value_type)
-        if isinstance(self.value, MultiArray) or isinstance(other.value, Multiarray):
+        if isinstance(self.value, MultiArray) or isinstance(other.value, MultiArray):
             if self.value.total_size()>other.value.total_size():
                 new_value = MultiArray(self.value.sizes, self.value.value_type)
             else:
@@ -1668,14 +1668,46 @@ class Tensor():
         pass
 
     def softmax(self, dim=None):
-        # todo shenhao
-        pass
+        @buildingblock(get_program().globalbuildingblock)
+        def propagate(dl_doutputs, operation):
+            dl_dy, = dl_doutputs
+            input = tensors[operation.inputs[0]]
+            if self.req_grad:
+                # dl_dx = softmax(x)*(dl_dy-(dl_dy*softmax(x)).sum(dim=-1))
+                dl_d[operation.inputs[0]][:] += input.value[:] * (dl_dy[:] - (dl_dy[:] * input.value[:])).sum(dim=-1)
+        # forward
+        global op_id
+        if prepare:
+            assert dim==-1, "dim must be the last dimension"
+            if isinstance(self.value, Array):
+                output = Tensor(Array(self.sizes[0], self.value_type), req_grad=self.req_grad)
+            else:
+                output = Tensor(MultiArray(self.sizes, self.value_type), req_grad=self.req_grad)
+            if self.req_grad:
+                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
+            else:
+                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate)
+            gradient_operation.append(operation)
+            operation_id = len(gradient_operation) - 1
+
+            op_id_store[op_id] = operation_id
+            op_id += 1
+        else:
+            operation = gradient_operation[op_id_store[op_id]]
+            inputs = operation.inputs
+            outputs = operation.outputs
+            input = tensors[inputs[0]]
+            output = tensors[outputs[0]]
+            
+            softmax_last_dim(input.value, output.value)
+            op_id += 1
+        # record the input and output of the op
+        return output
 
     def relu(self):
         pass
     
     def sigmoid(self):
-        # todo shenhao
         pass
 
     def tanh(self):
@@ -1755,6 +1787,28 @@ def autograd_function(func):
     copy_doc(wrapper, func)
     return wrapper
 
+
+def softmax_last_dim(x, res=None):
+    if isinstance(x, Array):
+        res = Array(x.length, x.value_type) if res is None else res
+        return res.assign_vector(vec_softmax(x.get_vector()))
+    else:
+        batch = x.sizes[:-1]
+        n, m = reduce(operator.mul, batch) if len(batch) >= 2 else batch[0], x.shape[-1]
+        res = MultiArray([n, m], x.value_type) if res is None else res
+        
+        x.view(n, m), res.view(n, m)
+        index = regint(0)
+        @for_range(n)
+        def _(i):
+            res.assign_vector(vec_softmax(x.get_vector(i*m, m)), index)
+            index.update(index+m)
+        x.view(*batch, m), res.view(*batch, m)
+        return res
+
+def vec_softmax(x):
+    e_x = mpc_math.exp_fx(x - util.max(x))
+    return e_x / sum(e_x)
 
 def broadcast(*args: Tensor) -> List[Tensor]:
     """
