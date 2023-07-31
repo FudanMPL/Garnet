@@ -67,9 +67,20 @@ def one_hot(input, num_classes=-1):
             [0, 0, 1, 0, 0, 0, 0, 0],
             [0, 0, 0, 1, 0, 0, 0, 0],
             [0, 0, 0, 0, 1, 0, 0, 0]])"""
-    in_sizes = input.sizes
-    output = MultiArray([*in_sizes, num_classes], input.values.value_type) # TODO: check if value_type is cint or int
-    pass
+    # 
+    assert input.value.value_type == cint, "input should be cint"
+    x = input.value
+    in_sizes = x.sizes
+    b = reduce(operator.mul, in_sizes) if len(in_sizes) >= 2 else in_sizes[0]
+    output = MultiArray([*in_sizes, num_classes], x.value_type)
+    
+    output.view(-1, num_classes)
+
+    for i in range(b):
+        output[i][x.get_vector()[i]] = 1
+    
+    output.view(*in_sizes, num_classes)
+    return Tensor(output)
 
 
 def embedding(input, weight):
