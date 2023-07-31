@@ -6957,8 +6957,7 @@ class MultiArray(SubMultiArray):
             indices = index_groups[i]
             for j in indices:
                 tmp_value+=self.get_vector_by_indices(*j)
-            res.assign_vector(tmp_value, i)
-            
+            res.assign_vector(tmp_value, i)  
         res /= cint(self.sizes[dim])
         return res
     
