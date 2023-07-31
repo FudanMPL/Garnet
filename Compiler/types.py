@@ -6895,17 +6895,18 @@ class MultiArray(SubMultiArray):
             tmp_sizes[negative_index] = int(tmp)
         self.sizes = tuple(tmp_sizes)
         
-    def mean(self, dim):
+    def getIndexGroups_by_dim(self, dim):
         assert dim < len(self.sizes)
         new_sizes = self.sizes[:dim] +  self.sizes[dim+1:]
-        res = MultiArray(new_sizes, self.value_type)
-        new_num = res.total_size()
+        new_num = 1
+        for si in new_sizes:
+            new_num*=si
         pre_mul_prod = []
         tmp = 1
-        
         for i in range(len(new_sizes) - 1):
             tmp *= new_sizes[-i-1]
             pre_mul_prod.append(tmp)
+        index_groups = []
         for i in range(new_num):
             index = []
             mod = i
@@ -6914,15 +6915,53 @@ class MultiArray(SubMultiArray):
                 mod = mod % pre_mul_prod[j]
             index.append(mod)
             index = tuple(index)
-            tmp_value = self.value_type(0)
+            #tmp_value = self.value_type(0)
+            indices = []
             for j in range(self.sizes[dim]):
                 tmp_indices = index[:dim] +(j,) + index[dim:]
-                tmp_value+=self.get_vector_by_indices(*tmp_indices)
-            res.assign_vector_by_indices(tmp_value, *index)
-        div = MultiArray(new_sizes, cint)
-        div.assign_all(self.sizes[dim])
-        res /= div
-        div.delete()
+                indices.append(tmp_indices)
+                #tmp_value+=self.get_vector_by_indices(*tmp_indices)
+            index_groups.append(indices)
+            #res.assign_vector(tmp_value, i)
+        return index_groups
+    
+    def mean(self, dim):
+        # assert dim < len(self.sizes)
+        # new_sizes = self.sizes[:dim] +  self.sizes[dim+1:]
+        # res = MultiArray(new_sizes, self.value_type)
+        # new_num = res.total_size()
+        # pre_mul_prod = []
+        # tmp = 1
+        
+        # for i in range(len(new_sizes) - 1):
+        #     tmp *= new_sizes[-i-1]
+        #     pre_mul_prod.append(tmp)
+        # for i in range(new_num):
+        #     index = []
+        #     mod = i
+        #     for j in range(len(new_sizes)-1):
+        #         index.append(mod//pre_mul_prod[j])
+        #         mod = mod % pre_mul_prod[j]
+        #     index.append(mod)
+        #     index = tuple(index)
+        #     tmp_value = self.value_type(0)
+        #     for j in range(self.sizes[dim]):
+        #         tmp_indices = index[:dim] +(j,) + index[dim:]
+        #         tmp_value+=self.get_vector_by_indices(*tmp_indices)
+        #     res.assign_vector(tmp_value, i)
+        new_sizes = self.sizes[:dim] +  self.sizes[dim+1:]
+        res = MultiArray(new_sizes, self.value_type)
+        new_num = res.total_size()
+        
+        index_groups = self.getIndexGroups_by_dim(dim)
+        for i in range(new_num):
+            tmp_value = self.value_type(0)
+            indices = index_groups[i]
+            for j in indices:
+                tmp_value+=self.get_vector_by_indices(*j)
+            res.assign_vector(tmp_value, i)
+            
+        res /= cint(self.sizes[dim])
         return res
     
     def mv(self,other,res=None): # not MP-SPDZ,added by zhou
