@@ -60,11 +60,13 @@ def check_boardcast_size(size1, size2):
                 return False
     return True
             
-def matrix_reconst(matrix, new_size):
-    assert matrix.total_size()%new_size==0, "Invalid Dimension"
-    r = new_size
-    c = matrix.total_size() // r
-    new_matrix = MultiArray([r, c], matrix.value_type)
+# As A * boardcast(B), the matrix is A here need reconstruct, 
+# the new_matrix is a prepared memory for the result of reconstructed A and 
+# the new_matrix is a [r, c] MultiArray which c is the total_size of B and
+# r is the division of the total_size of A and B 
+def matrix_reconst(matrix, new_matrix):
+    r, c = new_matrix.sizes
+    # new_matrix = MultiArray([r, c], matrix.value_type)
     # for i in range(0, r):
     #     for j in range(0, c):
     @for_range(r)
@@ -81,7 +83,7 @@ def element_wise_add(self, other):
     def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
         inputs = operation.inputs
-        
+        temp_matrix = operation.intermediate[0]
         dl_dself = dl_d[inputs[0]]  # partial derivate of r = 1
         dl_dother = dl_d[inputs[1]]  # partial derivate of r = 1
         
@@ -96,11 +98,11 @@ def element_wise_add(self, other):
             v1[:] += dl_dx[:]
         # broadcasted v2 back with reduce
         if req_grad2:
-            dl_dx_rec = matrix_reconst(dl_dx, v2.total_size())
+            dl_dx_rec = matrix_reconst(dl_dx, temp_matrix)
             # for i in range(0, v2.total_size()):
             @for_range(v2.total_size())
             def _(i):
-                vsum = sum(dl_dx_rec.get_vector(i, dl_dx_rec.sizes[1]))
+                vsum = sum(dl_dx_rec.get_vector(i*dl_dx_rec.sizes[1], dl_dx_rec.sizes[1]))
                 v2.assign_vector(vsum, i) 
         
         dl_dinputs = [dl_dself, dl_dother]
@@ -110,7 +112,8 @@ def element_wise_add(self, other):
     if prepare:
         # check shape
         assert check_boardcast_size(self.value.sizes, other.value.sizes), "Invalid Dimension"
-        if isinstance(self.value, MultiArray):
+        temp_matrix = MultiArray([other.value.total_size(), self.value.total_size()//other.value.total_size()], self.value.value_type)
+        if isinstance(self.value, MultiArray) or isinstance(other.value, MultiArray):
             if self.value.total_size()>other.value.total_size():
                 new_value = MultiArray(self.value.sizes, self.value.value_type)
             else:
@@ -123,9 +126,9 @@ def element_wise_add(self, other):
         output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
         # check whether require grad
         if self.req_grad or other.req_grad:
-            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate, intermediate=[temp_matrix])
         else:
-            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate)
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate, intermediate=[temp_matrix])
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
@@ -162,21 +165,58 @@ def element_wise_sub(self, other):
     def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
         inputs = operation.inputs
+        temp_matrix = operation.intermediate[0]
         dl_dself = dl_d[inputs[0]]  # partial derivate of r = 1
-        dl_dother = dl_d[inputs[1]]  # partial derivate of r = -1
-        dl_dself[:] += dl_dx[:]
-        dl_dother[:] += - dl_dx[:]
+        dl_dother = dl_d[inputs[1]]  # partial derivate of r = 1
+        
+        # swap to ensure v1 size is bigger than v2 size  
+        v1, v2 = dl_dself, dl_dother
+        req_grad1, req_grad2 = self.req_grad, other.req_grad
+        # v1 back directly 
+        if req_grad1:
+            if dl_dself.total_size()<dl_dother.total_size():
+                dl_dx_rec = matrix_reconst(dl_dx, v1.total_size())
+                @for_range(v1.total_size())
+                def _(i):
+                    vsum = sum(dl_dx_rec.get_vector(i*dl_dx_rec.sizes[1], dl_dx_rec.sizes[1]))
+                    v1.assign_vector(vsum, i)                 
+            else:
+                v1[:] += dl_dx[:]
+        # broadcasted v2 back with reduce
+        if req_grad2:
+            if dl_dself.total_size()<dl_dother.total_size():
+                v2[:] += -1 * dl_dx[:]         
+            else:
+                dl_dx_rec = dl_dx_rec = matrix_reconst(dl_dx, temp_matrix)
+                @for_range(v2.total_size())
+                def _(i):
+                    vsum = -1 * sum(dl_dx_rec.get_vector(i*dl_dx_rec.sizes[1], dl_dx_rec.sizes[1]))
+                    v2.assign_vector(vsum, i)     
+
         dl_dinputs = [dl_dself, dl_dother]
         return dl_dinputs
     # forward
     global op_id
     if prepare:
-        new_value = MultiArray([self.value.sizes[0], other.value.sizes[1]], other.value.value_type)
-        output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
-        if self.req_grad or other.req_grad:
-            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
+        # check shape
+        assert check_boardcast_size(self.value.sizes, other.value.sizes), "Invalid Dimension"
+        temp_matrix = MultiArray([other.value.total_size(), self.value.total_size()//other.value.total_size()], self.value.value_type)
+        if isinstance(self.value, MultiArray) or isinstance(other.value, Multiarray):
+            if self.value.total_size()>other.value.total_size():
+                new_value = MultiArray(self.value.sizes, self.value.value_type)
+            else:
+                new_value = MultiArray(other.value.sizes, self.value.value_type)
         else:
-            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate)
+            if self.value.total_size()>other.value.total_size():
+                new_value = Array(self.value.sizes[0], self.value.value_type)
+            else:
+                new_value = Array(other.value.sizes[0], self.value.value_type)
+        output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
+        # check whether require grad
+        if self.req_grad or other.req_grad:
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate, intermediate=[temp_matrix])
+        else:
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate, intermediate=[temp_matrix])
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
@@ -188,8 +228,28 @@ def element_wise_sub(self, other):
         input1 = tensors[inputs[0]]
         input2 = tensors[inputs[1]]
         output = tensors[outputs[0]]
-        output.value[:] = input1.value[:] - input2.value[:]  # todo
-        op_id += 1  # record the input and output of the op
+
+        # swap to ensure v1 size is bigger than v2 size  
+        v1, v2= input1.value, input2.value
+        # if input1.value.total_size() < input2.value.total_size():
+        #     v1, v2 = v2, v1
+
+        len1, len2 = v1.total_size(), v2.total_size()
+        assert len1 % len2==0, "Invalid Dimension"
+        # for i in range(0, len1//len2):
+        #     v3 = v1.get_vector(i*len2, len2) + v2.get_vector(0, len2)
+        #     output.value.assign_vector(v3, i*len2)
+        if input1.value.total_size() > input2.value.total_size():
+            @for_range(len1//len2)
+            def _(i):
+                v3 = v1.get_vector(i*len2, len2) - v2.get_vector(0, len2)
+                output.value.assign_vector(v3, i*len2)
+        else:
+            @for_range(len2//len1)
+            def _(i):
+                v3 = v1.get_vector(0, len1) - v2.get_vector(i*len1, len1)
+                output.value.assign_vector(v3, i*len1)  
+        op_id += 1# record the input and output of the op
     return output
 
 
@@ -199,21 +259,62 @@ def element_wise_mul(self, other):
     def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
         inputs = operation.inputs
-        dl_dself = dl_d[inputs[0]]  # partial derivate of r = self*other
-        dl_dother = dl_d[inputs[1]]  # partial derivate of r = self*other
-        dl_dself[:] += dl_dx[:] * other.value[:]  # todo
-        dl_dother[:] += dl_dx[:] * self.value[:]  # todo
+        temp1_matrix = operation.intermediate[0]
+        temp2_matrix = operation.intermediate[1]
+        dl_dself = dl_d[inputs[0]]  # partial derivate of r = 1
+        dl_dother = dl_d[inputs[1]]  # partial derivate of r = 1
+        
+        # swap to ensure v1 size is bigger than v2 size  
+        v1, v2 = dl_dself, dl_dother
+        req_grad1, req_grad2 = self.req_grad, other.req_grad
+        input1=tensors[operation.inputs[0]]
+        input2=tensors[operation.inputs[1]]
+        len1, len2 = v1.total_size(), v2.total_size()
+        if dl_dself.total_size()<dl_dother.total_size():
+            v1, v2 = v2, v1
+            req_grad1, req_grad2 = req_grad2, req_grad1
+            input1, input2 = input2, input1
+        # v1 back directly 
+        if req_grad1:
+            @for_range_opt(len1//len2)
+            def _(i):
+                v3 = dl_dx.get_vector(i*len2, len2) * input2.value.get_vector(0, len2)
+                v1.assign_vector(v3, i*len2)           
+        # broadcasted v2 back with reduce
+        if req_grad2:
+            dl_dx_rec = matrix_reconst(dl_dx, temp1_matrix)
+            input1_rec = matrix_reconst(input1.value, temp2_matrix)
+            # for i in range(0, v2.total_size()):
+            @for_range_opt(v2.total_size())
+            def _(i):
+                v3 = dl_dx.value_type.dot_product(dl_dx_rec.get_vector(i*dl_dx_rec.sizes[1], dl_dx_rec.sizes[1]), input1_rec.get_vector(i*dl_dx_rec.sizes[1], dl_dx_rec.sizes[1]))
+                v2.assign_vector(v3, i)    
+        
         dl_dinputs = [dl_dself, dl_dother]
         return dl_dinputs
     # forward
     global op_id
     if prepare:
-        new_value = MultiArray([self.value.sizes[0], other.value.sizes[1]], other.value.value_type)
-        output = Tensor(new_value, req_grad=self.req_grad or other.grad)
-        if self.req_grad or other.grad:
-            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
+        # check shape
+        assert check_boardcast_size(self.value.sizes, other.value.sizes), "Invalid Dimension"
+        temp1_matrix = MultiArray([other.value.total_size(), self.value.total_size()//other.value.total_size()], self.value.value_type)
+        temp2_matrix = MultiArray([other.value.total_size(), self.value.total_size()//other.value.total_size()], self.value.value_type)
+        if isinstance(self.value, MultiArray) or isinstance(other.value, Multiarray):
+            if self.value.total_size()>other.value.total_size():
+                new_value = MultiArray(self.value.sizes, self.value.value_type)
+            else:
+                new_value = MultiArray(other.value.sizes, self.value.value_type)
         else:
-            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate)
+            if self.value.total_size()>other.value.total_size():
+                new_value = Array(self.value.sizes[0], self.value.value_type)
+            else:
+                new_value = Array(other.value.sizes[0], self.value.value_type)
+        output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
+        # check whether require grad
+        if self.req_grad or other.req_grad:
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate, intermediate=[temp1_matrix, temp2_matrix])
+        else:
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate, intermediate=[temp1_matrix, temp2_matrix])
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
@@ -225,8 +326,135 @@ def element_wise_mul(self, other):
         input1 = tensors[inputs[0]]
         input2 = tensors[inputs[1]]
         output = tensors[outputs[0]]
-        output.value[:] = input1.value[:] * input2.value[:]  # todo
-        op_id += 1  # record the input and output of the op
+
+        # swap to ensure v1 size is bigger than v2 size  
+        v1, v2= input1.value, input2.value
+        if input1.value.total_size() < input2.value.total_size():
+            v1, v2 = v2, v1
+
+        len1, len2 = v1.total_size(), v2.total_size()
+        assert len1 % len2==0, "Invalid Dimension"
+        # for i in range(0, len1//len2):
+        #     v3 = v1.get_vector(i*len2, len2) + v2.get_vector(0, len2)
+        #     output.value.assign_vector(v3, i*len2)
+        @for_range_opt(len1//len2)
+        def _(i):
+            v3 = v1.get_vector(i*len2, len2) * v2.get_vector(0, len2)
+            output.value.assign_vector(v3, i*len2)
+        op_id += 1# record the input and output of the op
+    return output
+
+def element_wise_div(self, other):
+    # backward
+    @buildingblock(get_program().globalbuildingblock)
+    def propagate(dl_doutputs, operation):
+        dl_dx, = dl_doutputs
+        inputs = operation.inputs
+        inter = operation.intermediate[0]  # reuse the intervalue in mem
+        temp1_matrix = operation.intermediate[1]
+        temp2_matrix = operation.intermediate[2]
+        dl_dself = dl_d[inputs[0]]  # partial derivate of r = 1
+        dl_dother = dl_d[inputs[1]]  # partial derivate of r = 1
+        input1=tensors[operation.inputs[0]]
+        input2=tensors[operation.inputs[1]]
+        
+        # swap to ensure v1 size is bigger than v2 size  
+        v1, v2 = dl_dself, dl_dother
+        req_grad1, req_grad2 = self.req_grad, other.req_grad
+        len1, len2 = v1.total_size(), v2.total_size()
+        # v1 back directly 
+        if req_grad1:
+            if dl_dself.total_size()<dl_dother.total_size():
+                dl_dx_rec = matrix_reconst(dl_dx, temp1_matrix)
+                inter_res = matrix_reconst(inter, temp2_matrix)
+                @for_range_opt(v1.total_size())
+                def _(i):
+                    v3 = dl_dx.value_type.dot_product(dl_dx_rec.get_vector(i*dl_dx_rec.sizes[1], dl_dx_rec.sizes[1]), inter_res.get_vector(i*dl_dx_rec.sizes[1], dl_dx_rec.sizes[1]))
+                    v1.assign_vector(v3, i)                  
+            else:
+                @for_range_opt(len1//len2)
+                def _(i):
+                    v3 = dl_dx.get_vector(i*len2, len2) * inter.get_vector(0, len2)
+                    v1.assign_vector(v3, i*len2)  
+        # broadcasted v2 back with reduce
+        if req_grad2:
+            if dl_dself.total_size()<dl_dother.total_size():
+                v2 = -1 * inter[:] * inter[:] * dl_dx[:]
+                @for_range_opt(len2//len1)
+                def _(i):
+                    v3 = v2.get_vector(i*len1, len1) * input1.get_vector(0, len1)
+                    v2.assign_vector(v3, i*len1)                       
+            else:
+                dl_dx_rec = matrix_reconst(dl_dx, temp1_matrix)
+                input1_rec = matrix_reconst(input1.value, temp2_matrix)   
+                tmp_inter = -1 * inter[:] * inter[:]
+                @for_range_opt(v2.total_size())
+                def _(i):
+                    v3 = dl_dx.value_type.dot_product(dl_dx_rec.get_vector(i*dl_dx_rec.sizes[1], dl_dx_rec.sizes[1]), input1_rec.get_vector(i*dl_dx_rec.sizes[1], dl_dx_rec.sizes[1]))
+                    v2.assign_vector(v3, i)  
+                v2[:] = v2[:] * tmp_inter
+
+        dl_dinputs = [dl_dself, dl_dother]
+        return dl_dinputs
+    # forward
+    global op_id
+    if prepare:
+        # check shape
+        assert check_boardcast_size(self.value.sizes, other.value.sizes), "Invalid Dimension"
+        temp1_matrix = MultiArray([other.value.total_size(), self.value.total_size()//other.value.total_size()], self.value.value_type)
+        temp2_matrix = MultiArray([other.value.total_size(), self.value.total_size()//other.value.total_size()], self.value.value_type)
+        if isinstance(self.value, MultiArray) or isinstance(other.value, Multiarray):
+            if self.value.total_size()>other.value.total_size():
+                new_value = MultiArray(self.value.sizes, self.value.value_type)
+            else:
+                new_value = MultiArray(other.value.sizes, self.value.value_type)
+        else:
+            if self.value.total_size()>other.value.total_size():
+                new_value = Array(self.value.sizes[0], self.value.value_type)
+            else:
+                new_value = Array(other.value.sizes[0], self.value.value_type)
+        inter = other.value.same_shape()
+        output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
+        # check whether require grad
+        if self.req_grad or other.req_grad:
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate, intermediate=[inter, temp1_matrix, temp2_matrix])
+        else:
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate, intermediate=[inter, temp1_matrix, temp2_matrix])
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation) - 1
+        op_id_store[op_id] = operation_id
+        op_id += 1
+    else:
+        operation = gradient_operation[op_id_store[op_id]]
+        inputs = operation.inputs
+        outputs = operation.outputs
+        input1 = tensors[inputs[0]]
+        input2 = tensors[inputs[1]]
+        output = tensors[outputs[0]]
+
+        # swap to ensure v1 size is bigger than v2 size  
+        v1, v2= input1.value, input2.value
+        # if input1.value.total_size() < input2.value.total_size():
+        #     v1, v2 = v2, v1
+
+        len1, len2 = v1.total_size(), v2.total_size()
+        assert len1 % len2==0, "Invalid Dimension"
+        # for i in range(0, len1//len2):
+        #     v3 = v1.get_vector(i*len2, len2) + v2.get_vector(0, len2)
+        #     output.value.assign_vector(v3, i*len2)
+        tmp_inter = 1 / input2.value[:]
+        operation.intermediate[0].assign_vector(tmp_inter) 
+        if input1.value.total_size() > input2.value.total_size():
+            @for_range_opt(len1//len2)
+            def _(i):
+                v3 = v1.get_vector(i*len2, len2) * tmp_inter
+                output.value.assign_vector(v3, i*len2)
+        else:
+            @for_range_opt(len2//len1)
+            def _(i):
+                v3 = v1.get_vector(0, len1) * operation.intermediate[0].get_vector(i*len1, len1)
+                output.value.assign_vector(v3, i*len1)  
+        op_id += 1# record the input and output of the op
     return output
 
 
@@ -277,10 +505,6 @@ def mat_mul(self, other):
     return 0
 
 
-def ops_add(self, other):
-    return 0
-
-
 def ops_add_constant(self, c):
     # backward
     @buildingblock(get_program().globalbuildingblock)
@@ -321,16 +545,6 @@ def ops_add_constant(self, c):
         # record the input and output of the op
         return output
 
-
-def ops_sub(self, other):
-
-    return 0
-
-# def compare_shape(shape1, shape2):
-#     if len(shape1) == len(shape2):
-
-#     else:
-#         return -1
 class Tensor():
     def __init__(self, value, value_type=None, name=None, req_grad=False, grad=None):
         assert isinstance(value, Array) or isinstance(value, MultiArray) or isinstance(value, list)
@@ -455,11 +669,11 @@ class Tensor():
                     new_grad = None
             else:
                 new_value = \
-                    SubMultiArray(self.sizes[1:], self.value.value_type,
+                    MultiArray(self.sizes[1:], self.value.value_type,
                                   self.value.address, index, debug=self.debug)
                 if self.req_grad:
                     new_grad = \
-                        SubMultiArray(self.sizes[1:], self.grad.value_type,
+                        MultiArray(self.sizes[1:], self.grad.value_type,
                                       self.grad.address, index, debug=self.debug)
                 else:
                     new_grad = None
@@ -468,19 +682,35 @@ class Tensor():
         res.check_indices = self.check_indices
         return res
 
-    # def __setitem__(self, index, other):
+    def __setitem__(self, index, other):
     #     """ Part assignment.
 
     #     :param index: public (regint/cint/int)
     #     :param other: container of matching size and type """
-    #     if isinstance(other, self.value_type):
-    #         if isinstance(index, slice) and index == slice(None):
-    #             return self.value.assign(other)
-    #         self.value[index].assgin(other)
+        if isinstance(other, self.value_type):
+            if isinstance(index, slice) and index == slice(None):
+                return self.value.assign(other)
+            self.value[index].assgin(other)
+            return 0
+        if isinstance(other, Array) or isinstance(other, MultiArray):
+            self.value[index] = other         
+            return 0
+        raise CompilerError("Tensor_setitem: unmatched type")  
 
-    def mul(self, other):
-        # todo
-        return self
+    @classmethod
+    def ones(sizes, value_type = sfix):
+        return 0
+
+    @classmethod
+    def zeros(sizes, value_type = sfix):
+        return 0
+
+    @classmethod
+    def eye(sizes, value_type = sfix):
+        return 0
+
+    def random_initialize(self):
+        return 0
     
     def mv(self, other,out=None):
         # mul of Two-dimension * Array,return an output,whose type is Tensor and value is Array
@@ -721,10 +951,6 @@ class Tensor():
             else:
                 raise CompilerError("Invalid Dimension: The multiplication does not match")
 
-    def div(self, other):
-        # todo
-        return self
-
     def __add__(self, other):
         if isinstance(other, (int, float)):
             return ops_add_constant(self, other)
@@ -742,12 +968,7 @@ class Tensor():
     def __truediv__(self, other):
         if isinstance(other, (int, float)):
             return ops_mul_constant(self, 1./other)
-        # todo
-        return self
-
-    # def __getitem__(self, index):
-    #     # it may be discarded
-    #     return Tensor(self.value[index])
+        return element_wise_div(self, other)
 
     def view(self, sizes):
         @buildingblock(get_program().globalbuildingblock)
@@ -1415,6 +1636,23 @@ class Tensor():
         # record the input and output of the op
         return output
 
+    def norm(self, dim=None, keepdim=False):
+        pass
+
+    def softmax(self, dim=None):
+        # todo shenhao
+        pass
+
+    def relu(self):
+        pass
+    
+    def sigmoid(self):
+        # todo shenhao
+        pass
+
+    def tanh(self):
+        pass
+    
     def size(self):
         return self.value.sizes
 
