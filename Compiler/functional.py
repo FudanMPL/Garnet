@@ -2,35 +2,30 @@ import Compiler.tensor as tensor
 from Compiler.tensor import *
 
 
-def relu(input, inplace=False):
+def relu(input, inplace=False): #todo
+    pass
+
+def gelu(input): #todo low priority
     pass
 
 
-def relu_(input):
+def sigmoid(input): #todo
     pass
 
 
-def gelu(input):
+def logsigmoid(input): #todo
     pass
 
 
-def sigmoid(input):
+def tanh(input): #todo
     pass
 
 
-def logsigmoid(input):
+def softmax(input, dim=None): #todo
     pass
 
 
-def tanh(input):
-    pass
-
-
-def softmax(input, dim=None):
-    pass
-
-
-def log_softmax(input, dim=None):
+def log_softmax(input, dim=None): #todo
     pass
 
 
@@ -54,11 +49,11 @@ def avg_pool2d(input, kernel_size, stride=None, padding=0,):
     pass
 
 
-def dropout(input, p=0.5, training=True, inplace=False):
+def dropout(input, p=0.5, training=True, inplace=False): #todo
     pass
 
 
-def normalize(input, p=2.0, dim=1, eps=1e-12, out=None):
+def normalize(input, p=2.0, dim=1, eps=1e-12, out=None): #todo
     pass
 
 
@@ -74,7 +69,7 @@ def cosine_similarity(x1, x2, dim=1, eps=1e-8):
     pass
 
 
-def pdist(input, p=2):
+def pdist(input, p=2): #todo
     pass
 
 
