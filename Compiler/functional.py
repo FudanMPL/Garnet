@@ -2,35 +2,31 @@ import Compiler.tensor as tensor
 from Compiler.tensor import *
 
 
-def relu(input, inplace=False):
+def relu(input, inplace=False):  # todo
     pass
 
 
-def relu_(input):
+def gelu(input):  # todo low priority
     pass
 
 
-def gelu(input):
+def sigmoid(input):  # todo
     pass
 
 
-def sigmoid(input):
+def logsigmoid(input):  # todo
     pass
 
 
-def logsigmoid(input):
+def tanh(input):  # todo
     pass
 
 
-def tanh(input):
+def softmax(input, dim=None):  # todo
     pass
 
 
-def softmax(input, dim=None):
-    pass
-
-
-def log_softmax(input, dim=None):
+def log_softmax(input, dim=None):  # todo
     pass
 
 
@@ -54,7 +50,7 @@ def avg_pool2d(input, kernel_size, stride=None, padding=0,):
     pass
 
 
-def dropout(input, p=0.5, training=True, inplace=False):
+def dropout(input, p=0.5, training=True, inplace=False):  # todo
     pass
 
 
@@ -67,27 +63,22 @@ def one_hot(input, num_classes=-1):
             [0, 0, 1, 0, 0, 0, 0, 0],
             [0, 0, 0, 1, 0, 0, 0, 0],
             [0, 0, 0, 0, 1, 0, 0, 0]])"""
-    # 
     assert input.value.value_type == cint, "input should be cint"
     x = input.value
     in_sizes = x.sizes
     b = reduce(operator.mul, in_sizes) if len(in_sizes) >= 2 else in_sizes[0]
     output = MultiArray([*in_sizes, num_classes], x.value_type)
-    
+
     output.view(-1, num_classes)
 
     for i in range(b):
         output[i][x.get_vector()[i]] = 1
-    
+
     output.view(*in_sizes, num_classes)
     return Tensor(output)
 
 
-def embedding(input, weight):
-    pass
-
-
-def normalize(input, p=2.0, dim=1, eps=1e-12, out=None):
+def normalize(input, p=2.0, dim=1, eps=1e-12, out=None):  # todo
     pass
 
 
@@ -103,7 +94,7 @@ def cosine_similarity(x1, x2, dim=1, eps=1e-8):
     pass
 
 
-def pdist(input, p=2):
+def pdist(input, p=2):  # todo
     pass
 
 
@@ -119,9 +110,8 @@ def nll_loss(input, target, weight=None):
     pass
 
 
-def mse_loss(input, target):
-    loss = (input - target).pow(2).mean()
-    return loss
+def mse_loss(input, target): # todo
+    pass
 
 
 def binary_cross_entropy(input, target, weight=None):
