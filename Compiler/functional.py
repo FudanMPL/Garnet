@@ -53,6 +53,24 @@ def dropout(input, p=0.5, training=True, inplace=False): #todo
     pass
 
 
+def one_hot(input, num_classes=-1):
+    # i think user should specify the num_classes, if not, we should calculate the max value in input.
+    """example:
+    one_hot(torch.tensor([0, 1, 2, 3, 4]), num_classes=8)
+    tensor([[1, 0, 0, 0, 0, 0, 0, 0],
+            [0, 1, 0, 0, 0, 0, 0, 0],
+            [0, 0, 1, 0, 0, 0, 0, 0],
+            [0, 0, 0, 1, 0, 0, 0, 0],
+            [0, 0, 0, 0, 1, 0, 0, 0]])"""
+    in_sizes = input.sizes
+    output = MultiArray([*in_sizes, num_classes], input.values.value_type) # TODO: check if value_type is cint or int
+    pass
+
+
+def embedding(input, weight):
+    pass
+
+
 def normalize(input, p=2.0, dim=1, eps=1e-12, out=None): #todo
     pass
 

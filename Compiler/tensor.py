@@ -113,7 +113,7 @@ def element_wise_add(self, other):
         # check shape
         assert check_boardcast_size(self.value.sizes, other.value.sizes), "Invalid Dimension"
         temp_matrix = MultiArray([other.value.total_size(), self.value.total_size()//other.value.total_size()], self.value.value_type)
-        if isinstance(self.value, MultiArray) or isinstance(other.value, Multiarray):
+        if isinstance(self.value, MultiArray) or isinstance(other.value, MultiArray):
             if self.value.total_size()>other.value.total_size():
                 new_value = MultiArray(self.value.sizes, self.value.value_type)
             else:
@@ -1640,12 +1640,14 @@ class Tensor():
         pass
 
     def softmax(self, dim=None):
+        # todo shenhao
         pass
 
     def relu(self):
         pass
     
     def sigmoid(self):
+        # todo shenhao
         pass
 
     def tanh(self):

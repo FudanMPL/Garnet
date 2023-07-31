@@ -1,0 +1,13 @@
+from tensor import Tensor, autograd_function
+import tensor
+program.options_from_args()
+
+@autograd_function
+def test_one_hot():
+    print_ln('test_one_hot')
+    length, num_classes = 4, 8
+    x = Array.create_from(regint.inc(length))
+    output = MultiArray([4, num_classes], sfix)
+    output.print_reveal_nested()
+
+test_one_hot()
