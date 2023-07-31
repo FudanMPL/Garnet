@@ -413,7 +413,7 @@ def test_getitem():
 #test_log()
 #test_pow(3)
 #test_sum()
-#test_mean()
+test_mean()
 #test_var()
 #test_std()
 
@@ -423,12 +423,3 @@ def test_getitem():
 #test_divc()
 
 #test_neg()
-
-x = MultiArray([3, 3, 3], sfix)
-for i in range(0,3):
-    for  j in range(0,3):
-        for  k in range(0,3):
-            x[i][j][k] = sfix(i*j+k)
-x.print_reveal_nested()
-x = x.mean(0)
-x.print_reveal_nested()

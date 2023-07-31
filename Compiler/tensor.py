@@ -1464,7 +1464,7 @@ class Tensor():
             op_id += 1
             return output
 
-    def mean(self):
+    def mean(self, dim=0):
         # backward
         @buildingblock(get_program().globalbuildingblock)
         def propagate(dl_doutputs, operation):
@@ -1477,7 +1477,14 @@ class Tensor():
         # forward
         global op_id
         if prepare:
-            new_value = Array(1, self.value.value_type)
+            if isinstance(self.value, Array):
+                new_sizes = 1
+            else:
+                new_sizes = self.sizes[:dim] +  self.sizes[dim+1:]
+            if len(new_sizes) <= 1:
+                new_value = Array(new_sizes[0], self.value_type)
+            else:
+                new_value = MultiArray(new_sizes, self.value_type)
             output = Tensor(new_value, req_grad=self.req_grad)
             if self.req_grad:
                 operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
@@ -1495,7 +1502,13 @@ class Tensor():
             input = tensors[inputs[0]]
             output = tensors[outputs[0]]
 
-            output.value[:] = sum(input.value[:]) / self.value.total_size()
+            # output.value[:] = sum(input.value[:]) / self.value.total_size()
+            index_groups = input.value.getIndexGroups_by_dim(dim)
+            for i in range(len(index_groups)):
+                summary = input.value.value_type(0)
+                for j in index_groups[i]:
+                    summary += input.value.get_vector_by_indices(*j)
+                output.value.assign_vector(summary, i)
 
             op_id += 1
         # record the input and output of the op

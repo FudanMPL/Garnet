@@ -6949,11 +6949,10 @@ class MultiArray(SubMultiArray):
         #         tmp_value+=self.get_vector_by_indices(*tmp_indices)
         #     res.assign_vector(tmp_value, i)
         new_sizes = self.sizes[:dim] +  self.sizes[dim+1:]
-        res = MultiArray(new_sizes, self.value_type)
-        new_num = res.total_size()
+        res = MultiArray(new_sizes, self.value_type) 
         
         index_groups = self.getIndexGroups_by_dim(dim)
-        for i in range(new_num):
+        for i in range(len(index_groups)):
             tmp_value = self.value_type(0)
             indices = index_groups[i]
             for j in indices:
