@@ -1,0 +1,17 @@
+from tensor import Tensor, autograd_function
+import functional as F
+import tensor
+program.options_from_args()
+
+@autograd_function
+def test_one_hot():
+    print_ln('test_one_hot')
+    length, num_classes = 4, 8
+    x = MultiArray([2, 3, 4], cint)
+    x.assign_all(1)
+    indice = Tensor(x)
+    output = F.one_hot(indice, num_classes)
+    output.value.print_reveal_nested()
+
+
+test_one_hot()

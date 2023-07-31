@@ -113,7 +113,7 @@ def element_wise_add(self, other):
         # check shape
         assert check_boardcast_size(self.value.sizes, other.value.sizes), "Invalid Dimension"
         temp_matrix = MultiArray([other.value.total_size(), self.value.total_size()//other.value.total_size()], self.value.value_type)
-        if isinstance(self.value, MultiArray) or isinstance(other.value, Multiarray):
+        if isinstance(self.value, MultiArray) or isinstance(other.value, MultiArray):
             if self.value.total_size()>other.value.total_size():
                 new_value = MultiArray(self.value.sizes, self.value.value_type)
             else:
@@ -545,16 +545,6 @@ def ops_add_constant(self, c):
         # record the input and output of the op
         return output
 
-
-def ops_sub(self, other):
-
-    return 0
-
-# def compare_shape(shape1, shape2):
-#     if len(shape1) == len(shape2):
-
-#     else:
-#         return -1
 class Tensor():
     def __init__(self, value, value_type=None, name=None, req_grad=False, grad=None):
         assert isinstance(value, Array) or isinstance(value, MultiArray) or isinstance(value, list)
@@ -679,11 +669,11 @@ class Tensor():
                     new_grad = None
             else:
                 new_value = \
-                    SubMultiArray(self.sizes[1:], self.value.value_type,
+                    MultiArray(self.sizes[1:], self.value.value_type,
                                   self.value.address, index, debug=self.debug)
                 if self.req_grad:
                     new_grad = \
-                        SubMultiArray(self.sizes[1:], self.grad.value_type,
+                        MultiArray(self.sizes[1:], self.grad.value_type,
                                       self.grad.address, index, debug=self.debug)
                 else:
                     new_grad = None
@@ -692,34 +682,35 @@ class Tensor():
         res.check_indices = self.check_indices
         return res
 
-    # def __setitem__(self, index, other):
+    def __setitem__(self, index, other):
     #     """ Part assignment.
 
     #     :param index: public (regint/cint/int)
     #     :param other: container of matching size and type """
-    #     if isinstance(other, self.value_type):
-    #         if isinstance(index, slice) and index == slice(None):
-    #             return self.value.assign(other)
-    #         self.value[index].assgin(other)
+        if isinstance(other, self.value_type):
+            if isinstance(index, slice) and index == slice(None):
+                return self.value.assign(other)
+            self.value[index].assgin(other)
+            return 0
+        if isinstance(other, Array) or isinstance(other, MultiArray):
+            self.value[index] = other         
+            return 0
+        raise CompilerError("Tensor_setitem: unmatched type")  
 
     @classmethod
-    def ones():
+    def ones(sizes, value_type = sfix):
         return 0
 
     @classmethod
-    def zeros():
+    def zeros(sizes, value_type = sfix):
         return 0
 
     @classmethod
-    def eye():
+    def eye(sizes, value_type = sfix):
         return 0
 
     def random_initialize(self):
         return 0
-
-    def mul(self, other):
-        # todo
-        return self
     
     def mv(self, other,out=None):
         # mul of Two-dimension * Array,return an output,whose type is Tensor and value is Array
@@ -960,10 +951,6 @@ class Tensor():
             else:
                 raise CompilerError("Invalid Dimension: The multiplication does not match")
 
-    def div(self, other):
-        # todo
-        return self
-
     def __add__(self, other):
         if isinstance(other, (int, float)):
             return ops_add_constant(self, other)
@@ -981,12 +968,7 @@ class Tensor():
     def __truediv__(self, other):
         if isinstance(other, (int, float)):
             return ops_mul_constant(self, 1./other)
-        # todo
         return element_wise_div(self, other)
-
-    # def __getitem__(self, index):
-    #     # it may be discarded
-    #     return Tensor(self.value[index])
 
     def view(self, sizes):
         @buildingblock(get_program().globalbuildingblock)
@@ -1658,12 +1640,14 @@ class Tensor():
         pass
 
     def softmax(self, dim=None):
+        # todo shenhao
         pass
 
     def relu(self):
         pass
     
     def sigmoid(self):
+        # todo shenhao
         pass
 
     def tanh(self):

@@ -5427,7 +5427,6 @@ class Array(_vectorizable):
         :param l: Python iterable or register vector
         :returns: :py:class:`Array` of appropriate type containing the contents
           of :py:obj:`l`
-
         """
         if isinstance(l, cls):
             res = l.same_shape()
