@@ -6786,6 +6786,7 @@ class MultiArray(SubMultiArray):
             raise CompilerError('Use Array')
         
     def __matmul__(self, other):
+        # TODO: should be depricated
         return self.matmul(other)
     
     def matmul(self, other):
@@ -6893,18 +6894,17 @@ class MultiArray(SubMultiArray):
         self.sizes = tuple(tmp_sizes)
     
     def swap_single_dim(self, src_dim, tgt_dim, res=None):
+        assert res is not None, "res must be specified"
         assert src_dim < len(self.sizes) and tgt_dim < len(self.sizes), "Invalid dim"
         src_dim, tgt_dim = len(self.sizes) - 1 if src_dim == -1 else src_dim, len(self.sizes) - 1 if tgt_dim == -1 else tgt_dim
         if src_dim == tgt_dim:
-            return self
+            res[:] = self[:]
+            return
         perm = list(range(len(self.sizes)))
         perm[src_dim] = tgt_dim
         perm[tgt_dim] = src_dim
-        if not res:
-            return self.permute(perm)
-        else:
-            self.permute_without_malloc(res, perm)
-            return res
+        self.permute_without_malloc(res, perm)
+        res.print_reveal_nested()
     
     def getIndexGroups_by_dim(self, dim):
         assert dim < len(self.sizes)
@@ -7166,13 +7166,9 @@ class MultiArray(SubMultiArray):
         self.view(*batch, n, m), other.view(*batch, m, p),
         return res
     
-    def sum(self, dim=-1, keepdims=False): # TODO: code review (Ozer)
+    def sum(self, dim=-1, keepdims=False, res=None): # TODO: code review (Ozer)
+        assert res is not None, "res must be specified"
         dim = len(self.sizes)-1 if dim == -1 else dim
-        new_sizes = self.sizes[:dim] + self.sizes[dim+1:]
-        if len(new_sizes) <= 1:
-            res = Array(new_sizes[0], self.value_type) if not keepdims else MultiArray([1,new_sizes[0]], self.value_type)
-        else:
-            res = MultiArray(new_sizes, self.value_type)
         index_groups = self.getIndexGroups_by_dim(dim)
         for i in range(len(index_groups)):
             summary = self.value_type(0)
@@ -7185,6 +7181,7 @@ class MultiArray(SubMultiArray):
         return res
 
     def element_wise_mul(self, other, res=None):
+        assert res is not None, "res must be specified"
         v1, v2 = self, other
         len1, len2 = v1.total_size(), v2.total_size()
         assert len1 % len2 == 0, "Invalid Dimension"
