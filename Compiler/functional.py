@@ -57,7 +57,7 @@ def sigmoid(input): #todo
         tensor.op_id_store[tensor.op_id] = operation_id
         tensor.op_id += 1
     else:
-        print(22222222)
+
         operation = tensor.gradient_operation[tensor.op_id_store[tensor.op_id]]
         input = tensor.tensors[operation.inputs[0]]
         output = tensor.tensors[operation.outputs[0]]

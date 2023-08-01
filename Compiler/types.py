@@ -6838,6 +6838,7 @@ class MultiArray(SubMultiArray):
             def _(j):
                 # get all the indices, like (0,0,0), (0,0,1), (0,0,2)...
                 tmp_indices = indices[:] + (j,)
+                print(tmp_indices)
                 # get value at that index
                 tmp = self.get_vector_by_indices(*tmp_indices)
                 new_indices = self.tuple_permute(tmp_indices, new_perm)
