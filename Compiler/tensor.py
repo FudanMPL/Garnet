@@ -1672,39 +1672,39 @@ class Tensor():
             dl_dy, = dl_doutputs
             output = tensors[operation.outputs[0]]
             if self.req_grad:
-                # dl_dx = softmax(x)*(dl_dy-(dl_dy*softmax(x)).sum(dim=-1))
-                tmp = MultiArray(output.value.sizes, output.value.value_type)
-                print_ln("dl_dy:")
-                dl_dy.print_reveal_nested()
-                print_ln("output:")
-                output.value.print_reveal_nested()
-                print(dl_dy.sizes, output.value.sizes)
-                if dl_dy.total_size() > output.value.total_size():
-                    res = MultiArray(dl_dy.sizes, self.value_type)
-                    res1 = MultiArray(dl_dy.sizes, self.value_type)
+                if isinstance(self.value, MultiArray):
+                    inter_mul1, inter_mul2, inter_sum = operation.intermediate[-3], operation.intermediate[-2], operation.intermediate[-1]
+                    # dl_dx = softmax(x)*(dl_dy-(dl_dy*softmax(x)).sum(dim=-1))
+                    dl_dy.element_wise_mul(output.value, inter_mul1)
+                    inter = dl_dy - inter_mul1
+                    inter.sum(dim, keepdims=True, res = inter_sum)
+                    output.value.element_wise_mul(inter_sum, inter_mul2)
+                    dl_d[operation.inputs[0]][:] += inter_mul2[:]
+                    inter.delete()
                 else:
-                    res = MultiArray(output.value.sizes, self.value_type)
-                    res1 = MultiArray(output.value.sizes, self.value_type)
-                dl_dy.element_wise_mul(output.value, res)
-                dl_dy.element_wise_mul(output.value, res1)
-                res1.print_reveal_nested()
-                tmp.assign_vector(dl_dy[:] - res1[:])
-                tmp.print_reveal_nested()
-                output.value.element_wise_mul(tmp.sum(dim, keepdims=True),res) # may create new multiarray to save sum
-                res.print_reveal_nested()
-                dl_d[operation.inputs[0]][:] = res[:]
-                tmp.delete(), res.delete()
+                    res = output.value[:]*(dl_dy[:]-sum(output.value[:]*dl_dy[:]))
+                    dl_d[operation.inputs[0]][:] += res
         # forward
         global op_id
         if prepare:
             if isinstance(self.value, Array):
                 output = Tensor(Array(self.sizes[0], self.value_type), req_grad=self.req_grad)
+                inter = []
             else:
                 output = Tensor(MultiArray(self.sizes, self.value_type), req_grad=self.req_grad)
+                new_sizes = [*self.sizes]
+                new_sizes[dim], new_sizes[-1] = new_sizes[-1], new_sizes[dim]
+                per_x, per_res = MultiArray(new_sizes, self.value_type), MultiArray(new_sizes, self.value_type)
+                inter = [per_x, per_res]
             if self.req_grad:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
+                if isinstance(self.value, MultiArray):
+                    new_sizes = self.sizes[:dim] + self.sizes[dim+1:]
+                    inter_mul1, inter_mul2, inter_sum = MultiArray(self.value.sizes, self.value.value_type), MultiArray(
+                        self.value.sizes, self.value.value_type), MultiArray(new_sizes, self.value.value_type)
+                    inter += [inter_mul1, inter_mul2, inter_sum]
+                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=inter)
             else:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate)
+                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate, intermediate=inter)
             gradient_operation.append(operation)
             operation_id = len(gradient_operation) - 1
 
@@ -1716,7 +1716,10 @@ class Tensor():
             outputs = operation.outputs
             input = tensors[inputs[0]]
             output = tensors[outputs[0]]
-            softmax_last_dim(input.value, dim, output.value)
+            if isinstance(self.value, Array):
+                softmax_last_dim(input.value, dim, output.value)
+            else:
+                softmax_last_dim(input.value, dim, output.value, [operation.intermediate[0],operation.intermediate[1]])
             op_id += 1
         # record the input and output of the op
         return output
@@ -1805,14 +1808,17 @@ def autograd_function(func):
     return wrapper
 
 
-def softmax_last_dim(x, dim=-1, res=None):
+def softmax_last_dim(x, dim=-1, res=None, inter=None):
+    assert res is not None, "res must be specified"
     if isinstance(x, Array):
-        res = Array(x.length, x.value_type) if res is None else res
+        # res = Array(x.length, x.value_type) if res is None else res
         return res.assign_vector(vec_softmax(x.get_vector()))
     else:
-        res = MultiArray(x.sizes, x.value_type) if res is None else res
-        per_x = x.swap_single_dim(dim, -1)
-        per_res = res.swap_single_dim(dim, -1)
+        assert inter is not None, "inter must be specified"
+        # res = MultiArray(x.sizes, x.value_type) if res is None else res
+        per_x, per_res = inter[0], inter[1]
+        x.swap_single_dim(dim, -1, per_x)
+        res.swap_single_dim(dim, -1, per_res)
         batch = per_x.sizes[:-1]
         n, m = reduce(operator.mul, batch) if len(batch) >= 2 else batch[0], per_x.sizes[-1]
         per_x.view(-1, per_x.sizes[-1]), per_res.view(-1, per_res.sizes[-1])

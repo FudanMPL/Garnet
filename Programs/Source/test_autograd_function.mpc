@@ -49,28 +49,33 @@ def test_forward_mul():
             for k in range(2):
                     x[i][j][k] = sfix(i+j+k)
     y = MultiArray([10,5,2], sfix)
+    res = MultiArray([10,5,2], sfix)
     y.assign_all(2)
     x.print_reveal_nested()
     y.print_reveal_nested()
-    res = x*2
+    res = x.element_wise_mul(y, res)
     res.print_reveal_nested()
 
 @autograd_function
 def test_softmax():
     print_ln('test_softmax')
-    x = MultiArray([10,5,2], sfix)
-    x.assign_all(1)
-    x.print_reveal_nested()
-    x = Tensor(x, req_grad=True)
-    res = x.softmax(dim=-1)
+    #x = MultiArray([10,2], sfix)
+    y = Array(10, sfix)
+    #x.assign_all(1)
+    y.assign_all(1)
+    #x.print_reveal_nested()
+    y.print_reveal_nested()
+    #x = Tensor(x, req_grad=True)
+    y = Tensor(y, req_grad=True)
+    res = y.softmax(dim=-1)
 
     tensor.train()
     tensor.reset_op_id()
 
-    res = x.softmax(dim=-1)
+    res = y.softmax(dim=-1)
     res.backward()
-    #res.value.print_reveal_nested()
-    x.grad.print_reveal_nested()
+    res.value.print_reveal_nested()
+    y.grad.print_reveal_nested()
 
 #test_one_hot()
 #test_forward_softmax_last_dim()
