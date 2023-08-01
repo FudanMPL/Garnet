@@ -500,7 +500,6 @@ def ops_mul_constant(self, c):
 
 
 def mat_mul(self, other):
-
     # record the input and output of the op
     return 0
 
@@ -1531,7 +1530,7 @@ class Tensor():
         global op_id
         if prepare:
             if isinstance(self.value, Array):
-                new_sizes = 1
+                new_sizes = (1,)
             else:
                 new_sizes = self.sizes[:dim] +  self.sizes[dim+1:]
             if len(new_sizes) <= 1:
@@ -1667,18 +1666,21 @@ class Tensor():
     def norm(self, dim=None, keepdim=False):
         pass
 
-    def softmax(self, dim=None):
+    def softmax(self, dim=-1):
         @buildingblock(get_program().globalbuildingblock)
         def propagate(dl_doutputs, operation):
             dl_dy, = dl_doutputs
-            input = tensors[operation.inputs[0]]
+            output = tensors[operation.outputs[0]]
             if self.req_grad:
                 # dl_dx = softmax(x)*(dl_dy-(dl_dy*softmax(x)).sum(dim=-1))
-                dl_d[operation.inputs[0]][:] += input.value[:] * (dl_dy[:] - (dl_dy[:] * input.value[:])).sum(dim=-1)
+                tmp = MultiArray(output.value.sizes, output.value.value_type)
+                tmp.assign_vector(dl_dy[:] - (dl_dy * output.value)[:])
+                res = output.value * tmp.sum(dim, keepdims=True) # may create new multiarray to save sum
+                dl_d[operation.inputs[0]][:] += res[:]
+                tmp.delete(), res.delete()
         # forward
         global op_id
         if prepare:
-            assert dim==-1, "dim must be the last dimension"
             if isinstance(self.value, Array):
                 output = Tensor(Array(self.sizes[0], self.value_type), req_grad=self.req_grad)
             else:
@@ -1698,8 +1700,7 @@ class Tensor():
             outputs = operation.outputs
             input = tensors[inputs[0]]
             output = tensors[outputs[0]]
-            
-            softmax_last_dim(input.value, output.value)
+            softmax_last_dim(input.value, dim, output.value)
             op_id += 1
         # record the input and output of the op
         return output
@@ -1788,22 +1789,24 @@ def autograd_function(func):
     return wrapper
 
 
-def softmax_last_dim(x, res=None):
+def softmax_last_dim(x, dim=-1, res=None):
     if isinstance(x, Array):
         res = Array(x.length, x.value_type) if res is None else res
         return res.assign_vector(vec_softmax(x.get_vector()))
     else:
-        batch = x.sizes[:-1]
-        n, m = reduce(operator.mul, batch) if len(batch) >= 2 else batch[0], x.shape[-1]
-        res = MultiArray([n, m], x.value_type) if res is None else res
-        
-        x.view(n, m), res.view(n, m)
+        res = MultiArray(x.sizes, x.value_type) if res is None else res
+        per_x = x.swap_single_dim(dim, -1)
+        per_res = res.swap_single_dim(dim, -1)
+        batch = per_x.sizes[:-1]
+        n, m = reduce(operator.mul, batch) if len(batch) >= 2 else batch[0], per_x.sizes[-1]
+        per_x.view(-1, per_x.sizes[-1]), per_res.view(-1, per_res.sizes[-1])
         index = regint(0)
         @for_range(n)
         def _(i):
-            res.assign_vector(vec_softmax(x.get_vector(i*m, m)), index)
+            per_res.assign_vector(vec_softmax(per_x.get_vector(i*m, m)), index)
             index.update(index+m)
-        x.view(*batch, m), res.view(*batch, m)
+        per_x.view(*batch, m), per_res.view(*batch, m)
+        per_res.swap_single_dim(dim, -1, res)
         return res
 
 def vec_softmax(x):

@@ -15,20 +15,64 @@ def test_one_hot():
     output.value.print_reveal_nested()
 
 @autograd_function
-def test_softmax():
+def test_forward_softmax_last_dim():
     print_ln('test_softmax')
     x = MultiArray([10, 2], sfix)
     for i in range(10):
         for j in range(2):
                 x[i][j] = sfix(1)
     x.print_reveal_nested()
-    res = softmax_last_dim(x)
+    res = softmax_last_dim(x, dim=0)
     res.print_reveal_nested()
     y = Array(5, sfix)
     y.assign_all(1)
     res = softmax_last_dim(y)
     res.print_reveal_nested()
-        
+
+@autograd_function
+def test_forward_sum():
+    print_ln('test_forward_sum')
+    x = MultiArray([10, 2], sfix)
+    for i in range(10):
+        for j in range(2):
+                x[i][j] = sfix(i+j)
+    x.print_reveal_nested()
+    res = x.sum(dim=0)
+    res.print_reveal_nested()
+
+@autograd_function
+def test_forward_mul():
+    print_ln('test_forward_mul')
+    x = MultiArray([10, 2], sfix)
+    for i in range(10):
+        for j in range(2):
+                x[i][j] = sfix(i+j)
+    y = MultiArray([10, 2], sfix)
+    y.assign_all(2)
+    x.print_reveal_nested()
+    y.print_reveal_nested()
+    res = x*2
+    res.print_reveal_nested()
+
+@autograd_function
+def test_softmax():
+    print_ln('test_softmax')
+    x = MultiArray([10,5,2], sfix)
+    x.assign_all(1)
+    x.print_reveal_nested()
+    x = Tensor(x, req_grad=True)
+    res = x.softmax(dim=-1)
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    res = x.softmax(dim=-1)
+    res.backward()
+    res.value.print_reveal_nested()
+    res.grad.print_reveal_nested()
 
 #test_one_hot()
+#test_forward_softmax_last_dim()
+#test_forward_sum()
+#test_forward_mul()
 test_softmax()

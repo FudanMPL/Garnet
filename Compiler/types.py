@@ -6464,7 +6464,6 @@ class SubMultiArray(_vectorizable):
         if indices is None:
             assert self.sizes[0] == other.sizes[0]
             indices = [regint.inc(i) for i in self.sizes[::-1] + other.sizes]
-        print(indices)
         assert len(indices[1]) == len(indices[2])
         indices = list(indices)
         indices[1] *= self.sizes[1]
@@ -6785,8 +6784,14 @@ class MultiArray(SubMultiArray):
 
     def __mul__(self, other):
         # todo element-wise multiplication
-        pass
-
+        assert isinstance(self, MultiArray), "First operand must be MultiArray"
+        if isinstance(other, (int, float)):
+            res = MultiArray(self.sizes, self.value_type)
+            res.assign_vector(self.get_vector() * other)
+            return res
+        else:
+            return self.element_wise_mul(other)
+        
     def __matmul__(self, other):
         return self.matmul(other)
     
@@ -6844,7 +6849,6 @@ class MultiArray(SubMultiArray):
                 tmp = self.get_vector_by_indices(*tmp_indices)
                 new_indices = self.tuple_permute(tmp_indices, new_perm)
                 # assign the value to the new indices
-                print(new_indices)
                 res.assign_vector_by_indices(tmp, *new_indices)
                 # res.print_reveal_nested()
             return
@@ -6893,7 +6897,21 @@ class MultiArray(SubMultiArray):
         if is_negative_one: 
             tmp_sizes[negative_index] = int(tmp)
         self.sizes = tuple(tmp_sizes)
-        
+    
+    def swap_single_dim(self, src_dim, tgt_dim, res=None):
+        assert src_dim < len(self.sizes) and tgt_dim < len(self.sizes), "Invalid dim"
+        src_dim, tgt_dim = len(self.sizes) - 1 if src_dim == -1 else src_dim, len(self.sizes) - 1 if tgt_dim == -1 else tgt_dim
+        if src_dim == tgt_dim:
+            return self
+        perm = list(range(len(self.sizes)))
+        perm[src_dim] = tgt_dim
+        perm[tgt_dim] = src_dim
+        if not res:
+            return self.permute(perm)
+        else:
+            self.permute_without_malloc(res, perm)
+            return res
+    
     def getIndexGroups_by_dim(self, dim):
         assert dim < len(self.sizes)
         new_sizes = self.sizes[:dim] +  self.sizes[dim+1:]
@@ -7154,14 +7172,11 @@ class MultiArray(SubMultiArray):
         self.view(*batch, n, m), other.view(*batch, m, p),
         return res
     
-    def sum(self, dim=-1, keepdims=True): # TODO: code review
+    def sum(self, dim=-1, keepdims=False): # TODO: code review (Ozer)
         dim = len(self.sizes)-1 if dim == -1 else dim
-        if isinstance(self, Array):
-            new_sizes = 1
-        else:
-            new_sizes = self.sizes[:dim] +  self.sizes[dim+1:]
+        new_sizes = self.sizes[:dim] + self.sizes[dim+1:]
         if len(new_sizes) <= 1:
-            res = Array(new_sizes[0], self.value_type)
+            res = Array(new_sizes[0], self.value_type) if not keepdims else MultiArray([1,new_sizes[0]], self.value_type)
         else:
             res = MultiArray(new_sizes, self.value_type)
         index_groups = self.getIndexGroups_by_dim(dim)
@@ -7171,8 +7186,25 @@ class MultiArray(SubMultiArray):
                 summary += self.get_vector_by_indices(*j)
             res.assign_vector(summary, i)
         if keepdims:
-            new_sizes = self.sizes[:dim] + (1,) +self.sizes[dim+1:]
-            res.view(*new_sizes)
+            keep_sizes = self.sizes[:dim] + (1,) +self.sizes[dim+1:]
+            res.view(*keep_sizes)
+        return res
+
+    def element_wise_mul(self, other, res=None):
+        v1, v2 = self, other
+        if self.total_size() > other.total_size():
+            res = MultiArray(self.sizes, self.value_type) if res is None else res
+        else:
+            res = MultiArray(other.sizes, self.value_type) if res is None else res
+            v1, v2 = v2, v1 
+
+        len1, len2 = v1.total_size(), v2.total_size()
+        assert len1 % len2 == 0, "Invalid Dimension"
+
+        @library.for_range_opt(len1//len2)
+        def _(i):
+            v3 = v1.get_vector(i*len2, len2) * v2.get_vector(0, len2)
+            res.assign_vector(v3, i*len2)
         return res
 
     def delete(self):
