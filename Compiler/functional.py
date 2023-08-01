@@ -66,7 +66,7 @@ def sigmoid(input): #todo
     prepare = tensor.get_prepare() 
     print(prepare)
     if prepare:
-        # assert isinstance(input,tensor.Tensor),"Invalid Input"
+        assert isinstance(input,tensor.Tensor),"Invalid Input"
         if isinstance(input.value,Array):
             new_value=Array(input.shape[0],input.value.value_type)
         else:
