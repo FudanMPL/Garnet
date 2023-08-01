@@ -6467,7 +6467,6 @@ class SubMultiArray(_vectorizable):
         if indices is None:
             assert self.sizes[0] == other.sizes[0]
             indices = [regint.inc(i) for i in self.sizes[::-1] + other.sizes]
-        print(indices)
         assert len(indices[1]) == len(indices[2])
         indices = list(indices)
         indices[1] *= self.sizes[1]
@@ -6785,11 +6784,7 @@ class MultiArray(SubMultiArray):
                                debug=debug)
         if len(sizes) < 2:
             raise CompilerError('Use Array')
-
-    def __mul__(self, other):
-        # todo element-wise multiplication
-        pass
-
+        
     def __matmul__(self, other):
         return self.matmul(other)
     
@@ -6847,7 +6842,6 @@ class MultiArray(SubMultiArray):
                 tmp = self.get_vector_by_indices(*tmp_indices)
                 new_indices = self.tuple_permute(tmp_indices, new_perm)
                 # assign the value to the new indices
-                print(new_indices)
                 res.assign_vector_by_indices(tmp, *new_indices)
                 # res.print_reveal_nested()
             return
@@ -6896,18 +6890,33 @@ class MultiArray(SubMultiArray):
         if is_negative_one: 
             tmp_sizes[negative_index] = int(tmp)
         self.sizes = tuple(tmp_sizes)
-        
-    def mean(self, dim):
+    
+    def swap_single_dim(self, src_dim, tgt_dim, res=None):
+        assert src_dim < len(self.sizes) and tgt_dim < len(self.sizes), "Invalid dim"
+        src_dim, tgt_dim = len(self.sizes) - 1 if src_dim == -1 else src_dim, len(self.sizes) - 1 if tgt_dim == -1 else tgt_dim
+        if src_dim == tgt_dim:
+            return self
+        perm = list(range(len(self.sizes)))
+        perm[src_dim] = tgt_dim
+        perm[tgt_dim] = src_dim
+        if not res:
+            return self.permute(perm)
+        else:
+            self.permute_without_malloc(res, perm)
+            return res
+    
+    def getIndexGroups_by_dim(self, dim):
         assert dim < len(self.sizes)
         new_sizes = self.sizes[:dim] +  self.sizes[dim+1:]
-        res = MultiArray(new_sizes, self.value_type)
-        new_num = res.total_size()
+        new_num = 1
+        for si in new_sizes:
+            new_num*=si
         pre_mul_prod = []
         tmp = 1
-        
         for i in range(len(new_sizes) - 1):
             tmp *= new_sizes[-i-1]
             pre_mul_prod.append(tmp)
+        index_groups = []
         for i in range(new_num):
             index = []
             mod = i
@@ -6916,15 +6925,53 @@ class MultiArray(SubMultiArray):
                 mod = mod % pre_mul_prod[j]
             index.append(mod)
             index = tuple(index)
-            tmp_value = self.value_type(0)
+            #tmp_value = self.value_type(0)
+            indices = []
             for j in range(self.sizes[dim]):
                 tmp_indices = index[:dim] +(j,) + index[dim:]
-                tmp_value+=self.get_vector_by_indices(*tmp_indices)
-            res.assign_vector_by_indices(tmp_value, *index)
-        div = MultiArray(new_sizes, cint)
-        div.assign_all(self.sizes[dim])
-        res /= div
-        div.delete()
+                indices.append(tmp_indices)
+                #tmp_value+=self.get_vector_by_indices(*tmp_indices)
+            index_groups.append(indices)
+            #res.assign_vector(tmp_value, i)
+        return index_groups
+    
+    def mean(self, dim):
+        # assert dim < len(self.sizes)
+        # new_sizes = self.sizes[:dim] +  self.sizes[dim+1:]
+        # res = MultiArray(new_sizes, self.value_type)
+        # new_num = res.total_size()
+        # pre_mul_prod = []
+        # tmp = 1
+        
+        # for i in range(len(new_sizes) - 1):
+        #     tmp *= new_sizes[-i-1]
+        #     pre_mul_prod.append(tmp)
+        # for i in range(new_num):
+        #     index = []
+        #     mod = i
+        #     for j in range(len(new_sizes)-1):
+        #         index.append(mod//pre_mul_prod[j])
+        #         mod = mod % pre_mul_prod[j]
+        #     index.append(mod)
+        #     index = tuple(index)
+        #     tmp_value = self.value_type(0)
+        #     for j in range(self.sizes[dim]):
+        #         tmp_indices = index[:dim] +(j,) + index[dim:]
+        #         tmp_value+=self.get_vector_by_indices(*tmp_indices)
+        #     res.assign_vector(tmp_value, i)
+        new_sizes = self.sizes[:dim] +  self.sizes[dim+1:]
+        res = MultiArray(new_sizes, self.value_type)
+        new_num = res.total_size()
+        
+        index_groups = self.getIndexGroups_by_dim(dim)
+        for i in range(new_num):
+            tmp_value = self.value_type(0)
+            indices = index_groups[i]
+            for j in indices:
+                tmp_value+=self.get_vector_by_indices(*j)
+            res.assign_vector(tmp_value, i)
+            
+        res /= cint(self.sizes[dim])
         return res
     
     def mv(self,other,res=None): # not MP-SPDZ,added by zhou
@@ -7117,7 +7164,37 @@ class MultiArray(SubMultiArray):
 
         self.view(*batch, n, m), other.view(*batch, m, p),
         return res
+    
+    def sum(self, dim=-1, keepdims=False): # TODO: code review (Ozer)
+        dim = len(self.sizes)-1 if dim == -1 else dim
+        new_sizes = self.sizes[:dim] + self.sizes[dim+1:]
+        if len(new_sizes) <= 1:
+            res = Array(new_sizes[0], self.value_type) if not keepdims else MultiArray([1,new_sizes[0]], self.value_type)
+        else:
+            res = MultiArray(new_sizes, self.value_type)
+        index_groups = self.getIndexGroups_by_dim(dim)
+        for i in range(len(index_groups)):
+            summary = self.value_type(0)
+            for j in index_groups[i]:
+                summary += self.get_vector_by_indices(*j)
+            res.assign_vector(summary, i)
+        if keepdims:
+            keep_sizes = self.sizes[:dim] + (1,) +self.sizes[dim+1:]
+            res.view(*keep_sizes)
+        return res
 
+    def element_wise_mul(self, other, res=None):
+        v1, v2 = self, other
+        len1, len2 = v1.total_size(), v2.total_size()
+        assert len1 % len2 == 0, "Invalid Dimension"
+        if self.total_size() < other.total_size():
+            v1, v2 = v2, v1
+        @library.for_range_opt(len1//len2)
+        def _(i):
+            v3 = v1.get_vector(i*len2, len2) * v2.get_vector(0, len2)
+            res.assign_vector(v3, i*len2)
+        library.break_point()
+        return res
 
     def delete(self):
         self.array.delete()

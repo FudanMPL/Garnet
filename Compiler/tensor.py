@@ -202,7 +202,7 @@ def element_wise_sub(self, other):
         # check shape
         assert check_boardcast_size(self.value.sizes, other.value.sizes), "Invalid Dimension"
         temp_matrix = MultiArray([other.value.total_size(), self.value.total_size()//other.value.total_size()], self.value.value_type)
-        if isinstance(self.value, MultiArray) or isinstance(other.value, Multiarray):
+        if isinstance(self.value, MultiArray) or isinstance(other.value, MultiArray):
             if self.value.total_size()>other.value.total_size():
                 new_value = MultiArray(self.value.sizes, self.value.value_type)
             else:
@@ -300,7 +300,7 @@ def element_wise_mul(self, other):
         assert check_boardcast_size(self.value.sizes, other.value.sizes), "Invalid Dimension"
         temp1_matrix = MultiArray([other.value.total_size(), self.value.total_size()//other.value.total_size()], self.value.value_type)
         temp2_matrix = MultiArray([other.value.total_size(), self.value.total_size()//other.value.total_size()], self.value.value_type)
-        if isinstance(self.value, MultiArray) or isinstance(other.value, Multiarray):
+        if isinstance(self.value, MultiArray) or isinstance(other.value, MultiArray):
             if self.value.total_size()>other.value.total_size():
                 new_value = MultiArray(self.value.sizes, self.value.value_type)
             else:
@@ -404,7 +404,7 @@ def element_wise_div(self, other):
         assert check_boardcast_size(self.value.sizes, other.value.sizes), "Invalid Dimension"
         temp1_matrix = MultiArray([other.value.total_size(), self.value.total_size()//other.value.total_size()], self.value.value_type)
         temp2_matrix = MultiArray([other.value.total_size(), self.value.total_size()//other.value.total_size()], self.value.value_type)
-        if isinstance(self.value, MultiArray) or isinstance(other.value, Multiarray):
+        if isinstance(self.value, MultiArray) or isinstance(other.value, MultiArray):
             if self.value.total_size()>other.value.total_size():
                 new_value = MultiArray(self.value.sizes, self.value.value_type)
             else:
@@ -501,7 +501,6 @@ def ops_mul_constant(self, c):
 
 
 def mat_mul(self, other):
-
     # record the input and output of the op
     return 0
 
@@ -1465,7 +1464,7 @@ class Tensor():
             op_id += 1
             return output
 
-    def mean(self):
+    def mean(self, dim=0):
         # backward
         @buildingblock(get_program().globalbuildingblock)
         def propagate(dl_doutputs, operation):
@@ -1478,7 +1477,14 @@ class Tensor():
         # forward
         global op_id
         if prepare:
-            new_value = Array(1, self.value.value_type)
+            if isinstance(self.value, Array):
+                new_sizes = 1
+            else:
+                new_sizes = self.sizes[:dim] +  self.sizes[dim+1:]
+            if len(new_sizes) <= 1:
+                new_value = Array(new_sizes[0], self.value_type)
+            else:
+                new_value = MultiArray(new_sizes, self.value_type)
             output = Tensor(new_value, req_grad=self.req_grad)
             if self.req_grad:
                 operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
@@ -1496,13 +1502,22 @@ class Tensor():
             input = tensors[inputs[0]]
             output = tensors[outputs[0]]
 
-            output.value[:] = sum(input.value[:]) / self.value.total_size()
-
+            # output.value[:] = sum(input.value[:]) / self.value.total_size()
+            index_groups = input.value.getIndexGroups_by_dim(dim)
+            for i in range(len(index_groups)):
+                summary = input.value.value_type(0)
+                for j in index_groups[i]:
+                    summary += input.value.get_vector_by_indices(*j)
+                output.value.assign_vector(summary, i)
+            if isinstance(input.value, Array):
+                output.value[:] /= cint(input.value.size)
+            else:
+                output.value[:] /= cint(input.value.sizes[dim])
             op_id += 1
         # record the input and output of the op
         return output
 
-    def sum(self):
+    def sum(self, dim=0):
         # backward
         @buildingblock(get_program().globalbuildingblock)
         def propagate(dl_doutputs, operation):
@@ -1515,7 +1530,14 @@ class Tensor():
         # forward
         global op_id
         if prepare:
-            new_value = Array(1, self.value.value_type)
+            if isinstance(self.value, Array):
+                new_sizes = (1,)
+            else:
+                new_sizes = self.sizes[:dim] +  self.sizes[dim+1:]
+            if len(new_sizes) <= 1:
+                new_value = Array(new_sizes[0], self.value_type)
+            else:
+                new_value = MultiArray(new_sizes, self.value_type)
             output = Tensor(new_value, req_grad=self.req_grad)
             if self.req_grad:
                 operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
@@ -1533,8 +1555,13 @@ class Tensor():
             input = tensors[inputs[0]]
             output = tensors[outputs[0]]
 
-            output.value[:] = sum(input.value[:])
-
+            # output.value[:] = sum(input.value[:]) 
+            index_groups = input.value.getIndexGroups_by_dim(dim)
+            for i in range(len(index_groups)):
+                summary = input.value.value_type(0)
+                for j in index_groups[i]:
+                    summary += input.value.get_vector_by_indices(*j)
+                output.value.assign_vector(summary, i)
             op_id += 1
         # record the input and output of the op
         return output
@@ -1640,15 +1667,65 @@ class Tensor():
     def norm(self, dim=None, keepdim=False):
         pass
 
-    def softmax(self, dim=None):
-        # todo shenhao
-        pass
+    def softmax(self, dim=-1):
+        @buildingblock(get_program().globalbuildingblock)
+        def propagate(dl_doutputs, operation):
+            dl_dy, = dl_doutputs
+            output = tensors[operation.outputs[0]]
+            if self.req_grad:
+                # dl_dx = softmax(x)*(dl_dy-(dl_dy*softmax(x)).sum(dim=-1))
+                tmp = MultiArray(output.value.sizes, output.value.value_type)
+                print_ln("dl_dy:")
+                dl_dy.print_reveal_nested()
+                print_ln("output:")
+                output.value.print_reveal_nested()
+                print(dl_dy.sizes, output.value.sizes)
+                if dl_dy.total_size() > output.value.total_size():
+                    res = MultiArray(dl_dy.sizes, self.value_type)
+                    res1 = MultiArray(dl_dy.sizes, self.value_type)
+                else:
+                    res = MultiArray(output.value.sizes, self.value_type)
+                    res1 = MultiArray(output.value.sizes, self.value_type)
+                dl_dy.element_wise_mul(output.value, res)
+                dl_dy.element_wise_mul(output.value, res1)
+                res1.print_reveal_nested()
+                tmp.assign_vector(dl_dy[:] - res1[:])
+                tmp.print_reveal_nested()
+                output.value.element_wise_mul(tmp.sum(dim, keepdims=True),res) # may create new multiarray to save sum
+                res.print_reveal_nested()
+                dl_d[operation.inputs[0]][:] = res[:]
+                tmp.delete(), res.delete()
+        # forward
+        global op_id
+        if prepare:
+            if isinstance(self.value, Array):
+                output = Tensor(Array(self.sizes[0], self.value_type), req_grad=self.req_grad)
+            else:
+                output = Tensor(MultiArray(self.sizes, self.value_type), req_grad=self.req_grad)
+            if self.req_grad:
+                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
+            else:
+                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate)
+            gradient_operation.append(operation)
+            operation_id = len(gradient_operation) - 1
+
+            op_id_store[op_id] = operation_id
+            op_id += 1
+        else:
+            operation = gradient_operation[op_id_store[op_id]]
+            inputs = operation.inputs
+            outputs = operation.outputs
+            input = tensors[inputs[0]]
+            output = tensors[outputs[0]]
+            softmax_last_dim(input.value, dim, output.value)
+            op_id += 1
+        # record the input and output of the op
+        return output
 
     def relu(self):
         pass
     
     def sigmoid(self):
-        # todo shenhao
         pass
 
     def tanh(self):
@@ -1734,6 +1811,30 @@ def autograd_function(func):
     copy_doc(wrapper, func)
     return wrapper
 
+
+def softmax_last_dim(x, dim=-1, res=None):
+    if isinstance(x, Array):
+        res = Array(x.length, x.value_type) if res is None else res
+        return res.assign_vector(vec_softmax(x.get_vector()))
+    else:
+        res = MultiArray(x.sizes, x.value_type) if res is None else res
+        per_x = x.swap_single_dim(dim, -1)
+        per_res = res.swap_single_dim(dim, -1)
+        batch = per_x.sizes[:-1]
+        n, m = reduce(operator.mul, batch) if len(batch) >= 2 else batch[0], per_x.sizes[-1]
+        per_x.view(-1, per_x.sizes[-1]), per_res.view(-1, per_res.sizes[-1])
+        index = regint(0)
+        @for_range(n)
+        def _(i):
+            per_res.assign_vector(vec_softmax(per_x.get_vector(i*m, m)), index)
+            index.update(index+m)
+        per_x.view(*batch, m), per_res.view(*batch, m)
+        per_res.swap_single_dim(dim, -1, res)
+        return res
+
+def vec_softmax(x):
+    e_x = mpc_math.exp_fx(x - util.max(x))
+    return e_x / sum(e_x)
 
 def broadcast(*args: Tensor) -> List[Tensor]:
     """
