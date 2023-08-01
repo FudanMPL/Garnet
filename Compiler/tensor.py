@@ -1779,13 +1779,10 @@ def fresh_name():
 
 def train():
     global prepare
-    print(232323)
     prepare = False
-    print(prepare)
 
 def get_prepare():
     global prepare
-    print(prepare)
     return prepare
 
 def untrain():
