@@ -6781,16 +6781,6 @@ class MultiArray(SubMultiArray):
                                debug=debug)
         if len(sizes) < 2:
             raise CompilerError('Use Array')
-
-    def __mul__(self, other):
-        # todo element-wise multiplication
-        assert isinstance(self, MultiArray), "First operand must be MultiArray"
-        if isinstance(other, (int, float)):
-            res = MultiArray(self.sizes, self.value_type)
-            res.assign_vector(self.get_vector() * other)
-            return res
-        else:
-            return self.element_wise_mul(other)
         
     def __matmul__(self, other):
         return self.matmul(other)
@@ -7192,19 +7182,15 @@ class MultiArray(SubMultiArray):
 
     def element_wise_mul(self, other, res=None):
         v1, v2 = self, other
-        if self.total_size() > other.total_size():
-            res = MultiArray(self.sizes, self.value_type) if res is None else res
-        else:
-            res = MultiArray(other.sizes, self.value_type) if res is None else res
-            v1, v2 = v2, v1 
-
         len1, len2 = v1.total_size(), v2.total_size()
         assert len1 % len2 == 0, "Invalid Dimension"
-
+        if self.total_size() < other.total_size():
+            v1, v2 = v2, v1
         @library.for_range_opt(len1//len2)
         def _(i):
             v3 = v1.get_vector(i*len2, len2) * v2.get_vector(0, len2)
             res.assign_vector(v3, i*len2)
+        library.break_point()
         return res
 
     def delete(self):

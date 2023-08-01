@@ -1679,11 +1679,20 @@ class Tensor():
                 print_ln("output:")
                 output.value.print_reveal_nested()
                 print(dl_dy.sizes, output.value.sizes)
-                (dl_dy.element_wise_mul(output.value)).print_reveal_nested()
-                tmp.assign_vector(dl_dy[:] - (dl_dy * output.value)[:])
-                res = output.value * tmp.sum(dim, keepdims=True) # may create new multiarray to save sum
+                if dl_dy.total_size() > output.value.total_size():
+                    res = MultiArray(dl_dy.sizes, self.value_type)
+                    res1 = MultiArray(dl_dy.sizes, self.value_type)
+                else:
+                    res = MultiArray(output.value.sizes, self.value_type)
+                    res1 = MultiArray(output.value.sizes, self.value_type)
+                dl_dy.element_wise_mul(output.value, res)
+                dl_dy.element_wise_mul(output.value, res1)
+                res1.print_reveal_nested()
+                tmp.assign_vector(dl_dy[:] - res1[:])
+                tmp.print_reveal_nested()
+                output.value.element_wise_mul(tmp.sum(dim, keepdims=True),res) # may create new multiarray to save sum
                 res.print_reveal_nested()
-                dl_d[operation.inputs[0]][:] += res[:]
+                dl_d[operation.inputs[0]][:] = res[:]
                 tmp.delete(), res.delete()
         # forward
         global op_id

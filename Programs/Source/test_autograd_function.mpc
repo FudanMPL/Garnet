@@ -70,7 +70,7 @@ def test_softmax():
     res = x.softmax(dim=-1)
     res.backward()
     #res.value.print_reveal_nested()
-    #res.grad.print_reveal_nested()
+    x.grad.print_reveal_nested()
 
 #test_one_hot()
 #test_forward_softmax_last_dim()
