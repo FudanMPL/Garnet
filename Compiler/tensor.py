@@ -10,7 +10,7 @@ from Compiler.types import _unreduced_squant
 from Compiler.library import *
 from Compiler.util import is_zero, tree_reduce
 from Compiler.comparison import CarryOutRawLE
-from Compiler.GC.types import sbitint
+# from Compiler.GC.types import sbitintis_train
 from functools import reduce
 from typing import List, NamedTuple, Callable, Dict, Optional, Union, Tuple, Any
 
@@ -36,6 +36,7 @@ dl_d = {}
 # the flag indicates whether initialize gradients for tensors
 is_train = True
 # the flag indicated that we are in prepration phase, i.e. initialize inputs and outputs for each operators
+global prepare
 prepare = True
 # op_id is used for extracting the references of inputs and outputs of one opertator
 op_id = 0
@@ -575,6 +576,9 @@ class Tensor():
                 self.grad = None
         tensors[self.name] = self
 
+    def numel(self):
+        return self.value.length
+
     def set_req_grad(self, req_grad):
         self.req_grad = req_grad
 
@@ -586,9 +590,6 @@ class Tensor():
     def dim(self):
         return len(self.value.sizes)
     
-    @property
-    def length(self):
-        return self.value.length
     
     def __repr__(self):
         return self.value
@@ -1783,6 +1784,9 @@ def train():
     global prepare
     prepare = False
 
+def get_prepare():
+    global prepare
+    return prepare
 
 def untrain():
     global prepare
