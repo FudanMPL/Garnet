@@ -121,7 +121,7 @@ def approx_sigmoid(x, n=3):
         select = [le[i + 1] - le[i] for i in range(5)]
         outputs = [cfix(10 ** -4),
                    0.02776 * x + 0.145,
-                   0.17 * x + 0.5,
+                     * x + 0.5,
                    0.02776 * x + 0.85498,
                    cfix(1 - 10 ** -4)]
         return sum(a * b for a, b in zip(select, outputs))

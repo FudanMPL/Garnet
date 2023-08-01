@@ -1,4 +1,4 @@
-from tensor import get_opid, Tensor, get_prepare, Operation, tensors, gradient_operation, op_id_store
+from tensor import get_opid, Tensor, get_prepare, Operation, tensors, gradient_operation, op_id_store,fake_propagate, set_opid,dl_d
 from glob import glob
 import math
 import re
@@ -14,34 +14,22 @@ from Compiler.comparison import CarryOutRawLE
 # from Compiler.GC.types import sbitintis_train
 from functools import reduce
 from typing import List, NamedTuple, Callable, Dict, Optional, Union, Tuple, Any
-
+approx = False
 def relu(input, inplace=False):  # todo
-    pass
-
-
-def gelu(input):  # todo low priority
-    pass
-
-
-def sigmoid(input): #todo
     op_id = get_opid()
     global tensors
     global gradient_operation
     global op_id_store
+    global dl_d
     @buildingblock(get_program().globalbuildingblock)
     def propagate(dl_doutputs, operation):
         dl_dy, = dl_doutputs
-        input = tensors[operation.inputs[0]]
-        output = tensors[operation.outputs[0]]
-        if input.req_grad:
-            dl_dy[:]+=(1/(1+mpc_math.exp_fx(input.value[:])))
-            # dl_dy.mul_trans_add_to(input2.value,dl_d[operation.inputs[0]],n_threads=10 if input1.shape[0]>=1000 else 1)
-            # C=AB partial derivate of dA=dC*B^T+dA
-    # train()
-
+        input_ = tensors[operation.inputs[0]]
+        output_ = tensors[operation.outputs[0]]
+        if input_.req_grad:
+            dl_d[input_.name]+=(input_.value[:]>=0)*dl_dy[:]
+            
     prepare = get_prepare()
-
-    print(prepare)
     if prepare:
         assert isinstance(input, Tensor),"Invalid Input"
         if isinstance(input.value,Array):
@@ -56,22 +44,185 @@ def sigmoid(input): #todo
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
-        op_id += 1
+        set_opid(op_id+1)
     else:
         operation = gradient_operation[op_id_store[op_id]]
         input = tensors[operation.inputs[0]]
         output = tensors[operation.outputs[0]]
-        output.value[:]=1/(1+mpc_math.exp_fx(input.value[:]))
-        op_id += 1  # record the input and output of the op
+        output.value[:] = (0 < input.value[:]).if_else(input.value[:], 0) 
+        set_opid(op_id+1)  # record the input and output of the op
+    return output
+
+@vectorize
+def approx_sigmoid(x, n=3):
+    """ Piece-wise approximate sigmoid as in
+    `Hong et al. <https://arxiv.org/abs/2002.04344>`_
+
+    :param x: input
+    :param n: number of pieces, 3 (default) or 5
+    """
+    if n == 5:
+        cuts = [-5, -2.5, 2.5, 5]
+        le = [0] + [x <= cut for cut in cuts] + [1]
+        select = [le[i + 1] - le[i] for i in range(5)]
+        outputs = [cfix(10 ** -4),
+                   0.02776 * x + 0.145,
+                     * x + 0.5,
+                   0.02776 * x + 0.85498,
+                   cfix(1 - 10 ** -4)]
+        return sum(a * b for a, b in zip(select, outputs))
+    else:
+        a = x < -0.5
+        b = x > 0.5
+        return a.if_else(0, b.if_else(1, 0.5 + x))
+
+def gelu(input):  # todo low priority
+    pass
+
+def log_e(x):
+    return mpc_math.log_fx(x, math.e)
+
+use_mux = False
+def exp(x):
+    if use_mux:
+        return mpc_math.mux_exp(math.e, x)
+    else:
+        return mpc_math.pow_fx(math.e, x)
+
+def get_limit(x):
+    exp_limit = 2 ** (x.k - x.f - 1)
+    return math.log(exp_limit)
+
+def sanitize(x, raw, lower, upper):
+    limit = get_limit(x)
+    res = (x > limit).if_else(upper, raw)
+    return (x < -limit).if_else(lower, res)
+
+def sigmoid_from_e_x(x,e_x):
+    return sanitize(x, 1 / (1 + e_x), 0, 1)
+
+def sigmoid(input): #todo
+    op_id = get_opid()
+    global tensors
+    global gradient_operation
+    global op_id_store
+    global dl_d
+    @buildingblock(get_program().globalbuildingblock)
+    def propagate(dl_doutputs, operation):
+        dl_dy, = dl_doutputs
+        input_ = tensors[operation.inputs[0]]
+        output_ = tensors[operation.outputs[0]]
+        if input_.req_grad:
+            dl_d[input_.name]+=output_.value[:]*(1-output_.value[:])*dl_dy[:]
+            
+    prepare = get_prepare()
+    if prepare:
+        assert isinstance(input, Tensor),"Invalid Input"
+        if isinstance(input.value,Array):
+            new_value=Array(input.shape[0],input.value.value_type)
+        else:
+            new_value=MultiArray(list(input.shape) ,input.value.value_type)
+        output = Tensor(new_value, req_grad=input.req_grad)
+        if input.req_grad:
+            operation = Operation(inputs=[input.name], outputs=[output.name], propagate=propagate)
+        else:
+            operation = Operation(inputs=[input.name], outputs=[output.name], propagate=fake_propagate)
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation) - 1
+        op_id_store[op_id] = operation_id
+        set_opid(op_id+1)
+    else:
+        operation = gradient_operation[op_id_store[op_id]]
+        input = tensors[operation.inputs[0]]
+        output = tensors[operation.outputs[0]]
+        if approx:
+            output.value[:]=approx_sigmoid(input.value[:])
+        else:
+            output.value[:] =  sigmoid_from_e_x(input.value[:],exp(-input.value[:]))
+        set_opid(op_id+1)  # record the input and output of the op
     return output
 
 
 def logsigmoid(input):  # todo
-    pass
+    op_id = get_opid()
+    global tensors
+    global gradient_operation
+    global op_id_store
+    global dl_d
+    @buildingblock(get_program().globalbuildingblock)
+    def propagate(dl_doutputs, operation):
+        dl_dy, = dl_doutputs
+        input_ = tensors[operation.inputs[0]]
+        output_ = tensors[operation.outputs[0]]
+        if input_.req_grad:
+            dl_d[input_.name]+=1/(output_.value[:]*(1-output_.value[:]))*dl_dy[:]
+            
+    prepare = get_prepare()
+    if prepare:
+        assert isinstance(input, Tensor),"Invalid Input"
+        if isinstance(input.value,Array):
+            new_value=Array(input.shape[0],input.value.value_type)
+        else:
+            new_value=MultiArray(list(input.shape) ,input.value.value_type)
+        output = Tensor(new_value, req_grad=input.req_grad)
+        if input.req_grad:
+            operation = Operation(inputs=[input.name], outputs=[output.name], propagate=propagate)
+        else:
+            operation = Operation(inputs=[input.name], outputs=[output.name], propagate=fake_propagate)
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation) - 1
+        op_id_store[op_id] = operation_id
+        set_opid(op_id+1)
+    else:
+        operation = gradient_operation[op_id_store[op_id]]
+        input = tensors[operation.inputs[0]]
+        output = tensors[operation.outputs[0]]
+        output.value[:] =  log_e(sigmoid_from_e_x(input.value[:],exp(-input.value[:])))
+        set_opid(op_id+1)  # record the input and output of the op
+    return output
 
 
 def tanh(input):  # todo
-    pass
+    op_id = get_opid()
+    global tensors
+    global gradient_operation
+    global op_id_store
+    global dl_d
+    @buildingblock(get_program().globalbuildingblock)
+    def propagate(dl_doutputs, operation):
+        dl_dy, = dl_doutputs
+        input_ = tensors[operation.inputs[0]]
+        output_ = tensors[operation.outputs[0]]
+        if input_.req_grad:
+            dl_d[input_.name]+=(1-output.value[:]*output.value[:])*dl_dy[:]
+            
+    prepare = get_prepare()
+    if prepare:
+        assert isinstance(input, Tensor),"Invalid Input"
+        if isinstance(input.value,Array):
+            new_value=Array(input.shape[0],input.value.value_type)
+        else:
+            new_value=MultiArray(list(input.shape) ,input.value.value_type)
+        output = Tensor(new_value, req_grad=input.req_grad)
+        if input.req_grad:
+            operation = Operation(inputs=[input.name], outputs=[output.name], propagate=propagate)
+        else:
+            operation = Operation(inputs=[input.name], outputs=[output.name], propagate=fake_propagate)
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation) - 1
+        op_id_store[op_id] = operation_id
+        set_opid(op_id+1)
+    else:
+        operation = gradient_operation[op_id_store[op_id]]
+        input = tensors[operation.inputs[0]]
+        output = tensors[operation.outputs[0]]
+        x=input.value[:]
+        ex=exp(x)
+        e_x=exp(-x)
+        output.value[:] = sanitize(x, (ex-e_x)/(ex+e_x), -1, 1)    
+        set_opid(op_id+1)  # record the input and output of the op
+    return output
+    
 
 
 def softmax(input, dim=None):  # todo
