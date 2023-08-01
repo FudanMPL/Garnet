@@ -1678,7 +1678,7 @@ class Tensor():
                     # dl_dx = softmax(x)*(dl_dy-(dl_dy*softmax(x)).sum(dim=-1))
                     dl_dy.element_wise_mul(output.value, inter_mul1)
                     inter = dl_dy - inter_mul1
-                    inter.sum(dim, keepdims=True, res = inter_sum)
+                    inter.sum(dim, res=inter_sum, keepdims=True)
                     output.value.element_wise_mul(inter_sum, inter_mul2)
                     dl_d[operation.inputs[0]][:] += inter_mul2[:]
                     inter.delete()
@@ -1700,6 +1700,7 @@ class Tensor():
             if self.req_grad:
                 if isinstance(self.value, MultiArray):
                     new_sizes = self.sizes[:dim] + self.sizes[dim+1:]
+                    new_sizes = new_sizes + (1,) if len(new_sizes) == 1 else new_sizes
                     inter_mul1, inter_mul2, inter_sum = MultiArray(self.value.sizes, self.value.value_type), MultiArray(
                         self.value.sizes, self.value.value_type), MultiArray(new_sizes, self.value.value_type)
                     inter += [inter_mul1, inter_mul2, inter_sum]
@@ -1827,7 +1828,7 @@ def softmax_last_dim(x, dim=-1, res=None, inter=None):
         n, m = reduce(operator.mul, batch) if len(batch) >= 2 else batch[0], per_x.sizes[-1]
         per_x.view(-1, per_x.sizes[-1]), per_res.view(-1, per_res.sizes[-1])
         index = regint(0)
-        @for_range(n)
+        @for_range_opt(n, n)
         def _(i):
             per_res.assign_vector(vec_softmax(per_x.get_vector(i*m, m)), index)
             index.update(index+m)
