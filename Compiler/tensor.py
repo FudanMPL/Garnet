@@ -1674,8 +1674,15 @@ class Tensor():
             if self.req_grad:
                 # dl_dx = softmax(x)*(dl_dy-(dl_dy*softmax(x)).sum(dim=-1))
                 tmp = MultiArray(output.value.sizes, output.value.value_type)
+                print_ln("dl_dy:")
+                dl_dy.print_reveal_nested()
+                print_ln("output:")
+                output.value.print_reveal_nested()
+                print(dl_dy.sizes, output.value.sizes)
+                (dl_dy.element_wise_mul(output.value)).print_reveal_nested()
                 tmp.assign_vector(dl_dy[:] - (dl_dy * output.value)[:])
                 res = output.value * tmp.sum(dim, keepdims=True) # may create new multiarray to save sum
+                res.print_reveal_nested()
                 dl_d[operation.inputs[0]][:] += res[:]
                 tmp.delete(), res.delete()
         # forward

@@ -43,11 +43,12 @@ def test_forward_sum():
 @autograd_function
 def test_forward_mul():
     print_ln('test_forward_mul')
-    x = MultiArray([10, 2], sfix)
+    x = MultiArray([10,5,2], sfix)
     for i in range(10):
-        for j in range(2):
-                x[i][j] = sfix(i+j)
-    y = MultiArray([10, 2], sfix)
+        for j in range(5):
+            for k in range(2):
+                    x[i][j][k] = sfix(i+j+k)
+    y = MultiArray([10,5,2], sfix)
     y.assign_all(2)
     x.print_reveal_nested()
     y.print_reveal_nested()
@@ -68,8 +69,8 @@ def test_softmax():
 
     res = x.softmax(dim=-1)
     res.backward()
-    res.value.print_reveal_nested()
-    res.grad.print_reveal_nested()
+    #res.value.print_reveal_nested()
+    #res.grad.print_reveal_nested()
 
 #test_one_hot()
 #test_forward_softmax_last_dim()
