@@ -1,5 +1,19 @@
 import Compiler.tensor as tensor
-from Compiler.tensor import *
+from glob import glob
+import math
+import re
+import numpy as np
+# from turtle import forward, shape
+from itertools import zip_longest
+from Compiler import mpc_math, util
+from Compiler.types import *
+from Compiler.types import _unreduced_squant
+from Compiler.library import *
+from Compiler.util import is_zero, tree_reduce
+from Compiler.comparison import CarryOutRawLE
+# from Compiler.GC.types import sbitintis_train
+from functools import reduce
+from typing import List, NamedTuple, Callable, Dict, Optional, Union, Tuple, Any
 
 
 def relu(input, inplace=False): #todo
@@ -10,7 +24,45 @@ def gelu(input): #todo low priority
 
 
 def sigmoid(input): #todo
-    pass
+    @buildingblock(get_program().globalbuildingblock)
+    def propagate(dl_doutputs, operation):
+        dl_dy, = dl_doutputs
+        input = tensor.tensors[operation.inputs[0]]
+        output = tensor.tensors[operation.outputs[0]]
+        if input.req_grad:
+            dl_dy[:]+=(1/(1+mpc_math.exp_fx(input.value[:])))
+            # dl_dy.mul_trans_add_to(input2.value,dl_d[operation.inputs[0]],n_threads=10 if input1.shape[0]>=1000 else 1)
+            # C=AB partial derivate of dA=dC*B^T+dA
+    # tensor.train()
+    
+    prepare = tensor.get_prepare()
+    print(prepare)
+    print(type(input))
+    
+    if prepare:
+        print(type(input.value))
+        assert isinstance(input.value, MultiArray),"Invalid Input"
+        if isinstance(input.value,Array):
+            new_value=Array(input.shape[0],input.value.value_type)
+        else:
+            new_value=MultiArray(list(input.shape) ,input.value.value_type)
+        output = tensor.Tensor(new_value, req_grad=input.req_grad)
+        if input.req_grad:
+            operation = tensor.Operation(inputs=[input.name], outputs=[output.name], propagate=propagate)
+        else:
+            operation = tensor.Operation(inputs=[input.name], outputs=[output.name], propagate=fake_propagate)
+        tensor.gradient_operation.append(operation)
+        operation_id = len(tensor.gradient_operation) - 1
+        tensor.op_id_store[tensor.op_id] = operation_id
+        tensor.op_id += 1
+    else:
+        print(22222222)
+        operation = tensor.gradient_operation[tensor.op_id_store[tensor.op_id]]
+        input = tensor.tensors[operation.inputs[0]]
+        output = tensor.tensors[operation.outputs[0]]
+        output.value[:]=1/(1+mpc_math.exp_fx(input.value[:]))
+        tensor.op_id += 1  # record the input and output of the op
+    return output
 
 
 def logsigmoid(input): #todo

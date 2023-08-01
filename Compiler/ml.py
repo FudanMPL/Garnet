@@ -95,8 +95,6 @@ def sigmoid(x):
     """ Sigmoid function.
 
     :param x: sfix """
-
-
     return sigmoid_from_e_x(x, exp(-x))
 
 def sigmoid_from_e_x(x, e_x):
