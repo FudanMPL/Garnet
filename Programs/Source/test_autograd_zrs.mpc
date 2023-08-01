@@ -23,7 +23,7 @@ for i in range(0,ROW):
     for  j in range(0,COL):
         for k in range(0,HEIGHT):
             xMultiArray_3[i][j][k] = sfix(i-j+k)
-[sint(i) for i in range(10)]
+            
 
 def test_single_operation(func,Value):
     Value.print_reveal_nested()
@@ -418,10 +418,11 @@ def test_sigmoid():
     output=F.sigmoid(input)
     input.value.print_reveal_nested()
     output.value.print_reveal_nested()
+    input.grad.print_reveal_nested()
 
 
 
-#test_sigmoid()
+test_sigmoid()
 #test_mv_3Dim_MultiArray_Array()
 #test_mv_MultiArray_Array()
 #test_dot()
@@ -472,7 +473,7 @@ xMultiArray_3.mv(Array2,res)
 xMultiArray_3.print_reveal_nested()
 Array2.print_reveal_nested()
 res.print_reveal_nested()
-'''
+
 
 
 Array2=Array(HEIGHT,sfix)
@@ -496,3 +497,4 @@ for i in range(0,COL):
     for  j in range(0,HEIGHT):
         xMultiArray_2_1[i][j] = sfix(i+j)
 
+'''

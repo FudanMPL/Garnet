@@ -23,6 +23,37 @@ def relu(input, inplace=False):  # todo
 def gelu(input):  # todo low priority
     pass
 
+def log_e(x):
+    return mpc_math.log_fx(x, math.e)
+
+use_mux = False
+def exp(x):
+    if use_mux:
+        return mpc_math.mux_exp(math.e, x)
+    else:
+        return mpc_math.pow_fx(math.e, x)
+
+def get_limit(x):
+    exp_limit = 2 ** (x.k - x.f - 1)
+    return math.log(exp_limit)
+
+def sanitize(x, raw, lower, upper):
+    limit = get_limit(x)
+    res = (x > limit).if_else(upper, raw)
+    return (x < -limit).if_else(lower, res)
+
+def sigmoid_from_e_x(x,e_x):
+    return sanitize(x, 1 / (1 + e_x), 0, 1)
+
+def sigmoid_(x):
+    return sigmoid_from_e_x(x,exp(-x))
+
+def sigmoid_prime(x):
+    """ Sigmoid derivative.
+
+    :param x: sfix """
+    sx = sigmoid_(x)
+    return sx * (1 - sx)
 
 def sigmoid(input): #todo
     @buildingblock(get_program().globalbuildingblock)
@@ -31,18 +62,11 @@ def sigmoid(input): #todo
         input = tensor.tensors[operation.inputs[0]]
         output = tensor.tensors[operation.outputs[0]]
         if input.req_grad:
-            dl_dy[:]+=(1/(1+mpc_math.exp_fx(input.value[:])))
-            # dl_dy.mul_trans_add_to(input2.value,dl_d[operation.inputs[0]],n_threads=10 if input1.shape[0]>=1000 else 1)
-            # C=AB partial derivate of dA=dC*B^T+dA
-    # tensor.train()
-    
-    prepare = tensor.get_prepare()
+            dl_dy[:]+=output.value[:]*(1-output.value[:])
+    prepare = tensor.get_prepare() 
     print(prepare)
-    print(type(input))
-    
     if prepare:
-        print(type(input.value))
-        assert isinstance(input.value, MultiArray),"Invalid Input"
+        # assert isinstance(input,tensor.Tensor),"Invalid Input"
         if isinstance(input.value,Array):
             new_value=Array(input.shape[0],input.value.value_type)
         else:
@@ -57,11 +81,14 @@ def sigmoid(input): #todo
         tensor.op_id_store[tensor.op_id] = operation_id
         tensor.op_id += 1
     else:
-
+        print(222222)
         operation = tensor.gradient_operation[tensor.op_id_store[tensor.op_id]]
         input = tensor.tensors[operation.inputs[0]]
         output = tensor.tensors[operation.outputs[0]]
-        output.value[:]=1/(1+mpc_math.exp_fx(input.value[:]))
+        x = input.value[:]
+        y =  sigmoid_from_e_x(x,exp(-x))
+        print_ln("y: %s", y.reveal())
+        output.value[:] =  y
         tensor.op_id += 1  # record the input and output of the op
     return output
 
