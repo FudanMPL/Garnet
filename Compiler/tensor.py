@@ -8,6 +8,8 @@ from Compiler import mpc_math, util
 from Compiler.types import *
 from Compiler.types import _unreduced_squant
 from Compiler.library import *
+from Compiler.instructions import *
+from Compiler.instructions_base import *
 from Compiler.util import is_zero, tree_reduce
 from Compiler.comparison import CarryOutRawLE
 # from Compiler.GC.types import sbitintis_train
@@ -546,6 +548,7 @@ def ops_add_constant(self, c):
         return output
 
 class Tensor():
+    check_indices = True
     def __init__(self, value, value_type=None, name=None, req_grad=False, grad=None):
         assert isinstance(value, Array) or isinstance(value, MultiArray) or isinstance(value, list)
         assert isinstance(grad, Array) or isinstance(grad, MultiArray) or grad is None
@@ -586,11 +589,22 @@ class Tensor():
     def sizes(self):
         return self.value.sizes
 
+    @staticmethod
+    def disable_index_checks():
+        Tensor.check_indices = False
+
     @property
     def dim(self):
         return len(self.value.sizes)
     
-    
+    def print_reveal_nested(self):
+        self.value.print_reveal_nested()
+
+    def grad_print_reveal_nested(self):
+        if not self.req_grad:
+            raise CompilerError("the tensor " + self.name +" has no gradient")
+        self.grad.print_reveal_nested()
+
     def __repr__(self):
         return self.value
     # We need to start with some tensors whose values were not computed
@@ -656,15 +670,13 @@ class Tensor():
                     Array(self.sizes[1], self.value.value_type,
                           self.value.address + index * self.sizes[1] *
                           self.value.value_type.n_elements() *
-                          self.value.value_type.mem_size(),
-                          debug=self.debug)
+                          self.value.value_type.mem_size())
                 if self.req_grad:
                     new_grad = \
                         Array(self.sizes[1], self.grad.value_type,
                               self.grad.address + index * self.sizes[1] *
                               self.grad.value_type.n_elements() *
-                              self.grad.value_type.mem_size(),
-                              debug=self.debug)
+                              self.grad.value_type.mem_size())
                 else:
                     new_grad = None
             else:
@@ -677,6 +689,9 @@ class Tensor():
                                       self.grad.address, index, debug=self.debug)
                 else:
                     new_grad = None
+        else:
+            res = self.sub_cache[key]
+            return res
         res = Tensor(new_value, req_grad=self.req_grad, grad=new_grad)
         self.sub_cache[key] = res
         res.check_indices = self.check_indices
@@ -687,27 +702,46 @@ class Tensor():
 
     #     :param index: public (regint/cint/int)
     #     :param other: container of matching size and type """
-        if isinstance(other, self.value_type):
-            if isinstance(index, slice) and index == slice(None):
-                return self.value.assign(other)
-            self.value[index].assgin(other)
-            return 0
-        if isinstance(other, Array) or isinstance(other, MultiArray):
-            self.value[index] = other         
-            return 0
-        raise CompilerError("Tensor_setitem: unmatched type")  
 
-    @classmethod
-    def ones(sizes, value_type = sfix):
-        return 0
+        self.value[index] = other         
+        
 
-    @classmethod
-    def zeros(sizes, value_type = sfix):
-        return 0
+    @staticmethod
+    def ones(sizes: list, value_type = sfix):
+        print(sizes)
+        assert isinstance(sizes, list)
+        if len(sizes) == 0 or value_type is None:
+            raise CompilerError("the shape of a tensor must be a not-null list and value type must be determined")
+        if len(sizes) == 1:
+            res_value = Array(sizes[0], value_type)
+        if len(sizes) > 1:
+            res_value = MultiArray(sizes, value_type)
+        res_value.assign_all(1)
+        res = Tensor(res_value)        
+        return res
 
-    @classmethod
-    def eye(sizes, value_type = sfix):
-        return 0
+    @staticmethod
+    def zeros(sizes: list, value_type = sfix):
+        assert isinstance(sizes, list)
+        if len(sizes) == 0 or value_type is None:
+            raise CompilerError("the shape of a tensor must be a not-null list and value type must be determined")
+        if len(sizes) == 1:
+            res_value = Array(sizes[0], value_type)
+        if len(sizes) > 1:
+            res_value = MultiArray(sizes, value_type)
+        res_value.assign_all(0)
+        res = Tensor(res_value)        
+        return res
+
+    @staticmethod
+    def eye(m, n =None, value_type = sfix):
+        assert n is None or m == n
+        res_value = MultiArray([m, m], value_type)
+        @for_range(m)
+        def _(i):
+            res_value[i][i] = 1
+        res = Tensor(res_value)    
+        return res
 
     def random_initialize(self):
         return 0
