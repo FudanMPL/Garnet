@@ -402,14 +402,12 @@ def test_neg():
 
 def test_getitem():
     i, j = 3, 3
-    x = MultiArray([i, j], sfix)
-    for i in range(0,3):
-        for  j in range(0,3):
-            x[i][j] = sfix(i+j)
+    x = Tensor.eye(10)
+
     x.print_reveal_nested()
     x[0].print_reveal_nested()
     
-#test_getitem()
+test_getitem()
 #test_abs()
 #test_exp()
 #test_log()

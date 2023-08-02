@@ -8,9 +8,11 @@ from Compiler import mpc_math, util
 from Compiler.types import *
 from Compiler.types import _unreduced_squant
 from Compiler.library import *
+from Compiler.instructions import *
+from Compiler.instructions_base import *
 from Compiler.util import is_zero, tree_reduce
 from Compiler.comparison import CarryOutRawLE
-from Compiler.GC.types import sbitint
+# from Compiler.GC.types import sbitintis_train
 from functools import reduce
 from typing import List, NamedTuple, Callable, Dict, Optional, Union, Tuple, Any
 
@@ -36,6 +38,7 @@ dl_d = {}
 # the flag indicates whether initialize gradients for tensors
 is_train = True
 # the flag indicated that we are in prepration phase, i.e. initialize inputs and outputs for each operators
+global prepare
 prepare = True
 # op_id is used for extracting the references of inputs and outputs of one opertator
 op_id = 0
@@ -206,7 +209,7 @@ def element_wise_sub(self, other):
         # check shape
         assert check_boardcast_size(self.value.sizes, other.value.sizes), "Invalid Dimension"
         temp_matrix = MultiArray([other.value.total_size(), self.value.total_size()//other.value.total_size()], self.value.value_type)
-        if isinstance(self.value, MultiArray) or isinstance(other.value, Multiarray):
+        if isinstance(self.value, MultiArray) or isinstance(other.value, MultiArray):
             if self.value.total_size()>other.value.total_size():
                 new_value = MultiArray(self.value.sizes, self.value.value_type)
             else:
@@ -304,7 +307,7 @@ def element_wise_mul(self, other):
         assert check_boardcast_size(self.value.sizes, other.value.sizes), "Invalid Dimension"
         temp1_matrix = MultiArray([other.value.total_size(), self.value.total_size()//other.value.total_size()], self.value.value_type)
         temp2_matrix = MultiArray([other.value.total_size(), self.value.total_size()//other.value.total_size()], self.value.value_type)
-        if isinstance(self.value, MultiArray) or isinstance(other.value, Multiarray):
+        if isinstance(self.value, MultiArray) or isinstance(other.value, MultiArray):
             if self.value.total_size()>other.value.total_size():
                 new_value = MultiArray(self.value.sizes, self.value.value_type)
             else:
@@ -408,7 +411,7 @@ def element_wise_div(self, other):
         assert check_boardcast_size(self.value.sizes, other.value.sizes), "Invalid Dimension"
         temp1_matrix = MultiArray([other.value.total_size(), self.value.total_size()//other.value.total_size()], self.value.value_type)
         temp2_matrix = MultiArray([other.value.total_size(), self.value.total_size()//other.value.total_size()], self.value.value_type)
-        if isinstance(self.value, MultiArray) or isinstance(other.value, Multiarray):
+        if isinstance(self.value, MultiArray) or isinstance(other.value, MultiArray):
             if self.value.total_size()>other.value.total_size():
                 new_value = MultiArray(self.value.sizes, self.value.value_type)
             else:
@@ -505,7 +508,6 @@ def ops_mul_constant(self, c):
 
 
 def mat_mul(self, other):
-
     # record the input and output of the op
     return 0
 
@@ -664,6 +666,7 @@ def mean_of_multiarray(self, dim=0):
     return output
 
 class Tensor():
+    check_indices = True
     def __init__(self, value, value_type=None, name=None, req_grad=False, grad=None):
         assert isinstance(value, Array) or isinstance(value, MultiArray) or isinstance(value, list)
         assert isinstance(grad, Array) or isinstance(grad, MultiArray) or grad is None
@@ -694,6 +697,9 @@ class Tensor():
                 self.grad = None
         tensors[self.name] = self
 
+    def numel(self):
+        return self.value.length
+
     def set_req_grad(self, req_grad):
         self.req_grad = req_grad
 
@@ -701,14 +707,22 @@ class Tensor():
     def sizes(self):
         return self.value.sizes
 
+    @staticmethod
+    def disable_index_checks():
+        Tensor.check_indices = False
+
     @property
     def dim(self):
         return len(self.value.sizes)
     
-    @property
-    def length(self):
-        return self.value.length
-    
+    def print_reveal_nested(self):
+        self.value.print_reveal_nested()
+
+    def grad_print_reveal_nested(self):
+        if not self.req_grad:
+            raise CompilerError("the tensor " + self.name +" has no gradient")
+        self.grad.print_reveal_nested()
+
     def __repr__(self):
         return self.value
     # We need to start with some tensors whose values were not computed
@@ -774,15 +788,13 @@ class Tensor():
                     Array(self.sizes[1], self.value.value_type,
                           self.value.address + index * self.sizes[1] *
                           self.value.value_type.n_elements() *
-                          self.value.value_type.mem_size(),
-                          debug=self.debug)
+                          self.value.value_type.mem_size())
                 if self.req_grad:
                     new_grad = \
                         Array(self.sizes[1], self.grad.value_type,
                               self.grad.address + index * self.sizes[1] *
                               self.grad.value_type.n_elements() *
-                              self.grad.value_type.mem_size(),
-                              debug=self.debug)
+                              self.grad.value_type.mem_size())
                 else:
                     new_grad = None
             else:
@@ -795,6 +807,9 @@ class Tensor():
                                       self.grad.address, index, debug=self.debug)
                 else:
                     new_grad = None
+        else:
+            res = self.sub_cache[key]
+            return res
         res = Tensor(new_value, req_grad=self.req_grad, grad=new_grad)
         self.sub_cache[key] = res
         res.check_indices = self.check_indices
@@ -805,27 +820,46 @@ class Tensor():
 
     #     :param index: public (regint/cint/int)
     #     :param other: container of matching size and type """
-        if isinstance(other, self.value_type):
-            if isinstance(index, slice) and index == slice(None):
-                return self.value.assign(other)
-            self.value[index].assgin(other)
-            return 0
-        if isinstance(other, Array) or isinstance(other, MultiArray):
-            self.value[index] = other         
-            return 0
-        raise CompilerError("Tensor_setitem: unmatched type")  
 
-    @classmethod
-    def ones(sizes, value_type = sfix):
-        return 0
+        self.value[index] = other         
+        
 
-    @classmethod
-    def zeros(sizes, value_type = sfix):
-        return 0
+    @staticmethod
+    def ones(sizes: list, value_type = sfix):
+        print(sizes)
+        assert isinstance(sizes, list)
+        if len(sizes) == 0 or value_type is None:
+            raise CompilerError("the shape of a tensor must be a not-null list and value type must be determined")
+        if len(sizes) == 1:
+            res_value = Array(sizes[0], value_type)
+        if len(sizes) > 1:
+            res_value = MultiArray(sizes, value_type)
+        res_value.assign_all(1)
+        res = Tensor(res_value)        
+        return res
 
-    @classmethod
-    def eye(sizes, value_type = sfix):
-        return 0
+    @staticmethod
+    def zeros(sizes: list, value_type = sfix):
+        assert isinstance(sizes, list)
+        if len(sizes) == 0 or value_type is None:
+            raise CompilerError("the shape of a tensor must be a not-null list and value type must be determined")
+        if len(sizes) == 1:
+            res_value = Array(sizes[0], value_type)
+        if len(sizes) > 1:
+            res_value = MultiArray(sizes, value_type)
+        res_value.assign_all(0)
+        res = Tensor(res_value)        
+        return res
+
+    @staticmethod
+    def eye(m, n =None, value_type = sfix):
+        assert n is None or m == n
+        res_value = MultiArray([m, m], value_type)
+        @for_range(m)
+        def _(i):
+            res_value[i][i] = 1
+        res = Tensor(res_value)    
+        return res
 
     def random_initialize(self):
         return 0
@@ -1622,7 +1656,7 @@ class Tensor():
         global op_id
         if prepare:
             if isinstance(self.value, Array):
-                new_sizes = 1
+                new_sizes = (1,)
             else:
                 new_sizes = self.sizes[:dim] +  self.sizes[dim+1:]
             if len(new_sizes) <= 1:
@@ -1729,15 +1763,69 @@ class Tensor():
     def norm(self, dim=None, keepdim=False):
         pass
 
-    def softmax(self, dim=None):
-        # todo shenhao
-        pass
+    def softmax(self, dim=-1):
+        @buildingblock(get_program().globalbuildingblock)
+        def propagate(dl_doutputs, operation):
+            dl_dy, = dl_doutputs
+            output = tensors[operation.outputs[0]]
+            if self.req_grad:
+                if isinstance(self.value, MultiArray):
+                    inter_mul1, inter_mul2, inter_sum = operation.intermediate[-3], operation.intermediate[-2], operation.intermediate[-1]
+                    # dl_dx = softmax(x)*(dl_dy-(dl_dy*softmax(x)).sum(dim=-1))
+                    dl_dy.element_wise_mul(output.value, inter_mul1)
+                    inter = dl_dy - inter_mul1
+                    inter.sum(dim, res=inter_sum, keepdims=True)
+                    output.value.element_wise_mul(inter_sum, inter_mul2)
+                    dl_d[operation.inputs[0]][:] += inter_mul2[:]
+                    inter.delete()
+                else:
+                    res = output.value[:]*(dl_dy[:]-sum(output.value[:]*dl_dy[:]))
+                    dl_d[operation.inputs[0]][:] += res
+        # forward
+        global op_id
+        if prepare:
+            if isinstance(self.value, Array):
+                output = Tensor(Array(self.sizes[0], self.value_type), req_grad=self.req_grad)
+                inter = []
+            else:
+                output = Tensor(MultiArray(self.sizes, self.value_type), req_grad=self.req_grad)
+                new_sizes = [*self.sizes]
+                new_sizes[dim], new_sizes[-1] = new_sizes[-1], new_sizes[dim]
+                per_x, per_res = MultiArray(new_sizes, self.value_type), MultiArray(new_sizes, self.value_type)
+                inter = [per_x, per_res]
+            if self.req_grad:
+                if isinstance(self.value, MultiArray):
+                    new_sizes = self.sizes[:dim] + self.sizes[dim+1:]
+                    new_sizes = new_sizes + (1,) if len(new_sizes) == 1 else new_sizes
+                    inter_mul1, inter_mul2, inter_sum = MultiArray(self.value.sizes, self.value.value_type), MultiArray(
+                        self.value.sizes, self.value.value_type), MultiArray(new_sizes, self.value.value_type)
+                    inter += [inter_mul1, inter_mul2, inter_sum]
+                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=inter)
+            else:
+                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate, intermediate=inter)
+            gradient_operation.append(operation)
+            operation_id = len(gradient_operation) - 1
+
+            op_id_store[op_id] = operation_id
+            op_id += 1
+        else:
+            operation = gradient_operation[op_id_store[op_id]]
+            inputs = operation.inputs
+            outputs = operation.outputs
+            input = tensors[inputs[0]]
+            output = tensors[outputs[0]]
+            if isinstance(self.value, Array):
+                softmax_last_dim(input.value, dim, output.value)
+            else:
+                softmax_last_dim(input.value, dim, output.value, [operation.intermediate[0],operation.intermediate[1]])
+            op_id += 1
+        # record the input and output of the op
+        return output
 
     def relu(self):
         pass
     
     def sigmoid(self):
-        # todo shenhao
         pass
 
     def tanh(self):
@@ -1793,6 +1881,9 @@ def train():
     global prepare
     prepare = False
 
+def get_prepare():
+    global prepare
+    return prepare
 
 def untrain():
     global prepare
@@ -1817,6 +1908,33 @@ def autograd_function(func):
     copy_doc(wrapper, func)
     return wrapper
 
+
+def softmax_last_dim(x, dim=-1, res=None, inter=None):
+    assert res is not None, "res must be specified"
+    if isinstance(x, Array):
+        # res = Array(x.length, x.value_type) if res is None else res
+        return res.assign_vector(vec_softmax(x.get_vector()))
+    else:
+        assert inter is not None, "inter must be specified"
+        # res = MultiArray(x.sizes, x.value_type) if res is None else res
+        per_x, per_res = inter[0], inter[1]
+        x.swap_single_dim(dim, -1, per_x)
+        res.swap_single_dim(dim, -1, per_res)
+        batch = per_x.sizes[:-1]
+        n, m = reduce(operator.mul, batch) if len(batch) >= 2 else batch[0], per_x.sizes[-1]
+        per_x.view(-1, per_x.sizes[-1]), per_res.view(-1, per_res.sizes[-1])
+        index = regint(0)
+        @for_range_opt(n, n)
+        def _(i):
+            per_res.assign_vector(vec_softmax(per_x.get_vector(i*m, m)), index)
+            index.update(index+m)
+        per_x.view(*batch, m), per_res.view(*batch, m)
+        per_res.swap_single_dim(dim, -1, res)
+        return res
+
+def vec_softmax(x):
+    e_x = mpc_math.exp_fx(x - util.max(x))
+    return e_x / sum(e_x)
 
 def broadcast(*args: Tensor) -> List[Tensor]:
     """

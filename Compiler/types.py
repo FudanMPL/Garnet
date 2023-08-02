@@ -5683,9 +5683,12 @@ class Array(_vectorizable):
         """
         return Array(size, self.value_type, self.get_address(base))
     
-    def assign_part_vector(self,vector,base=0): #added by zhou
-        assert self.value_type.n_elements()==1
-        vector.store_in_mem(self.address+base)
+    # def assign_part_vector(self,vector,base=0):
+    #     #added by zhou,For elements at the base position, replace them, such as a=[1,2,3,4] (sfix), 
+    #     # and b is in the form of sfix [12,13] using a.assign_ Part (b, 2), a will become [1,2,12,13]
+    #     print(123)
+    #     assert self.value_type.n_elements()==1
+    #     vector.store_in_mem(self.address+base)
     
 
     def get(self, indices):
@@ -5697,7 +5700,7 @@ class Array(_vectorizable):
             regint.inc(len(indices), self.address, 0) + indices,
             size=len(indices))
 
-    def get_slice_addresses(self, slice):
+    def get_slice_addresses(self, slice): 
         assert self.value_type.n_elements() == 1
         assert len(slice) <= self.total_size()
         base = regint.inc(len(slice), slice.address, 1, 1)
@@ -6464,7 +6467,6 @@ class SubMultiArray(_vectorizable):
         if indices is None:
             assert self.sizes[0] == other.sizes[0]
             indices = [regint.inc(i) for i in self.sizes[::-1] + other.sizes]
-        print(indices)
         assert len(indices[1]) == len(indices[2])
         indices = list(indices)
         indices[1] *= self.sizes[1]
@@ -6782,12 +6784,9 @@ class MultiArray(SubMultiArray):
                                debug=debug)
         if len(sizes) < 2:
             raise CompilerError('Use Array')
-
-    def __mul__(self, other):
-        # todo element-wise multiplication
-        pass
-
+        
     def __matmul__(self, other):
+        # TODO: should be depricated
         return self.matmul(other)
     
     def matmul(self, other):
@@ -6840,11 +6839,11 @@ class MultiArray(SubMultiArray):
             def _(j):
                 # get all the indices, like (0,0,0), (0,0,1), (0,0,2)...
                 tmp_indices = indices[:] + (j,)
+                print(tmp_indices)
                 # get value at that index
                 tmp = self.get_vector_by_indices(*tmp_indices)
                 new_indices = self.tuple_permute(tmp_indices, new_perm)
                 # assign the value to the new indices
-                print(new_indices)
                 res.assign_vector_by_indices(tmp, *new_indices)
                 # res.print_reveal_nested()
             return
@@ -6893,7 +6892,20 @@ class MultiArray(SubMultiArray):
         if is_negative_one: 
             tmp_sizes[negative_index] = int(tmp)
         self.sizes = tuple(tmp_sizes)
-        
+    
+    def swap_single_dim(self, src_dim, tgt_dim, res=None):
+        assert res is not None, "res must be specified"
+        assert src_dim < len(self.sizes) and tgt_dim < len(self.sizes), "Invalid dim"
+        src_dim, tgt_dim = len(self.sizes) - 1 if src_dim == -1 else src_dim, len(self.sizes) - 1 if tgt_dim == -1 else tgt_dim
+        if src_dim == tgt_dim:
+            res[:] = self[:]
+            return
+        perm = list(range(len(self.sizes)))
+        perm[src_dim] = tgt_dim
+        perm[tgt_dim] = src_dim
+        self.permute_without_malloc(res, perm)
+        # res.print_reveal_nested()
+    
     def getIndexGroups_by_dim(self, dim):
         assert dim < len(self.sizes)
         new_sizes = self.sizes[:dim] +  self.sizes[dim+1:]
@@ -6953,15 +6965,17 @@ class MultiArray(SubMultiArray):
         #         tmp_value+=self.get_vector_by_indices(*tmp_indices)
         #     res.assign_vector(tmp_value, i)
         new_sizes = self.sizes[:dim] +  self.sizes[dim+1:]
-        res = MultiArray(new_sizes, self.value_type) 
+        res = MultiArray(new_sizes, self.value_type)
+        new_num = res.total_size()
         
         index_groups = self.getIndexGroups_by_dim(dim)
-        for i in range(len(index_groups)):
+        for i in range(new_num):
             tmp_value = self.value_type(0)
             indices = index_groups[i]
             for j in indices:
                 tmp_value+=self.get_vector_by_indices(*j)
-            res.assign_vector(tmp_value, i)  
+            res.assign_vector(tmp_value, i)
+            
         res /= cint(self.sizes[dim])
         return res
     
@@ -7155,7 +7169,38 @@ class MultiArray(SubMultiArray):
 
         self.view(*batch, n, m), other.view(*batch, m, p),
         return res
+    
+    def sum(self, dim=-1, res=None, keepdims=False): # TODO: code review (Ozer)
+        assert res is not None, "res must be specified"
+        if len(self.sizes) == 2 and keepdims == True:
+            assert isinstance(res, MultiArray), "when operation comes to two dim and keepdims is True, res must be MultiArray"
+        if len(self.sizes) == 2 and keepdims == False:
+            assert isinstance(res,Array), "when operation comes to two dim and keepdims is False, res must be Array"
+        dim = len(self.sizes)-1 if dim == -1 else dim
+        index_groups = self.getIndexGroups_by_dim(dim)
+        for i in range(len(index_groups)):
+            summary = self.value_type(0)
+            for j in index_groups[i]:
+                summary += self.get_vector_by_indices(*j)
+            res.assign_vector(summary, i)
+        if keepdims:
+            keep_sizes = self.sizes[:dim] + (1,) +self.sizes[dim+1:]
+            res.view(*keep_sizes)
+        return res
 
+    def element_wise_mul(self, other, res=None):
+        assert res is not None, "res must be specified"
+        v1, v2 = self, other
+        len1, len2 = v1.total_size(), v2.total_size()
+        assert len1 % len2 == 0, "Invalid Dimension"
+        if self.total_size() < other.total_size():
+            v1, v2 = v2, v1
+        @library.for_range_opt(len1//len2)
+        def _(i):
+            v3 = v1.get_vector(i*len2, len2) * v2.get_vector(0, len2)
+            res.assign_vector(v3, i*len2)
+        library.break_point()
+        return res
 
     def delete(self):
         self.array.delete()

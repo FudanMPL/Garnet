@@ -1,8 +1,11 @@
 from tensor import Tensor,reset_gloabal_store,untrain,autograd_function
-import tensor
+import tensor as tensor
+
+import functional as F
+
 program.options_from_args()
-ROW=2
-COL=3
+ROW=3
+COL=4
 HEIGHT=4
 LENGTH=10
 
@@ -20,7 +23,7 @@ for i in range(0,ROW):
     for  j in range(0,COL):
         for k in range(0,HEIGHT):
             xMultiArray_3[i][j][k] = sfix(i-j+k)
-
+            
 
 def test_single_operation(func,Value):
     Value.print_reveal_nested()
@@ -402,9 +405,84 @@ def test_dot():
     input1.grad.print_reveal_nested()
     input2.grad.print_reveal_nested()
 
+@autograd_function
+def test_sigmoid():
+    xMultiArray_2_1 = MultiArray([COL, HEIGHT], sfix)
+    for i in range(0,COL):
+        for  j in range(0,HEIGHT):
+            xMultiArray_2_1[i][j] = sfix(i-j)
+    input = Tensor(xMultiArray_2_1, req_grad = True)
+    output=F.sigmoid(input)
+    tensor.train()
+    tensor.reset_op_id()
+    output=F.sigmoid(input)
+    output.backward()
+    input.value.print_reveal_nested()
+    output.value.print_reveal_nested()
+    output.grad.print_reveal_nested()
+    input.grad.print_reveal_nested()
+
+@autograd_function
+def test_relu():
+    print_ln("test relu:")
+    xMultiArray_2_1 = MultiArray([COL, HEIGHT], sfix)
+    for i in range(0,COL):
+        for  j in range(0,HEIGHT):
+            xMultiArray_2_1[i][j] = sfix(i-j)
+    input = Tensor(xMultiArray_2_1, req_grad = True)
+    output=F.relu(input)
+    tensor.train()
+    tensor.reset_op_id()
+    output=F.relu(input)
+    output.backward()
+    input.value.print_reveal_nested()
+    output.value.print_reveal_nested()
+    output.grad.print_reveal_nested()
+    input.grad.print_reveal_nested()
+
+@autograd_function
+def test_logsigmoid():
+    print_ln("test_logsigmoid:")
+    xMultiArray_2_1 = MultiArray([COL, HEIGHT], sfix)
+    for i in range(0,COL):
+        for  j in range(0,HEIGHT):
+            xMultiArray_2_1[i][j] = sfix(i-j)
+    input = Tensor(xMultiArray_2_1, req_grad = True)
+    output=F.logsigmoid(input)
+    tensor.train()
+    tensor.reset_op_id()
+    output=F.logsigmoid(input)
+    output.backward()
+    input.value.print_reveal_nested()
+    output.value.print_reveal_nested()
+    output.grad.print_reveal_nested()
+    input.grad.print_reveal_nested()
+
+@autograd_function
+def test_tanh():
+    print_ln("test_tanh:")
+    xMultiArray_2_1 = MultiArray([COL, HEIGHT], sfix)
+    for i in range(0,COL):
+        for  j in range(0,HEIGHT):
+            xMultiArray_2_1[i][j] = sfix(i-j)
+    input = Tensor(xMultiArray_2_1, req_grad = True)
+    output=F.tanh(input)
+    tensor.train()
+    tensor.reset_op_id()
+    output=F.tanh(input)
+    output.backward()
+    input.value.print_reveal_nested()
+    output.value.print_reveal_nested()
+    output.grad.print_reveal_nested()
+    input.grad.print_reveal_nested()
 
 
-test_mv_3Dim_MultiArray_Array()
+test_tanh()
+
+#test_logsigmoid()
+#test_sigmoid()
+#test_relu()
+#test_mv_3Dim_MultiArray_Array()
 #test_mv_MultiArray_Array()
 #test_dot()
 
@@ -454,5 +532,28 @@ xMultiArray_3.mv(Array2,res)
 xMultiArray_3.print_reveal_nested()
 Array2.print_reveal_nested()
 res.print_reveal_nested()
-'''
 
+
+
+Array2=Array(HEIGHT,sfix)
+for k in range(0,HEIGHT):
+    Array2[k]=k
+Array2.print_reveal_nested()
+t=Array(2,sint)
+t[0]=2
+t[1]=1
+a=Array2.get(regint.inc(2))
+# a.print_reveal_nested()
+a=sfix(100)+a
+print_ln("%s",a.reveal())
+Array2.print_reveal_nested()
+Array2.assign_part_vector(a,2)
+Array2.print_reveal_nested()
+
+
+xMultiArray_2_1 = MultiArray([COL, HEIGHT], sfix)
+for i in range(0,COL):
+    for  j in range(0,HEIGHT):
+        xMultiArray_2_1[i][j] = sfix(i+j)
+
+'''
