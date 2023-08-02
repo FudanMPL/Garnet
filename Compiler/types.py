@@ -6918,6 +6918,10 @@ class MultiArray(SubMultiArray):
             indices = []
             for j in range(self.sizes[dim]):
                 tmp_indices = index[:dim] +(j,) + index[dim:]
+                tmp_address = 0
+                for k in range(len(tmp_indices)):
+                    tmp_address += tmp_indices[k] #* pre_mul_prod[k]
+                # print(tmp_address)
                 indices.append(tmp_indices)
                 #tmp_value+=self.get_vector_by_indices(*tmp_indices)
             index_groups.append(indices)
