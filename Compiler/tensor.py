@@ -557,6 +557,167 @@ def ops_add_constant(self, c):
         # record the input and output of the op
         return output
 
+def sum_of_array(self):
+    # backward
+    @buildingblock(get_program().globalbuildingblock)
+    def propagate(dl_doutputs, operation):
+        dl_dx, = dl_doutputs
+        inputs = operation.inputs
+        dl_dself = dl_d[inputs[0]]
+        dl_dself[:] += dl_dx[0]
+        dl_dinputs = [dl_dself]
+        return dl_dinputs
+    # forward
+    global op_id
+    if prepare:    
+        new_value = Array(1, self.value.value_type)
+        output = Tensor(new_value)
+        
+        operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation) - 1
+        
+        op_id_store[op_id] = operation_id
+        op_id += 1
+    else:
+        operation = gradient_operation[op_id_store[op_id]]
+        inputs = operation.inputs
+        outputs = operation.outputs
+        input = tensors[inputs[0]]
+        output = tensors[outputs[0]]
+        
+        output.value[:] = sum(input.value[:])
+        
+        op_id += 1
+    # record the input and output of the op
+    return output
+
+def mean_of_array(self):
+    # backward
+    @buildingblock(get_program().globalbuildingblock)
+    def propagate(dl_doutputs, operation):
+        dl_dx, = dl_doutputs
+        inputs = operation.inputs
+        dl_dself = dl_d[inputs[0]]
+        
+        dl_dself[:] += dl_dx[0] / self.value.total_size()
+        dl_dinputs = [dl_dself]
+        return dl_dinputs
+    # forward
+    global op_id
+    if prepare:    
+        new_value = Array(1, self.value.value_type)
+        output = Tensor(new_value)
+        
+        operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation) - 1
+        
+        op_id_store[op_id] = operation_id
+        op_id += 1
+    else:
+        operation = gradient_operation[op_id_store[op_id]]
+        inputs = operation.inputs
+        outputs = operation.outputs
+        input = tensors[inputs[0]]
+        output = tensors[outputs[0]]
+
+        output.value[:] = sum(input.value[:]) / self.value.total_size()
+        
+        op_id += 1
+    # record the input and output of the op
+    return output
+
+def var_of_array(self):
+    # backward
+    @buildingblock(get_program().globalbuildingblock)
+    def propagate(dl_doutputs, operation):
+        dl_dx, = dl_doutputs
+        inputs = operation.inputs
+        dmean = operation.intermediate[0] # reuse the intervalue in mem
+        dl_dself = dl_d[inputs[0]]
+        
+        dl_dself[:] += 2 / (self.value.total_size()-1) * dmean[:] * dl_dx[0]
+        dl_dinputs = [dl_dself]
+        return dl_dinputs
+    # forward
+    global op_id
+    if prepare:    
+        new_value = Array(1, self.value.value_type)
+        output = Tensor(new_value)
+            
+        inter = Array(self.value.length, self.value.value_type)
+        
+        operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=[inter])
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation) - 1
+        
+        op_id_store[op_id] = operation_id
+        op_id += 1
+    else:
+        operation = gradient_operation[op_id_store[op_id]]
+        inputs = operation.inputs
+        outputs = operation.outputs
+        input = tensors[inputs[0]]
+        output = tensors[outputs[0]]
+
+        mean = sum(input.value[:]) / self.value.total_size()
+        dmean = input.value[:] - mean
+        output.value[:] = sum(dmean ** 2) / (self.value.total_size()-1)
+        
+        operation.intermediate[0].assign_vector(dmean)
+        
+        op_id += 1
+    # record the input and output of the op
+    return output
+
+def std_of_array(self):
+    # backward
+    @buildingblock(get_program().globalbuildingblock)
+    def propagate(dl_doutputs, operation):
+        dl_dx, = dl_doutputs
+        inputs = operation.inputs
+        dmean = operation.intermediate[0]
+        stdvalue = operation.intermediate[1]
+        dl_dself = dl_d[inputs[0]]
+        
+        dl_dself[:] += dl_dx[0] / stdvalue[0] / (self.value.total_size()-1) * dmean[:]
+        dl_dinputs = [dl_dself]
+        return dl_dinputs
+    # forward
+    global op_id
+    if prepare:    
+        new_value = Array(1, self.value.value_type)
+        output = Tensor(new_value)
+        
+        inter1 = Array(self.value.length, self.value.value_type)
+        inter2 = Array(1, self.value.value_type)
+        
+        operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=[inter1, inter2])
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation) - 1
+        
+        op_id_store[op_id] = operation_id
+        op_id += 1
+    else:
+        operation = gradient_operation[op_id_store[op_id]]
+        inputs = operation.inputs
+        outputs = operation.outputs
+        input = tensors[inputs[0]]
+        output = tensors[outputs[0]]
+
+        mean = sum(input.value[:]) / self.value.total_size()
+        dmean = input.value[:] - mean
+        stdvalue = mpc_math.sqrt(sum(dmean ** 2) / (self.value.total_size()-1))
+        
+        operation.intermediate[0].assign_vector(dmean)
+        operation.intermediate[1].assign_vector(stdvalue)
+        output.value[:] = stdvalue
+        
+        op_id += 1
+    # record the input and output of the op
+    return output
+
 def sum_of_multiarray(self, dim=0):
     # backward
     @buildingblock(get_program().globalbuildingblock)
@@ -1807,157 +1968,27 @@ class Tensor():
 
     def mean(self, dim=0):
         if isinstance(self.value, Array):
-            # todo
-            return self
+            return mean_of_array(self)
         else:
             return mean_of_multiarray(self, dim)
 
     def sum(self, dim=0):
         if isinstance(self.value, Array):
-            # todo
-            return self
+            return sum_of_array(self)
         else:
             return sum_of_multiarray(self, dim)
 
     def std(self, dim=0):
         if isinstance(self.value, Array):
-            # todo
-            return self
+            return std_of_array(self)
         else:
             return std_of_multiarray(self, dim)
-        # backward
-        @buildingblock(get_program().globalbuildingblock)
-        def propagate(dl_doutputs, operation):
-            dl_dx, = dl_doutputs
-            dl_dself = dl_d[operation.inputs[0]]
-            dmean = operation.intermediate[0]
-            stdvalue = operation.intermediate[1]
-            
-            # dl_dself[:] += dl_dx[0] / stdvalue[0] / (self.value.total_size()-1) * dmean[:]
-            index_groups = self.value.getIndexGroups_by_dim(dim)
-            for i in range(len(index_groups)):
-                dx = dl_dx.get_vector(i, 1)
-                std = stdvalue.get_vector(i, 1)
-                for j in index_groups[i]:
-                    delta_mean = dmean.get_vector_by_indices(*j)
-                    dl_dself.assign_vector_by_indices(dx / std * delta_mean, *j)
-            dl_dself[:] /= (self.value.sizes[dim] - 1)
-            
-            
-            dl_dinputs = [dl_dself]
-            return dl_dinputs
-        # forward
-        global op_id
-        if prepare:
-            if isinstance(self.value, Array):
-                new_sizes = (1,)
-            else:
-                new_sizes = self.sizes[:dim] +  self.sizes[dim+1:]
-            if len(new_sizes) <= 1:
-                new_value = Array(new_sizes[0], self.value_type)
-                inter2 = Array(new_sizes[0], self.value_type)
-            else:
-                new_value = MultiArray(new_sizes, self.value_type)
-                inter2 = MultiArray(new_sizes, self.value_type)
-            output = Tensor(new_value, req_grad=self.req_grad)
-
-            if isinstance(self.value, Array):
-                inter1 = Array(self.value.length, self.value.value_type)
-            else:
-                inter1 = MultiArray(self.value.sizes, self.value.value_type)
-            
-            if self.req_grad:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=[inter1, inter2])
-            else:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate, intermediate=[inter1, inter2])
-            gradient_operation.append(operation)
-            operation_id = len(gradient_operation) - 1
-
-            op_id_store[op_id] = operation_id
-            op_id += 1
-        else:
-            operation = gradient_operation[op_id_store[op_id]]
-            inputs = operation.inputs
-            outputs = operation.outputs
-            input = tensors[inputs[0]]
-            output = tensors[outputs[0]]
-            # mean
-            index_groups = input.value.getIndexGroups_by_dim(dim)
-            for i in range(len(index_groups)):
-                summary = input.value.value_type(0)
-                for j in index_groups[i]:
-                    summary += input.value.get_vector_by_indices(*j)
-                for j in index_groups[i]:
-                    operation.intermediate[0].assign_vector_by_indices(summary, *j)
-            operation.intermediate[0] /= cint(input.value.sizes[dim])
-            # dmean
-            dmean = input.value[:] - operation.intermediate[0][:]
-            operation.intermediate[0].assign_vector(dmean)
-            # sqr and sqrt
-            for i in range(len(index_groups)):
-                summary = input.value.value_type(0)
-                for j in index_groups[i]:
-                    summary += operation.intermediate[0].get_vector_by_indices(*j) ** 2
-                summary /= cint(input.value.sizes[dim] - 1)
-                summary = mpc_math.sqrt(summary)
-                operation.intermediate[1].assign_vector(summary, i)
-            
-            output.value[:] = operation.intermediate[1]
-
-            op_id += 1
-        # record the input and output of the op
-        return output
 
     def var(self, dim=0):
         if isinstance(self.value, Array):
-            # todo
-            return self
+            return var_of_array(self)
         else:
             return var_of_multiarray(self, dim)
-        # backward
-        @buildingblock(get_program().globalbuildingblock)
-        def propagate(dl_doutputs, operation):
-            dl_dx, = dl_doutputs
-            inputs = operation.inputs
-            dmean = operation.intermediate[0]  # reuse the intervalue in mem
-            dl_dself = dl_d[inputs[0]]
-
-            dl_dself[:] += 2 / (self.value.total_size()-1) * dmean[:] * dl_dx[0]
-            dl_dinputs = [dl_dself]
-            return dl_dinputs
-        # forward
-        global op_id
-        if prepare:
-            new_value = Array(1, self.value.value_type)
-            output = Tensor(new_value, req_grad=self.req_grad)
-            if isinstance(self.value, Array):
-                inter = Array(self.value.length, self.value.value_type)
-            else:
-                inter = MultiArray(self.value.sizes, self.value.value_type)
-            if self.req_grad:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=[inter])
-            else:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate, intermediate=[inter])
-            gradient_operation.append(operation)
-            operation_id = len(gradient_operation) - 1
-            op_id_store[op_id] = operation_id
-            op_id += 1
-        else:
-            operation = gradient_operation[op_id_store[op_id]]
-            inputs = operation.inputs
-            outputs = operation.outputs
-            input = tensors[inputs[0]]
-            output = tensors[outputs[0]]
-
-            mean = sum(input.value[:]) / self.value.total_size()
-            dmean = input.value[:] - mean
-            output.value[:] = sum(dmean ** 2) / (self.value.total_size()-1)
-
-            operation.intermediate[0].assign_vector(dmean)
-
-            op_id += 1
-        # record the input and output of the op
-        return output
 
     def norm(self, dim=None, keepdim=False):
         pass
