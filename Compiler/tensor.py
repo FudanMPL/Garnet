@@ -292,7 +292,8 @@ def element_wise_mul(self, other):
             @for_range_opt(len1//len2)
             def _(i):
                 v3 = dl_dx.get_vector(i*len2, len2) * input2.value.get_vector(0, len2)
-                v1.assign_vector(v3, i*len2)           
+                v1.assign_vector(v3, i*len2)
+            break_point()           
         # broadcasted v2 back with reduce
         if req_grad2:
             dl_dx_rec = matrix_reconst(dl_dx, temp1_matrix)
@@ -302,7 +303,7 @@ def element_wise_mul(self, other):
             def _(i):
                 v3 = dl_dx.value_type.dot_product(dl_dx_rec.get_vector(i*dl_dx_rec.sizes[1], dl_dx_rec.sizes[1]), input1_rec.get_vector(i*dl_dx_rec.sizes[1], dl_dx_rec.sizes[1]))
                 v2.assign_vector(v3, i)    
-        
+            break_point()
         dl_dinputs = [dl_dself, dl_dother]
         return dl_dinputs
     # forward
@@ -354,6 +355,7 @@ def element_wise_mul(self, other):
         def _(i):
             v3 = v1.get_vector(i*len2, len2) * v2.get_vector(0, len2)
             output.value.assign_vector(v3, i*len2)
+        break_point()
         op_id += 1# record the input and output of the op
     return output
 
@@ -389,6 +391,7 @@ def element_wise_div(self, other):
                 def _(i):
                     v3 = dl_dx.get_vector(i*len2, len2) * inter.get_vector(0, len2)
                     v1.assign_vector(v3, i*len2)  
+            break_point()
         # broadcasted v2 back with reduce
         if req_grad2:
             if dl_dself.total_size()<dl_dother.total_size():
@@ -406,7 +409,7 @@ def element_wise_div(self, other):
                     v3 = dl_dx.value_type.dot_product(dl_dx_rec.get_vector(i*dl_dx_rec.sizes[1], dl_dx_rec.sizes[1]), input1_rec.get_vector(i*dl_dx_rec.sizes[1], dl_dx_rec.sizes[1]))
                     v2.assign_vector(v3, i)  
                 v2[:] = v2[:] * tmp_inter
-
+            break_point()
         dl_dinputs = [dl_dself, dl_dother]
         return dl_dinputs
     # forward
@@ -466,7 +469,8 @@ def element_wise_div(self, other):
             @for_range_opt(len2//len1)
             def _(i):
                 v3 = v1.get_vector(0, len1) * operation.intermediate[0].get_vector(i*len1, len1)
-                output.value.assign_vector(v3, i*len1)  
+                output.value.assign_vector(v3, i*len1) 
+        break_point() 
         op_id += 1# record the input and output of the op
     return output
 
@@ -775,7 +779,7 @@ def sum_of_multiarray(self, dim=0):
         def _(i):
             summary = sum(input_perm.get_vector(i*stride, stride))
             output.value.assign_vector(summary, i)
-
+        break_point()
         op_id += 1
     # record the input and output of the op
     return output
@@ -922,6 +926,7 @@ def var_of_multiarray(self, dim=0):
         def _(i):
             summary = sum(dmean_sqr.get_vector(i*stride, stride))
             output.value.assign_vector(summary, i)
+        break_point()
         output.value[:] /= stride - 1
         op_id += 1
     # record the input and output of the op
@@ -943,7 +948,7 @@ def std_of_multiarray(self, dim=0):
             @for_range_opt(stride)
             def _(j):
                 input_perm.assign_vector(fraction, i*stride+j)
-    
+        break_point()
         input_perm[:] /= stride - 1
         input_perm[:] *= dmean[:]
         # permute back
@@ -1010,6 +1015,7 @@ def std_of_multiarray(self, dim=0):
         def _(i):
             summary = sum(dmean_sqr.get_vector(i*stride, stride))
             std.assign_vector(summary, i)
+        break_point()
         std[:] /= stride - 1
         # std
         std[:] = mpc_math.sqrt(std[:])
@@ -2158,6 +2164,7 @@ def softmax_last_dim(x, dim=-1, res=None, inter=None):
         def _(i):
             per_res.assign_vector(vec_softmax(per_x.get_vector(i*m, m)), index)
             index.update(index+m)
+        break_point()
         per_x.view(*batch, m), per_res.view(*batch, m)
         per_res.swap_single_dim(dim, -1, res)
         return res
