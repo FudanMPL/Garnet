@@ -1,4 +1,4 @@
-import tensor as tensor
+from tensor import *
 import warnings
 import functools
 from collections import OrderedDict, namedtuple
@@ -640,6 +640,8 @@ class Module():
 
     def setup(self, data_loader):
         # todo, setup tensor space of the model, call it before training or evaluation
+        self.forward()
+        train()
         return self
 
     def requires_grad_(self: T, requires_grad: bool = True) -> T:
