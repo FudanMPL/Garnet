@@ -1052,9 +1052,6 @@ class Tensor():
             res_value[i][i] = 1
         res = Tensor(res_value)    
         return res
-
-    def random_initialize(self):
-        return 0
     
     def mv(self, other,out=None):
         # mul of Two-dimension * Array,return an output,whose type is Tensor and value is Array
