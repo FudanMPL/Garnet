@@ -1,4 +1,5 @@
-from tensor import get_opid, Tensor, get_prepare, Operation, tensors, gradient_operation, op_id_store,fake_propagate, set_opid,dl_d
+# from tensor import get_opid, Tensor, get_prepare, Operation, tensors, gradient_operation, op_id_store,fake_propagate, set_opid,dl_d
+from tensor import *
 from glob import glob
 import math
 import re
@@ -17,10 +18,6 @@ from typing import List, NamedTuple, Callable, Dict, Optional, Union, Tuple, Any
 approx = False
 def relu(input, inplace=False):  # todo
     op_id = get_opid()
-    global tensors
-    global gradient_operation
-    global op_id_store
-    global dl_d
     @buildingblock(get_program().globalbuildingblock)
     def propagate(dl_doutputs, operation):
         dl_dy, = dl_doutputs
@@ -103,10 +100,6 @@ def sigmoid_from_e_x(x,e_x):
 
 def sigmoid(input): #todo
     op_id = get_opid()
-    global tensors
-    global gradient_operation
-    global op_id_store
-    global dl_d
     @buildingblock(get_program().globalbuildingblock)
     def propagate(dl_doutputs, operation):
         dl_dy, = dl_doutputs
@@ -145,17 +138,13 @@ def sigmoid(input): #todo
 
 def logsigmoid(input):  # todo
     op_id = get_opid()
-    global tensors
-    global gradient_operation
-    global op_id_store
-    global dl_d
     @buildingblock(get_program().globalbuildingblock)
     def propagate(dl_doutputs, operation):
         dl_dy, = dl_doutputs
         input_ = tensors[operation.inputs[0]]
         output_ = tensors[operation.outputs[0]]
         if input_.req_grad:
-            dl_d[input_.name]+=1/(output_.value[:]*(1-output_.value[:]))*dl_dy[:]
+            dl_d[input_.name]+=1/(1+exp(output_.value[:]))*dl_dy[:]
             
     prepare = get_prepare()
     if prepare:
@@ -177,17 +166,13 @@ def logsigmoid(input):  # todo
         operation = gradient_operation[op_id_store[op_id]]
         input = tensors[operation.inputs[0]]
         output = tensors[operation.outputs[0]]
-        output.value[:] =  log_e(sigmoid_from_e_x(input.value[:],exp(-input.value[:])))
+        output.value[:] = -log_e(1+exp(-input.value[:]))
         set_opid(op_id+1)  # record the input and output of the op
     return output
 
 
 def tanh(input):  # todo
     op_id = get_opid()
-    global tensors
-    global gradient_operation
-    global op_id_store
-    global dl_d
     @buildingblock(get_program().globalbuildingblock)
     def propagate(dl_doutputs, operation):
         dl_dy, = dl_doutputs
@@ -234,7 +219,15 @@ def log_softmax(input, dim=None):  # todo
 
 
 def linear(input, weight, bias=None):
-    pass
+    assert isinstance(input,Tensor) and isinstance(weight,Tensor),"Invalid input or weight"
+    assert input.shape[-1]==weight.shape[-1],"Invalid Dimension"
+    weight.value=weight.value.transpose()
+    output=input.mm(weight)
+    if bias is None:
+        pass
+    else:
+        output.value[:]=(bias+output)
+    return output
 
 
 def conv2d(input, weight, bias=None, stride=1, padding=0):

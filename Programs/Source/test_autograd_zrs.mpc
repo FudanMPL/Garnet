@@ -477,9 +477,9 @@ def test_tanh():
     input.grad.print_reveal_nested()
 
 
-test_tanh()
+#test_tanh()
 
-#test_logsigmoid()
+test_logsigmoid()
 #test_sigmoid()
 #test_relu()
 #test_mv_3Dim_MultiArray_Array()

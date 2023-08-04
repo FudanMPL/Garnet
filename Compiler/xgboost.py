@@ -15,8 +15,6 @@ learning_rate = 0.5
 
 
 
-
-
 def Sort(keys, *to_sort, n_bits=None, time=False):
     if time:
         start_timer(1)
