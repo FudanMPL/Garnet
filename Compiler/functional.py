@@ -259,6 +259,7 @@ def one_hot(input, num_classes=-1):
             [0, 0, 1, 0, 0, 0, 0, 0],
             [0, 0, 0, 1, 0, 0, 0, 0],
             [0, 0, 0, 0, 1, 0, 0, 0]])"""
+    assert isinstance(input, Tensor), "input should be Tensor"
     assert input.value.value_type == cint, "input should be cint"
     x = input.value
     in_sizes = x.sizes

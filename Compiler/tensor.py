@@ -8,6 +8,8 @@ from Compiler import mpc_math, util
 from Compiler.types import *
 from Compiler.types import _unreduced_squant
 from Compiler.library import *
+from Compiler.instructions import *
+from Compiler.instructions_base import *
 from Compiler.util import is_zero, tree_reduce
 from Compiler.comparison import CarryOutRawLE
 # from Compiler.GC.types import sbitintis_train
@@ -77,6 +79,16 @@ def matrix_reconst(matrix, new_matrix):
             v = matrix.get_vector(j*r+i, 1)
             new_matrix.assign_vector(v, i*c+j)
     return new_matrix
+
+def get_permute(n, dim=0):
+    new_perm = tuple([i for i in range(n)])
+    new_perm = new_perm[:dim] + new_perm[dim+1:] + (dim,)
+    return new_perm
+
+def get_permute_back(n, dim=0):
+    new_perm = tuple([i for i in range(n)])
+    new_perm = new_perm[:dim] + (n-1,) + new_perm[dim:n-1]
+    return new_perm
 
 def element_wise_add(self, other):
     # backward
@@ -280,7 +292,8 @@ def element_wise_mul(self, other):
             @for_range_opt(len1//len2)
             def _(i):
                 v3 = dl_dx.get_vector(i*len2, len2) * input2.value.get_vector(0, len2)
-                v1.assign_vector(v3, i*len2)           
+                v1.assign_vector(v3, i*len2)
+            break_point()           
         # broadcasted v2 back with reduce
         if req_grad2:
             dl_dx_rec = matrix_reconst(dl_dx, temp1_matrix)
@@ -290,7 +303,7 @@ def element_wise_mul(self, other):
             def _(i):
                 v3 = dl_dx.value_type.dot_product(dl_dx_rec.get_vector(i*dl_dx_rec.sizes[1], dl_dx_rec.sizes[1]), input1_rec.get_vector(i*dl_dx_rec.sizes[1], dl_dx_rec.sizes[1]))
                 v2.assign_vector(v3, i)    
-        
+            break_point()
         dl_dinputs = [dl_dself, dl_dother]
         return dl_dinputs
     # forward
@@ -342,6 +355,7 @@ def element_wise_mul(self, other):
         def _(i):
             v3 = v1.get_vector(i*len2, len2) * v2.get_vector(0, len2)
             output.value.assign_vector(v3, i*len2)
+        break_point()
         op_id += 1# record the input and output of the op
     return output
 
@@ -377,6 +391,7 @@ def element_wise_div(self, other):
                 def _(i):
                     v3 = dl_dx.get_vector(i*len2, len2) * inter.get_vector(0, len2)
                     v1.assign_vector(v3, i*len2)  
+            break_point()
         # broadcasted v2 back with reduce
         if req_grad2:
             if dl_dself.total_size()<dl_dother.total_size():
@@ -394,7 +409,7 @@ def element_wise_div(self, other):
                     v3 = dl_dx.value_type.dot_product(dl_dx_rec.get_vector(i*dl_dx_rec.sizes[1], dl_dx_rec.sizes[1]), input1_rec.get_vector(i*dl_dx_rec.sizes[1], dl_dx_rec.sizes[1]))
                     v2.assign_vector(v3, i)  
                 v2[:] = v2[:] * tmp_inter
-
+            break_point()
         dl_dinputs = [dl_dself, dl_dother]
         return dl_dinputs
     # forward
@@ -454,7 +469,8 @@ def element_wise_div(self, other):
             @for_range_opt(len2//len1)
             def _(i):
                 v3 = v1.get_vector(0, len1) * operation.intermediate[0].get_vector(i*len1, len1)
-                output.value.assign_vector(v3, i*len1)  
+                output.value.assign_vector(v3, i*len1) 
+        break_point() 
         op_id += 1# record the input and output of the op
     return output
 
@@ -545,7 +561,471 @@ def ops_add_constant(self, c):
         # record the input and output of the op
         return output
 
+def sum_of_array(self):
+    # backward
+    @buildingblock(get_program().globalbuildingblock)
+    def propagate(dl_doutputs, operation):
+        dl_dx, = dl_doutputs
+        inputs = operation.inputs
+        dl_dself = dl_d[inputs[0]]
+        dl_dself[:] += dl_dx[0]
+        dl_dinputs = [dl_dself]
+        return dl_dinputs
+    # forward
+    global op_id
+    if prepare:    
+        new_value = Array(1, self.value.value_type)
+        output = Tensor(new_value)
+        
+        operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation) - 1
+        
+        op_id_store[op_id] = operation_id
+        op_id += 1
+    else:
+        operation = gradient_operation[op_id_store[op_id]]
+        inputs = operation.inputs
+        outputs = operation.outputs
+        input = tensors[inputs[0]]
+        output = tensors[outputs[0]]
+        
+        output.value[:] = sum(input.value[:])
+        
+        op_id += 1
+    # record the input and output of the op
+    return output
+
+def mean_of_array(self):
+    # backward
+    @buildingblock(get_program().globalbuildingblock)
+    def propagate(dl_doutputs, operation):
+        dl_dx, = dl_doutputs
+        inputs = operation.inputs
+        dl_dself = dl_d[inputs[0]]
+        
+        dl_dself[:] += dl_dx[0] / self.value.total_size()
+        dl_dinputs = [dl_dself]
+        return dl_dinputs
+    # forward
+    global op_id
+    if prepare:    
+        new_value = Array(1, self.value.value_type)
+        output = Tensor(new_value)
+        
+        operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation) - 1
+        
+        op_id_store[op_id] = operation_id
+        op_id += 1
+    else:
+        operation = gradient_operation[op_id_store[op_id]]
+        inputs = operation.inputs
+        outputs = operation.outputs
+        input = tensors[inputs[0]]
+        output = tensors[outputs[0]]
+
+        output.value[:] = sum(input.value[:]) / self.value.total_size()
+        
+        op_id += 1
+    # record the input and output of the op
+    return output
+
+def var_of_array(self):
+    # backward
+    @buildingblock(get_program().globalbuildingblock)
+    def propagate(dl_doutputs, operation):
+        dl_dx, = dl_doutputs
+        inputs = operation.inputs
+        dmean = operation.intermediate[0] # reuse the intervalue in mem
+        dl_dself = dl_d[inputs[0]]
+        
+        dl_dself[:] += 2 / (self.value.total_size()-1) * dmean[:] * dl_dx[0]
+        dl_dinputs = [dl_dself]
+        return dl_dinputs
+    # forward
+    global op_id
+    if prepare:    
+        new_value = Array(1, self.value.value_type)
+        output = Tensor(new_value)
+            
+        inter = Array(self.value.length, self.value.value_type)
+        
+        operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=[inter])
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation) - 1
+        
+        op_id_store[op_id] = operation_id
+        op_id += 1
+    else:
+        operation = gradient_operation[op_id_store[op_id]]
+        inputs = operation.inputs
+        outputs = operation.outputs
+        input = tensors[inputs[0]]
+        output = tensors[outputs[0]]
+
+        mean = sum(input.value[:]) / self.value.total_size()
+        dmean = input.value[:] - mean
+        output.value[:] = sum(dmean ** 2) / (self.value.total_size()-1)
+        
+        operation.intermediate[0].assign_vector(dmean)
+        
+        op_id += 1
+    # record the input and output of the op
+    return output
+
+def std_of_array(self):
+    # backward
+    @buildingblock(get_program().globalbuildingblock)
+    def propagate(dl_doutputs, operation):
+        dl_dx, = dl_doutputs
+        inputs = operation.inputs
+        dmean = operation.intermediate[0]
+        stdvalue = operation.intermediate[1]
+        dl_dself = dl_d[inputs[0]]
+        
+        dl_dself[:] += dl_dx[0] / stdvalue[0] / (self.value.total_size()-1) * dmean[:]
+        dl_dinputs = [dl_dself]
+        return dl_dinputs
+    # forward
+    global op_id
+    if prepare:    
+        new_value = Array(1, self.value.value_type)
+        output = Tensor(new_value)
+        
+        inter1 = Array(self.value.length, self.value.value_type)
+        inter2 = Array(1, self.value.value_type)
+        
+        operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=[inter1, inter2])
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation) - 1
+        
+        op_id_store[op_id] = operation_id
+        op_id += 1
+    else:
+        operation = gradient_operation[op_id_store[op_id]]
+        inputs = operation.inputs
+        outputs = operation.outputs
+        input = tensors[inputs[0]]
+        output = tensors[outputs[0]]
+
+        mean = sum(input.value[:]) / self.value.total_size()
+        dmean = input.value[:] - mean
+        stdvalue = mpc_math.sqrt(sum(dmean ** 2) / (self.value.total_size()-1))
+        
+        operation.intermediate[0].assign_vector(dmean)
+        operation.intermediate[1].assign_vector(stdvalue)
+        output.value[:] = stdvalue
+        
+        op_id += 1
+    # record the input and output of the op
+    return output
+
+def sum_of_multiarray(self, dim=0):
+    # backward
+    @buildingblock(get_program().globalbuildingblock)
+    def propagate(dl_doutputs, operation):
+        dl_dx, = dl_doutputs
+        dl_dself = dl_d[operation.inputs[0]]
+        input_perm, = operation.intermediate
+        
+        stride = self.value.sizes[dim]
+        @for_range(dl_dx.total_size())
+        def _(i):
+            @for_range(stride)
+            def _(j):
+                input_perm.assign_vector(dl_dx.get_vector(i, 1), i*stride+j)
+        # permute back
+        new_perm = get_permute_back(len(self.value.sizes), dim)
+        input_perm.permute_without_malloc(dl_dself, new_perm)
+        
+        dl_dinputs = [dl_dself]
+        return dl_dinputs
+    # forward
+    global op_id
+    if prepare:
+        new_sizes = self.value.sizes[:dim] +  self.value.sizes[dim+1:]
+        if len(new_sizes) <= 1:
+            new_value = Array(new_sizes[0], self.value.value_type)
+        else:
+            new_value = MultiArray(new_sizes, self.value.value_type)
+        output = Tensor(new_value, req_grad=self.req_grad)
+        
+        new_perm = get_permute(len(self.value.sizes), dim)
+        target_size = self.value.tuple_permute(self.shape, new_perm)
+        input_perm = MultiArray(target_size, self.value.value_type)
+        
+        if self.req_grad:
+            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=[input_perm])
+        else:
+            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate, intermediate=[input_perm])
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation) - 1
+
+        op_id_store[op_id] = operation_id
+        op_id += 1
+    else:
+        operation = gradient_operation[op_id_store[op_id]]
+        input = tensors[operation.inputs[0]]
+        output = tensors[operation.outputs[0]]
+        input_perm = operation.intermediate[0]
+
+        new_perm = get_permute(len(input.value.sizes), dim)
+        input.value.permute_without_malloc(input_perm, new_perm)
+        
+        stride = input.value.sizes[dim]
+        @for_range_opt(input.value.total_size()//stride)
+        def _(i):
+            summary = sum(input_perm.get_vector(i*stride, stride))
+            output.value.assign_vector(summary, i)
+        break_point()
+        op_id += 1
+    # record the input and output of the op
+    return output
+
+def mean_of_multiarray(self, dim=0):
+    # backward
+    @buildingblock(get_program().globalbuildingblock)
+    def propagate(dl_doutputs, operation):
+        dl_dx, = dl_doutputs
+        dl_dself = dl_d[operation.inputs[0]]
+        input_perm, = operation.intermediate
+        
+        stride = self.value.sizes[dim]
+        @for_range(dl_dx.total_size())
+        def _(i):
+            @for_range(stride)
+            def _(j):
+                input_perm.assign_vector(dl_dx.get_vector(i, 1), i*stride+j)
+        input_perm[:] /= stride
+        # permute back
+        new_perm = get_permute_back(len(self.value.sizes), dim)
+        input_perm.permute_without_malloc(dl_dself, new_perm)
+        
+        dl_dinputs = [dl_dself]
+        return dl_dinputs
+    # forward
+    global op_id
+    if prepare:
+        new_sizes = self.value.sizes[:dim] +  self.value.sizes[dim+1:]
+        if len(new_sizes) <= 1:
+            new_value = Array(new_sizes[0], self.value.value_type)
+        else:
+            new_value = MultiArray(new_sizes, self.value.value_type)
+        output = Tensor(new_value, req_grad=self.req_grad)
+        
+        new_perm = get_permute(len(self.value.sizes), dim)
+        target_size = self.value.tuple_permute(self.shape, new_perm)
+        input_perm = MultiArray(target_size, self.value.value_type)
+        
+        if self.req_grad:
+            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=[input_perm])
+        else:
+            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate, intermediate=[input_perm])
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation) - 1
+
+        op_id_store[op_id] = operation_id
+        op_id += 1
+    else:
+        operation = gradient_operation[op_id_store[op_id]]
+        input = tensors[operation.inputs[0]]
+        output = tensors[operation.outputs[0]]
+        input_perm = operation.intermediate[0]
+
+        new_perm = get_permute(len(input.value.sizes), dim)
+        input.value.permute_without_malloc(input_perm, new_perm)
+        
+        stride = input.value.sizes[dim]
+        @for_range(input.value.total_size()//stride)
+        def _(i):
+            summary = sum(input_perm.get_vector(i*stride, stride))
+            output.value.assign_vector(summary, i)
+        output.value[:] /= stride
+        op_id += 1
+    # record the input and output of the op
+    return output
+
+def var_of_multiarray(self, dim=0):
+    # backward
+    @buildingblock(get_program().globalbuildingblock)
+    def propagate(dl_doutputs, operation):
+        dl_dx, = dl_doutputs
+        dl_dself = dl_d[operation.inputs[0]]
+        input_perm, mean, dmean, dmean_sqr = operation.intermediate
+        # dl_dself[:] += 2 / (self.value.total_size()-1) * dmean[:] * dl_dx[0]
+        stride = self.value.sizes[dim]
+        @for_range(dl_dx.total_size())
+        def _(i):
+            @for_range(stride)
+            def _(j):
+                input_perm.assign_vector(dl_dx.get_vector(i), i*stride+j)
+        input_perm[:] *= 2
+        input_perm[:] /= stride - 1
+        input_perm[:] *= dmean[:]
+        # permute back
+        new_perm = get_permute_back(len(self.value.sizes), dim)
+        input_perm.permute_without_malloc(dl_dself, new_perm)
+        
+        dl_dinputs = [dl_dself]
+        return dl_dinputs
+    # forward
+    global op_id
+    if prepare:
+        new_sizes = self.value.sizes[:dim] +  self.value.sizes[dim+1:]
+        if len(new_sizes) <= 1:
+            new_value = Array(new_sizes[0], self.value.value_type)
+            mean = Array(new_sizes[0], self.value.value_type)
+        else:
+            new_value = MultiArray(new_sizes, self.value.value_type)
+            mean = MultiArray(new_sizes, self.value.value_type)
+        output = Tensor(new_value, req_grad=self.req_grad)
+        
+        dmean = MultiArray(self.value.sizes, self.value.value_type)
+        dmean_sqr = MultiArray(self.value.sizes, self.value.value_type)
+        
+        new_perm = get_permute(len(self.value.sizes), dim)
+        target_size = self.value.tuple_permute(self.shape, new_perm)
+        input_perm = MultiArray(target_size, self.value.value_type)
+        
+        if self.req_grad:
+            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=[input_perm, mean, dmean, dmean_sqr])
+        else:
+            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate, intermediate=[input_perm, mean, dmean, dmean_sqr])
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation) - 1
+
+        op_id_store[op_id] = operation_id
+        op_id += 1
+    else:
+        operation = gradient_operation[op_id_store[op_id]]
+        input = tensors[operation.inputs[0]]
+        output = tensors[operation.outputs[0]]
+        input_perm, mean, dmean, dmean_sqr = operation.intermediate
+        # pre-perm
+        new_perm = get_permute(len(input.value.sizes), dim)
+        input.value.permute_without_malloc(input_perm, new_perm)
+        # mean
+        stride = input.value.sizes[dim]
+        @for_range_opt(output.value.total_size())
+        def _(i):
+            summary = sum(input_perm.get_vector(i*stride, stride))
+            mean.assign_vector(summary, i)
+        mean[:] /= stride
+        break_point()
+        # dmean
+        @for_range_opt(output.value.total_size())
+        def _(i):
+            dmean_value = input_perm.get_vector(i*stride, stride) - mean.get_vector(i, 1) 
+            dmean.assign_vector(dmean_value, i*stride)
+        break_point()
+        # var
+        dmean_sqr[:] = dmean[:] ** 2
+        @for_range_opt(output.value.total_size())
+        def _(i):
+            summary = sum(dmean_sqr.get_vector(i*stride, stride))
+            output.value.assign_vector(summary, i)
+        break_point()
+        output.value[:] /= stride - 1
+        op_id += 1
+    # record the input and output of the op
+    return output
+
+def std_of_multiarray(self, dim=0):
+    # backward
+    @buildingblock(get_program().globalbuildingblock)
+    def propagate(dl_doutputs, operation):
+        dl_dx, = dl_doutputs
+        dl_dself = dl_d[operation.inputs[0]]
+        input_perm, mean, dmean, dmean_sqr, std = operation.intermediate
+        # dl_dself[:] += dl_dx[0] / stdvalue[0] / (self.value.total_size()-1) * dmean[:]
+        stride = self.value.sizes[dim]
+        
+        @for_range_opt(dl_dx.total_size())
+        def _(i):
+            fraction = dl_dx.get_vector(i, 1) / std.get_vector(i, 1)
+            @for_range_opt(stride)
+            def _(j):
+                input_perm.assign_vector(fraction, i*stride+j)
+        break_point()
+        input_perm[:] /= stride - 1
+        input_perm[:] *= dmean[:]
+        # permute back
+        new_perm = get_permute_back(len(self.value.sizes), dim)
+        input_perm.permute_without_malloc(dl_dself, new_perm)
+        
+        dl_dinputs = [dl_dself]
+        return dl_dinputs
+    # forward
+    global op_id
+    if prepare:
+        new_sizes = self.value.sizes[:dim] +  self.value.sizes[dim+1:]
+        if len(new_sizes) <= 1:
+            new_value = Array(new_sizes[0], self.value.value_type)
+            mean = Array(new_sizes[0], self.value.value_type)
+            std = Array(new_sizes[0], self.value.value_type)
+        else:
+            new_value = MultiArray(new_sizes, self.value.value_type)
+            mean = MultiArray(new_sizes, self.value.value_type)
+            std = MultiArray(new_sizes, self.value.value_type)
+        output = Tensor(new_value, req_grad=self.req_grad)
+        
+        dmean = MultiArray(self.value.sizes, self.value.value_type)
+        dmean_sqr = MultiArray(self.value.sizes, self.value.value_type)
+        
+        new_perm = get_permute(len(self.value.sizes), dim)
+        target_size = self.value.tuple_permute(self.shape, new_perm)
+        input_perm = MultiArray(target_size, self.value.value_type)
+        
+        if self.req_grad:
+            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=[input_perm, mean, dmean, dmean_sqr, std])
+        else:
+            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate, intermediate=[input_perm, mean, dmean, dmean_sqr, std])
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation) - 1
+
+        op_id_store[op_id] = operation_id
+        op_id += 1
+    else:
+        operation = gradient_operation[op_id_store[op_id]]
+        input = tensors[operation.inputs[0]]
+        output = tensors[operation.outputs[0]]
+        input_perm, mean, dmean, dmean_sqr, std = operation.intermediate
+        # pre-perm
+        new_perm = get_permute(len(input.value.sizes), dim)
+        input.value.permute_without_malloc(input_perm, new_perm)
+        # mean
+        stride = input.value.sizes[dim]
+        @for_range_opt(output.value.total_size())
+        def _(i):
+            summary = sum(input_perm.get_vector(i*stride, stride))
+            mean.assign_vector(summary, i)
+        mean[:] /= stride
+        break_point()
+        # dmean
+        @for_range_opt(output.value.total_size())
+        def _(i):
+            dmean_value = input_perm.get_vector(i*stride, stride) - mean.get_vector(i, 1) 
+            dmean.assign_vector(dmean_value, i*stride)
+        break_point()
+        # var
+        dmean_sqr[:] = dmean[:] ** 2
+        @for_range_opt(output.value.total_size())
+        def _(i):
+            summary = sum(dmean_sqr.get_vector(i*stride, stride))
+            std.assign_vector(summary, i)
+        break_point()
+        std[:] /= stride - 1
+        # std
+        std[:] = mpc_math.sqrt(std[:])
+        output.value[:] = std[:]
+        op_id += 1
+    # record the input and output of the op
+    return output
+
 class Tensor():
+    check_indices = True
     def __init__(self, value, value_type=None, name=None, req_grad=False, grad=None):
         assert isinstance(value, Array) or isinstance(value, MultiArray) or isinstance(value, list)
         assert isinstance(grad, Array) or isinstance(grad, MultiArray) or grad is None
@@ -586,11 +1066,22 @@ class Tensor():
     def sizes(self):
         return self.value.sizes
 
+    @staticmethod
+    def disable_index_checks():
+        Tensor.check_indices = False
+
     @property
     def dim(self):
         return len(self.value.sizes)
     
-    
+    def print_reveal_nested(self):
+        self.value.print_reveal_nested()
+
+    def grad_print_reveal_nested(self):
+        if not self.req_grad:
+            raise CompilerError("the tensor " + self.name +" has no gradient")
+        self.grad.print_reveal_nested()
+
     def __repr__(self):
         return self.value
     # We need to start with some tensors whose values were not computed
@@ -656,15 +1147,13 @@ class Tensor():
                     Array(self.sizes[1], self.value.value_type,
                           self.value.address + index * self.sizes[1] *
                           self.value.value_type.n_elements() *
-                          self.value.value_type.mem_size(),
-                          debug=self.debug)
+                          self.value.value_type.mem_size())
                 if self.req_grad:
                     new_grad = \
                         Array(self.sizes[1], self.grad.value_type,
                               self.grad.address + index * self.sizes[1] *
                               self.grad.value_type.n_elements() *
-                              self.grad.value_type.mem_size(),
-                              debug=self.debug)
+                              self.grad.value_type.mem_size())
                 else:
                     new_grad = None
             else:
@@ -677,6 +1166,9 @@ class Tensor():
                                       self.grad.address, index, debug=self.debug)
                 else:
                     new_grad = None
+        else:
+            res = self.sub_cache[key]
+            return res
         res = Tensor(new_value, req_grad=self.req_grad, grad=new_grad)
         self.sub_cache[key] = res
         res.check_indices = self.check_indices
@@ -687,30 +1179,46 @@ class Tensor():
 
     #     :param index: public (regint/cint/int)
     #     :param other: container of matching size and type """
-        if isinstance(other, self.value_type):
-            if isinstance(index, slice) and index == slice(None):
-                return self.value.assign(other)
-            self.value[index].assgin(other)
-            return 0
-        if isinstance(other, Array) or isinstance(other, MultiArray):
-            self.value[index] = other         
-            return 0
-        raise CompilerError("Tensor_setitem: unmatched type")  
 
-    @classmethod
-    def ones(sizes, value_type = sfix):
-        return 0
+        self.value[index] = other         
+        
 
-    @classmethod
-    def zeros(sizes, value_type = sfix):
-        return 0
+    @staticmethod
+    def ones(sizes: list, value_type = sfix):
+        print(sizes)
+        assert isinstance(sizes, list)
+        if len(sizes) == 0 or value_type is None:
+            raise CompilerError("the shape of a tensor must be a not-null list and value type must be determined")
+        if len(sizes) == 1:
+            res_value = Array(sizes[0], value_type)
+        if len(sizes) > 1:
+            res_value = MultiArray(sizes, value_type)
+        res_value.assign_all(1)
+        res = Tensor(res_value)        
+        return res
 
-    @classmethod
-    def eye(sizes, value_type = sfix):
-        return 0
+    @staticmethod
+    def zeros(sizes: list, value_type = sfix):
+        assert isinstance(sizes, list)
+        if len(sizes) == 0 or value_type is None:
+            raise CompilerError("the shape of a tensor must be a not-null list and value type must be determined")
+        if len(sizes) == 1:
+            res_value = Array(sizes[0], value_type)
+        if len(sizes) > 1:
+            res_value = MultiArray(sizes, value_type)
+        res_value.assign_all(0)
+        res = Tensor(res_value)        
+        return res
 
-    def random_initialize(self):
-        return 0
+    @staticmethod
+    def eye(m, n =None, value_type = sfix):
+        assert n is None or m == n
+        res_value = MultiArray([m, m], value_type)
+        @for_range(m)
+        def _(i):
+            res_value[i][i] = 1
+        res = Tensor(res_value)    
+        return res
     
     def mv(self, other,out=None):
         # mul of Two-dimension * Array,return an output,whose type is Tensor and value is Array
@@ -1465,204 +1973,28 @@ class Tensor():
             return output
 
     def mean(self, dim=0):
-        # backward
-        @buildingblock(get_program().globalbuildingblock)
-        def propagate(dl_doutputs, operation):
-            dl_dx, = dl_doutputs
-            inputs = operation.inputs
-            dl_dself = dl_d[inputs[0]]
-            dl_dself[:] += dl_dx[0] / self.value.total_size()
-            dl_dinputs = [dl_dself]
-            return dl_dinputs
-        # forward
-        global op_id
-        if prepare:
-            if isinstance(self.value, Array):
-                new_sizes = 1
-            else:
-                new_sizes = self.sizes[:dim] +  self.sizes[dim+1:]
-            if len(new_sizes) <= 1:
-                new_value = Array(new_sizes[0], self.value_type)
-            else:
-                new_value = MultiArray(new_sizes, self.value_type)
-            output = Tensor(new_value, req_grad=self.req_grad)
-            if self.req_grad:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
-            else:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate)
-            gradient_operation.append(operation)
-            operation_id = len(gradient_operation) - 1
-
-            op_id_store[op_id] = operation_id
-            op_id += 1
+        if isinstance(self.value, Array):
+            return mean_of_array(self)
         else:
-            operation = gradient_operation[op_id_store[op_id]]
-            inputs = operation.inputs
-            outputs = operation.outputs
-            input = tensors[inputs[0]]
-            output = tensors[outputs[0]]
-
-            # output.value[:] = sum(input.value[:]) / self.value.total_size()
-            index_groups = input.value.getIndexGroups_by_dim(dim)
-            for i in range(len(index_groups)):
-                summary = input.value.value_type(0)
-                for j in index_groups[i]:
-                    summary += input.value.get_vector_by_indices(*j)
-                output.value.assign_vector(summary, i)
-            if isinstance(input.value, Array):
-                output.value[:] /= cint(input.value.size)
-            else:
-                output.value[:] /= cint(input.value.sizes[dim])
-            op_id += 1
-        # record the input and output of the op
-        return output
+            return mean_of_multiarray(self, dim)
 
     def sum(self, dim=0):
-        # backward
-        @buildingblock(get_program().globalbuildingblock)
-        def propagate(dl_doutputs, operation):
-            dl_dx, = dl_doutputs
-            inputs = operation.inputs
-            dl_dself = dl_d[inputs[0]]
-            dl_dself[:] += dl_dx[0]
-            dl_dinputs = [dl_dself]
-            return dl_dinputs
-        # forward
-        global op_id
-        if prepare:
-            if isinstance(self.value, Array):
-                new_sizes = (1,)
-            else:
-                new_sizes = self.sizes[:dim] +  self.sizes[dim+1:]
-            if len(new_sizes) <= 1:
-                new_value = Array(new_sizes[0], self.value_type)
-            else:
-                new_value = MultiArray(new_sizes, self.value_type)
-            output = Tensor(new_value, req_grad=self.req_grad)
-            if self.req_grad:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
-            else:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate)
-            gradient_operation.append(operation)
-            operation_id = len(gradient_operation) - 1
-
-            op_id_store[op_id] = operation_id
-            op_id += 1
+        if isinstance(self.value, Array):
+            return sum_of_array(self)
         else:
-            operation = gradient_operation[op_id_store[op_id]]
-            inputs = operation.inputs
-            outputs = operation.outputs
-            input = tensors[inputs[0]]
-            output = tensors[outputs[0]]
+            return sum_of_multiarray(self, dim)
 
-            # output.value[:] = sum(input.value[:]) 
-            index_groups = input.value.getIndexGroups_by_dim(dim)
-            for i in range(len(index_groups)):
-                summary = input.value.value_type(0)
-                for j in index_groups[i]:
-                    summary += input.value.get_vector_by_indices(*j)
-                output.value.assign_vector(summary, i)
-            op_id += 1
-        # record the input and output of the op
-        return output
-
-    def std(self):
-        # backward
-        @buildingblock(get_program().globalbuildingblock)
-        def propagate(dl_doutputs, operation):
-            dl_dx, = dl_doutputs
-            inputs = operation.inputs
-            dmean = operation.intermediate[0]
-            stdvalue = operation.intermediate[1]
-            dl_dself = dl_d[inputs[0]]
-
-            dl_dself[:] += dl_dx[0] / stdvalue[0] / (self.value.total_size()-1) * dmean[:]
-            dl_dinputs = [dl_dself]
-            return dl_dinputs
-        # forward
-        global op_id
-        if prepare:
-            new_value = Array(1, self.value.value_type)
-            output = Tensor(new_value, req_grad=self.req_grad)
-
-            if isinstance(self.value, Array):
-                inter1 = Array(self.value.length, self.value.value_type)
-            else:
-                inter1 = MultiArray(self.value.sizes, self.value.value_type)
-            inter2 = Array(1, self.value.value_type)
-            if self.req_grad:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=[inter1, inter2])
-            else:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate, intermediate=[inter1, inter2])
-            gradient_operation.append(operation)
-            operation_id = len(gradient_operation) - 1
-
-            op_id_store[op_id] = operation_id
-            op_id += 1
+    def std(self, dim=0):
+        if isinstance(self.value, Array):
+            return std_of_array(self)
         else:
-            operation = gradient_operation[op_id_store[op_id]]
-            inputs = operation.inputs
-            outputs = operation.outputs
-            input = tensors[inputs[0]]
-            output = tensors[outputs[0]]
+            return std_of_multiarray(self, dim)
 
-            mean = sum(input.value[:]) / self.value.total_size()
-            dmean = input.value[:] - mean
-            stdvalue = mpc_math.sqrt(sum(dmean ** 2) / (self.value.total_size()-1))
-
-            operation.intermediate[0].assign_vector(dmean)
-            operation.intermediate[1].assign_vector(stdvalue)
-            output.value[:] = stdvalue
-
-            op_id += 1
-        # record the input and output of the op
-        return output
-
-    def var(self):
-        # backward
-        @buildingblock(get_program().globalbuildingblock)
-        def propagate(dl_doutputs, operation):
-            dl_dx, = dl_doutputs
-            inputs = operation.inputs
-            dmean = operation.intermediate[0]  # reuse the intervalue in mem
-            dl_dself = dl_d[inputs[0]]
-
-            dl_dself[:] += 2 / (self.value.total_size()-1) * dmean[:] * dl_dx[0]
-            dl_dinputs = [dl_dself]
-            return dl_dinputs
-        # forward
-        global op_id
-        if prepare:
-            new_value = Array(1, self.value.value_type)
-            output = Tensor(new_value, req_grad=self.req_grad)
-            if isinstance(self.value, Array):
-                inter = Array(self.value.length, self.value.value_type)
-            else:
-                inter = MultiArray(self.value.sizes, self.value.value_type)
-            if self.req_grad:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=[inter])
-            else:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate, intermediate=[inter])
-            gradient_operation.append(operation)
-            operation_id = len(gradient_operation) - 1
-            op_id_store[op_id] = operation_id
-            op_id += 1
+    def var(self, dim=0):
+        if isinstance(self.value, Array):
+            return var_of_array(self)
         else:
-            operation = gradient_operation[op_id_store[op_id]]
-            inputs = operation.inputs
-            outputs = operation.outputs
-            input = tensors[inputs[0]]
-            output = tensors[outputs[0]]
-
-            mean = sum(input.value[:]) / self.value.total_size()
-            dmean = input.value[:] - mean
-            output.value[:] = sum(dmean ** 2) / (self.value.total_size()-1)
-
-            operation.intermediate[0].assign_vector(dmean)
-
-            op_id += 1
-        # record the input and output of the op
-        return output
+            return var_of_multiarray(self, dim)
 
     def norm(self, dim=None, keepdim=False):
         pass
@@ -1678,7 +2010,7 @@ class Tensor():
                     # dl_dx = softmax(x)*(dl_dy-(dl_dy*softmax(x)).sum(dim=-1))
                     dl_dy.element_wise_mul(output.value, inter_mul1)
                     inter = dl_dy - inter_mul1
-                    inter.sum(dim, keepdims=True, res = inter_sum)
+                    inter.sum(dim, res=inter_sum, keepdims=True)
                     output.value.element_wise_mul(inter_sum, inter_mul2)
                     dl_d[operation.inputs[0]][:] += inter_mul2[:]
                     inter.delete()
@@ -1700,6 +2032,7 @@ class Tensor():
             if self.req_grad:
                 if isinstance(self.value, MultiArray):
                     new_sizes = self.sizes[:dim] + self.sizes[dim+1:]
+                    new_sizes = new_sizes + (1,) if len(new_sizes) == 1 else new_sizes
                     inter_mul1, inter_mul2, inter_sum = MultiArray(self.value.sizes, self.value.value_type), MultiArray(
                         self.value.sizes, self.value.value_type), MultiArray(new_sizes, self.value.value_type)
                     inter += [inter_mul1, inter_mul2, inter_sum]
@@ -1827,10 +2160,11 @@ def softmax_last_dim(x, dim=-1, res=None, inter=None):
         n, m = reduce(operator.mul, batch) if len(batch) >= 2 else batch[0], per_x.sizes[-1]
         per_x.view(-1, per_x.sizes[-1]), per_res.view(-1, per_res.sizes[-1])
         index = regint(0)
-        @for_range(n)
+        @for_range_opt(n, n)
         def _(i):
             per_res.assign_vector(vec_softmax(per_x.get_vector(i*m, m)), index)
             index.update(index+m)
+        break_point()
         per_x.view(*batch, m), per_res.view(*batch, m)
         per_res.swap_single_dim(dim, -1, res)
         return res

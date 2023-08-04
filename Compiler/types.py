@@ -6904,7 +6904,7 @@ class MultiArray(SubMultiArray):
         perm[src_dim] = tgt_dim
         perm[tgt_dim] = src_dim
         self.permute_without_malloc(res, perm)
-        res.print_reveal_nested()
+        # res.print_reveal_nested()
     
     def getIndexGroups_by_dim(self, dim):
         assert dim < len(self.sizes)
@@ -6930,6 +6930,10 @@ class MultiArray(SubMultiArray):
             indices = []
             for j in range(self.sizes[dim]):
                 tmp_indices = index[:dim] +(j,) + index[dim:]
+                tmp_address = 0
+                for k in range(len(tmp_indices)):
+                    tmp_address += tmp_indices[k] #* pre_mul_prod[k]
+                # print(tmp_address)
                 indices.append(tmp_indices)
                 #tmp_value+=self.get_vector_by_indices(*tmp_indices)
             index_groups.append(indices)
@@ -7166,8 +7170,12 @@ class MultiArray(SubMultiArray):
         self.view(*batch, n, m), other.view(*batch, m, p),
         return res
     
-    def sum(self, dim=-1, keepdims=False, res=None): # TODO: code review (Ozer)
+    def sum(self, dim=-1, res=None, keepdims=False): # TODO: code review (Ozer)
         assert res is not None, "res must be specified"
+        if len(self.sizes) == 2 and keepdims == True:
+            assert isinstance(res, MultiArray), "when operation comes to two dim and keepdims is True, res must be MultiArray"
+        if len(self.sizes) == 2 and keepdims == False:
+            assert isinstance(res,Array), "when operation comes to two dim and keepdims is False, res must be Array"
         dim = len(self.sizes)-1 if dim == -1 else dim
         index_groups = self.getIndexGroups_by_dim(dim)
         for i in range(len(index_groups)):

@@ -138,6 +138,43 @@ def test_abs():
     input1.grad.print_reveal_nested()
 
 @autograd_function
+def test_combine():
+    print_ln('test_combine')
+    i, j = 3, 3
+    x = MultiArray([i, j], sfix)
+    for i in range(0,3):
+        for  j in range(0,3):
+            x[i][j] = sfix(i-j)
+    xMultiArray_2_1 = MultiArray([3, 3], sfix)
+    for i in range(0,3):
+        for  j in range(0,3):
+            xMultiArray_2_1[i][j] = sfix(2)
+    x.print_reveal_nested()
+    xMultiArray_2_1.print_reveal_nested()
+    input1 = Tensor(x, req_grad = True)
+    input0 = Tensor(xMultiArray_2_1, req_grad = True)
+    input8 = input1 * input0
+    input2 = input8.abs()
+    input3 = input2.exp()
+    input4 = input3.mean()
+    tensor.train()
+
+    tensor.reset_op_id()
+    input8 =  input1 * input0 
+    input8.value.print_reveal_nested()
+    input2 = input8.abs()
+    input2.value.print_reveal_nested()
+    input3 = input2.exp()
+    input3.value.print_reveal_nested()
+    input4 = input3.mean()
+    input4.value.print_reveal_nested()    
+    input4.backward()
+    input1.grad.print_reveal_nested()
+    input8.grad.print_reveal_nested()    
+    input2.grad.print_reveal_nested()
+    input3.grad.print_reveal_nested()
+
+@autograd_function
 def test_exp():
     print_ln('test_exp')
     i, j = 3, 3
@@ -224,10 +261,11 @@ def test_sum(dim):
 def test_mean(dim):
     print_ln('test_mean')
     i, j = 3, 3
-    x = MultiArray([i, j], sfix)
+    x = MultiArray([3,3,3], sfix)
     for i in range(0,3):
-        for  j in range(0,3):
-            x[i][j] = sfix(i*10+j)
+        for j in range(0,3):
+            for k in range(0,3):
+                x[i][j][k] = sfix(i*10+j+k)
     x.print_reveal_nested()
     input1 = Tensor(x, req_grad = True)
 
@@ -242,43 +280,44 @@ def test_mean(dim):
     input1.grad.print_reveal_nested()
 
 @autograd_function
-def test_var():
+def test_var(dim):
     print_ln('test_var')
     i, j = 3, 3
-    x = MultiArray([i, j], sfix)
+    x = MultiArray([3,3,3], sfix)
     for i in range(0,3):
-        for  j in range(0,3):
-            x[i][j] = sfix(i+j)
+        for j in range(0,3):
+            for k in range(0,3):
+                x[i][j][k] = sfix(i*10+j+k)
     x.print_reveal_nested()
     input1 = Tensor(x, req_grad = True)
 
-    input2 = input1.var()
+    input2 = input1.var(dim)
 
     tensor.train()
     tensor.reset_op_id()
 
-    input2 = input1.var()
+    input2 = input1.var(dim)
     input2.backward()
     input2.value.print_reveal_nested()
     input1.grad.print_reveal_nested()
 
 @autograd_function
-def test_std():
+def test_std(dim):
     print_ln('test_std')
-    i, j = 3, 3
-    x = MultiArray([i, j], sfix)
+    x = MultiArray([3,3,3], sfix)
     for i in range(0,3):
-        for  j in range(0,3):
-            x[i][j] = sfix(i+j)
+        for j in range(0,3):
+            for k in range(0,3):
+                x[i][j][k] = sfix(i*10+j+k)
     x.print_reveal_nested()
     input1 = Tensor(x, req_grad = True)
 
-    input2 = input1.std()
+    input2 = input1.std(dim)
 
     tensor.train()
     tensor.reset_op_id()
 
-    input2 = input1.std()
+    input2 = input1.std(dim)
     input2.backward()
     input2.value.print_reveal_nested()
     input1.grad.print_reveal_nested()
@@ -399,12 +438,11 @@ def test_neg():
 #test_sum()
 #test_mean()
 
+@autograd_function
 def test_getitem():
     i, j = 3, 3
-    x = MultiArray([i, j], sfix)
-    for i in range(0,3):
-        for  j in range(0,3):
-            x[i][j] = sfix(i+j)
+    x = Tensor.eye(10)
+
     x.print_reveal_nested()
     x[0].print_reveal_nested()
     
@@ -413,14 +451,14 @@ def test_getitem():
 #test_exp()
 #test_log()
 #test_pow(3)
-test_sum(1)
-test_mean(1)
-#test_var()
-#test_std()
+#test_sum(0)
+#test_mean(0)
+#test_var(0)
+#test_std(0)
 
 #test_addc()
 #test_subc()
 #test_mulc()
 #test_divc()
-
+test_combine()
 #test_neg()
