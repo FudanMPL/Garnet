@@ -2653,11 +2653,13 @@ class dotprods(base.VarArgsInstruction, base.DataInstruction,
         for i, n in self.bases(iter(self.args)):
             dimension = self.args[i] // 2 - 1
             tmpres = cost_func(config.bit_length, config._security, config.f, config.n_parties, 1, dimension, 1)
+            online_round = tmpres[1]
+            offline_round = tmpres[3]
             res = merge_tuple(res, tmpres)
         req_node.increment(('online communication', 'bits'), res[0])
         req_node.increment(('offline communication', 'bits'), res[2])
-        req_node.increment(('online', 'round'), res[1])
-        req_node.increment(('offline', 'round'), res[3])
+        req_node.increment(('online', 'round'), online_round)
+        req_node.increment(('offline', 'round'), online_round)
         req_node.increment((self.field_type, self.data_type),
                            self.get_size() * self.get_repeat())
  
