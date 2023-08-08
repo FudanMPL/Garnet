@@ -1,5 +1,6 @@
 from tensor import Tensor,autograd_function
 import tensor
+import functional as F
 program.options_from_args()
 
 @autograd_function
@@ -427,6 +428,27 @@ def test_neg():
     input2.value.print_reveal_nested()
     input1.grad.print_reveal_nested()
 
+@autograd_function
+def test_f_droupout(p):
+    print_ln('test_droupout')
+    i, j = 3, 3
+    x = MultiArray([i, j], sfix)
+    for i in range(0,i):
+        for  j in range(0,j):
+            x[i][j] = sfix(i+j)
+    x.print_reveal_nested()
+    input1 = Tensor(x, req_grad = True)
+
+    input2 = F.dropout(input1, p=p, training=True)
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    input2 = F.dropout(input1, p=p, training=True)
+    input2.backward()
+    input2.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+
 #test_mul()
 #test_add()
 #test_sub()
@@ -460,5 +482,7 @@ def test_getitem():
 #test_subc()
 #test_mulc()
 #test_divc()
-test_combine()
+#test_combine()
 #test_neg()
+
+test_f_droupout(0.5)

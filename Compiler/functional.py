@@ -246,8 +246,55 @@ def avg_pool2d(input, kernel_size, stride=None, padding=0,):
     pass
 
 
-def dropout(input, p=0.5, training=True, inplace=False):  # todo
-    pass
+def dropout(input, p=0.5, training=False, inplace=False):  # todo
+    op_id = get_opid()
+    @buildingblock(get_program().globalbuildingblock)
+    def propagate(dl_doutputs, operation):
+        dl_dx, = dl_doutputs
+        bin_value, = operation.intermediate
+        dl_dself = dl_d[operation.inputs[0]]
+        
+        dl_dself[:] += 1 / (1 - p) * bin_value[:] * dl_dx[:]
+            
+    prepare = get_prepare()
+    if prepare:
+        assert isinstance(input, Tensor), "Invalid Input"
+        if isinstance(input.value,Array):
+            new_value = Array(input.size, input.value.value_type)
+            bin_value = Array(input.size, input.value.value_type)
+        else:
+            new_value = MultiArray(input.sizes, input.value.value_type)
+            bin_value = MultiArray(input.sizes, input.value.value_type)
+        output = Tensor(new_value, req_grad=input.req_grad)
+        if input.req_grad:
+            operation = Operation(inputs=[input.name], outputs=[output.name], propagate=propagate, intermediate=[bin_value])
+        else:
+            operation = Operation(inputs=[input.name], outputs=[output.name], propagate=fake_propagate, intermediate=[bin_value])
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation) - 1
+        op_id_store[op_id] = operation_id
+        set_opid(op_id+1)
+    else:
+        operation = gradient_operation[op_id_store[op_id]]
+        input = tensors[operation.inputs[0]]
+        output = tensors[operation.outputs[0]]
+        bin_value, = operation.intermediate
+        if training:
+            n_bits = -math.log(p, 2)
+            assert n_bits == int(n_bits)
+            n_bits = int(n_bits)
+            
+            B = util.tree_reduce(util.or_op, 
+                    (sint.get_random_bit(size=input.value.total_size())
+                        for i in range(n_bits)))
+            bin_value.assign_vector(B)
+            
+            output.value.assign_vector(1 / (1 - p) *
+                input.value.get_vector() * B.get_vector())
+        else:
+            output.value[:] = input.value[:]
+        set_opid(op_id+1)  # record the input and output of the op
+    return output
 
 
 def one_hot(input, num_classes=-1):
