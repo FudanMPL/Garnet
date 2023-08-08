@@ -2687,6 +2687,7 @@ class Adam(Optimizer):
     """
     def __init__(self, layers, n_epochs=1, approx=False, amsgrad=False,
                  normalize=False):
+        super(Adam, self).__init__()
         self.gamma = MemValue(cfix(.001))
         self.beta1 = 0.9
         self.beta2 = 0.999
@@ -2720,8 +2721,6 @@ class Adam(Optimizer):
                     x.append(nabla.same_shape())
                 if amsgrad:
                     self.vhats.append(nabla.same_shape())
-
-        super(Adam, self).__init__()
 
     @buildingblock("Update")
     def update(self, i_epoch, batch):
@@ -3070,6 +3069,7 @@ class keras:
                             print('WARNING: epsilon smaller than default might '
                                   'cause overflows')
                         opt.epsilon = epsilon
+                    print(opt.layers)
                 elif opt == 'inference':
                     opt = Optimizer()
                     opt.layers = layers
