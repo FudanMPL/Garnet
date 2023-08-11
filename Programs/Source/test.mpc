@@ -1,4 +1,4 @@
-a = sint(2, 4)
-b = sint(0, 1)
-c = a * b
-print_ln("c = %s", c.reveal())
+a = sint(1, 100000)
+b = sint(1, 100000)
+c = a.dot_product(a, b)
+print_ln("c = %s",c.reveal())

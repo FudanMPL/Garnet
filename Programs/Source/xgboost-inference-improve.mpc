@@ -1,0 +1,31 @@
+m = 4 # 特征数
+h = 2 # 树高
+tree_number = 3 # 树的数量
+n_threads = 4 # 最大线程数
+test_samples = 51 # 测试样本数
+
+
+program.use_trunc_pr=True
+import xgboost_inference, util, math
+
+test = sfix.Array(test_samples), sint.Matrix(m, test_samples)
+
+for x in  test:
+    x.input_from(1)
+
+
+
+
+
+
+
+
+inference = xgboost_inference.XGBoostInference(
+    h=h, tree_number=tree_number,  n_threads=n_threads, attribute_number=m,  test_sample_number=test_samples)
+
+inference.input_from(0)
+
+
+inference.test(test[1], test[0])
+
+

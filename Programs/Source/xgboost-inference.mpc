@@ -1,5 +1,5 @@
 m = 4 # 特征数
-h = 3 # 树高
+h = 2 # 树高
 tree_number = 3 # 树的数量
 n_threads = 4 # 最大线程数
 test_samples = 51 # 测试样本数
