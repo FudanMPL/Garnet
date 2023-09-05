@@ -327,7 +327,15 @@ def normalize(input, p=2.0, dim=1, eps=1e-12, out=None):  # todo
 
 
 def batch_norm(input, weight=None, bias=None, training=False, eps=1e-05):
-    pass
+    
+    assert isinstance(input,Tensor) ,"Invalid input"
+    
+    x_mean = input.mean(dim=[0,2,3])
+    x_std = input.std(dim=[0,2,3])
+    x_hat = (input -x_mean) / (x_std) 
+    
+    return x_hat * weight + bias
+
 
 
 def layer_norm(input, normalized_shape, weight=None, bias=None, eps=1e-05):
