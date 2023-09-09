@@ -5446,7 +5446,7 @@ class Array(_vectorizable):
         value_type = _get_type(value_type)
         self.address = address
         self.length = length
-        self.sizes = [length]
+        self.sizes = (length,)  #change from [length] to (length),because MultiArray.size is tuple()
         self.value_type = value_type
         self.address = address
         self.address_cache = {}
@@ -6000,13 +6000,13 @@ class SubMultiArray(_vectorizable):
         res.check_indices = self.check_indices
         return res
 
-    @property
-    def shape(self):
-        return list(self.sizes)
+    # @property # added by shenhao,I think this is not a nessaracy addition?
+    # def shape(self):
+    #     return list(self.sizes)
 
-    @property
-    def dim(self):
-        return len(self.sizes)
+    # @property # added by shenhao,I think this is not a nessaracy addition?
+    # def dim(self):
+    #     return len(self.sizes)
 
     def __setitem__(self, index, other):
         """ Part assignment.
@@ -6056,6 +6056,8 @@ class SubMultiArray(_vectorizable):
         :param base: public (regint/cint/int)
         :param size: compile-time (int) """
         assert self.value_type.n_elements() == 1
+        if size:
+            assert size<self.total_size(),"size is out of range"
         size = size or self.total_size()
         return self.value_type.load_mem(self.address + base, size=size)
 
@@ -6065,8 +6067,7 @@ class SubMultiArray(_vectorizable):
         :param vector: vector of matching size convertible to relevant basic type
         :param base: compile-time (int) """
         assert self.value_type.n_elements() == 1
-        # print(f'vector.size={vector.size}. self.total_size()={self.total_size()}\n')
-        assert vector.size <= self.total_size()
+        assert vector.size <= self.total_size()-base,"vector size with base cause a buffer overflow"
         self.value_type.conv(vector).store_in_mem(self.address + base)
 
     def assign(self, other):
@@ -6087,7 +6088,7 @@ class SubMultiArray(_vectorizable):
         assert self.value_type.n_elements() == 1
         part_size = reduce(operator.mul, self.sizes[1:])
         size = (size or 1) * part_size
-        assert size <= self.total_size()
+        assert size <= self.total_size()-base*part_size,"base with size cause out of range"
         return self.value_type.load_mem(self.address + base * part_size,
                                         size=size)
 
@@ -6100,7 +6101,7 @@ class SubMultiArray(_vectorizable):
         """
         assert self.value_type.n_elements() == 1
         part_size = reduce(operator.mul, self.sizes[1:])
-        assert vector.size <= self.total_size()
+        assert vector.size <= self.total_size()-base,"vector size with base cause a buffer overflow"
         vector.store_in_mem(self.address + base * part_size)
 
     def get_slice_vector(self, slice):
@@ -6175,6 +6176,7 @@ class SubMultiArray(_vectorizable):
         :param size: int
 
         """
+        assert start>=0 and start<self.sizes[0] and size<self.sizes[0],"out of range"
         return MultiArray([size] + list(self.sizes[1:]), self.value_type,
                           address=self[start].address)
 

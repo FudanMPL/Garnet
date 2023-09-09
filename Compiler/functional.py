@@ -22,7 +22,7 @@ def relu(input, inplace=False):  # todo
     def propagate(dl_doutputs, operation):
         dl_dy, = dl_doutputs
         input_ = tensors[operation.inputs[0]]
-        output_ = tensors[operation.outputs[0]]
+        output = tensors[operation.outputs[0]]
         if input_.req_grad:
             dl_d[input_.name]+=(input_.value[:]>=0)*dl_dy[:]
             
@@ -104,9 +104,9 @@ def sigmoid(input): #todo
     def propagate(dl_doutputs, operation):
         dl_dy, = dl_doutputs
         input_ = tensors[operation.inputs[0]]
-        output_ = tensors[operation.outputs[0]]
-        if input_.req_grad:
-            dl_d[input_.name]+=output_.value[:]*(1-output_.value[:])*dl_dy[:]
+        output = tensors[operation.outputs[0]]
+        # if input_.req_grad:
+        dl_d[input_.name]+=output.value[:]*(1-output.value[:])*dl_dy[:]
             
     prepare = get_prepare()
     if prepare:
@@ -142,9 +142,9 @@ def logsigmoid(input):  # todo
     def propagate(dl_doutputs, operation):
         dl_dy, = dl_doutputs
         input_ = tensors[operation.inputs[0]]
-        output_ = tensors[operation.outputs[0]]
+        output = tensors[operation.outputs[0]]
         if input_.req_grad:
-            dl_d[input_.name]+=1/(1+exp(output_.value[:]))*dl_dy[:]
+            dl_d[input_.name]+=1/(1+exp(output.value[:]))*dl_dy[:]
             
     prepare = get_prepare()
     if prepare:
@@ -177,7 +177,7 @@ def tanh(input):  # todo
     def propagate(dl_doutputs, operation):
         dl_dy, = dl_doutputs
         input_ = tensors[operation.inputs[0]]
-        output_ = tensors[operation.outputs[0]]
+        output = tensors[operation.outputs[0]]
         if input_.req_grad:
             dl_d[input_.name]+=(1-output.value[:]*output.value[:])*dl_dy[:]
             
@@ -228,14 +228,108 @@ def linear(input, weight, bias=None):
     else:
         output.value[:]=(bias+output)
     return output
+def new_squant():
+        class _(sfix):
+            params = None
+        return _
 
 
-def conv2d(input, weight, bias=None, stride=1, padding=0):
-    pass
+def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0]):
+    #input.shape:(batch_size,channel_in,H,W)
+    #weight.shape:(out_channels, in_channels // groups, H,W)
+    #bais:(out_channels)
+    op_id = get_opid()
+    @buildingblock(get_program().globalbuildingblock)
+    def propagate(dl_doutputs, operation):
+        dl_dy, = dl_doutputs
+        input = tensors[operation.inputs[0]]
+        weight= tensors[operation.inputs[1]]
+        output = tensors[operation.outputs[0]]
+        _, _,weights_h, weights_w= weight.shape
+        _,  n_channels_in,inputs_h, inputs_w = input.shape
+        _,  n_channels_out,output_h, output_w = output.shape
+
+        stride_h, stride_w = stride
+        padding_h, padding_w = padding
+        
+        input_size = input.shape[2] * input.shape[3] * input.shape[0] #why have no channel_in? 128*36
+        # batch_repeat = regint.Matrix(input.shape[0], input.shape[2] * input.shape[3]) # 128,6*6
+        # batch_repeat.assign_vector(batch.get(
+        #     regint.inc(input_size, 0, 1, 1, input.shape[0])) *reduce(operator.mul, input.shape[1:])) 
+        #存储到batch_repeat
+        @for_range_opt_multithread(self.n_threads, [n_channels_in, n_channels_out])
+        def _(i, j):
+            inputs = input.value.get_part_vector(i,).pre_mul()
+            
+            b = regint.inc(N * output_w * output_h, self.nabla_Y.address + j, n_channels_out, N)
+            rep_out = regint.inc(output_h * output_w * N, 0, 1, 1, N) * \
+                reduce(operator.mul, self.output_shape[1:])
+            nabla_outputs = output.value.get_part_vector(j).pre_mul()
+            res = sint(size = weights_h * weights_w)
+            conv2ds(res, inputs, nabla_outputs, weights_h, weights_w, inputs_h,
+                    inputs_w, output_h, output_w, -stride_h, -stride_w, N,
+                    padding_h, padding_w, 1)
+            reduced = unreduced_sfix._new(res).reduce_after_mul()
+            self.nabla_weights.assign_vector_by_indices(reduced, j, None, None, i)
+        
+        
+    prepare = get_prepare()
+    if prepare:
+        assert isinstance(input, Tensor) and isinstance(weight, Tensor) ,"Invalid Input and weight"
+        assert len(input.shape)==4 and len(weight.shape)==4,"Invalid Dimension input and weight"
+        out_shape=[input.shape[0],weight.shape[0],(input.shape[2]+2*padding[0]-weight.shape[2])//stride[0]+1,
+                   (input.shape[3]+2*padding[1]-weight.shape[3])//stride[1]+1] #out_shape.size:[Batch_size,out_channel,H_out,W_out]
+        new_value=MultiArray(out_shape,input.value.value_type)
+        output = Tensor(new_value, req_grad=input.req_grad)
+        if input.req_grad:
+            operation = Operation(inputs=[input.name,weight.name], outputs=[output.name], propagate=propagate)
+        else:
+            operation = Operation(inputs=[input.name,weight.name], outputs=[output.name], propagate=fake_propagate)
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation) - 1
+        op_id_store[op_id] = operation_id
+        set_opid(op_id+1)
+    else:
+        operation = gradient_operation[op_id_store[op_id]]
+        input_ = tensors[operation.inputs[0]]
+        weight_= tensors[operation.inputs[1]]
+        output = tensors[operation.outputs[0]] 
+        n_threads=8 if input_.numel() > 2**20 else 1
+        n_parts = max(1, round((n_threads or 1) / weight_.shape[0]))
+        while input_.shape[0] % n_parts != 0:
+            n_parts -= 1
+        print('Convolution in %d parts' % n_parts)
+        part_size = input_.shape[0] // n_parts
+        unreduced = MultiArray(output.shape, sint, address=output.value.address)
+        size_=part_size*reduce(operator.mul,input_.shape[1:])
+        @for_range_multithread(n_threads,1,[n_parts,weight_.shape[0]])
+        def _(i, j):
+            inputs=input_.value.get_vector(i*size_,size_).v
+            # print(len(inputs))
+            weights = weight_.value.get_part_vector(j).v
+            res = sint(size = output.shape[2] * output.shape[3] * part_size)
+            conv2ds(res, inputs, weights, output.shape[2],output.shape[3],
+                        input_.shape[2], input_.shape[3], weight_.shape[2], weight_.shape[3],
+                        stride[0], stride[1], input_.shape[1], padding[0], padding[1],
+                        part_size)
+            if bias:
+                res += bias.expand_to_vector(j, res.size).v
+            addresses=regint.inc(res.size, unreduced[i * part_size].address + j,weight_.shape[0])
+            res.store_in_mem(addresses)
+        # n_summands=weight_.shape[2]*weight_.shape[3]*input_.shape[1] #weights_h * weights_w * n_channels_in
+        n_outputs = input_.shape[0] * reduce(operator.mul, output.shape[1:])
+        @multithread(n_threads, n_outputs,
+                     1000 if sfix.round_nearest else 10 ** 6)                                                                                
+        def _(base, n_per_thread):
+            res = sfix().unreduced(sint.load_mem(unreduced.address + base,
+                              size=n_per_thread),sfix).reduce_after_mul()
+            res.store_in_mem(output.value.address + base)
+        set_opid(op_id+1)  # record the input and output of the op
+    return output
 
 
-def conv_transpose2d(input, weight, bias=None, stride=1, padding=0, output_padding=0):
-    pass
+def conv_transpose2d(input, weight, bias=None, stride=1, padding=0, outputpadding=0):
+     pass
 
 
 def max_pool2d(input, kernel_size, stride=None, padding=0,):
