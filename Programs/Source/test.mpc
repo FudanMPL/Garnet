@@ -1,4 +1,3 @@
-a = sint(1, 100000)
-b = sint(1, 100000)
-c = a.dot_product(a, b)
-print_ln("c = %s",c.reveal())
+a = sint(10, 1000)
+b = sint(10, 1000)
+c = sint.dot_product(a,b)

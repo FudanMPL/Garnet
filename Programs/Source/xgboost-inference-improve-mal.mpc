@@ -4,8 +4,7 @@ tree_number = 3 # 树的数量
 n_threads = 1 # 最大线程数
 test_samples = 51 # 测试样本数
 
-program.use_split(3)
-program.use_trunc_pr=True
+program.use_edabit(True)
 import xgboost_inference, util, math
 
 test = sfix.Array(test_samples), sint.Matrix(m, test_samples)
