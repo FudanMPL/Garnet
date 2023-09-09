@@ -8,6 +8,7 @@ logs/*
 Language-Definition/main.pdf
 keys/*
 Data/*
+build/*
 .idea/*
 Compiler/DL/data*
 # Personal CONFIG file #
