@@ -1820,15 +1820,15 @@ class FixConv2d(Conv2d, FixBase):
                     self.nabla_Y[i][j][k].get_vector() for k in range(output_w))
                                                    for j in range(output_h)))
 
-        input_size = inputs_h * inputs_w * N
-        batch_repeat = regint.Matrix(N, inputs_h * inputs_w)
+        input_size = inputs_h * inputs_w * N #why have no channel_in? 128*36
+        batch_repeat = regint.Matrix(N, inputs_h * inputs_w) # 128,6*6
         batch_repeat.assign_vector(batch.get(
             regint.inc(input_size, 0, 1, 1, N)) *
                                    reduce(operator.mul, self.input_shape[1:]))
         @for_range_opt_multithread(self.n_threads, [n_channels_in, n_channels_out])
         def _(i, j):
             a = regint.inc(input_size, self.X.address + i, n_channels_in, N,
-                           inputs_h * inputs_w)
+                           inputs_h * inputs_w)  
             inputs = sfix.load_mem(batch_repeat.get_vector() + a).pre_mul()
             b = regint.inc(N * output_w * output_h, self.nabla_Y.address + j, n_channels_out, N)
             rep_out = regint.inc(output_h * output_w * N, 0, 1, 1, N) * \
@@ -1837,7 +1837,7 @@ class FixConv2d(Conv2d, FixBase):
             res = sint(size = weights_h * weights_w)
             conv2ds(res, inputs, nabla_outputs, weights_h, weights_w, inputs_h,
                     inputs_w, output_h, output_w, -stride_h, -stride_w, N,
-                    padding_h, padding_w, 1)
+                    padding_h, padding_w, 1) 
             reduced = unreduced_sfix._new(res).reduce_after_mul()
             self.nabla_weights.assign_vector_by_indices(reduced, j, None, None, i)
 
