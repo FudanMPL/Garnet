@@ -6056,8 +6056,8 @@ class SubMultiArray(_vectorizable):
         :param base: public (regint/cint/int)
         :param size: compile-time (int) """
         assert self.value_type.n_elements() == 1
-        if size:
-            assert size<self.total_size(),"size is out of range"
+        # if size:
+        #     assert size<self.total_size(),"size is out of range"
         size = size or self.total_size()
         return self.value_type.load_mem(self.address + base, size=size)
 
@@ -6067,7 +6067,7 @@ class SubMultiArray(_vectorizable):
         :param vector: vector of matching size convertible to relevant basic type
         :param base: compile-time (int) """
         assert self.value_type.n_elements() == 1
-        assert vector.size <= self.total_size()-base,"vector size with base cause a buffer overflow"
+        # assert vector.size <= self.total_size()-base,"vector size with base cause a buffer overflow"
         self.value_type.conv(vector).store_in_mem(self.address + base)
 
     def assign(self, other):

@@ -169,9 +169,9 @@ def element_wise_add(self, other):
         output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
         
         dim, v1, v2 = reconst_dims(self.value, other.value)
-        target_size = v1.tuple_permute(v1.shape, get_permute(len(v1.sizes), dim))
+        target_size = v1.tuple_permute(v1.sizes, get_permute(len(v1.sizes), dim))
         temp1 = MultiArray(target_size, v1.value_type)
-        target_size = v1.tuple_permute(v1.shape, get_permute_d2front(len(v1.sizes), dim))
+        target_size = v1.tuple_permute(v1.sizes, get_permute_d2front(len(v1.sizes), dim))
         temp2 = MultiArray(target_size, v1.value_type)
         # check whether require grad
         if self.req_grad or other.req_grad:
@@ -371,10 +371,10 @@ def element_wise_mul(self, other):
         output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
         
         dims, v1, v2 = reconst_dims(self.value, other.value)
-        target_size = v1.tuple_permute(v1.shape, get_permute(len(v1.sizes), dims))
+        target_size = v1.tuple_permute(v1.sizes, get_permute(len(v1.sizes), dims))
         temp1 = MultiArray(target_size, v1.value_type)
         temp2 = MultiArray(target_size, v1.value_type)
-        target_size = v1.tuple_permute(v1.shape, get_permute_d2front(len(v1.sizes), dims))
+        target_size = v1.tuple_permute(v1.sizes, get_permute_d2front(len(v1.sizes), dims))
         temp3 = MultiArray(target_size, v1.value_type)
         temp4 = MultiArray(target_size, v1.value_type)
         # check whether require grad
