@@ -6,7 +6,7 @@ cfix.set_precision(31, 63)
 a, b, c = 11, 17, 13
 
 X = sfix(10)
-r = sfix(-107300)
+r = sfix(1073)
 
 x = X
 res1 = a*x*x + b*x + c

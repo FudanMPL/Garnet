@@ -305,6 +305,27 @@ def element_wise_sub(self, other):
     return output
 
 
+def boardcasted_multiarray_mul(v1, v2, inter, output):
+    # permute input for boardcasted
+    dims, v1, v2 = reconst_dims(v1, v2)
+    v1.permute_without_malloc(inter, get_permute(len(v1.sizes), dims))
+    v1 = inter
+
+    len1, len2 = v1.total_size(), v2.total_size()
+    assert len1 % len2==0, "Invalid Dimension"
+    # for i in range(0, len1//len2):
+    #     v3 = v1.get_vector(i*len2, len2) + v2.get_vector(0, len2)
+    #     output.value.assign_vector(v3, i*len2)
+    @for_range_opt(len1//len2)
+    def _(i):
+        v3 = v1.get_vector(i*len2, len2) * v2.get_vector(0, len2)
+        v1.assign_vector(v3, i*len2)
+    break_point()
+    
+    # permute back
+    v1.permute_without_malloc(output, get_permute_back(len(v1.sizes), dims))
+
+
 def element_wise_mul(self, other):
     # backward
     @buildingblock(get_program().globalbuildingblock)
@@ -318,8 +339,8 @@ def element_wise_mul(self, other):
         # swap to ensure v1 size is bigger than v2 size  
         v1, v2 = dl_dself, dl_dother
         req_grad1, req_grad2 = self.req_grad, other.req_grad
-        input1=tensors[operation.inputs[0]]
-        input2=tensors[operation.inputs[1]]
+        input1=tensors[operation.inputs[0]].value
+        input2=tensors[operation.inputs[1]].value
         
         if dl_dself.total_size()<dl_dother.total_size():
             v1, v2 = v2, v1
@@ -335,7 +356,7 @@ def element_wise_mul(self, other):
             # temp3 = permute(dl_dx) * permute(input2.value)
             @for_range_opt(v1.total_size()//v2.total_size())
             def _(i):
-                v3 = dl_dx_pmt.get_vector(i*stride, stride) * input2.value.get_vector(0, stride)
+                v3 = dl_dx_pmt.get_vector(i*stride, stride) * input2.get_vector(0, stride)
                 temp2.assign_vector(v3, i*stride)
             break_point()   
             # v1 = permute_back(temp3)
@@ -343,7 +364,7 @@ def element_wise_mul(self, other):
         # broadcasted v2 back with reduce
         if req_grad2:
             dl_dx.permute_without_malloc(temp3, get_permute_d2front(len(dl_dx.sizes), dims))
-            input1.value.permute_without_malloc(temp4, get_permute_d2front(len(input1.value.sizes), dims))
+            input1.permute_without_malloc(temp4, get_permute_d2front(len(input1.sizes), dims))
             dl_dx_pmt, input1_pmt = temp3, temp4
             stride = v1.total_size()//v2.total_size()
             @for_range_opt(v2.total_size())
@@ -393,27 +414,28 @@ def element_wise_mul(self, other):
         input1 = tensors[inputs[0]]
         input2 = tensors[inputs[1]]
         output = tensors[outputs[0]]
-        inter = operation.intermediate[0]
         
-        # permute input for boardcasted
-        dims, v1, v2 = reconst_dims(input1.value, input2.value)
-        v1.permute_without_malloc(inter, get_permute(len(v1.sizes), dims))
-        v1 = inter
+        # # permute input for boardcasted
+        # dims, v1, v2 = reconst_dims(input1.value, input2.value)
+        # v1.permute_without_malloc(inter, get_permute(len(v1.sizes), dims))
+        # v1 = inter
 
-        len1, len2 = v1.total_size(), v2.total_size()
-        assert len1 % len2==0, "Invalid Dimension"
-        # for i in range(0, len1//len2):
-        #     v3 = v1.get_vector(i*len2, len2) + v2.get_vector(0, len2)
-        #     output.value.assign_vector(v3, i*len2)
-        @for_range_opt(len1//len2)
-        def _(i):
-            v3 = v1.get_vector(i*len2, len2) * v2.get_vector(0, len2)
-            v1.assign_vector(v3, i*len2)
-        break_point()
+        # len1, len2 = v1.total_size(), v2.total_size()
+        # assert len1 % len2==0, "Invalid Dimension"
+        # # for i in range(0, len1//len2):
+        # #     v3 = v1.get_vector(i*len2, len2) + v2.get_vector(0, len2)
+        # #     output.value.assign_vector(v3, i*len2)
+        # @for_range_opt(len1//len2)
+        # def _(i):
+        #     v3 = v1.get_vector(i*len2, len2) * v2.get_vector(0, len2)
+        #     v1.assign_vector(v3, i*len2)
+        # break_point()
         
-        # permute back
-        v1.permute_without_malloc(output.value, get_permute_back(len(v1.sizes), dims))
-
+        # # permute back
+        # v1.permute_without_malloc(output.value, get_permute_back(len(v1.sizes), dims))
+        
+        boardcasted_multiarray_mul(input1.value, input2.value, operation.intermediate[0], output.value)
+        
         op_id += 1# record the input and output of the op
     return output
 
@@ -423,50 +445,50 @@ def element_wise_div(self, other):
     def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
         inputs = operation.inputs
-        inter = operation.intermediate[0]  # reuse the intervalue in mem
-        temp1_matrix = operation.intermediate[1]
-        temp2_matrix = operation.intermediate[2]
+        output_value = tensors[operation.outputs[0]].value
+        temp1, temp2, temp3, temp4, temp5, temp6 = operation.intermediate
         dl_dself = dl_d[inputs[0]]  # partial derivate of r = 1
         dl_dother = dl_d[inputs[1]]  # partial derivate of r = 1
-        input1=tensors[operation.inputs[0]]
-        input2=tensors[operation.inputs[1]]
         
-        # swap to ensure v1 size is bigger than v2 size  
+        # convert "input" as convert div to mul 
         v1, v2 = dl_dself, dl_dother
         req_grad1, req_grad2 = self.req_grad, other.req_grad
-        len1, len2 = v1.total_size(), v2.total_size()
+        # temp5.assign_vector(1 / tensors[operation.inputs[1]].value[:])
+        # temp6.assign_vector(tensors[operation.inputs[0]].value[:] / tensors[operation.inputs[1]].value[:] / tensors[operation.inputs[1]].value[:])
+        boardcasted_multiarray_mul(output_value, temp5, temp1, temp6)
+        temp6.assign_vector(-1 * temp6[:])
+        input2, input1 = temp5, temp6
+        
+        # swap to ensure v1 size is bigger than v2 size  
+        if dl_dself.total_size()<dl_dother.total_size():
+            v1, v2 = v2, v1
+            req_grad1, req_grad2 = req_grad2, req_grad1
+            input1, input2 = input2, input1
+            
+        dims, v1, v2 = reconst_dims(v1, v2)
         # v1 back directly 
         if req_grad1:
-            if dl_dself.total_size()<dl_dother.total_size():
-                dl_dx_rec = matrix_reconst(dl_dx, temp1_matrix)
-                inter_res = matrix_reconst(inter, temp2_matrix)
-                @for_range_opt(v1.total_size())
-                def _(i):
-                    v3 = dl_dx.value_type.dot_product(dl_dx_rec.get_vector(i*dl_dx_rec.sizes[1], dl_dx_rec.sizes[1]), inter_res.get_vector(i*dl_dx_rec.sizes[1], dl_dx_rec.sizes[1]))
-                    v1.assign_vector(v3, i)                  
-            else:
-                @for_range_opt(len1//len2)
-                def _(i):
-                    v3 = dl_dx.get_vector(i*len2, len2) * inter.get_vector(0, len2)
-                    v1.assign_vector(v3, i*len2)  
-            break_point()
+            dl_dx.permute_without_malloc(temp1, get_permute(len(dl_dx.sizes), dims))
+            dl_dx_pmt = temp1
+            stride = v2.total_size()
+            # temp3 = permute(dl_dx) * permute(input2.value)
+            @for_range_opt(v1.total_size()//v2.total_size())
+            def _(i):
+                v3 = dl_dx_pmt.get_vector(i*stride, stride) * input2.get_vector(0, stride)
+                temp2.assign_vector(v3, i*stride)
+            break_point()   
+            # v1 = permute_back(temp3)
+            temp2.permute_without_malloc(v1, get_permute_back(len(v1.sizes), dims))
         # broadcasted v2 back with reduce
         if req_grad2:
-            if dl_dself.total_size()<dl_dother.total_size():
-                v2 = -1 * inter[:] * inter[:] * dl_dx[:]
-                @for_range_opt(len2//len1)
-                def _(i):
-                    v3 = v2.get_vector(i*len1, len1) * input1.get_vector(0, len1)
-                    v2.assign_vector(v3, i*len1)                       
-            else:
-                dl_dx_rec = matrix_reconst(dl_dx, temp1_matrix)
-                input1_rec = matrix_reconst(input1.value, temp2_matrix)   
-                tmp_inter = -1 * inter[:] * inter[:]
-                @for_range_opt(v2.total_size())
-                def _(i):
-                    v3 = dl_dx.value_type.dot_product(dl_dx_rec.get_vector(i*dl_dx_rec.sizes[1], dl_dx_rec.sizes[1]), input1_rec.get_vector(i*dl_dx_rec.sizes[1], dl_dx_rec.sizes[1]))
-                    v2.assign_vector(v3, i)  
-                v2[:] = v2[:] * tmp_inter
+            dl_dx.permute_without_malloc(temp3, get_permute_d2front(len(dl_dx.sizes), dims))
+            input1.permute_without_malloc(temp4, get_permute_d2front(len(input1.sizes), dims))
+            dl_dx_pmt, input1_pmt = temp3, temp4
+            stride = v1.total_size()//v2.total_size()
+            @for_range_opt(v2.total_size())
+            def _(i):
+                v3 = dl_dx.value_type.dot_product(dl_dx_pmt.get_vector(i*stride, stride), input1_pmt.get_vector(i*stride, stride))
+                v2.assign_vector(v3, i)    
             break_point()
         dl_dinputs = [dl_dself, dl_dother]
         return dl_dinputs
@@ -474,9 +496,7 @@ def element_wise_div(self, other):
     global op_id
     if prepare:
         # check shape
-        assert check_boardcast_size(self.value.sizes, other.value.sizes), "Invalid Dimension"
-        temp1_matrix = MultiArray([other.value.total_size(), self.value.total_size()//other.value.total_size()], self.value.value_type)
-        temp2_matrix = MultiArray([other.value.total_size(), self.value.total_size()//other.value.total_size()], self.value.value_type)
+        # assert check_boardcast_size(self.value.sizes, other.value.sizes), "Invalid Dimension"
         if isinstance(self.value, MultiArray) or isinstance(other.value, MultiArray):
             if self.value.total_size()>other.value.total_size():
                 new_value = MultiArray(self.value.sizes, self.value.value_type)
@@ -487,13 +507,22 @@ def element_wise_div(self, other):
                 new_value = Array(self.value.sizes[0], self.value.value_type)
             else:
                 new_value = Array(other.value.sizes[0], self.value.value_type)
-        inter = other.value.same_shape()
         output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
+        
+        dims, v1, v2 = reconst_dims(self.value, other.value)
+        target_size = v1.tuple_permute(v1.sizes, get_permute(len(v1.sizes), dims))
+        temp1 = MultiArray(target_size, v1.value_type)
+        temp2 = MultiArray(target_size, v1.value_type)
+        target_size = v1.tuple_permute(v1.sizes, get_permute_d2front(len(v1.sizes), dims))
+        temp3 = MultiArray(target_size, v1.value_type)
+        temp4 = MultiArray(target_size, v1.value_type)
+        temp5 = MultiArray(v2.sizes, v2.value_type)
+        temp6 = MultiArray(v1.sizes, v1.value_type)
         # check whether require grad
         if self.req_grad or other.req_grad:
-            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate, intermediate=[inter, temp1_matrix, temp2_matrix])
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate, intermediate=[temp1, temp2, temp3, temp4, temp5, temp6])
         else:
-            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate, intermediate=[inter, temp1_matrix, temp2_matrix])
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate, intermediate=[temp1, temp2, temp3, temp4, temp5, temp6])
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
@@ -505,30 +534,13 @@ def element_wise_div(self, other):
         input1 = tensors[inputs[0]]
         input2 = tensors[inputs[1]]
         output = tensors[outputs[0]]
-
-        # swap to ensure v1 size is bigger than v2 size  
-        v1, v2= input1.value, input2.value
-        # if input1.value.total_size() < input2.value.total_size():
-        #     v1, v2 = v2, v1
-
-        len1, len2 = v1.total_size(), v2.total_size()
-        assert len1 % len2==0, "Invalid Dimension"
-        # for i in range(0, len1//len2):
-        #     v3 = v1.get_vector(i*len2, len2) + v2.get_vector(0, len2)
-        #     output.value.assign_vector(v3, i*len2)
-        tmp_inter = 1 / input2.value[:]
-        operation.intermediate[0].assign_vector(tmp_inter) 
-        if input1.value.total_size() > input2.value.total_size():
-            @for_range_opt(len1//len2)
-            def _(i):
-                v3 = v1.get_vector(i*len2, len2) * tmp_inter
-                output.value.assign_vector(v3, i*len2)
-        else:
-            @for_range_opt(len2//len1)
-            def _(i):
-                v3 = v1.get_vector(0, len1) * operation.intermediate[0].get_vector(i*len1, len1)
-                output.value.assign_vector(v3, i*len1) 
-        break_point() 
+        temp5 = operation.intermediate[4]
+        
+        # get inverse of input2
+        temp5.assign_vector(1/input2.value[:])
+        
+        boardcasted_multiarray_mul(input1.value, temp5, operation.intermediate[0], output.value)
+        
         op_id += 1# record the input and output of the op
     return output
 

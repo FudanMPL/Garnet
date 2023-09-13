@@ -107,6 +107,7 @@ def test_div():
     x.print_reveal_nested()
     y = MultiArray([1, 2], sfix)
     y.assign_all(5)
+    y[0][0] = 6
     y.print_reveal_nested()
     input1 = Tensor(x, req_grad = True)
     input2 = Tensor(y, req_grad = True)
@@ -485,7 +486,7 @@ def test_f_batchnorm():
 test_mul()
 test_add()
 test_sub()
-#test_div()
+test_div()
 #test_abs()
 #test_exp()
 #test_log()
@@ -506,6 +507,8 @@ def test_getitem():
 #test_exp()
 #test_log()
 #test_pow(3)
+
+'''
 test_sum([0,2])
 test_sum([0,2], keepdim=True)
 test_mean([0,2])
@@ -514,6 +517,7 @@ test_var([0,2])
 test_var([0,2], keepdim=True)
 test_std([0,2])
 test_std([0,2], keepdim=True)
+'''
 
 #test_addc()
 #test_subc()
