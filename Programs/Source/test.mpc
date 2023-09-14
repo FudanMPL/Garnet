@@ -1,3 +1,7 @@
-a = sint(10, 1000)
-b = sint(10, 1000)
-c = sint.dot_product(a,b)
+import oram
+program.use_split(3)
+
+s = sint(20)
+
+x = oram.demux(s.bit_decompose(8))
+
