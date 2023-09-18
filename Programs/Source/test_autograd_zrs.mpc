@@ -484,7 +484,11 @@ def test_tanh():
 def test_conv2d():
     print_ln("test_conv2d:")
     training_samples = MultiArray([4, 3,5, 5], sfix)
-    for i in range()
+    for i in range(0,4):
+        for j in range(0,3):
+            for k in range(0,5):
+                for m in range(5):
+                    training_samples[i][j][k][m]=i+j+k+m
 
 
     training_labels = MultiArray([4, 10], sint)
@@ -503,15 +507,39 @@ def test_conv2d():
     tensor.reset_op_id()
     output=F.conv2d(input,weight)
     output.backward()
-    #input.value.print_reveal_nested()
     output.value.print_reveal_nested()
-    #output.grad.print_reveal_nested()
-    #input.grad.print_reveal_nested()
+    weight.grad.print_reveal_nested()
+    input.grad.print_reveal_nested()
+
+@autograd_function
+def test_maxpool2d():
+    print_ln("test_maxpool2d:")
+    training_samples = MultiArray([4, 3,5, 5], sfix)
+    for i in range(0,4):
+        for j in range(0,3):
+            for k in range(0,5):
+                for m in range(5):
+                    training_samples[i][j][k][m]=i+j+k+m
+
+    input = Tensor(training_samples, req_grad = True)
 
 
+    output=F.max_pool2d(input)
+    tensor.train()
+    tensor.reset_op_id()
+    output=F.max_pool2d(input)
+    output.backward()
+    print_ln("output shape:%s",output.shape)
+    output.value.print_reveal_nested()
+    #output.value.permute([0,3,1,2]).print_reveal_nested()
+    print_ln("input grad shape:%s",input.shape)
+    input.grad.print_reveal_nested()
+    
 
 
-test_conv2d()
+test_maxpool2d()
+
+#test_conv2d()
 #test_tanh()
 
 #test_logsigmoid()
