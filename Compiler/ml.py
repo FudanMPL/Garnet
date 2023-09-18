@@ -1828,7 +1828,7 @@ class FixConv2d(Conv2d, FixBase):
         @for_range_opt_multithread(self.n_threads, [n_channels_in, n_channels_out])
         def _(i, j):
             a = regint.inc(input_size, self.X.address + i, n_channels_in, N,
-                           inputs_h * inputs_w)
+                           inputs_h * inputs_w)  
             inputs = sfix.load_mem(batch_repeat.get_vector() + a).pre_mul()
             b = regint.inc(N * output_w * output_h, self.nabla_Y.address + j, n_channels_out, N)
             rep_out = regint.inc(output_h * output_w * N, 0, 1, 1, N) * \

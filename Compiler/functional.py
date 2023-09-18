@@ -604,30 +604,30 @@ def dropout(input, p=0.5, training=False, inplace=False):  # todo
         set_opid(op_id+1)  # record the input and output of the op
     return output
 
+#wqruan: seems useless
+# def one_hot(input, num_classes=-1):
+#     # i think user should specify the num_classes, if not, we should calculate the max value in input.
+#     """example:
+#     one_hot(torch.tensor([0, 1, 2, 3, 4]), num_classes=8)
+#     tensor([[1, 0, 0, 0, 0, 0, 0, 0],
+#             [0, 1, 0, 0, 0, 0, 0, 0],
+#             [0, 0, 1, 0, 0, 0, 0, 0],
+#             [0, 0, 0, 1, 0, 0, 0, 0],
+#             [0, 0, 0, 0, 1, 0, 0, 0]])"""
+#     assert isinstance(input, Tensor), "input should be Tensor"
+#     assert input.value.value_type == cint, "input should be cint"
+#     x = input.value
+#     in_sizes = x.sizes
+#     b = reduce(operator.mul, in_sizes) if len(in_sizes) >= 2 else in_sizes[0]
+#     output = MultiArray([*in_sizes, num_classes], x.value_type)
 
-def one_hot(input, num_classes=-1):
-    # i think user should specify the num_classes, if not, we should calculate the max value in input.
-    """example:
-    one_hot(torch.tensor([0, 1, 2, 3, 4]), num_classes=8)
-    tensor([[1, 0, 0, 0, 0, 0, 0, 0],
-            [0, 1, 0, 0, 0, 0, 0, 0],
-            [0, 0, 1, 0, 0, 0, 0, 0],
-            [0, 0, 0, 1, 0, 0, 0, 0],
-            [0, 0, 0, 0, 1, 0, 0, 0]])"""
-    assert isinstance(input, Tensor), "input should be Tensor"
-    assert input.value.value_type == cint, "input should be cint"
-    x = input.value
-    in_sizes = x.sizes
-    b = reduce(operator.mul, in_sizes) if len(in_sizes) >= 2 else in_sizes[0]
-    output = MultiArray([*in_sizes, num_classes], x.value_type)
+#     output.view(-1, num_classes)
 
-    output.view(-1, num_classes)
+#     for i in range(b):
+#         output[i][x.get_vector()[i]] = 1
 
-    for i in range(b):
-        output[i][x.get_vector()[i]] = 1
-
-    output.view(*in_sizes, num_classes)
-    return Tensor(output)
+#     output.view(*in_sizes, num_classes)
+#     return Tensor(output)
 
 
 def normalize(input, p=2.0, dim=1, eps=1e-12, out=None):  # todo

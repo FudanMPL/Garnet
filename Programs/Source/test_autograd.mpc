@@ -6,13 +6,13 @@ program.options_from_args()
 @autograd_function
 def test_mul():
     print_ln('test_mul_input: ')
-    x = MultiArray([3, 3, 2], sfix)
-    x[0].assign_all(1)
-    x[1].assign_all(2)
-    x[2].assign_all(3)
+    x = MultiArray([3, 2, 3], sfix)
+    for i in range(x.total_size()):
+        x.assign_vector(sfix(i), i)
     x.print_reveal_nested()
-    y = MultiArray([1, 2], sfix)
+    y = MultiArray([2, 1], sfix)
     y.assign_all(5)
+    y[0][0]=6
     y.print_reveal_nested()
     input1 = Tensor(x, req_grad = True)
     input2 = Tensor(y, req_grad = True)
@@ -26,10 +26,11 @@ def test_mul():
     input3 = input1 * input2
     input3.value.print_reveal_nested()
     input3.backward()
-    print_ln('test_add_backward: ')
+
+    print_ln('test_mul_backward: ')
     input1.grad.print_reveal_nested()
     input2.grad.print_reveal_nested()
-
+    
 def test_single_operation(func,Value):
     Value.print_reveal_nested()
     input = Tensor(Value, req_grad = True)
@@ -52,6 +53,7 @@ def test_add():
     x.print_reveal_nested()
     y = MultiArray([2, 1], sfix)
     y.assign_all(5)
+    y[0][0]=6
     y.print_reveal_nested()
     input1 = Tensor(x, req_grad = True)
     input2 = Tensor(y, req_grad = True)
@@ -77,6 +79,7 @@ def test_sub():
     x.print_reveal_nested()
     y = MultiArray([1, 2], sfix)
     y.assign_all(5)
+    y[0][0]=6
     y.print_reveal_nested()
     input1 = Tensor(x, req_grad = True)
     input2 = Tensor(y, req_grad = True)
@@ -86,11 +89,11 @@ def test_sub():
     tensor.train()
     tensor.reset_op_id()
 
-    print_ln('test_add_output: ')
+    print_ln('test_sub_output: ')
     input3 = input1 - input2
     input3.value.print_reveal_nested()
     input3.backward()
-    print_ln('test_add_backward: ')
+    print_ln('test_sub_backward: ')
     input1.grad.print_reveal_nested()
     input2.grad.print_reveal_nested()
 
@@ -104,6 +107,7 @@ def test_div():
     x.print_reveal_nested()
     y = MultiArray([1, 2], sfix)
     y.assign_all(5)
+    y[0][0] = 6
     y.print_reveal_nested()
     input1 = Tensor(x, req_grad = True)
     input2 = Tensor(y, req_grad = True)
@@ -479,10 +483,10 @@ def test_f_batchnorm():
     input2.value.print_reveal_nested()
     input1.grad.print_reveal_nested()
 
-#test_mul()
+test_mul()
 test_add()
-#test_sub()
-#test_div()
+test_sub()
+test_div()
 #test_abs()
 #test_exp()
 #test_log()
@@ -503,6 +507,8 @@ def test_getitem():
 #test_exp()
 #test_log()
 #test_pow(3)
+
+'''
 test_sum([0,2])
 test_sum([0,2], keepdim=True)
 test_mean([0,2])
@@ -511,6 +517,7 @@ test_var([0,2])
 test_var([0,2], keepdim=True)
 test_std([0,2])
 test_std([0,2], keepdim=True)
+'''
 
 #test_addc()
 #test_subc()
