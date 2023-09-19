@@ -37,8 +37,8 @@ make -j 8 tldr
 #### 2023年9月份发布: 
 
 * [优化Function Secret Sharing的通信轮次](./docs/fss.md)
-* [减少XGBoost推理所需的通信量](./docs/xgboost-inference.md)
-* [提升向量空间秘密分享矩阵乘法离线阶段生成三元组的效率](./docs/vss.md)
+* [优化XGBoost推理所需的通信量](./docs/xgboost-inference.md)
+* [优化向量空间秘密分享矩阵乘法离线阶段生成三元组的效率](./docs/vss.md)
 * [新增Transformer模块及线性化ReLU层](./docs/transformer.md)
 
 
