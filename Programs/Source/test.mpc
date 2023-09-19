@@ -1,4 +1,7 @@
-a = sint(2, 4)
-b = sint(0, 1)
-c = a * b
-print_ln("c = %s", c.reveal())
+import oram
+program.use_split(3)
+
+s = sint(20)
+
+x = oram.demux(s.bit_decompose(8))
+
