@@ -1,0 +1,15 @@
+program.options_from_args()
+program.use_trunc_pr = True
+program.use_split(3)
+from Compiler import ml
+L=ml.Linear_Relu([1,2])
+M=MultiArray([1,2], cint)
+A=MultiArray([1,2], sfix)
+M[0][0]=1
+M[0][1]=0
+A[0][0]=-1.0
+A[0][1]=-2.0
+L.set_mask(M)
+L.debug_output=True
+L.X=A
+L._forward()
