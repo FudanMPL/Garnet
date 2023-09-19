@@ -36,7 +36,9 @@ public:
 
     void buffer_bits() { this->buffer_bits_without_check(); }
 
-    void gen_fake_dcp(int beta, int lambda);
+    void gen_fake_dcf(int beta, int lambda);
+
+    void gen_fake_multi_spline_dcf(SubProcessor<T> &processor, int beta, int lambda, int base, int length);
     
     void get_one_no_count(Dtype dtype, T& a)
     {

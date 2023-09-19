@@ -544,7 +544,6 @@ void SubProcessor<T>::matmulsm(const CheckVector<T>& source,
     auto C = S.begin() + (instruction.get_r(0));
     assert(C + dim[0] * dim[2] <= S.end());
     assert(Proc);
-
     protocol.init_dotprod();
     for (int i = 0; i < dim[0]; i++)
     {

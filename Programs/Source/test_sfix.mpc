@@ -2,12 +2,10 @@ import Compiler.mpc_math
 import random
 import math
 
-n = 10000
+n = 1
 cnt = 0
 
-#sfix.set_precision(31, 72)
-@for_range(n)
-def _(i):
+for i in range(n):
     a = sfix.get_random(-1000,1000)
     b = sfix.get_random(-1000,1000)
     c = (a > b)
