@@ -4659,7 +4659,22 @@ class sfix(_fix):
 
     def prefix_sum(self):
         return self._new(self.v.prefix_sum(), k=self.k, f=self.f)
-
+    
+    def multi_spline(self, splines):
+        "patially right, how to parallel them?" 
+        t = sint.Array(len(splines))
+        for i in range(len(splines)):
+            tmp = sint()
+            comparison.MTS(tmp, self.v, splines[:][i].v, len(splines))
+            t[i] = tmp
+        return t[:]
+    
+    def multi_spline_ltz(self, splines):
+        t = sint.Array(len(splines))
+        for i in range(len(splines)):
+            t[i] = self < splines[:][i]
+        return t[:]
+    
     def change_domain(self, k):
         pass
 
@@ -5527,7 +5542,7 @@ class Array(_vectorizable):
                 res_length = (stop - start - 1) // step + 1
                 addresses = regint.inc(res_length, start, step)
                 return self.get_vector(addresses, res_length)
-        return self._load(self.get_address(index))
+        return self.load_mem(self.get_address(index))
 
     def __setitem__(self, index, value):
         """ Writing to array.
@@ -5922,6 +5937,15 @@ class Array(_vectorizable):
     def __str__(self):
         return '%s array of length %s at %s' % (self.value_type, len(self),
                                                 self.address)
+    
+    # def multi_spline(self, splines):
+    #     from . import library as lib
+    #     assert self.value_type == sfix
+    #     res = sfix.Array(len(splines))
+    #     tmp = sfix.Array(len(splines))
+    #     tmp.assign_all(self)
+    #     comparison.MTS(res, tmp, splines, len(splines))
+    #     return res
 
 sint.dynamic_array = Array
 sgf2n.dynamic_array = Array

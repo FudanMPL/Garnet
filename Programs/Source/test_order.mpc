@@ -1,0 +1,17 @@
+import math
+
+order = 8
+x = sfix(2)
+x_order = sfix.Array(order+1)
+x_order[0] = sfix(0)
+x_order[1] = x
+pre = 1
+cur = 2
+for i in range (math.ceil(math.log2(order))+1):
+  for j in range(pre + 1, cur + 1):
+    x_order[j] = x_order[:][pre] * x_order[:][j - pre]
+  pre = cur  
+  cur = min(cur*2, order)
+
+#for i in range(order+1):
+#  print_ln("%s order of x is %s", i, x_order[:][i].reveal())
