@@ -36,10 +36,10 @@ make -j 8 tldr
 
 #### 2023年9月份发布: 
 
-* [优化Function Secret Sharing的通信轮次](./docs/fss.md])
-* [减少XGBoost推理所需的通信量](./docs/xgboost-inference.md])
-* [提升向量空间秘密分享矩阵乘法离线阶段生成三元组的效率](./docs/vss.md])
-* [新增Transformer模块及线性化ReLU层](./docs/transformer.md])
+* [优化Function Secret Sharing的通信轮次](./docs/fss.md)
+* [减少XGBoost推理所需的通信量](./docs/xgboost-inference.md)
+* [提升向量空间秘密分享矩阵乘法离线阶段生成三元组的效率](./docs/vss.md)
+* [新增Transformer模块及线性化ReLU层](./docs/transformer.md)
 
 
 
@@ -47,21 +47,21 @@ make -j 8 tldr
 
 #### 2023年7月份发布: 
 
-* [基于向量空间秘密共享的安全计算协议使用](./docs/vss.md])
-* [Function Secret Sharing与Replicated Secret Sharing混合协议](./docs/fss.md])
-* [基于NFGen的非线性函数近似计算](./docs/nfgen.md])
-* [模型训练开销Profiling](./docs/profiling.md])
-* [XGBoost模型安全推理](./docs/xgboost-inference.md])
+* [基于向量空间秘密共享的安全计算协议使用](./docs/vss.md)
+* [Function Secret Sharing与Replicated Secret Sharing混合协议](./docs/fss.md)
+* [基于NFGen的非线性函数近似计算](./docs/nfgen.md)
+* [模型训练开销Profiling](./docs/profiling.md)
+* [XGBoost模型安全推理](./docs/xgboost-inference.md)
 
 
 
 
 #### 2023年3月份发布: 
 
-* [SecureML协议](./docs/secureML.md])
-* [预训练模型安全微调](./docs/pretrain.md])
-* [XGBoost模型安全训练](./docs/xgboost-training.md])
-* [SecureML协议](./docs/secureML.md])
+* [SecureML协议](./docs/secureML.md)
+* [预训练模型安全微调](./docs/pretrain.md)
+* [XGBoost模型安全训练](./docs/xgboost-training.md)
+* [SecureML协议](./docs/secureML.md)
 
 
 
