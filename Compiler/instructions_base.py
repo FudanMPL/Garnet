@@ -589,7 +589,7 @@ def cisc(function):
 
     def wrapper(*args, **kwargs):
         same_sizes = True
-        print("args are ", args)
+
         for arg in args:
             try:
                 same_sizes &= arg.size == args[0].size

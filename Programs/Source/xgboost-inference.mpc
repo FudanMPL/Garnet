@@ -3,6 +3,13 @@ h = 2 # 树高
 tree_number = 3 # 树的数量
 n_threads = 1 # 最大线程数
 test_samples = 51 # 测试样本数
+attribute_max_values = [ # 各个特征的最大值，用于在两方同态加密下使用
+100,
+100,
+100,
+100
+]
+
 
 program.use_split(3)
 program.use_trunc_pr=True
@@ -21,7 +28,7 @@ for x in  test:
 
 
 inference = xgboost_inference.XGBoostInference(
-    h=h, tree_number=tree_number,  n_threads=n_threads, attribute_number=m,  test_sample_number=test_samples)
+    h=h, tree_number=tree_number,  n_threads=n_threads, attribute_number=m,  test_sample_number=test_samples, attribute_max_values=attribute_max_values)
 
 inference.input_from(0)
 

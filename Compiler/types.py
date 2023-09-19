@@ -5542,7 +5542,7 @@ class Array(_vectorizable):
                 res_length = (stop - start - 1) // step + 1
                 addresses = regint.inc(res_length, start, step)
                 return self.get_vector(addresses, res_length)
-        return self.load_mem(self.get_address(index))
+        return self._load(self.get_address(index))
 
     def __setitem__(self, index, value):
         """ Writing to array.
