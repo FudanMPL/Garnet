@@ -248,31 +248,84 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0]):
         weight= tensors[operation.inputs[1]]
         output = tensors[operation.outputs[0]]
         _, _,weights_h, weights_w= weight.shape
-        _,  n_channels_in,inputs_h, inputs_w = input.shape
+        N,  n_channels_in,inputs_h, inputs_w = input.shape
         _,  n_channels_out,output_h, output_w = output.shape
+        input_value=input.value.permute([0,2,3,1])
+        weight_value=weight.value.permute([0,2,3,1])
+        nabla_Y=output.grad.permute([0,2,3,1])
 
         stride_h, stride_w = stride
         padding_h, padding_w = padding
         
-        input_size = input.shape[2] * input.shape[3] * input.shape[0] #why have no channel_in? 128*36
-        # batch_repeat = regint.Matrix(input.shape[0], input.shape[2] * input.shape[3]) # 128,6*6
-        # batch_repeat.assign_vector(batch.get(
-        #     regint.inc(input_size, 0, 1, 1, input.shape[0])) *reduce(operator.mul, input.shape[1:])) 
-        #存储到batch_repeat
-        @for_range_opt_multithread(self.n_threads, [n_channels_in, n_channels_out])
+        n_threads=8 if input.numel() > 2**20 else 1
+        batch=Array.create_from(regint.inc(N))
+        input_size = inputs_h * inputs_w * N #why have no channel_in? 128*36
+        batch_repeat = regint.Matrix(N, inputs_h * inputs_w) # 128,6*6
+        batch_repeat.assign_vector(batch.get(
+            regint.inc(input_size, 0, 1, 1, N)) *
+                                   reduce(operator.mul, input_value.sizes[1:]))
+        @for_range_opt_multithread(n_threads, [n_channels_in, n_channels_out])
         def _(i, j):
-            inputs = input.value.get_part_vector(i,).pre_mul()
-            
-            b = regint.inc(N * output_w * output_h, self.nabla_Y.address + j, n_channels_out, N)
+            a = regint.inc(input_size, input_value.address + i, n_channels_in, N,
+                           inputs_h * inputs_w)
+            inputs = sfix.load_mem(batch_repeat.get_vector() + a).v
+            b = regint.inc(N * output_w * output_h, nabla_Y.address + j, n_channels_out, N)
             rep_out = regint.inc(output_h * output_w * N, 0, 1, 1, N) * \
-                reduce(operator.mul, self.output_shape[1:])
-            nabla_outputs = output.value.get_part_vector(j).pre_mul()
+                reduce(operator.mul, nabla_Y.sizes[1:])
+            nabla_outputs = sfix.load_mem(rep_out + b).v
             res = sint(size = weights_h * weights_w)
             conv2ds(res, inputs, nabla_outputs, weights_h, weights_w, inputs_h,
                     inputs_w, output_h, output_w, -stride_h, -stride_w, N,
-                    padding_h, padding_w, 1)
+                    padding_h, padding_w, 1) 
             reduced = unreduced_sfix._new(res).reduce_after_mul()
-            self.nabla_weights.assign_vector_by_indices(reduced, j, None, None, i)
+            weight.grad.assign_vector_by_indices(reduced, j, i,None, None)
+        
+        
+        nabla_X=input.grad.permute([0,2,3,1])
+        
+        
+        reverse_weights = MultiArray(
+                [n_channels_in, weights_h, weights_w, n_channels_out], sfix)
+        @for_range_opt_multithread(n_threads, n_channels_in)
+        def _(l):
+            @for_range(weights_h)
+            def _(j):
+                @for_range(weights_w)
+                def _(k):
+                    addresses = regint.inc(n_channels_out,
+                        weight_value[0][j][weights_w-k-1].get_address(l),
+                        reduce(operator.mul, weight_value.sizes[1:]))
+                    reverse_weights[l][weights_h-j-1][k].assign_vector(
+                        weight_value.value_type.load_mem(addresses))
+        padded_w = inputs_w + 2 * padding_w
+        padded_h = inputs_h + 2 * padding_h
+        if padding_h or padding_w:
+            output = MultiArray(
+                [N, padded_h, padded_w, n_channels_in], sfix)
+        else:
+            output = nabla_X
+        @for_range_opt_multithread(n_threads,
+                                    [N, n_channels_in])
+        def _(i, j):
+            res = sint(size = (padded_w * padded_h))
+            conv2ds(res, nabla_Y[i].get_vector().v,
+                    reverse_weights[j].get_vector().v,
+                    padded_h, padded_w, output_h, output_w,
+                    weights_h, weights_w, 1, 1, n_channels_out,
+                    weights_h - 1, weights_w - 1, 1)
+            input.grad.assign_vector_by_indices(
+                unreduced_sfix._new(res).reduce_after_mul(),i, j,None, None)
+        if padding_h or padding_w:
+            @for_range_opt_multithread(n_threads, N)
+            def _(i):
+                @for_range(inputs_h)
+                def _(j):
+                    @for_range(inputs_w)
+                    def _(k):
+                        jj = j + padding_w
+                        kk = k + padding_w
+                        nabla_X[i][j][k].assign_vector(output[i][jj][kk].get_vector())
+            # nable_X.print_reveal_nested()
         
         
     prepare = get_prepare()
@@ -292,40 +345,49 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0]):
         op_id_store[op_id] = operation_id
         set_opid(op_id+1)
     else:
+        stride_h, stride_w = stride
+        padding_h, padding_w = padding
         operation = gradient_operation[op_id_store[op_id]]
-        input_ = tensors[operation.inputs[0]]
-        weight_= tensors[operation.inputs[1]]
-        output = tensors[operation.outputs[0]] 
-        n_threads=8 if input_.numel() > 2**20 else 1
-        n_parts = max(1, round((n_threads or 1) / weight_.shape[0]))
-        while input_.shape[0] % n_parts != 0:
+        output= tensors[operation.outputs[0]] 
+        _, _,weights_h, weights_w= weight.shape
+        N,  n_channels_in,inputs_h, inputs_w = input.shape
+        _,  n_channels_out,output_h, output_w = output.shape
+        input_value=input.value.permute([0,2,3,1])
+        weight_value=weight.value.permute([0,2,3,1])
+        output_value=output.value.permute([0,2,3,1])
+        
+        n_threads=8 if input.numel() > 2**20 else 1
+        
+        n_parts = max(1, round((n_threads or 1) / n_channels_out))
+        while N % n_parts != 0:
             n_parts -= 1
         print('Convolution in %d parts' % n_parts)
-        part_size = input_.shape[0] // n_parts
-        unreduced = MultiArray(output.shape, sint, address=output.value.address)
-        size_=part_size*reduce(operator.mul,input_.shape[1:])
-        @for_range_multithread(n_threads,1,[n_parts,weight_.shape[0]])
+        unreduced = MultiArray(output_value.sizes, sint, address=output_value.address)
+        part_size =N // n_parts
+        size_=part_size*reduce(operator.mul,input.shape[1:])
+        @for_range_multithread(n_threads, 1, [n_parts, n_channels_out])
         def _(i, j):
-            inputs=input_.value.get_vector(i*size_,size_).v
-            # print(len(inputs))
-            weights = weight_.value.get_part_vector(j).v
-            res = sint(size = output.shape[2] * output.shape[3] * part_size)
-            conv2ds(res, inputs, weights, output.shape[2],output.shape[3],
-                        input_.shape[2], input_.shape[3], weight_.shape[2], weight_.shape[3],
-                        stride[0], stride[1], input_.shape[1], padding[0], padding[1],
-                        part_size)
+            inputs = input_value.get_vector(i*size_,size_).v
+            weights = weight_value.get_part_vector(j).v
+            res = sint(size = output_h * output_w * part_size)
+            conv2ds(res, inputs, weights, output_h, output_w,
+                    inputs_h, inputs_w, weights_h, weights_w,
+                    stride_h, stride_w, n_channels_in, padding_h, padding_w,
+                    part_size)
             if bias:
                 res += bias.expand_to_vector(j, res.size).v
-            addresses=regint.inc(res.size, unreduced[i * part_size].address + j,weight_.shape[0])
+            addresses = regint.inc(res.size,
+                                    unreduced[i * part_size].address + j,
+                                    n_channels_out)
             res.store_in_mem(addresses)
-        # n_summands=weight_.shape[2]*weight_.shape[3]*input_.shape[1] #weights_h * weights_w * n_channels_in
-        n_outputs = input_.shape[0] * reduce(operator.mul, output.shape[1:])
+        n_outputs = N * reduce(operator.mul, output_value.sizes[1:])
         @multithread(n_threads, n_outputs,
                      1000 if sfix.round_nearest else 10 ** 6)                                                                                
         def _(base, n_per_thread):
             res = sfix().unreduced(sint.load_mem(unreduced.address + base,
                               size=n_per_thread),sfix).reduce_after_mul()
             res.store_in_mem(output.value.address + base)
+        
         set_opid(op_id+1)  # record the input and output of the op
     return output
 
@@ -334,12 +396,320 @@ def conv_transpose2d(input, weight, bias=None, stride=1, padding=0, outputpaddin
      pass
 
 
-def max_pool2d(input, kernel_size, stride=None, padding=0,):
-    pass
+def max_pool2d(input, kernel_size=2, stride=2, padding=0):
+    op_id=get_opid()
+    @buildingblock(get_program().globalbuildingblock)
+    def propagate(dl_doutputs, operation):
+        dl_dx, = dl_doutputs
+        input = tensors[operation.inputs[0]]
+        output = tensors[operation.outputs[0]]
+        strides=[1]+list(operation.intermediate[0])+[1]
+        ksize=[1]+list(operation.intermediate[1])+[1]
+        n_threads=8 if input.numel() > 2**20 else 1
+        
+        N,  n_channels_in,inputs_h, inputs_w = input.shape
+        _,  n_channels_out,output_h, output_w = output.shape
+        
+        batch=Array.create_from(regint.inc(N))
+        def process(pool, bi, k, i, j,comparisons,nabla_Y,nabla_X):
+            for (x, h_in, w_in, h, w), c \
+                in zip(pool, comparisons[bi][k][i][j]):
+                hh = h * h_in
+                ww = w * w_in
+                res = h_in * w_in * c * nabla_Y[bi][k][i][j]
+                nabla_X[bi][k][hh][ww] += res
+        
+        Y_sizes =[N,output_h, output_w,n_channels_out]  
+        X_sizes =[N,inputs_h, inputs_w,n_channels_in]
+        need_padding = [strides[i] * (Y_sizes[i] - 1) + ksize[i] >
+                        X_sizes[i] for i in range(4)]
+        overlap = reduce(operator.or_,
+                         (x < y for x, y in zip(strides, ksize)))
+        @for_range_opt_multithread(n_threads,
+                                   [len(batch), n_channels_in])
+        def _(l, k):
+            bi = batch[l]
+            @for_range_opt(output_h)
+            def _(i):
+                h_base = strides[1] * i
+                @for_range_opt(output_w)
+                def _(j):
+                    if overlap:
+                        break_point()
+                    w_base = strides[2] * j
+                    pool = []
+                    for ii in range(ksize[1]):
+                        h = h_base + ii
+                        if need_padding[1]:
+                            h_in = h < X_sizes[1]
+                        else:
+                            h_in = True
+                        for jj in range( ksize[2]):
+                            w = w_base + jj
+                            if need_padding[2]:
+                                w_in = w < X_sizes[2]
+                            else:
+                                w_in = True
+                            if not is_zero(h_in * w_in):
+                                pool.append([h_in * w_in * input.value[bi][k][h_in * h]
+                                             [w_in * w], h_in, w_in, h, w])
+                    process(pool, bi, k, i, j,operation.intermediate[3],output.grad,input.grad)
+
+            
+    prepare = get_prepare()
+    if prepare:
+        if isinstance(kernel_size, int):
+            kernel_size = (kernel_size, kernel_size)
+        if isinstance(stride, int):
+            stride = (stride, stride)
+        if stride == None:
+            stride = kernel_size
+        padding = padding.upper() if isinstance(padding, str) else padding
+        
+        assert isinstance(input, Tensor)  ,"Invalid Input and weight"
+        assert len(input.shape)==4,"Invalid Dimension input"
+        if padding == 'SAME':
+            output_shape = [int(math.ceil(shape[i] / strides[i])) for i in range(4)]
+        else:
+            output_shape = [input.shape[0],input.shape[1],(input.shape[2]-kernel_size[0])//stride[0]+1,
+                            (input.shape[3]-kernel_size[1])//stride[1]+1 ]
+             #out_shape.size:[Batch_size,out_channel,H_out,W_out]
+        print_ln("%s",output_shape)
+        new_value=MultiArray(output_shape,input.value.value_type)
+        output = Tensor(new_value, req_grad=input.req_grad)
+        comparisons = MultiArray([input.shape[0],input.shape[1],
+                                       output_shape[2], output_shape[3],
+                                       kernel_size[0] * kernel_size[1]], sint)
+        if input.req_grad:
+            operation = Operation(inputs=[input.name], outputs=[output.name], propagate=propagate,
+                                  intermediate=[stride, kernel_size,padding,comparisons])
+        else:
+            operation = Operation(inputs=[input.name], outputs=[output.name], propagate=fake_propagate,
+                                  intermediate=[stride, kernel_size,padding,comparisons])
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation) - 1
+        op_id_store[op_id] = operation_id
+        set_opid(op_id+1)
+    else:
+        operation = gradient_operation[op_id_store[op_id]]
+        input = tensors[operation.inputs[0]]
+        output = tensors[operation.outputs[0]]
+        strides=[1]+list(operation.intermediate[0])+[1]
+        ksize=[1]+list(operation.intermediate[1])+[1]
+        n_threads=8 if input.numel() > 2**20 else 1
+        N,  n_channels_in,inputs_h, inputs_w = input.shape
+        _,  n_channels_out,output_h, output_w = output.shape
+        training=input.req_grad
+        batch=Array.create_from(regint.inc(N))
+        def process(pool, bi, k, i, j,comparisons,Y,training):
+            def m(a, b):
+                c = a[0] > b[0]
+                l = [c * x for x in a[1]]
+                l += [(1 - c) * x for x in b[1]]
+                return c.if_else(a[0], b[0]), l
+            red = util.tree_reduce(m, [(x[0], [1] if training else [])
+                                       for x in pool])
+            Y[bi][k][i][j]= red[0]
+            for ii, x in enumerate(red[1]):
+                comparisons[bi][k][i][j][ii] = x
+
+        Y_sizes =[N,output_h, output_w,n_channels_out]  
+        X_sizes =[N,inputs_h, inputs_w,n_channels_in]
+        need_padding = [strides[i] * (Y_sizes[i] - 1) + ksize[i] >
+                        X_sizes[i] for i in range(4)]
+        overlap = reduce(operator.or_, (x < y for x, y in zip(strides, ksize)) )
+        @for_range_opt_multithread(n_threads,[len(batch), n_channels_in])
+        def _(l, k):
+            bi = batch[l]
+            @for_range_opt(output_h)
+            def _(i):
+                h_base = strides[1] * i
+                @for_range_opt(output_w)
+                def _(j):
+                    if overlap:
+                        break_point()
+                    w_base = strides[2] * j
+                    pool = []
+                    for ii in range(ksize[1]):
+                        h = h_base + ii
+                        if need_padding[1]:
+                            h_in = h < X_sizes[1]
+                        else:
+                            h_in = True
+                        for jj in range( ksize[2]):
+                            w = w_base + jj
+                            if need_padding[2]:
+                                w_in = w < X_sizes[2]
+                            else:
+                                w_in = True
+                            if not is_zero(h_in * w_in):
+                                pool.append([h_in * w_in * input.value[bi][k][h_in * h]
+                                             [w_in * w], h_in, w_in, h, w])
+                    process(pool, bi, k, i, j,operation.intermediate[3],output.value,training)
+        set_opid(op_id+1)  # record the input and output of the op
+    return output
+
+    
+    
 
 
 def avg_pool2d(input, kernel_size, stride=None, padding=0,):
-    pass
+    op_id = get_opid()
+    @buildingblock(get_program().globalbuildingblock)
+    def propagate(dl_doutputs, operation):
+        dl_dy, = dl_doutputs
+        input = tensors[operation.inputs[0]]
+        output = tensors[operation.outputs[0]]
+        n_threads=8 if input.numel() > 2**20 else 1
+        pool_size=reduce(operator.mul, operation.intermediate[1])
+        N,  n_channels_in,inputs_h, inputs_w = input.shape
+        _,  n_channels_out,output_h, output_w = output.shape
+        strides=operation.intermediate[0]
+        ksize=operation.intermediate[1]
+        padding=operation.intermediate[2]
+        batch=Array.create_from(regint.inc(N))
+        if input.req_grad:
+            get_tape().start_new_basicblock(name='')
+            def process(pool, bi, k, i, j,nabla_Y,nabla_X,pool_size):
+                part = nabla_Y[bi][k][i][j] * (1 / pool_size)
+                for x, h_in, w_in, h, w in pool:
+                    hh = h * h_in
+                    ww = w * w_in
+                    res = h_in * w_in * part
+                    # get_program().protect_memory(True)
+                    nabla_X[bi][k][hh][ww] += res
+                    # get_program().protect_memory(False)
+        Y_sizes = [N, output_h, output_w, n_channels_out]
+        X_sizes = [N, inputs_h, inputs_w, n_channels_in]
+        need_padding = [strides[i] * (Y_sizes[i] - 1) + ksize[i] >
+                        X_sizes[i] for i in range(4)]
+        @for_range_opt_multithread(n_threads, [N, n_channels_in])
+        def _(l, k):
+            bi = batch[l]
+            @for_range_opt(Y_sizes[1])
+            def _(i):
+                h_base = strides[1] * i - padding[1]
+                hs = [h_base + jj for jj in range(ksize[1])]
+                if need_padding[1]:
+                    h_ins = [(h < X_sizes[1]) * (h >= 0) for h in hs]
+                else:
+                    h_ins = [True] * ksize[1]
+
+                @for_range_opt(Y_sizes[2])
+                def _(j):
+                    w_base = strides[2] * j - padding[1]
+                    pool = []
+                    ws = [w_base + jj for jj in range(ksize[2])]
+                    if need_padding[2]:
+                        w_ins = [(w < X_sizes[2]) * (w >= 0) for w in ws]
+                    else:
+                        w_ins = [True] * ksize[2]
+                    for ii in range(ksize[1]):
+                        h = hs[ii]
+                        h_in = h_ins[ii]
+                        for jj in range(ksize[2]):
+                            w = ws[jj]
+                            w_in = w_ins[jj]
+                            if not is_zero(h_in * w_in):
+                                pool.append([h_in * w_in * input.value[bi][k][h_in * h][w_in * w],
+                                             h_in, w_in, h, w])
+                    process(pool, bi, k, i, j, output.grad,input.grad,pool_size) 
+    prepare = get_prepare()
+    if prepare:
+        if isinstance(kernel_size, int):
+            kernel_size = (1,kernel_size, kernel_size,1)
+        if isinstance(stride, int):
+            stride = (1,stride, stride,1)
+        if stride == None:
+            stride = kernel_size
+        padding = padding.upper() if isinstance(padding, str) else padding
+        
+        assert isinstance(input, Tensor)  ,"Invalid Input and weight"
+        assert len(input.shape)==4,"Invalid Dimension input"
+
+        if padding == 'SAME':
+            output_shape = [int(math.ceil(input.shape[i] / strides[i])) for i in range(4)]
+            padding = [0, 0]
+        else:
+            if padding == 'VALID':
+                padding = 0
+            if isinstance(padding, int):
+                padding = [padding, padding]
+            output_shape = [input.shape[0],input.shape[1]] + [
+                (input.shape[2] + 2 * padding[0] - kernel_size[1]) //stride [1] + 1,
+                (input.shape[3] + 2 * padding[1] - kernel_size[2]) //stride [2] + 1] 
+             #out_shape.size:[Batch_size,H_out,W_out,out_channel]
+             
+        new_value=MultiArray(output_shape,input.value.value_type)
+        output = Tensor(new_value, req_grad=input.req_grad)
+        if input.req_grad:
+            operation = Operation(inputs=[input.name], outputs=[output.name], propagate=propagate,
+                                  intermediate=[stride, kernel_size,padding])
+        else:
+            operation = Operation(inputs=[input.name], outputs=[output.name], propagate=fake_propagate,
+                                  intermediate=[stride, kernel_size,padding])
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation) - 1
+        op_id_store[op_id] = operation_id
+        set_opid(op_id+1)
+    else:
+        operation = gradient_operation[op_id_store[op_id]]
+        input = tensors[operation.inputs[0]]
+        output = tensors[operation.outputs[0]]
+        strides=operation.intermediate[0]
+        ksize=operation.intermediate[1]
+        padding=operation.intermediate[2]
+        n_threads=8 if input.numel() > 2**20 else 1
+        N,  n_channels_in,inputs_h, inputs_w = input.shape
+        _,  n_channels_out,output_h, output_w = output.shape
+        
+        # assert n_channels_in == n_channels_out
+        padding_h, padding_w = (0, 0)
+        _,stride_h, stride_w,_ = operation.intermediate[0]
+        _,filter_h, filter_w,_ = operation.intermediate[1]
+        
+        pool_size=reduce(operator.mul,operation.intermediate[1])
+        
+        batch=Array.create_from(regint.inc(N))
+        def process(pool, bi, k, i, j,pool_size,Y):
+            Y[bi][k][i][j] = sum(x[0] for x in pool) * (1 / pool_size)
+        
+        Y_sizes =[N,output_h, output_w,n_channels_out]  
+        X_sizes =[N,inputs_h, inputs_w,n_channels_in]
+        need_padding = [strides[i] * (Y_sizes[i] - 1) + ksize[i] >
+                        X_sizes[i] for i in range(4)]
+        @for_range_opt_multithread(n_threads,[N, n_channels_in])
+        def _(l, k):
+            bi = batch[l]
+            @for_range_opt(Y_sizes[1])
+            def _(i):
+                h_base = strides[1] * i - padding[1]
+                hs = [h_base + jj for jj in range(ksize[1])]
+                if need_padding[1]:
+                    h_ins = [(h < X_sizes[1]) * (h >= 0) for h in hs]
+                else:
+                    h_ins = [True] * ksize[1]
+                @for_range_opt(Y_sizes[2])
+                def _(j):
+                    w_base = strides[2] * j - padding[1]
+                    pool = []
+                    ws = [w_base + jj for jj in range(ksize[2])]
+                    if need_padding[2]:
+                        w_ins = [(w < X_sizes[2]) * (w >= 0) for w in ws]
+                    else:
+                        w_ins = [True] * ksize[2]
+                    for ii in range(ksize[1]):
+                        h = hs[ii]
+                        h_in = h_ins[ii]
+                        for jj in range(ksize[2]):
+                            w = ws[jj]
+                            w_in = w_ins[jj]
+                            if not is_zero(h_in * w_in):
+                                pool.append([h_in * w_in * input.value[bi][k][h_in*h][w_in * w],
+                                             h_in, w_in, h, w])
+                    process(pool, bi, k, i, j,pool_size,output.value)
+        set_opid(op_id+1)
+    return output  
 
 
 def dropout(input, p=0.5, training=False, inplace=False):  # todo
@@ -349,7 +719,6 @@ def dropout(input, p=0.5, training=False, inplace=False):  # todo
         dl_dx, = dl_doutputs
         bin_value, = operation.intermediate
         dl_dself = dl_d[operation.inputs[0]]
-        
         dl_dself[:] += 1 / (1 - p) * bin_value[:] * dl_dx[:]
             
     prepare = get_prepare()
@@ -426,11 +795,14 @@ def batch_norm(input, weight=None, bias=None, training=False, eps=1e-05):
     
     assert isinstance(input,Tensor) ,"Invalid input"
     
-    x_mean = input.mean(dim=[0,2,3])
-    x_std = input.std(dim=[0,2,3])
-    x_hat = (input -x_mean) / (x_std) 
-    
-    return x_hat * weight + bias
+    x_mean = input.mean(dim=[0,2,3], keepdim=True)
+    x_std = input.std(dim=[0,2,3], keepdim=True)
+    # x_hat = (input -x_mean) 
+    # return x_hat, x_mean
+    break_point()
+    x_hat = (x_mean) / (x_std) 
+    break_point()
+    return x_hat, x_std, x_mean
 
 
 
