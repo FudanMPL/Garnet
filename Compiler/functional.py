@@ -226,8 +226,10 @@ def linear(input, weight, bias=None):
     if bias is None:
         pass
     else:
-        output.value[:]=(bias+output)
+        output = bias + output
     return output
+
+
 def new_squant():
         class _(sfix):
             params = None
