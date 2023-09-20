@@ -38,12 +38,12 @@ transform_test = transforms.Compose([
 ])
 
 trainset = torchvision.datasets.MNIST(
-    root='F:/workspace/pycharm/SFT3/data', train=True, download=True, transform=transform_train)
+    root='./', train=True, download=True, transform=transform_train)
 trainloader = torch.utils.data.DataLoader(
     trainset, batch_size=batchsize, shuffle=True, num_workers=0)
 
 testset = torchvision.datasets.MNIST(
-    root='F:/workspace/pycharm/SFT3/data', train=False, download=True, transform=transform_test)
+    root='./', train=False, download=True, transform=transform_test)
 testloader = torch.utils.data.DataLoader(
     testset, batch_size=batchsize, shuffle=False, num_workers=0)
 myfile=open('./Input-P0-0','w')
