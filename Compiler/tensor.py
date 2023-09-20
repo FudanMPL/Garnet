@@ -81,6 +81,7 @@ def matrix_reconst(matrix, new_matrix):
     return new_matrix
 
 def get_permute(n, dims):
+    print(dims)
     perm = list(filter(lambda x: x not in dims, range(n))) + dims
     return tuple(perm)
 
@@ -96,18 +97,38 @@ def get_permute_d2front(n, dims):
     return tuple(perm)
 
 def check_subseq(li_self, li_other):
-    x = np.array(li_self)
-    y = np.array(li_other)
+    # x = np.array(li_self)
+    # y = np.array(li_other)
     
-    check_res = np.isin(x[x!=1], y[y!=1]).all()
+    # check_res = np.isin(x[x!=1], y[y!=1]).all()
     
-    if check_res:
-        mask = np.isin(y, x)
-    else:
-        mask = np.isin(x, y)
+    # if check_res:
+    #     mask = np.isin(y, x)
+    # else:
+    #     mask = np.isin(x, y)
         
-    indices = list(np.where(mask)[0])
-    return check_res, indices
+    # indices = list(np.where(mask)[0])
+    # return check_res, indices
+    a = li_self
+    b = li_other
+    
+    if len(b) > len(a):
+        return False, []
+    
+    for i in range(1, len(b) + 1):
+        if b[-i] != 1 and b[-i] != a[-i]:
+            return False, []
+
+    positions = []
+
+    for i in range(len(a) - len(b), len(a)):
+        if b[-(len(a) - i)] == 1:
+            # positions.append(i)
+            pass
+        elif b[-(len(a) - i)] == a[i]:
+            positions.append(i)
+
+    return True, positions
 
 def reconst_dims(v1, v2):
     # v1, v2= input1.value, input2.value
@@ -115,9 +136,10 @@ def reconst_dims(v1, v2):
     flag2, dim2 = check_subseq(v2.sizes, v1.sizes)
     assert flag1 or flag2, "Invalid Dimension"
     # swap to ensure v1 size is bigger than v2 size
-    if flag1:
+    dims = dim1
+    if flag2 and not flag1:
         v1, v2 = v2, v1
-    dims = flag1 * dim1 + flag2 * dim2
+        dims = dim2
     return dims, v1, v2
 
 def element_wise_add(self, other):
@@ -149,7 +171,7 @@ def element_wise_add(self, other):
             @for_range(v2.total_size())
             def _(i):
                 vsum = sum(dl_dx_pmt.get_vector(i*stride, stride))
-                v2.assign_vector(vsum, i) 
+                v2.assign_vector(v2.get_vector(i, 1)+vsum, i) 
             break_point()
         dl_dinputs = [dl_dself, dl_dother]
         return dl_dinputs
@@ -308,6 +330,7 @@ def element_wise_sub(self, other):
 def boardcasted_multiarray_mul(v1, v2, inter, output):
     # permute input for boardcasted
     dims, v1, v2 = reconst_dims(v1, v2)
+    print(get_permute(len(v1.sizes), dims), v1.sizes)    
     v1.permute_without_malloc(inter, get_permute(len(v1.sizes), dims))
     v1 = inter
 
@@ -316,6 +339,7 @@ def boardcasted_multiarray_mul(v1, v2, inter, output):
     # for i in range(0, len1//len2):
     #     v3 = v1.get_vector(i*len2, len2) + v2.get_vector(0, len2)
     #     output.value.assign_vector(v3, i*len2)
+    break_point()
     @for_range_opt(len1//len2)
     def _(i):
         v3 = v1.get_vector(i*len2, len2) * v2.get_vector(0, len2)
@@ -868,7 +892,7 @@ def mean_of_multiarray(self, dim, keepdim=False):
     def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
         dl_dself = dl_d[operation.inputs[0]]
-        input_perm, = operation.intermediate
+        input_perm, temp = operation.intermediate
 
         stride = reduce(lambda x, y: x * self.value.sizes[y], dim, 1)
         @for_range(dl_dx.total_size())
@@ -879,7 +903,8 @@ def mean_of_multiarray(self, dim, keepdim=False):
         input_perm[:] /= stride
         # permute back
         new_perm = get_permute_back(len(self.value.sizes), dim)
-        input_perm.permute_without_malloc(dl_dself, new_perm)
+        input_perm.permute_without_malloc(temp, new_perm)
+        dl_dself[:] += temp[:]
         
         dl_dinputs = [dl_dself]
         return dl_dinputs
@@ -900,10 +925,12 @@ def mean_of_multiarray(self, dim, keepdim=False):
         target_size = self.value.tuple_permute(self.shape, new_perm)
         input_perm = MultiArray(target_size, self.value.value_type)
         
+        temp1 = MultiArray(self.value.sizes, self.value.value_type)
+        
         if self.req_grad:
-            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=[input_perm])
+            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=[input_perm, temp1])
         else:
-            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate, intermediate=[input_perm])
+            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate, intermediate=[input_perm, temp1])
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
 
@@ -1038,7 +1065,8 @@ def std_of_multiarray(self, dim, keepdim=False):
         input_perm[:] *= dmean[:]
         # permute back
         new_perm = get_permute_back(len(self.value.sizes), dim)
-        input_perm.permute_without_malloc(dl_dself, new_perm)
+        input_perm.permute_without_malloc(dmean, new_perm)
+        dl_dself[:] += dmean[:]
         
         dl_dinputs = [dl_dself]
         return dl_dinputs
@@ -1196,6 +1224,11 @@ class Tensor():
         for i in range(0, length):
             if self.name in gradient_operation[length-i-1].outputs:
                 index = length - i
+        searchset = {}
+        for op in gradient_operation:
+            inputs = op.inputs
+            output = op.outputs
+            
         for i in range(0, index):
             entry = gradient_operation[index-i-1]
             dl_doutputs = gather_grad(entry.outputs)

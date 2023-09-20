@@ -424,11 +424,14 @@ def batch_norm(input, weight=None, bias=None, training=False, eps=1e-05):
     
     assert isinstance(input,Tensor) ,"Invalid input"
     
-    x_mean = input.mean(dim=[0,2,3])
-    x_std = input.std(dim=[0,2,3])
-    x_hat = (input -x_mean) / (x_std) 
-    
-    return x_hat * weight + bias
+    x_mean = input.mean(dim=[0,2,3], keepdim=True)
+    x_std = input.std(dim=[0,2,3], keepdim=True)
+    # x_hat = (input -x_mean) 
+    # return x_hat, x_mean
+    break_point()
+    x_hat = (x_mean) / (x_std) 
+    break_point()
+    return x_hat, x_std, x_mean
 
 
 
