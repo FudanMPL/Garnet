@@ -552,7 +552,162 @@ def max_pool2d(input, kernel_size=2, stride=2, padding=0):
 
 
 def avg_pool2d(input, kernel_size, stride=None, padding=0,):
-    pass
+    op_id = get_opid()
+    @buildingblock(get_program().globalbuildingblock)
+    def propagate(dl_doutputs, operation):
+        dl_dy, = dl_doutputs
+        input = tensors[operation.inputs[0]]
+        output = tensors[operation.outputs[0]]
+        n_threads=8 if input.numel() > 2**20 else 1
+        pool_size=reduce(operator.mul, operation.intermediate[1])
+        N,  n_channels_in,inputs_h, inputs_w = input.shape
+        _,  n_channels_out,output_h, output_w = output.shape
+        strides=operation.intermediate[0]
+        ksize=operation.intermediate[1]
+        padding=operation.intermediate[2]
+        batch=Array.create_from(regint.inc(N))
+        if input.req_grad:
+            get_tape().start_new_basicblock(name='')
+            def process(pool, bi, k, i, j,nabla_Y,nabla_X,pool_size):
+                part = nabla_Y[bi][k][i][j] * (1 / pool_size)
+                for x, h_in, w_in, h, w in pool:
+                    hh = h * h_in
+                    ww = w * w_in
+                    res = h_in * w_in * part
+                    # get_program().protect_memory(True)
+                    nabla_X[bi][k][hh][ww] += res
+                    # get_program().protect_memory(False)
+        Y_sizes = [N, output_h, output_w, n_channels_out]
+        X_sizes = [N, inputs_h, inputs_w, n_channels_in]
+        need_padding = [strides[i] * (Y_sizes[i] - 1) + ksize[i] >
+                        X_sizes[i] for i in range(4)]
+        @for_range_opt_multithread(n_threads, [N, n_channels_in])
+        def _(l, k):
+            bi = batch[l]
+            @for_range_opt(Y_sizes[1])
+            def _(i):
+                h_base = strides[1] * i - padding[1]
+                hs = [h_base + jj for jj in range(ksize[1])]
+                if need_padding[1]:
+                    h_ins = [(h < X_sizes[1]) * (h >= 0) for h in hs]
+                else:
+                    h_ins = [True] * ksize[1]
+
+                @for_range_opt(Y_sizes[2])
+                def _(j):
+                    w_base = strides[2] * j - padding[1]
+                    pool = []
+                    ws = [w_base + jj for jj in range(ksize[2])]
+                    if need_padding[2]:
+                        w_ins = [(w < X_sizes[2]) * (w >= 0) for w in ws]
+                    else:
+                        w_ins = [True] * ksize[2]
+                    for ii in range(ksize[1]):
+                        h = hs[ii]
+                        h_in = h_ins[ii]
+                        for jj in range(ksize[2]):
+                            w = ws[jj]
+                            w_in = w_ins[jj]
+                            if not is_zero(h_in * w_in):
+                                pool.append([h_in * w_in * input.value[bi][k][h_in * h][w_in * w],
+                                             h_in, w_in, h, w])
+                    process(pool, bi, k, i, j, output.grad,input.grad,pool_size) 
+    prepare = get_prepare()
+    if prepare:
+        if isinstance(kernel_size, int):
+            kernel_size = (1,kernel_size, kernel_size,1)
+        if isinstance(stride, int):
+            stride = (1,stride, stride,1)
+        if stride == None:
+            stride = kernel_size
+        padding = padding.upper() if isinstance(padding, str) else padding
+        
+        assert isinstance(input, Tensor)  ,"Invalid Input and weight"
+        assert len(input.shape)==4,"Invalid Dimension input"
+
+        if padding == 'SAME':
+            output_shape = [int(math.ceil(input.shape[i] / strides[i])) for i in range(4)]
+            padding = [0, 0]
+        else:
+            if padding == 'VALID':
+                padding = 0
+            if isinstance(padding, int):
+                padding = [padding, padding]
+            output_shape = [input.shape[0],input.shape[1]] + [
+                (input.shape[2] + 2 * padding[0] - kernel_size[1]) //stride [1] + 1,
+                (input.shape[3] + 2 * padding[1] - kernel_size[2]) //stride [2] + 1] 
+             #out_shape.size:[Batch_size,H_out,W_out,out_channel]
+             
+        new_value=MultiArray(output_shape,input.value.value_type)
+        output = Tensor(new_value, req_grad=input.req_grad)
+        if input.req_grad:
+            operation = Operation(inputs=[input.name], outputs=[output.name], propagate=propagate,
+                                  intermediate=[stride, kernel_size,padding])
+        else:
+            operation = Operation(inputs=[input.name], outputs=[output.name], propagate=fake_propagate,
+                                  intermediate=[stride, kernel_size,padding])
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation) - 1
+        op_id_store[op_id] = operation_id
+        set_opid(op_id+1)
+    else:
+        operation = gradient_operation[op_id_store[op_id]]
+        input = tensors[operation.inputs[0]]
+        output = tensors[operation.outputs[0]]
+        strides=operation.intermediate[0]
+        ksize=operation.intermediate[1]
+        padding=operation.intermediate[2]
+        n_threads=8 if input.numel() > 2**20 else 1
+        N,  n_channels_in,inputs_h, inputs_w = input.shape
+        _,  n_channels_out,output_h, output_w = output.shape
+        
+        # assert n_channels_in == n_channels_out
+        padding_h, padding_w = (0, 0)
+        _,stride_h, stride_w,_ = operation.intermediate[0]
+        _,filter_h, filter_w,_ = operation.intermediate[1]
+        
+        pool_size=reduce(operator.mul,operation.intermediate[1])
+        
+        batch=Array.create_from(regint.inc(N))
+        def process(pool, bi, k, i, j,pool_size,Y):
+            Y[bi][k][i][j] = sum(x[0] for x in pool) * (1 / pool_size)
+        
+        Y_sizes =[N,output_h, output_w,n_channels_out]  
+        X_sizes =[N,inputs_h, inputs_w,n_channels_in]
+        need_padding = [strides[i] * (Y_sizes[i] - 1) + ksize[i] >
+                        X_sizes[i] for i in range(4)]
+        @for_range_opt_multithread(n_threads,[N, n_channels_in])
+        def _(l, k):
+            bi = batch[l]
+            @for_range_opt(Y_sizes[1])
+            def _(i):
+                h_base = strides[1] * i - padding[1]
+                hs = [h_base + jj for jj in range(ksize[1])]
+                if need_padding[1]:
+                    h_ins = [(h < X_sizes[1]) * (h >= 0) for h in hs]
+                else:
+                    h_ins = [True] * ksize[1]
+                @for_range_opt(Y_sizes[2])
+                def _(j):
+                    w_base = strides[2] * j - padding[1]
+                    pool = []
+                    ws = [w_base + jj for jj in range(ksize[2])]
+                    if need_padding[2]:
+                        w_ins = [(w < X_sizes[2]) * (w >= 0) for w in ws]
+                    else:
+                        w_ins = [True] * ksize[2]
+                    for ii in range(ksize[1]):
+                        h = hs[ii]
+                        h_in = h_ins[ii]
+                        for jj in range(ksize[2]):
+                            w = ws[jj]
+                            w_in = w_ins[jj]
+                            if not is_zero(h_in * w_in):
+                                pool.append([h_in * w_in * input.value[bi][k][h_in*h][w_in * w],
+                                             h_in, w_in, h, w])
+                    process(pool, bi, k, i, j,pool_size,output.value)
+        set_opid(op_id+1)
+    return output  
 
 
 def dropout(input, p=0.5, training=False, inplace=False):  # todo
