@@ -215,22 +215,22 @@ void Fss<T>::distributed_comparison_function(SubProcessor<T> &proc, const Instru
             else{
                 r_tmp = dcf_v - dcf_u;
             }
-            // if(lambda == 128){
-            //     if(result.get_bit(lambda)){
-            //         r_tmp = dcf_v - dcf_u + P.my_num();
-            //     }
-            //     else{
-            //         r_tmp = dcf_v - dcf_u;
-            //     }
-            // }
-            // else{
-            if(result.get_bit(lambda-1)){
-                r_tmp = dcf_v - dcf_u + P.my_num();
+            if(lambda == 128){
+                if(result.get_bit(lambda)){
+                    r_tmp = dcf_v - dcf_u + P.my_num();
+                }
+                else{
+                    r_tmp = dcf_v - dcf_u;
+                }
             }
             else{
-                r_tmp = dcf_v - dcf_u;
-            }
-            // }  
+                if(result.get_bit(lambda-1)){
+                    r_tmp = dcf_v - dcf_u + P.my_num();
+                }
+                else{
+                    r_tmp = dcf_v - dcf_u;
+                }
+            }  
             typename T::clear tmp;
             tmp.unpack(cs[P.my_num()]);
             proc.S[args[i+2]][0] = typename T::clear(P.my_num()) - r_tmp - tmp;
@@ -532,7 +532,7 @@ void Fss<T>::cisc(SubProcessor<T> &processor, const Instruction &instruction)
     // auto& args = instruction.get_start();
     
     int r0 = instruction.get_r(0), lambda = T::clear::MAX_N_BITS;
-    bigint signal = 1;
+    bigint signal = 0;
     string tag((char *)&r0, 4);
     // std::cout << tag << std::endl;
 
@@ -540,19 +540,19 @@ void Fss<T>::cisc(SubProcessor<T> &processor, const Instruction &instruction)
     if (tag == string("LTZ\0", 4))
     {
         octetStream cs;
-        // if(P.my_num() == GEN){  
-        //     std::cout << "Generating fake dcf " << std::endl;
-        //     this->fss3prep->gen_fake_dcf(1, lambda);  
-        //     signal = 1;
-        //     signal.pack(cs);
-        //     P.send_to(EVAL_1, cs);
-        //     P.send_to(EVAL_2, cs);
-        // }
-        // // This comparison is designed according to the DRELU protocol in 'Orca: FSS-based Secure Training with GPUs'.
-        // else{
-        //     P.receive_player(GEN, cs);
-        //     signal.unpack(cs);
-        // }
+        if(P.my_num() == GEN){  
+            std::cout << "Generating fake dcf " << std::endl;
+            this->fss3prep->gen_fake_dcf(1, lambda);  
+            signal = 1;
+            signal.pack(cs);
+            P.send_to(EVAL_1, cs);
+            P.send_to(EVAL_2, cs);
+        }
+        // This comparison is designed according to the DRELU protocol in 'Orca: FSS-based Secure Training with GPUs'.
+        else{
+            P.receive_player(GEN, cs);
+            signal.unpack(cs);
+        }
         if(signal){
             processor.protocol.distributed_comparison_function(processor, instruction, lambda);
         }
@@ -566,18 +566,18 @@ void Fss<T>::cisc(SubProcessor<T> &processor, const Instruction &instruction)
             std::cout << i << std::endl;
         octetStream cs;
         std::cout << "MTS CALLED!" << std::endl;
-        // if(P.my_num() == GEN){  
-        //     std::cout << "Generating fake multi dcf " << std::endl;
-        //     this->fss3prep->gen_fake_multi_spline_dcf(processor, 1, lambda, args[4], args[8]);  
-        //     signal = 1;
-        //     signal.pack(cs);
-        //     P.send_to(EVAL_1, cs);
-        //     P.send_to(EVAL_2, cs);
-        // }
-        // else{
-        //     P.receive_player(GEN, cs);
-        //     signal.unpack(cs);
-        // }
+        if(P.my_num() == GEN){  
+            std::cout << "Generating fake multi dcf " << std::endl;
+            this->fss3prep->gen_fake_multi_spline_dcf(processor, 1, lambda, args[4], args[8]);  
+            signal = 1;
+            signal.pack(cs);
+            P.send_to(EVAL_1, cs);
+            P.send_to(EVAL_2, cs);
+        }
+        else{
+            P.receive_player(GEN, cs);
+            signal.unpack(cs);
+        }
         if(signal){
             processor.protocol.Muliti_Interval_Containment(processor, instruction, lambda);
         }
