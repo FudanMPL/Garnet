@@ -1226,15 +1226,30 @@ class Tensor():
         for i in range(0, length):
             if self.name in gradient_operation[length-i-1].outputs:
                 index = length - i
+        
+        # find the backward propagate chain                
         searchset = {}
-        for op in gradient_operation:
-            inputs = op.inputs
-            output = op.outputs
-            
+        searchset[self.name] = True
         for i in range(0, index):
-            entry = gradient_operation[index-i-1]
-            dl_doutputs = gather_grad(entry.outputs)
-            entry.propagate(dl_doutputs, entry)
+            op = gradient_operation[index-i-1]
+            flag = False
+            for it in op.outputs:
+                print(it)
+                flag = flag | searchset.get(it, False)
+            if not flag:
+                continue
+            for it in op.inputs:
+                searchset[it] = True
+        
+        # do backward propagate          
+        for i in range(0, index):
+            op = gradient_operation[index-i-1]
+            dl_doutputs = gather_grad(op.outputs)
+            flag = False
+            for it in op.outputs:
+                flag = flag | searchset.get(it, False)
+            if flag:
+                op.propagate(dl_doutputs, op)
         return 0
 
     # Multiplication of a Variable, tracking gradients

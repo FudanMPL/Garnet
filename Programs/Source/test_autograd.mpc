@@ -508,7 +508,7 @@ def test_f_batchnorm():
     W = Tensor(w, req_grad = True)
     B = Tensor(b, req_grad = True)
 
-    input2, xstd, xmean = F.batch_norm(input1, weight=W, bias=B, training=True)
+    input2 = F.batch_norm(input1, weight=W, bias=B, training=True)
 
     v = MultiArray([2,2,2,2], sfix)
     for i in range(0,2):
@@ -522,22 +522,18 @@ def test_f_batchnorm():
     tensor.train()
     tensor.reset_op_id()
 
-    input2, xstd, xmean = F.batch_norm(input1, weight=W, bias=B, training=True)
+    input2 = F.batch_norm(input1, weight=W, bias=B, training=True)
     input4 = input2 * vec
 
     input4.backward()
-    print_ln('xmean_batchnorm_output: ')
-    xmean.value.print_reveal_nested()
-    print_ln('xstd_batchnorm_output: ')
-    xstd.value.print_reveal_nested()
+    
+    
     print_ln('xhat_batchnorm_output: ')
     input2.value.print_reveal_nested()
     print_ln('xhat_batchnorm_backward: ')
     input2.grad.print_reveal_nested()
-    print_ln('xmean_batchnorm_backward: ')
-    xmean.grad.print_reveal_nested()
-    print_ln('xstd_batchnorm_backward: ')
-    xstd.grad.print_reveal_nested()
+    
+    
     print_ln('x_batchnorm_backward: ')
     input1.grad.print_reveal_nested()
 
