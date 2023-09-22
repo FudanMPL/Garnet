@@ -51,7 +51,7 @@ class defaults:
     garbled = False
     prime = None
     galois = 40
-    budget = 100000
+    budget = 10000
     mixed = False
     edabit = False
     invperm = False
@@ -90,6 +90,7 @@ class Program(object):
         self._security = 40
         self.prime = None
         self.tapes = []
+        self._protect_memory = False
         self.globalbuildingblock = "initial"
         self.buildingblock_store = defaultdict(lambda: -1)
         self.buildingblock_cost_store = defaultdict(lambda: -1)
@@ -658,7 +659,11 @@ class Program(object):
     def disable_memory_warnings(self):
         self.warn_about_mem.append(False)
         self.curr_block.warn_about_mem = False
-
+        
+    def protect_memory(self, status):
+        """ Enable or disable memory protection. """
+        self._protect_memory = status
+        
     @staticmethod
     def read_tapes(schedule):
         m = re.search(r"([^/]*)\.mpc", schedule)
@@ -705,7 +710,7 @@ class Tape:
         self.singular = True
         self.free_threads = set()
         self.loop_breaks = []
-
+        self.warned_about_mem = False
     class BasicBlock(object):
         def __init__(self, parent, name, scope, exit_condition=None):
             self.parent = parent
@@ -722,7 +727,7 @@ class Tape:
                 scope.children.append(self)
                 self.alloc_pool = scope.alloc_pool
             else:
-                self.alloc_pool = defaultdict(list)
+                self.alloc_pool = al.AllocPool()
             self.purged = False
             self.n_rounds = 0
             self.n_to_merge = 0
@@ -985,6 +990,7 @@ class Tape:
             allocator = al.StraightlineAllocator(REG_MAX, self.program)
 
             def alloc(block):
+                allocator.update_usage(block.alloc_pool)
                 for reg in sorted(
                     block.used_from_scope, key=lambda x: (x.reg_type, x.i)
                 ):
@@ -997,7 +1003,8 @@ class Tape:
                     alloc(block)
                     for child in block.children:
                         left.append(child)
-
+                        
+            allocator.old_pool = None
             for i, block in enumerate(reversed(self.basicblocks)):
                 if len(block.instructions) > 1000000:
                     print(
@@ -1011,7 +1018,14 @@ class Tape:
                         and block.exit_block.scope is not None
                     ):
                         alloc_loop(block.exit_block.scope)
+                usage = allocator.max_usage.copy()
                 allocator.process(block.instructions, block.alloc_pool)
+                if self.program.verbose and usage != allocator.max_usage:
+                    print("Allocated registers in %s " % block.name, end="")
+                    for t, n in allocator.max_usage.items():
+                        if n > usage[t]:
+                            print("%s:%d " % (t, n - usage[t]), end="")
+                    print()
             allocator.finalize(options)
             if self.program.verbose:
                 print("Tape register usage:", dict(allocator.usage))

@@ -2723,7 +2723,7 @@ class Adam(Optimizer):
                     self.vhats.append(nabla.same_shape())
 
     @buildingblock("Update")
-    def update(self, i_epoch, batch):
+    def _update(self, i_epoch, i_batch, batch):
         self.beta1_power *= self.beta1
         self.beta2_power *= self.beta2
         m_factor = MemValue(1 / (1 - self.beta1_power))
@@ -2751,20 +2751,30 @@ class Adam(Optimizer):
                 v_part = self.beta2 * v_part + (1 - self.beta2) * g_part ** 2
                 m.assign_vector(m_part, base)
                 v.assign_vector(v_part, base)
+                mhat = m_part * m_factor.expand_to_vector(size)
+                vhat = v_part * v_factor.expand_to_vector(size)
                 if self.amsgrad:
-                    vhat = self.vhats [i_layer].get_vector(base, size)
-                    vhat = util.max(vhat, v_part)
+                    v_max = self.vhats [i_layer].get_vector(base, size)
+                    vhat = util.max(vhat, v_max)
                     self.vhats[i_layer].assign_vector(vhat, base)
-                    diff = self.gamma.expand_to_vector(size) * m_part
-                else:
-                    mhat = m_part * m_factor.expand_to_vector(size)
-                    vhat = v_part * v_factor.expand_to_vector(size)
-                    diff = self.gamma.expand_to_vector(size) * mhat
+                diff = self.gamma.expand_to_vector(size) * mhat
                 if self.approx:
                     diff *= mpc_math.InvertSqrt(vhat + self.epsilon ** 2)
                 else:
                     diff /= mpc_math.sqrt(vhat) + self.epsilon
                 theta.assign_vector(theta.get_vector(base, size) - diff, base)
+                if self.output_diff:
+                    @if_(i_batch % 100 == 0)
+                    def _():
+                        diff.reveal().binary_output()
+            if self.output_stats and m.total_size() < 1000:
+                @if_(i_batch % self.output_stats == 0)
+                def _():
+                    self.stat('g', g)
+                    self.stat('m', m)
+                    self.stat('v', v)
+                    self.stat('vhat', self.vhats[i_layer])
+                    self.stat('theta', theta)
 
 class SGD(Optimizer):
     """ Stochastic gradient descent.

@@ -81,7 +81,6 @@ def matrix_reconst(matrix, new_matrix):
     return new_matrix
 
 def get_permute(n, dims):
-    print(dims)
     perm = list(filter(lambda x: x not in dims, range(n))) + dims
     return tuple(perm)
 
@@ -329,8 +328,7 @@ def element_wise_sub(self, other):
 
 def boardcasted_multiarray_mul(v1, v2, inter, output):
     # permute input for boardcasted
-    dims, v1, v2 = reconst_dims(v1, v2)
-    print(get_permute(len(v1.sizes), dims), v1.sizes)    
+    dims, v1, v2 = reconst_dims(v1, v2)  
     v1.permute_without_malloc(inter, get_permute(len(v1.sizes), dims))
     v1 = inter
 
@@ -1310,7 +1308,6 @@ class Tensor():
 
     @staticmethod
     def ones(sizes: list, value_type = sfix):
-        print(sizes)
         assert isinstance(sizes, list)
         if len(sizes) == 0 or value_type is None:
             raise CompilerError("the shape of a tensor must be a not-null list and value type must be determined")
