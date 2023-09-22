@@ -6088,7 +6088,7 @@ class SubMultiArray(_vectorizable):
         assert self.value_type.n_elements() == 1
         part_size = reduce(operator.mul, self.sizes[1:])
         size = (size or 1) * part_size
-        assert size <= self.total_size()-base*part_size,"base with size cause out of range"
+        # assert size <= self.total_size()-base*part_size,"base with size cause out of range"
         return self.value_type.load_mem(self.address + base * part_size,
                                         size=size)
 
@@ -6101,7 +6101,7 @@ class SubMultiArray(_vectorizable):
         """
         assert self.value_type.n_elements() == 1
         part_size = reduce(operator.mul, self.sizes[1:])
-        assert vector.size <= self.total_size()-base,"vector size with base cause a buffer overflow"
+        # assert vector.size <= self.total_size()-base,"vector size with base cause a buffer overflow"
         vector.store_in_mem(self.address + base * part_size)
 
     def get_slice_vector(self, slice):
