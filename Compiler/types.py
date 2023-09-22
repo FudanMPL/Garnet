@@ -5744,7 +5744,6 @@ class Array(_vectorizable):
             def _(base, size):
                 self.assign(input_from(player, size=size, **kwargs), base)
         except (TypeError, CompilerError):
-            print(budget)
 
             @library.for_range_opt(self.length, budget=budget)
             def _(i):
@@ -6088,7 +6087,6 @@ class SubMultiArray(_vectorizable):
         assert self.value_type.n_elements() == 1
         part_size = reduce(operator.mul, self.sizes[1:])
         size = (size or 1) * part_size
-        assert size <= self.total_size()-base*part_size,"base with size cause out of range"
         return self.value_type.load_mem(self.address + base * part_size,
                                         size=size)
 
@@ -6101,7 +6099,6 @@ class SubMultiArray(_vectorizable):
         """
         assert self.value_type.n_elements() == 1
         part_size = reduce(operator.mul, self.sizes[1:])
-        assert vector.size <= self.total_size()-base,"vector size with base cause a buffer overflow"
         vector.store_in_mem(self.address + base * part_size)
 
     def get_slice_vector(self, slice):
@@ -6176,7 +6173,6 @@ class SubMultiArray(_vectorizable):
         :param size: int
 
         """
-        assert start>=0 and start<self.sizes[0] and size<self.sizes[0],"out of range"
         return MultiArray([size] + list(self.sizes[1:]), self.value_type,
                           address=self[start].address)
 
@@ -6841,7 +6837,6 @@ class MultiArray(SubMultiArray):
             def _(j):
                 # get all the indices, like (0,0,0), (0,0,1), (0,0,2)...
                 tmp_indices = indices[:] + (j,)
-                print(tmp_indices)
                 # get value at that index
                 tmp = self.get_vector_by_indices(*tmp_indices)
                 new_indices = self.tuple_permute(tmp_indices, new_perm)

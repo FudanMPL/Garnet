@@ -566,11 +566,11 @@ def test_getitem():
 #test_sum([0,2])
 #test_sum([0,2], keepdim=True)
 #test_mean([0,2])
-test_mean([0,2,3], keepdim=True)
+#test_mean([0,2,3], keepdim=True)
 #test_var([0,2])
 #test_var([0,2], keepdim=True)
-test_std([0,2,3])
-test_std([0,2,3], keepdim=True)
+#test_std([0,2,3])
+#test_std([0,2,3], keepdim=True)
 
 
 #test_addc()

@@ -43,7 +43,7 @@ class BlockAllocator:
             else:
                 done = False
                 for x in self.by_logsize[logsize + 1:]:
-                    for block_size, addresses in x.items():
+                    for block_size, addresses in sorted(x.items()):
                         if len(addresses) > 0:
                             done = True
                             break
@@ -60,16 +60,92 @@ class BlockAllocator:
                 self.by_address[addr + size] = diff
             return addr
 
+class AllocRange:
+    def __init__(self, base=0):
+        self.base = base
+        self.top = base
+        self.limit = base
+        self.grow = True
+        self.pool = defaultdict(set)
+
+    def alloc(self, size):
+        if self.pool[size]:
+            return self.pool[size].pop()
+        elif self.grow or self.top + size <= self.limit:
+            res = self.top
+            self.top += size
+            self.limit = max(self.limit, self.top)
+            if res >= REG_MAX:
+                raise RegisterOverflowError()
+            return res
+
+    def free(self, base, size):
+        assert self.base <= base < self.top
+        self.pool[size].add(base)
+
+    def stop_growing(self):
+        self.grow = False
+
+    def consolidate(self):
+        regs = []
+        for size, pool in self.pool.items():
+            for base in pool:
+                regs.append((base, size))
+        for base, size in reversed(sorted(regs)):
+            if base + size == self.top:
+                self.top -= size
+                self.pool[size].remove(base)
+                regs.pop()
+            else:
+                if program.Program.prog.verbose:
+                    print('cannot free %d register blocks '
+                          'by a gap of %d at %d' %
+                          (len(regs), self.top - size - base, base))
+                break
+
+class AllocPool:
+    def __init__(self):
+        self.ranges = defaultdict(lambda: [AllocRange()])
+        self.by_base = {}
+
+    def alloc(self, reg_type, size):
+        for r in self.ranges[reg_type]:
+            res = r.alloc(size)
+            if res is not None:
+                self.by_base[reg_type, res] = r
+                return res
+
+    def free(self, reg):
+        r = self.by_base.pop((reg.reg_type, reg.i))
+        r.free(reg.i, reg.size)
+
+    def new_ranges(self, min_usage):
+        for t, n in min_usage.items():
+            r = self.ranges[t][-1]
+            assert (n >= r.limit)
+            if r.limit < n:
+                r.stop_growing()
+                self.ranges[t].append(AllocRange(n))
+
+    def consolidate(self):
+        for r in self.ranges.values():
+            for rr in r:
+                rr.consolidate()
+
+    def n_fragments(self):
+        return max(len(r) for r in self.ranges)
+
 class StraightlineAllocator:
     """Allocate variables in a straightline program using n registers.
     It is based on the precondition that every register is only defined once."""
     def __init__(self, n, program):
         self.alloc = dict_by_id()
-        self.usage = Compiler.program.RegType.create_dict(lambda: 0)
+        self.max_usage = defaultdict(lambda: 0)
         self.defined = dict_by_id()
         self.dealloc = set_by_id()
-        self.n = n
+        assert(n == REG_MAX)
         self.program = program
+        self.old_pool = None
 
     def alloc_reg(self, reg, free):
         base = reg.vectorbase
@@ -79,14 +155,7 @@ class StraightlineAllocator:
 
         reg_type = reg.reg_type
         size = base.size
-        if free[reg_type, size]:
-            res = free[reg_type, size].pop()
-        else:
-            if self.usage[reg_type] < self.n:
-                res = self.usage[reg_type]
-                self.usage[reg_type] += size
-            else:
-                raise RegisterOverflowError()
+        res = free.alloc(reg_type, size)
         self.alloc[base] = res
 
         base.i = self.alloc[base]
@@ -126,7 +195,7 @@ class StraightlineAllocator:
                 for x in itertools.chain(dup.duplicates, base.duplicates):
                     to_check.add(x)
 
-        free[reg.reg_type, base.size].append(self.alloc[base])
+        free.free(base)
         if inst.is_vec() and base.vector:
             self.defined[base] = inst
             for i in base.vector:
@@ -135,6 +204,7 @@ class StraightlineAllocator:
             self.defined[reg] = inst
 
     def process(self, program, alloc_pool):
+        self.update_usage(alloc_pool)
         for k,i in enumerate(reversed(program)):
             unused_regs = []
             for j in i.get_def():
@@ -161,12 +231,26 @@ class StraightlineAllocator:
             if k % 1000000 == 0 and k > 0:
                 print("Allocated registers for %d instructions at" % k, time.asctime())
 
+        self.update_max_usage(alloc_pool)
+        alloc_pool.consolidate()
+
         # print "Successfully allocated registers"
         # print "modp usage: %d clear, %d secret" % \
         #     (self.usage[Compiler.program.RegType.ClearModp], self.usage[Compiler.program.RegType.SecretModp])
         # print "GF2N usage: %d clear, %d secret" % \
         #     (self.usage[Compiler.program.RegType.ClearGF2N], self.usage[Compiler.program.RegType.SecretGF2N])
-        return self.usage
+        return self.max_usage
+
+    def update_max_usage(self, alloc_pool):
+        for t, r in alloc_pool.ranges.items():
+            self.max_usage[t] = max(self.max_usage[t], r[-1].limit)
+
+    def update_usage(self, alloc_pool):
+        if self.old_pool:
+            self.update_max_usage(self.old_pool)
+        if id(self.old_pool) != id(alloc_pool):
+            alloc_pool.new_ranges(self.max_usage)
+            self.old_pool = alloc_pool
 
     def finalize(self, options):
         for reg in self.alloc:
@@ -178,6 +262,21 @@ class StraightlineAllocator:
                                                                 '\t\t'))
                     if options.stop:
                         sys.exit(1)
+        if self.program.verbose:
+            def p(sizes):
+                total = defaultdict(lambda: 0)
+                for (t, size) in sorted(sizes):
+                    n = sizes[t, size]
+                    total[t] += size * n
+                    print('%s:%d*%d' % (t, size, n), end=' ')
+                print()
+                print('Total:', dict(total))
+
+            sizes = defaultdict(lambda: 0)
+            for reg in self.alloc:
+                x = reg.reg_type, reg.size
+            print('Used registers: ', end='')
+            p(sizes)
 
 def determine_scope(block, options):
     last_def = defaultdict_by_id(lambda: -1)
@@ -313,9 +412,9 @@ class Merger:
 
         reg_nodes = {}
         last_def = defaultdict_by_id(lambda: -1)
+        last_read = defaultdict_by_id(list)
         last_mem_write = []
         last_mem_read = []
-        warned_about_mem = []
         last_mem_write_of = defaultdict(list)
         last_mem_read_of = defaultdict(list)
         last_print_str = None
@@ -332,6 +431,8 @@ class Merger:
         round_type = {}
 
         def add_edge(i, j):
+            if i in (-1, j):
+                return
             G.add_edge(i, j)
             for d in (self.depths, self.real_depths):
                 if d[j] < d[i]:
@@ -339,10 +440,15 @@ class Merger:
 
         def read(reg, n):
             for dup in reg.duplicates:
-                if last_def[dup] != -1:
+                if last_def[dup] not in (-1, n):
                     add_edge(last_def[dup], n)
+            last_read[reg].append(n)
 
         def write(reg, n):
+            for dup in reg.duplicates:
+                add_edge(last_def[dup], n)
+                for m in last_read[dup]:
+                    add_edge(m, n)
             last_def[reg] = n
 
         def handle_mem_access(addr, reg_type, last_access_this_kind,
@@ -364,20 +470,22 @@ class Merger:
                     addr_i = addr + i
                     handle_mem_access(addr_i, reg_type, last_access_this_kind,
                                       last_access_other_kind)
-                if block.warn_about_mem and not warned_about_mem and \
-                   (instr.get_size() > 100):
+                if block.warn_about_mem and \
+                   not block.parent.warned_about_mem and \
+                   (instr.get_size() > 100) and not instr._protect:
                     print('WARNING: Order of memory instructions ' \
                         'not preserved due to long vector, errors possible')
-                    warned_about_mem.append(True)
+                    block.parent.warned_about_mem = True
             else:
                 handle_mem_access(addr, reg_type, last_access_this_kind,
                                   last_access_other_kind)
-            if block.warn_about_mem and not warned_about_mem and \
-               not isinstance(instr, DirectMemoryInstruction):
+            if block.warn_about_mem and \
+               not block.parent.warned_about_mem and \
+               not isinstance(instr, DirectMemoryInstruction) and \
+               not instr._protect:
                 print('WARNING: Order of memory instructions ' \
                     'not preserved, errors possible')
-                # hack
-                warned_about_mem.append(True)
+                block.parent.warned_about_mem = True
 
         def strict_mem_access(n, last_this_kind, last_other_kind):
             if last_other_kind and last_this_kind and \
@@ -428,19 +536,19 @@ class Merger:
             # if options.debug:
             #     col = colordict[instr.__class__.__name__]
             #     G.add_node(n, color=col, label=str(instr))
-            for reg in inputs:
-                if reg.vector and instr.is_vec():
-                    for i in reg.vector:
-                        read(i, n)
-                else:
-                    read(reg, n)
-
             for reg in outputs:
                 if reg.vector and instr.is_vec():
                     for i in reg.vector:
                         write(i, n)
                 else:
                     write(reg, n)
+
+            for reg in inputs:
+                if reg.vector and instr.is_vec():
+                    for i in reg.vector:
+                        read(i, n)
+                else:
+                    read(reg, n)
 
             # will be merged
             if isinstance(instr, TextInputInstruction):
@@ -473,14 +581,14 @@ class Merger:
                 depths[n] = depth
 
             if isinstance(instr, ReadMemoryInstruction):
-                if options.preserve_mem_order:
+                if options.preserve_mem_order or instr._protect:
                     strict_mem_access(n, last_mem_read, last_mem_write)
-                else:
+                elif not options.preserve_mem_order:
                     mem_access(n, instr, last_mem_read_of, last_mem_write_of)
             elif isinstance(instr, WriteMemoryInstruction):
-                if options.preserve_mem_order:
+                if options.preserve_mem_order or instr._protect:
                     strict_mem_access(n, last_mem_write, last_mem_read)
-                else:
+                elif not options.preserve_mem_order:
                     mem_access(n, instr, last_mem_write_of, last_mem_read_of)
             elif isinstance(instr, matmulsm):
                 if options.preserve_mem_order:
@@ -495,7 +603,7 @@ class Merger:
                     add_edge(last_print_str, n)
                 last_print_str = n
             elif isinstance(instr, PublicFileIOInstruction):
-                keep_order(instr, n, instr.__class__)
+                keep_order(instr, n, PublicFileIOInstruction)
             elif isinstance(instr, prep_class):
                 keep_order(instr, n, instr.args[0])
             elif isinstance(instr, StackInstruction):
@@ -550,18 +658,6 @@ class Merger:
             if unused_result:
                 eliminate(i)
                 count += 1
-            # remove unnecessary stack instructions
-            # left by optimization with budget
-            if isinstance(inst, popint_class) and \
-               (not G.degree(i) or (G.degree(i) == 1 and
-                isinstance(instructions[list(G[i])[0]], StackInstruction))) \
-                and \
-               inst.args[0].can_eliminate and \
-               len(G.pred[i]) == 1 and \
-               isinstance(instructions[list(G.pred[i])[0]], pushint_class):
-                eliminate(list(G.pred[i])[0])
-                eliminate(i)
-                count += 2
         if count > 0 and self.block.parent.program.verbose:
             print('Eliminated %d dead instructions, among which %d opens: %s' \
                 % (count, open_count, dict(stats)))
@@ -585,8 +681,15 @@ class Merger:
 class RegintOptimizer:
     def __init__(self):
         self.cache = util.dict_by_id()
+        self.offset_cache = util.dict_by_id()
+        self.rev_offset_cache = {}
 
-    def run(self, instructions):
+    def add_offset(self, res, new_base, new_offset):
+        self.offset_cache[res] = new_base, new_offset
+        if (new_base.i, new_offset) not in self.rev_offset_cache:
+            self.rev_offset_cache[new_base.i, new_offset] = res
+
+    def run(self, instructions, program):
         for i, inst in enumerate(instructions):
             if isinstance(inst, ldint_class):
                 self.cache[inst.args[0]] = inst.args[1]
@@ -598,9 +701,36 @@ class RegintOptimizer:
                         self.cache[inst.args[0]] = res
                         instructions[i] = ldint(inst.args[0], res,
                                                 add_to_prog=False)
+                elif isinstance(inst, addint_class):
+                    def f(base, delta_reg):
+                        delta = self.cache[delta_reg]
+                        if base in self.offset_cache:
+                            reg, offset = self.offset_cache[base]
+                            new_base, new_offset = reg, offset + delta
+                        else:
+                            new_base, new_offset = base, delta
+                        self.add_offset(inst.args[0], new_base, new_offset)
+                    if inst.args[1] in self.cache:
+                        f(inst.args[2], inst.args[1])
+                    elif inst.args[2] in self.cache:
+                        f(inst.args[1], inst.args[2])
+                elif isinstance(inst, subint_class) and \
+                     inst.args[2] in self.cache:
+                    delta = self.cache[inst.args[2]]
+                    if inst.args[1] in self.offset_cache:
+                        reg, offset = self.offset_cache[inst.args[1]]
+                        new_base, new_offset = reg, offset - delta
+                    else:
+                        new_base, new_offset = inst.args[1], -delta
+                    self.add_offset(inst.args[0], new_base, new_offset)
             elif isinstance(inst, IndirectMemoryInstruction):
                 if inst.args[1] in self.cache:
                     instructions[i] = inst.get_direct(self.cache[inst.args[1]])
+                    instructions[i]._protect = inst._protect
+                elif inst.args[1] in self.offset_cache:
+                    base, offset = self.offset_cache[inst.args[1]]
+                    addr = self.rev_offset_cache[base.i, offset]
+                    inst.args[1] = addr
             elif type(inst) == convint_class:
                 if inst.args[1] in self.cache:
                     res = self.cache[inst.args[1]]
@@ -614,4 +744,13 @@ class RegintOptimizer:
                     if op == 0:
                         instructions[i] = ldsi(inst.args[0], 0,
                                                add_to_prog=False)
+            elif isinstance(inst, (crash, cond_print_str, cond_print_plain)):
+                if inst.args[0] in self.cache:
+                    cond = self.cache[inst.args[0]]
+                    if not cond:
+                        instructions[i] = None
+        pre = len(instructions)
         instructions[:] = list(filter(lambda x: x is not None, instructions))
+        post = len(instructions)
+        if pre != post and program.options.verbose:
+            print('regint optimizer removed %d instructions' % (pre - post))
