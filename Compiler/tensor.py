@@ -354,7 +354,7 @@ def element_wise_mul(self, other):
     def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
         inputs = operation.inputs
-        temp1, temp2, temp3, temp4 = operation.intermediate
+        temp1, temp2, temp3, temp4, temp5 = operation.intermediate
         dl_dself = dl_d[inputs[0]]  # partial derivate of r = 1
         dl_dother = dl_d[inputs[1]]  # partial derivate of r = 1
         
@@ -382,7 +382,8 @@ def element_wise_mul(self, other):
                 temp2.assign_vector(v3, i*stride)
             break_point()   
             # v1 = permute_back(temp3)
-            temp2.permute_without_malloc(v1, get_permute_back(len(v1.sizes), dims))
+            temp2.permute_without_malloc(temp5, get_permute_back(len(v1.sizes), dims))
+            v1[:] += temp5[:]
         # broadcasted v2 back with reduce
         if req_grad2:
             dl_dx.permute_without_malloc(temp3, get_permute_d2front(len(dl_dx.sizes), dims))
@@ -392,7 +393,7 @@ def element_wise_mul(self, other):
             @for_range_opt(v2.total_size())
             def _(i):
                 v3 = dl_dx.value_type.dot_product(dl_dx_pmt.get_vector(i*stride, stride), input1_pmt.get_vector(i*stride, stride))
-                v2.assign_vector(v3, i)    
+                v2.assign_vector(v2.get_vector(i)+v3, i)    
             break_point()
         dl_dinputs = [dl_dself, dl_dother]
         return dl_dinputs
@@ -420,11 +421,12 @@ def element_wise_mul(self, other):
         target_size = v1.tuple_permute(v1.sizes, get_permute_d2front(len(v1.sizes), dims))
         temp3 = MultiArray(target_size, v1.value_type)
         temp4 = MultiArray(target_size, v1.value_type)
+        temp5 = MultiArray(v1.sizes, v1.value_type)
         # check whether require grad
         if self.req_grad or other.req_grad:
-            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate, intermediate=[temp1, temp2, temp3, temp4])
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate, intermediate=[temp1, temp2, temp3, temp4, temp5])
         else:
-            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate, intermediate=[temp1, temp2, temp3, temp4])
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate, intermediate=[temp1, temp2, temp3, temp4, temp5])
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
@@ -468,7 +470,7 @@ def element_wise_div(self, other):
         dl_dx, = dl_doutputs
         inputs = operation.inputs
         output_value = tensors[operation.outputs[0]].value
-        temp1, temp2, temp3, temp4, temp5, temp6 = operation.intermediate
+        temp1, temp2, temp3, temp4, temp5, temp6, temp7 = operation.intermediate
         dl_dself = dl_d[inputs[0]]  # partial derivate of r = 1
         dl_dother = dl_d[inputs[1]]  # partial derivate of r = 1
         
@@ -500,7 +502,8 @@ def element_wise_div(self, other):
                 temp2.assign_vector(v3, i*stride)
             break_point()   
             # v1 = permute_back(temp3)
-            temp2.permute_without_malloc(v1, get_permute_back(len(v1.sizes), dims))
+            temp2.permute_without_malloc(temp7, get_permute_back(len(v1.sizes), dims))
+            v1[:] += temp7[:]
         # broadcasted v2 back with reduce
         if req_grad2:
             dl_dx.permute_without_malloc(temp3, get_permute_d2front(len(dl_dx.sizes), dims))
@@ -510,7 +513,7 @@ def element_wise_div(self, other):
             @for_range_opt(v2.total_size())
             def _(i):
                 v3 = dl_dx.value_type.dot_product(dl_dx_pmt.get_vector(i*stride, stride), input1_pmt.get_vector(i*stride, stride))
-                v2.assign_vector(v3, i)    
+                v2.assign_vector(v2.get_vector(i,1)+v3, i)    
             break_point()
         dl_dinputs = [dl_dself, dl_dother]
         return dl_dinputs
@@ -540,11 +543,12 @@ def element_wise_div(self, other):
         temp4 = MultiArray(target_size, v1.value_type)
         temp5 = MultiArray(v2.sizes, v2.value_type)
         temp6 = MultiArray(v1.sizes, v1.value_type)
+        temp7 = MultiArray(v1.sizes, v1.value_type)
         # check whether require grad
         if self.req_grad or other.req_grad:
-            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate, intermediate=[temp1, temp2, temp3, temp4, temp5, temp6])
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate, intermediate=[temp1, temp2, temp3, temp4, temp5, temp6, temp7])
         else:
-            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate, intermediate=[temp1, temp2, temp3, temp4, temp5, temp6])
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate, intermediate=[temp1, temp2, temp3, temp4, temp5, temp6, temp7])
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
@@ -1225,15 +1229,30 @@ class Tensor():
         for i in range(0, length):
             if self.name in gradient_operation[length-i-1].outputs:
                 index = length - i
+        
+        # find the backward propagate chain                
         searchset = {}
-        for op in gradient_operation:
-            inputs = op.inputs
-            output = op.outputs
-            
+        searchset[self.name] = True
         for i in range(0, index):
-            entry = gradient_operation[index-i-1]
-            dl_doutputs = gather_grad(entry.outputs)
-            entry.propagate(dl_doutputs, entry)
+            op = gradient_operation[index-i-1]
+            flag = False
+            for it in op.outputs:
+                print(it)
+                flag = flag | searchset.get(it, False)
+            if not flag:
+                continue
+            for it in op.inputs:
+                searchset[it] = True
+        
+        # do backward propagate          
+        for i in range(0, index):
+            op = gradient_operation[index-i-1]
+            dl_doutputs = gather_grad(op.outputs)
+            flag = False
+            for it in op.outputs:
+                flag = flag | searchset.get(it, False)
+            if flag:
+                op.propagate(dl_doutputs, op)
         return 0
 
     # Multiplication of a Variable, tracking gradients
