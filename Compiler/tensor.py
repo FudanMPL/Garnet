@@ -1140,7 +1140,7 @@ def std_of_multiarray(self, dim, keepdim=False):
 
 class Tensor():
     check_indices = True
-    def __init__(self, value, value_type=None, name=None, req_grad=False, grad=None):
+    def __init__(self, value, value_type=sfix, name=None, req_grad=False, grad=None):
         assert isinstance(value, Array) or isinstance(value, MultiArray) or isinstance(value, list)
         assert isinstance(grad, Array) or isinstance(grad, MultiArray) or grad is None
         if isinstance(value, list):
@@ -1162,12 +1162,10 @@ class Tensor():
             self.grad = grad
             dl_d[name] = self.grad
         else:
-            if is_train and req_grad:
+            if is_train:
                 self.grad = self.value.same_shape()
                 self.grad.assign_all(0)
                 dl_d[self.name] = self.grad
-            else:
-                self.grad = None
         tensors[self.name] = self
 
     def numel(self):
@@ -1176,6 +1174,11 @@ class Tensor():
     def set_req_grad(self, req_grad):
         self.req_grad = req_grad
 
+
+    def randomize(self, *args):
+        self.value.randomize(*args)
+        
+        
     @property
     def sizes(self):
         return self.value.sizes
@@ -1508,7 +1511,7 @@ class Tensor():
         # forward
         global op_id
         if prepare:
-            assert len(self.sizes) == len(other.sizes) >= 3 and self.sizes[:-2] == other.sizes[:-2] and self.sizes[-1] == other.sizes[-2], "Invalid Dimension"
+            assert len(self.sizes) == len(other.sizes) >= 3 and self.sizes[-1] == other.sizes[-2], "Invalid Dimension"
             batch, n, p = self.sizes[:-2], self.sizes[-2], other.sizes[-1]
             output = Tensor(MultiArray([*batch, n, p], other.value.value_type), req_grad=self.req_grad or other.req_grad)
             if self.req_grad or other.req_grad:
@@ -2191,6 +2194,10 @@ class Tensor():
 
     def zero_grad(self):
         self.grad.assign_all(0)
+        
+    def assign_all(self, value):
+        assert isinstance(value, int) or isinstance(value, float)
+        self.value.assign_all(value)
 
 
 # reset operation

@@ -1,4 +1,4 @@
-from tensor import *
+import tensor as TS
 import warnings
 import functools
 from collections import OrderedDict, namedtuple
@@ -6,7 +6,7 @@ from typing import Union, Tuple, Any, Callable, Iterator, Set, Optional, overloa
 from tensor import Tensor
 import math
 import re
-from itertools import islice
+from itertools import islice, repeat
 from Compiler import mpc_math, util
 from Compiler.types import *
 from Compiler.types import _unreduced_squant
@@ -16,6 +16,16 @@ from Compiler.comparison import CarryOutRawLE
 from Compiler.GC.types import sbitint
 import Compiler.functional as F
 from functools import reduce
+
+def _ntuple(n, name="parse"):
+    def parse(x):
+        if isinstance(x, collections.abc.Iterable):
+            return tuple(x)
+        return tuple(repeat(x, n))
+
+    parse.__name__ = name
+    return parse
+T = TypeVar('T', bound='Module')
 _pair = _ntuple(2, "_pair")
 def _reverse_repeat_tuple(t, n):
     r"""Reverse the order of `t` and repeat each element for `n` times.
@@ -85,6 +95,7 @@ class Module():
         self._parameters: Dict[str, Optional[Parameter]] = OrderedDict()
         self._buffers: Dict[str, Optional[Tensor]] = OrderedDict()
         self._modules: Dict[str, Optional['Module']] = OrderedDict()
+        self.xxxx : 234
         self._non_persistent_buffers_set: Set[str] = set()
 
     def register_buffer(self, name: str, tensor: Optional[Tensor], persistent: bool = True) -> None:
@@ -624,7 +635,7 @@ class Module():
                 for m in module.named_modules(memo, submodule_prefix, remove_duplicate):
                     yield m
 
-    def train(self: T, mode: bool = True) -> T:
+    def set_up(self: T, mode: bool = True) -> T:
         r"""Sets the module in training mode.
 
         This has any effect only on certain modules. See documentations of
@@ -643,14 +654,19 @@ class Module():
             raise ValueError("training mode is expected to be boolean")
         self.training = mode
         for module in self.children():
-            module.train(mode)
+            module.set_up(mode)
         return self
 
-    def setup(self, data_loader):
+    def train(self, *args, **kwargs):
         # todo, setup tensor space of the model, call it before training or evaluation
-        self.forward()
-        train()
+        self.forward(*args, **kwargs)
+        TS.reset_op_id()
+        TS.train()
+        self.set_up()
         return self
+
+    def reset(self):
+        TS.reset_op_id()
 
     def requires_grad_(self: T, requires_grad: bool = True) -> T:
         r"""Change if autograd should record operations on parameters in this
@@ -972,7 +988,8 @@ class Linear(Module):
                  device=None, dtype=None) -> None:
         self.in_features = in_features
         self.out_features = out_features
-        self.weight = Parameter(Tensor([out_features, in_features]))
+        super().__init__()
+        self.weight = Parameter(Tensor([in_features, out_features]))
         if bias:
             self.bias = Parameter(Tensor([out_features]))
         else:
@@ -980,19 +997,28 @@ class Linear(Module):
         self.reset_parameters()        
         
     def forward(self, x):
-        return F.linear(input, self.weight, self.bias)
+        return F.linear(x, self.weight, self.bias)
     
     def extra_repr(self) -> str:
         return 'in_features={}, out_features={}, bias={}'.format(
             self.in_features, self.out_features, self.bias is not None
         )
+        
+        
+    def reset_parameters(self) -> None:
+        # Setting a=sqrt(5) in kaiming_uniform is the same as initializing with
+        # uniform(-1/sqrt(in_features), 1/sqrt(in_features)). For details, see
+        # https://github.com/pytorch/pytorch/issues/57109
+        self.weight.randomize(-math.sqrt(5), math.sqrt(5))
+        if self.bias is not None:
+            self.bias.assign_all(0)
 
 class _ConvNd(Module):
     
     __constants__ = ['stride', 'padding', 'dilation', 'groups',
                      'padding_mode', 'output_padding', 'in_channels',
                      'out_channels', 'kernel_size']
-    __annotations__ = {'bias': Optional[torch.Tensor]}
+    __annotations__ = {'bias': Optional[Tensor]}
 
     def _conv_forward(self, input: Tensor, weight: Tensor, bias: Optional[Tensor]) -> Tensor:
         ...

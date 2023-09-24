@@ -1,0 +1,26 @@
+import nn as nn
+from tensor import Tensor,autograd_function
+
+class LinearRegression(nn.Module):
+    """
+    Linear Regressoin Module, the input features and output 
+    features are defaults both 1
+    """
+    def __init__(self):
+        super().__init__()
+        self.linear = nn.Linear(3,2)
+        
+    def forward(self,x):
+        out = self.linear(x)
+        return out
+
+x = MultiArray([3, 2, 3], sfix)
+for i in range(x.total_size()):
+    x.assign_vector(sfix(i), i)
+x.print_reveal_nested()
+input1 = Tensor(x)
+model = LinearRegression()
+model.train(input1)
+y = model(input1)
+print(y.req_grad)
+y.backward()

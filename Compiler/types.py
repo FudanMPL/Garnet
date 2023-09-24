@@ -5999,13 +5999,13 @@ class SubMultiArray(_vectorizable):
         res.check_indices = self.check_indices
         return res
 
-    # @property # added by shenhao,I think this is not a nessaracy addition?
-    # def shape(self):
-    #     return list(self.sizes)
+    @property # added by shenhao,I think this is not a nessaracy addition?
+    def shape(self):
+        return list(self.sizes)
 
-    # @property # added by shenhao,I think this is not a nessaracy addition?
-    # def dim(self):
-    #     return len(self.sizes)
+    @property # added by shenhao,I think this is not a nessaracy addition?
+    def dim(self):
+        return len(self.sizes)
 
     def __setitem__(self, index, other):
         """ Part assignment.
@@ -7014,7 +7014,6 @@ class MultiArray(SubMultiArray):
         :param other.sizes: (m, p) but it can run accurately when other is a vector: (m)
         :return: res.sizes: (batch, n, p)
         """
-        # print(self.sizes,other.sizes)
         assert self.value_type == other.value_type, "Invalid Data Type"
         assert len(self.sizes) >= 3 and len(other.sizes) == 2 and self.sizes[-1] == other.sizes[0], "Invalid Dimension"
 
@@ -7063,7 +7062,7 @@ class MultiArray(SubMultiArray):
             if reduce: sizes: (m, p)
         """
         assert self.value_type == other.value_type, "Invalid Data Type"
-        assert len(self.sizes) == len(other.sizes) >= 3 and self.sizes[:-2] == other.sizes[:-2] and self.shape[-2] == other.sizes[-2], "Invalid Dimension"
+        assert len(self.sizes) == len(other.sizes) >= 3 and self.sizes[:-2] == other.sizes[:-2] and self.sizes[-2] == other.sizes[-2], "Invalid Dimension"
 
         # if not res and is_reduce:
         #     res = MultiArray([self.sizes[-1], other.sizes[-1]], self.value_type)

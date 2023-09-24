@@ -219,10 +219,11 @@ def log_softmax(input, dim=None):  # todo
 
 
 def linear(input, weight, bias=None):
-    assert isinstance(input,Tensor) and isinstance(weight,Tensor),"Invalid input or weight"
-    assert input.shape[-1]==weight.shape[-1],"Invalid Dimension"
-    weight.value=weight.value.transpose()
-    output=input.mm(weight)
+    print(input.value)
+    assert isinstance(input,Tensor),"Invalid input"
+    assert isinstance(weight,Tensor),"Invalid weight"
+    assert input.shape[-1]==weight.shape[0],"Invalid Dimension"
+    output=input.single_bmm(weight)
     if bias is None:
         pass
     else:
