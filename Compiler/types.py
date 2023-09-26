@@ -7148,10 +7148,9 @@ class MultiArray(SubMultiArray):
             other.view(b*m, p)
             concate_x = MultiArray([n, b*m], self.value_type)
             index = regint(0)
-
-            @library.for_range_parallel(n_threads, [n, b])
-            def _(i, _):
-                concate_x.assign_vector(self[i].get_vector(i*m, m), index)
+            @library.for_range_parallel(n_threads, [b, n])
+            def _(i, j):
+                concate_x.assign_vector(self[i].get_vector(j*m, m), index)
                 index.update(index + m)
             concate_x.mm(other, res)
             concate_x.delete()

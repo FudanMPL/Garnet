@@ -74,16 +74,25 @@ class Parameter(Tensor):
             :class:`~no_grad` mode. See :ref:`locally-disable-grad-doc` for more
             details. Default: `True`
     """
-    def __new__(cls, data=None, requires_grad=True):
-        if data is None:
-            raise RuntimeError(f"Data cannot be None when creating Parameters")
-        if type(data) is Tensor or type(data) is Parameter:
-            # For ease of BC maintenance, keep this path for standard Tensor.
-            # Eventually (tm), we should change the behavior for standard Tensor to match.
-            data.set_req_grad(requires_grad)
-            return data
-        else:
-            raise RuntimeError(f"Parameter can only be created from tensor or parameter")
+    def __init__(self, data):
+        self.value = data.value
+        self.grad = data.grad
+        self.value_type = self.value.value_type
+        self.name = data.name
+        self.shape = data.shape
+        TS.tensors[self.name] = self
+        self.set_req_grad(True)
+        
+    # def __new__(cls, data=None, requires_grad=True):
+    #     if data is None:
+    #         raise RuntimeError(f"Data cannot be None when creating Parameters")
+    #     if type(data) is Tensor or type(data) is Parameter:
+    #         # For ease of BC maintenance, keep this path for standard Tensor.
+    #         # Eventually (tm), we should change the behavior for standard Tensor to match.
+    #         data.set_req_grad(requires_grad)
+    #         return data
+    #     else:
+    #         raise RuntimeError(f"Parameter can only be created from tensor or parameter")
 
     def __repr__(self):
         return 'Parameter containing:\n' + super().__repr__()
@@ -178,12 +187,6 @@ class Module():
             raise TypeError("cannot assign '{}' object to parameter '{}' "
                             "(torch.nn.Parameter or None required)"
                             .format(type(param).__name__, name))
-        elif param.grad_fn:
-            raise ValueError(
-                "Cannot assign non-leaf Tensor to parameter '{0}'. Model "
-                "parameters must be created explicitly. To express '{0}' "
-                "as a function of another Tensor, compute the value in "
-                "the forward() method.".format(name))
         else:
             for hook in _global_parameter_registration_hooks.values():
                 output = hook(self, name, param)
@@ -390,7 +393,6 @@ class Module():
                         del d[name]
                     else:
                         d.discard(name)
-
         params = self.__dict__.get('_parameters')
         if isinstance(value, Parameter):
             if params is None:
