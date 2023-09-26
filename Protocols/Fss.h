@@ -1,4 +1,12 @@
 /*
+ * @Author: SkyTu 1336923451@qq.com
+ * @Date: 2023-06-25 16:09:01
+ * @LastEditors: SkyTu 1336923451@qq.com
+ * @LastEditTime: 2023-09-07 22:01:10
+ * @FilePath: /txy/Garnet/Protocols/Fss.h
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
+/*
  * FSS.h
  *
  */
@@ -85,6 +93,8 @@ public:
 
     //new added function    
     void distributed_comparison_function(SubProcessor<T> &processor, const Instruction &instruction, int lambda);
+
+    void Muliti_Interval_Containment(SubProcessor<T> &processor, const Instruction &instruction, int lambda);
 
     //new added generate function
     void generate();

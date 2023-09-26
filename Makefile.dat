@@ -1,28 +1,26 @@
+
 include CONFIG
 
-CUDA=-lcudart -L/usr/lib/cuda/lib64
-
 MATH = $(patsubst %.cpp,%.o,$(wildcard Math/*.cpp))
+
+CUDA=/usr/local/cuda/lib64/libcudart.so
 
 TOOLS = $(patsubst %.cpp,%.o,$(wildcard Tools/*.cpp))
 
 NETWORK = $(patsubst %.cpp,%.o,$(wildcard Networking/*.cpp))
 
-PROCESSOR = $(patsubst %.cpp,%.o,$(wildcard Processor/*.cpp)) 
+PROCESSOR = $(patsubst %.cpp,%.o,$(wildcard Processor/*.cpp))
 
-FHEOBJS = $(patsubst %.cpp,%.o,$(wildcard FHEOffline/*.cpp FHE/*.cpp)) Protocols/CowGearOptions.o 
+FHEOBJS = $(patsubst %.cpp,%.o,$(wildcard FHEOffline/*.cpp FHE/*.cpp)) Protocols/CowGearOptions.o
 
 GC = $(patsubst %.cpp,%.o,$(wildcard GC/*.cpp)) $(PROCESSOR)
 GC_SEMI = GC/SemiPrep.o GC/square64.o GC/Semi.o
 
-
-GPU = gpu.o
-
 OT = $(patsubst %.cpp,%.o,$(wildcard OT/*.cpp)) $(LIBSIMPLEOT)
 OT_EXE = ot.x ot-offline.x
 
-COMMONOBJS = $(MATH) $(TOOLS) $(NETWORK) GC/square64.o Processor/OnlineOptions.o Processor/BaseMachine.o Processor/DataPositions.o Processor/ThreadQueues.o Processor/ThreadQueue.o 
-COMPLETE = $(COMMON) $(PROCESSOR) $(FHEOFFLINE) $(TINYOTOFFLINE) $(GC) $(OT) 
+COMMONOBJS = $(MATH) $(TOOLS) $(NETWORK) GC/square64.o Processor/OnlineOptions.o Processor/BaseMachine.o Processor/DataPositions.o Processor/ThreadQueues.o Processor/ThreadQueue.o
+COMPLETE = $(COMMON) $(PROCESSOR) $(FHEOFFLINE) $(TINYOTOFFLINE) $(GC) $(OT)
 YAO = $(patsubst %.cpp,%.o,$(wildcard Yao/*.cpp)) $(OT) BMR/Key.o
 BMR = $(patsubst %.cpp,%.o,$(wildcard BMR/*.cpp BMR/network/*.cpp))
 VMOBJS = $(PROCESSOR) $(COMMONOBJS) GC/square64.o GC/Instruction.o OT/OTTripleSetup.o OT/BaseOT.o $(LIBSIMPLEOT)
@@ -33,8 +31,8 @@ SPDZ = Machines/SPDZ.o $(TINIER)
 
 
 LIB = libSPDZ.a
-SHAREDLIB = libSPDZ.so 
-FHEOFFLINE = libFHE.so 
+SHAREDLIB = libSPDZ.so
+FHEOFFLINE = libFHE.so
 LIBRELEASE = librelease.a
 LIBSIMPLEOT_C = deps/SimplestOT_C/ref10/libSimplestOT.a
 LIBSIMPLEOT += $(LIBSIMPLEOT_C)
@@ -70,7 +68,7 @@ vm: arithmetic binary
 doc:
 	cd doc; $(MAKE) html
 
-arithmetic: rep-ring rep-field shamir semi2k-party.x semi-party.x sml-party.x vss-party.x mascot sy dealer-ring-party.x
+arithmetic: rep-ring rep-field shamir semi2k-party.x semi-party.x mascot sy dealer-ring-party.x
 binary: rep-bin yao semi-bin-party.x tinier-party.x tiny-party.x ccd-party.x malicious-ccd-party.x real-bmr
 
 all: overdrive she-offline
@@ -80,7 +78,7 @@ arithmetic: semi-he gear
 include $(wildcard *.d static/*.d)
 
 %.o: %.cpp
-	$(CXX) -o $@ $< $(CFLAGS) -MMD -MP -c 
+	$(CXX) -o $@ $< $(CFLAGS) -MMD -MP -c
 
 online: Fake-Offline.x Server.x Player-Online.x Check-Offline.x emulate.x
 
@@ -137,17 +135,16 @@ ecdsa-static: static-dir $(patsubst ECDSA/%.cpp,static/%.x,$(wildcard ECDSA/*-ec
 $(LIBRELEASE): Protocols/MalRepRingOptions.o $(PROCESSOR) $(COMMONOBJS) $(TINIER) $(GC)
 	$(AR) -csr $@ $^
 
-CFLAGS += -fPIC -g
-
+CFLAGS += -fPIC
 LDLIBS += -Wl,-rpath -Wl,$(CURDIR)
 
 $(SHAREDLIB): $(PROCESSOR) $(COMMONOBJS) GC/square64.o GC/Instruction.o
 	$(CXX) $(CFLAGS) -shared -o $@ $^ $(LDLIBS)
 
 $(FHEOFFLINE): $(FHEOBJS) $(SHAREDLIB)
-	$(CXX) $(CFLAGS) -shared -o $@ $^ $(LDLIBS) 
+	$(CXX) $(CFLAGS) -shared -o $@ $^ $(LDLIBS)
 
-static/%.x: Machines/%.o $(LIBRELEASE) $(LIBSIMPLEOT) local/lib/libcryptoTools.a local/lib/liblibOTe.a 
+static/%.x: Machines/%.o $(LIBRELEASE) $(LIBSIMPLEOT) local/lib/libcryptoTools.a local/lib/liblibOTe.a
 	$(CXX) -o $@ $(CFLAGS) $^ -Wl,-Map=$<.map -Wl,-Bstatic -static-libgcc -static-libstdc++ $(LIBRELEASE) -llibOTe -lcryptoTools $(LIBSIMPLEOT) $(BOOST) $(LDLIBS) -Wl,-Bdynamic -ldl
 
 static/%.x: ECDSA/%.o ECDSA/P256Element.o $(VMOBJS) $(OT) $(LIBSIMPLEOT)
@@ -203,38 +200,15 @@ secure.x: Utils/secure.o
 Fake-Offline.x: Utils/Fake-Offline.o $(VM)
 	$(CXX) -o $@ $(CFLAGS) $^ $(LDLIBS)
 
-%.x: Utils/%.o $(COMMON)
+%.x: Utils/%.o $(COMMON) $(CUDA) gpu.so
 	$(CXX) -o $@ $(CFLAGS) $^ $(LDLIBS)
 
-
-
-tree-inference.x: Machines/tree-inference.cpp  $(MINI_OT) $(SHAREDLIB)
-	$(CXX) -o $@ $(CFLAGS) $^ $(LDLIBS) -I/usr/local/include/SEAL-4.1/ -L/usr/local/lib  -lseal-4.1 $(SHAREDLIB)
-
-
-%.x: Machines/%.o $(MINI_OT) $(SHAREDLIB)
-	$(CXX) -o $@ $(CFLAGS) $^ -lcudart -L/usr/lib/cuda/lib64 $(LDLIBS) $(SHAREDLIB)
+%.x: Machines/%.o $(MINI_OT) $(SHAREDLIB) $(CUDA) gpu.so
+	$(CXX) -o $@ $(CFLAGS) $^ $(LDLIBS) $(SHAREDLIB)
 
 %-ecdsa-party.x: ECDSA/%-ecdsa-party.o ECDSA/P256Element.o $(VM)
 	$(CXX) -o $@ $(CFLAGS) $^ $(LDLIBS)
 
-# -shared -Xcompiler -fPIC -I. -I./deps
-BUILD_DIR = build
-
-$(BUILD_DIR):
-	mkdir -p $(BUILD_DIR)
-$(BUILD_DIR)/gpu.o:
-	nvcc -c GPU/gpu.cu -o $(BUILD_DIR)/gpu.o -L/usr/lib/cuda/lib64 -shared -Xcompiler -fPIC -I. -I./deps
-$(BUILD_DIR)/test.o:
-	g++ -c GPU/test.cpp -o $(BUILD_DIR)/test.o -I./local/include $(LDLIBS) $(CFLAGS)
-test_gpu: $(BUILD_DIR) $(BUILD_DIR)/test.o $(BUILD_DIR)/gpu.o 
-	g++ -o $(BUILD_DIR)/test_gpu $(BUILD_DIR)/test.o $(BUILD_DIR)/gpu.o -lcudart -L/usr/lib/cuda/lib64 $(LDLIBS) $(CFLAGS)
-gpu.o:
-	nvcc -c GPU/gpu.cu -o gpu.o -L/usr/lib/cuda/lib64 -shared -Xcompiler -fPIC -I. -I./deps
-
-
-
-tree-inference.x:   Machines/tree-inference.cpp
 replicated-bin-party.x: GC/square64.o
 replicated-ring-party.x: GC/square64.o
 replicated-field-party.x: GC/square64.o
@@ -248,9 +222,6 @@ spdz2k-party.x: $(TINIER) $(patsubst %.cpp,%.o,$(wildcard Machines/SPDZ2*.cpp))
 static/spdz2k-party.x: $(patsubst %.cpp,%.o,$(wildcard Machines/SPDZ2*.cpp))
 semi-party.x: $(OT)  $(GC_SEMI)
 semi2k-party.x: $(OT) $(GC_SEMI)
-sml-party.x: $(OT) $(GC_SEMI) 
-vss-party.x: $(OT) $(GC_SEMI)
-fss-ring-party.x: GC/square64.o $(GPU) 
 hemi-party.x: $(FHEOFFLINE) $(GC_SEMI) $(OT)
 temi-party.x: $(FHEOFFLINE) $(GC_SEMI) $(OT)
 soho-party.x: $(FHEOFFLINE) $(GC_SEMI) $(OT)
@@ -388,7 +359,7 @@ mac-setup: mac-machine-setup
 	brew install openssl boost libsodium mpir yasm ntl cmake
 	-echo MY_CFLAGS += -I/usr/local/opt/openssl/include -I`brew --prefix`/opt/openssl/include -I`brew --prefix`/include >> CONFIG.mine
 	-echo MY_LDLIBS += -L/usr/local/opt/openssl/lib -L`brew --prefix`/lib -L`brew --prefix`/opt/openssl/lib >> CONFIG.mine
-	-echo USE_NTL = 1 >> CONFIG.mine
+#	-echo USE_NTL = 1 >> CONFIG.mine
 
 ifeq ($(ARM), 1)
 mac-machine-setup:
@@ -403,6 +374,8 @@ endif
 deps/simde/simde:
 	git submodule update --init deps/simde || git clone https://github.com/simd-everywhere/simde deps/simde
 
+gpu.so: GPU/helloworld.cu
+	nvcc -o gpu.so -shared -Xcompiler -fPIC -I./local/include -I. -I./deps GPU/helloworld.cu -std=c++11
 
 clean:
 	-rm -f */*.o *.o */*.d *.d *.x core.* *.a gmon.out */*/*.o static/*.x *.so

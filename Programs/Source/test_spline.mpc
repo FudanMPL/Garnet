@@ -1,0 +1,32 @@
+from Compiler.util import max
+
+
+n = 10
+
+x = sfix.Array(n)
+for i in range(n):
+    x[i] = sfix.get_random(0,10)
+    print_ln("xi is %s", x[i].reveal())
+
+ex_res = sfix.Array(n)
+x_max = max(x)
+print_ln("x_max is %s", x_max.reveal())
+length = len(splines)
+
+
+final_res = sfix.Array(n)
+pre = sfix(1)
+sum = sfix(0)
+for j in range(n):
+    val = x[j] - x_max
+    print_ln("val is %s", val.reveal())
+    for i in range(0, length):
+        tmp = (val >= splines[i])
+        com_res = pre - tmp
+        pre = tmp
+        final_res[j] += com_res * sfix(values[i])
+    final_res[j] += pre * sfix(1)
+    sum+=final_res[j]
+
+for i in range(n):
+    print_ln("x is %s , softmax val is %s", final_res[i].reveal(), (final_res[i]/sum).reveal())
