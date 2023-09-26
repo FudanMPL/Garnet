@@ -295,6 +295,7 @@ class SGD(Optimizer):
         if momentum != 0:
             for group in self.param_groups:
                 self.init_momentum(group)
+        self.iter = regint(0)
                 
     def init_momentum(self, group):
         for p in group['params']:
@@ -343,6 +344,7 @@ class SGD(Optimizer):
             sgd(params_with_grad,
                 d_p_list,
                 momentum_buffer_list,
+                iter=self.iter,
                 weight_decay=group['weight_decay'],
                 momentum=group['momentum'],
                 lr=group['lr'],
@@ -350,7 +352,7 @@ class SGD(Optimizer):
                 nesterov=group['nesterov'],
                 maximize=group['maximize'],
                 has_sparse_grad=has_sparse_grad,
-                foreach=group['foreach'])
+                foreach=group['foreach'],)
 
             # update momentum_buffers in state
             for p, momentum_buffer in zip(params_with_grad, momentum_buffer_list):
@@ -362,6 +364,7 @@ class SGD(Optimizer):
 def sgd(params: List[Tensor],
         d_p_list: List[Tensor],
         momentum_buffer_list: List[Optional[Tensor]],
+        iter: int,
         # kwonly args with defaults are not supported by functions compiled with torchscript issue #70627
         # setting this as kwarg for now as functional API is compiled by torch/distributed/optim
         has_sparse_grad: bool = None,
@@ -391,6 +394,7 @@ def sgd(params: List[Tensor],
     func(params,
          d_p_list,
          momentum_buffer_list,
+         iter = iter,
          weight_decay=weight_decay,
          momentum=momentum,
          lr=lr,
@@ -402,6 +406,7 @@ def sgd(params: List[Tensor],
 def _single_tensor_sgd(params: List[Tensor],
                        d_p_list: List[MultiArray],
                        momentum_buffer_list: List[Optional[MultiArray]],
+                       iter,
                        *,
                        weight_decay: float,
                        momentum: float,
@@ -421,20 +426,21 @@ def _single_tensor_sgd(params: List[Tensor],
 
         if momentum != 0:
             buf = momentum_buffer_list[i]
-
-            if buf is None:
-                raise CompilerError("buf should not be None")
-            else:
-                # buf.mul_(momentum).add_(d_p, alpha=1 - dampening)
+            @if_e(iter == 0)
+            def _():
+                buf[:] = d_p[:]
+            @else_
+            def _():
                 buf[:] = buf[:] * momentum + d_p[:] * (1 - dampening)
 
             if nesterov:
                 # d_p = d_p.add(buf, alpha=momentum)
                 d_p[:] = d_p[:] + buf[:] * momentum
             else:
-                d_p = buf
-                
+                d_p[:] = buf[:]
+        
         param.value[:] = param.value[:] - lr * d_p[:]
+    iter.update(iter + 1)
 
 def _multi_tensor_sgd(params: List[Tensor],
                       grads: List[MultiArray],
