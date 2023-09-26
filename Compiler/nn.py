@@ -771,6 +771,7 @@ class Module():
         return sorted(keys)
 
     def _call_impl(self, *args, **kwargs):
+        TS.reset_op_id()
         forward_call = self.forward
         break_point()
         result = forward_call(*args, **kwargs)

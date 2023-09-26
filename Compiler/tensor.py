@@ -2211,7 +2211,8 @@ class Tensor():
         return self.value.sizes
 
     def zero_grad(self):
-        self.grad.assign_all(0)
+        if self.grad != None:
+            self.grad.assign_all(0)
         
     def assign_all(self, value):
         assert isinstance(value, int) or isinstance(value, float)

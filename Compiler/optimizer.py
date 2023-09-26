@@ -2,6 +2,7 @@ import warnings
 from typing import Any, Callable, Dict, List, Tuple
 from collections import OrderedDict, defaultdict, abc as container_abcs
 from tensor import *
+import tensor as TS
 from copy import deepcopy
 from itertools import chain
 class _RequiredParameter:
@@ -204,10 +205,12 @@ class Optimizer:
                 (in one case it does the step with a gradient of 0 and in the other it skips
                 the step altogether).
         """
-        for group in self.param_groups:
-            for p in group['params']:
-                if p.grad is not None:
-                        p.zero_grad()
+        # for group in self.param_groups:
+        #     for p in group['params']:
+        #         if p.grad is not None:
+        #                 p.zero_grad()
+        for name, p in TS.tensors.items():
+            p.zero_grad()
 
     def step(self, closure):
         r"""Performs a single optimization step (parameter update).
@@ -289,22 +292,32 @@ class SGD(Optimizer):
         if nesterov and (momentum <= 0 or dampening != 0):
             raise ValueError("Nesterov momentum requires a momentum and zero dampening")
         super().__init__(params, defaults)
-        
+        if momentum != 0:
+            for group in self.param_groups:
+                self.init_momentum(group)
+                
+    def init_momentum(self, group):
+        for p in group['params']:
+            if p.grad is not None:
+                state = self.state[p]
+                buf = p.grad.same_shape()
+                buf.assign_all(0)
+                state['momentum_buffer'] = buf
+                
+                
     def _init_group(self, group, params_with_grad, d_p_list, momentum_buffer_list):
         has_sparse_grad = False
-
         for p in group['params']:
             if p.grad is not None:
                 params_with_grad.append(p)
                 d_p_list.append(p.grad)
-                if p.grad.is_sparse:
-                    has_sparse_grad = True
 
                 state = self.state[p]
-                if 'momentum_buffer' not in state:
-                    momentum_buffer_list.append(None)
-                else:
-                    momentum_buffer_list.append(state['momentum_buffer'])
+                if group['momentum'] !=0:
+                    if 'momentum_buffer' not in state:
+                        raise CompilerError("momentum should be inited")
+                    else:
+                        momentum_buffer_list.append(state['momentum_buffer'])
 
         return has_sparse_grad
 
@@ -410,9 +423,7 @@ def _single_tensor_sgd(params: List[Tensor],
             buf = momentum_buffer_list[i]
 
             if buf is None:
-                buf = d_p.same_shape()
-                buf[:] = d_p[:]
-                momentum_buffer_list[i] = buf
+                raise CompilerError("buf should not be None")
             else:
                 # buf.mul_(momentum).add_(d_p, alpha=1 - dampening)
                 buf[:] = buf[:] * momentum + d_p[:] * (1 - dampening)
