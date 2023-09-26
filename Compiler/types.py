@@ -5744,7 +5744,6 @@ class Array(_vectorizable):
             def _(base, size):
                 self.assign(input_from(player, size=size, **kwargs), base)
         except (TypeError, CompilerError):
-            print(budget)
 
             @library.for_range_opt(self.length, budget=budget)
             def _(i):
@@ -6000,13 +5999,13 @@ class SubMultiArray(_vectorizable):
         res.check_indices = self.check_indices
         return res
 
-    # @property # added by shenhao,I think this is not a nessaracy addition?
-    # def shape(self):
-    #     return list(self.sizes)
+    @property # added by shenhao,I think this is not a nessaracy addition?
+    def shape(self):
+        return list(self.sizes)
 
-    # @property # added by shenhao,I think this is not a nessaracy addition?
-    # def dim(self):
-    #     return len(self.sizes)
+    @property # added by shenhao,I think this is not a nessaracy addition?
+    def dim(self):
+        return len(self.sizes)
 
     def __setitem__(self, index, other):
         """ Part assignment.
@@ -6088,7 +6087,6 @@ class SubMultiArray(_vectorizable):
         assert self.value_type.n_elements() == 1
         part_size = reduce(operator.mul, self.sizes[1:])
         size = (size or 1) * part_size
-        assert size <= self.total_size()-base*part_size,"base with size cause out of range"
         return self.value_type.load_mem(self.address + base * part_size,
                                         size=size)
 
@@ -6101,7 +6099,6 @@ class SubMultiArray(_vectorizable):
         """
         assert self.value_type.n_elements() == 1
         part_size = reduce(operator.mul, self.sizes[1:])
-        assert vector.size <= self.total_size()-base,"vector size with base cause a buffer overflow"
         vector.store_in_mem(self.address + base * part_size)
 
     def get_slice_vector(self, slice):
@@ -6176,7 +6173,6 @@ class SubMultiArray(_vectorizable):
         :param size: int
 
         """
-        assert start>=0 and start<self.sizes[0] and size<self.sizes[0],"out of range"
         return MultiArray([size] + list(self.sizes[1:]), self.value_type,
                           address=self[start].address)
 
@@ -6842,7 +6838,6 @@ class MultiArray(SubMultiArray):
             def _(j):
                 # get all the indices, like (0,0,0), (0,0,1), (0,0,2)...
                 tmp_indices = indices[:] + (j,)
-                print(tmp_indices)
                 # get value at that index
                 tmp = self.get_vector_by_indices(*tmp_indices)
                 new_indices = self.tuple_permute(tmp_indices, new_perm)
@@ -7020,7 +7015,6 @@ class MultiArray(SubMultiArray):
         :param other.sizes: (m, p) but it can run accurately when other is a vector: (m)
         :return: res.sizes: (batch, n, p)
         """
-        # print(self.sizes,other.sizes)
         assert self.value_type == other.value_type, "Invalid Data Type"
         assert len(self.sizes) >= 3 and len(other.sizes) == 2 and self.sizes[-1] == other.sizes[0], "Invalid Dimension"
 
@@ -7069,7 +7063,7 @@ class MultiArray(SubMultiArray):
             if reduce: sizes: (m, p)
         """
         assert self.value_type == other.value_type, "Invalid Data Type"
-        assert len(self.sizes) == len(other.sizes) >= 3 and self.sizes[:-2] == other.sizes[:-2] and self.shape[-2] == other.sizes[-2], "Invalid Dimension"
+        assert len(self.sizes) == len(other.sizes) >= 3 and self.sizes[:-2] == other.sizes[:-2] and self.sizes[-2] == other.sizes[-2], "Invalid Dimension"
 
         # if not res and is_reduce:
         #     res = MultiArray([self.sizes[-1], other.sizes[-1]], self.value_type)
@@ -7155,10 +7149,9 @@ class MultiArray(SubMultiArray):
             other.view(b*m, p)
             concate_x = MultiArray([n, b*m], self.value_type)
             index = regint(0)
-
-            @library.for_range_parallel(n_threads, [n, b])
-            def _(i, _):
-                concate_x.assign_vector(self[i].get_vector(i*m, m), index)
+            @library.for_range_parallel(n_threads, [b, n])
+            def _(i, j):
+                concate_x.assign_vector(self[i].get_vector(j*m, m), index)
                 index.update(index + m)
             concate_x.mm(other, res)
             concate_x.delete()

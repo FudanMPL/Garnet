@@ -1063,6 +1063,7 @@ def map_reduce_single(n_parallel, n_loops, initializer=lambda *x: [],
                     j = i + k
                     state = reducer(tuplify(loop_body(j)), state)
                     k += 1
+                RegintOptimizer().run(block.instructions, get_program())
                 _link(pre, loop_body.__globals__)
                 r = reducer(mem_state, state)
                 write_state_to_memory(r)
@@ -1094,7 +1095,7 @@ def map_reduce_single(n_parallel, n_loops, initializer=lambda *x: [],
                 del blocks[-n_to_merge + 1:]
                 del get_tape().req_node.children[-1]
                 merged.children = []
-                RegintOptimizer().run(merged.instructions)
+                RegintOptimizer().run(merged.instructions, get_program())
                 get_tape().active_basicblock = merged
             else:
                 req_node = get_tape().req_node.children[-1].nodes[0]

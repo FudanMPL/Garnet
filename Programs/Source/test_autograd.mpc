@@ -3,6 +3,9 @@ import tensor
 import functional as F
 program.options_from_args()
 
+sfix.set_precision(30, 60)
+cfix.set_precision(30, 60)
+
 @autograd_function
 def test_mul():
     print_ln('test_mul_input: ')
@@ -100,15 +103,36 @@ def test_sub():
 @autograd_function
 def test_div():
     print_ln('test_div_input: ')
-    x = MultiArray([3, 3, 2], sfix)
-    x[0].assign_all(1)
-    x[1].assign_all(2)
-    x[2].assign_all(3)
+    x = MultiArray([2, 2, 2, 2], sfix)
+    y = MultiArray([1, 2, 1, 1], sfix)
+    xx = [[[[-0.0150, -0.0050],
+          [-0.0050,  0.0050]],
+
+         [[-0.0162, -0.0062],
+          [-0.0062,  0.0038]]],
+
+
+        [[[-0.0050,  0.0050],
+          [ 0.0050,  0.0150]],
+
+         [[-0.0062,  0.0038],
+          [ 0.0038,  0.0238]]]]
+    yy = [[[[0.0093]],
+
+         [[0.0119]]]]
+    for i in range(0,2):
+        for j in range(0,2):
+            for k in range(0,2):
+                for l in range(0,2):
+                    x[i][j][k][l] = sfix(xx[i][j][k][l])
+    for i in range(0,1):
+        for j in range(0,2):
+            for k in range(0,1):
+                for l in range(0,1):
+                    y[i][j][k][l] = sfix(yy[i][j][k][l])
     x.print_reveal_nested()
-    y = MultiArray([1, 2], sfix)
-    y.assign_all(5)
-    y[0][0] = 6
     y.print_reveal_nested()
+
     input1 = Tensor(x, req_grad = True)
     input2 = Tensor(y, req_grad = True)
 
@@ -267,21 +291,32 @@ def test_sum(dim, keepdim=False):
 @autograd_function
 def test_mean(dim, keepdim=False):
     print_ln('test_mean')
-    x = MultiArray([3, 2, 2, 3], sfix)
-    for i in range(0,3):
+    x = MultiArray([2, 2, 2, 2], sfix)
+    for i in range(0,2):
         for j in range(0,2):
             for k in range(0, 2):
-                for q in range(0, 3):
-                    x[i][j][k][q] = sfix((i*j*k*q+i+j+k+q)*1e-2)
+                for q in range(0, 2):
+                    x[i][j][k][q] = sfix( ((i*j*k*q+i+j+k+q)%101)*1e-2)
     x.print_reveal_nested()
     input1 = Tensor(x, req_grad = True)
+    
+    v = MultiArray([1, 2, 1, 1], sfix)
+    for i in range(0,1):
+        for j in range(0,2):
+            for k in range(0, 1):
+                for q in range(0, 1):
+                    v[i][j][k][q] = sfix(i+j*10+k+q*17)
+    v.assign_vector(sfix(-2100.0002), 0)
+    v.assign_vector(sfix(-3721.5188), 1)
+    v.print_reveal_nested()
+    vec = Tensor(v, req_grad = True)
 
-    input2 = input1.mean(dim, keepdim)
+    input2 = input1.std(dim, keepdim) * vec
 
     tensor.train()
     tensor.reset_op_id()
 
-    input2 = input1.mean(dim, keepdim)
+    input2 = input1.std(dim, keepdim) * vec
     input2.backward()
     input2.value.print_reveal_nested()
     input1.grad.print_reveal_nested()
@@ -311,12 +346,12 @@ def test_var(dim, keepdim=False):
 @autograd_function
 def test_std(dim, keepdim=False):
     print_ln('test_std')
-    x = MultiArray([3, 3, 3, 3], sfix)
-    for i in range(0,3):
-        for j in range(0,3):
-            for k in range(0, 3):
-                for q in range(0, 3):
-                    x[i][j][k][q] = sfix((i*j*k*q+i+j+k+q)*1e-2)
+    x = MultiArray([2,2,2,2], sfix)
+    for i in range(0,2):
+        for j in range(0,2):
+            for k in range(0, 2):
+                for q in range(0, 2):
+                    x[i][j][k][q] = sfix((i*j*k*q+i+j+k+q)%101*1e-2)
     x.print_reveal_nested()
     input1 = Tensor(x, req_grad = True)
 
@@ -459,12 +494,12 @@ def test_f_droupout(p):
 @autograd_function
 def test_f_batchnorm():
     print_ln('test_batchnorm')
-    x = MultiArray([3, 3, 3, 3], sfix)
-    for i in range(0,3):
-        for j in range(0,3):
-            for k in range(0, 3):
-                for q in range(0, 3):
-                    x[i][j][k][q] = sfix((i*j*k*q+i+j+k+q)*1e-2)
+    x = MultiArray([2,2,2,2], sfix)
+    for i in range(0,2):
+        for j in range(0,2):
+            for k in range(0, 2):
+                for q in range(0, 2):
+                    x[i][j][k][q] = sfix(((i*j*k*q+i+j+k+q)%101)*1e-2)
     x.print_reveal_nested()
     input1 = Tensor(x, req_grad = True)
 
@@ -475,24 +510,41 @@ def test_f_batchnorm():
 
     input2 = F.batch_norm(input1, weight=W, bias=B, training=True)
 
+    v = MultiArray([2,2,2,2], sfix)
+    for i in range(0,2):
+        for j in range(0,2):
+            for k in range(0, 2):
+                for q in range(0, 2):
+                    v[i][j][k][q] = sfix((i+j+k+q))
+    vec = Tensor(v, req_grad = True)
+    input4 = input2 * vec 
+
     tensor.train()
     tensor.reset_op_id()
 
     input2 = F.batch_norm(input1, weight=W, bias=B, training=True)
-    input2.backward()
+    input4 = input2 * vec
+
+    input4.backward()
+    
+    
+    print_ln('xhat_batchnorm_output: ')
     input2.value.print_reveal_nested()
+    print_ln('xhat_batchnorm_backward: ')
+    input2.grad.print_reveal_nested()
+    
+    
+    print_ln('x_batchnorm_backward: ')
     input1.grad.print_reveal_nested()
 
-test_mul()
-test_add()
-test_sub()
-test_div()
+#test_mul()
+#test_add()
+#test_sub()
+#test_div()
 #test_abs()
 #test_exp()
 #test_log()
 #test_pow(3)
-#test_sum()
-#test_mean()
 
 @autograd_function
 def test_getitem():
@@ -508,16 +560,16 @@ def test_getitem():
 #test_log()
 #test_pow(3)
 
-'''
-test_sum([0,2])
-test_sum([0,2], keepdim=True)
-test_mean([0,2])
-test_mean([0,2], keepdim=True)
-test_var([0,2])
-test_var([0,2], keepdim=True)
-test_std([0,2])
-test_std([0,2], keepdim=True)
-'''
+
+#test_sum([0,2])
+#test_sum([0,2], keepdim=True)
+#test_mean([0,2])
+#test_mean([0,2,3], keepdim=True)
+#test_var([0,2])
+#test_var([0,2], keepdim=True)
+#test_std([0,2,3])
+#test_std([0,2,3], keepdim=True)
+
 
 #test_addc()
 #test_subc()
@@ -527,4 +579,4 @@ test_std([0,2], keepdim=True)
 #test_neg()
 
 #test_f_droupout(0.5)
-#test_f_batchnorm()
+test_f_batchnorm()

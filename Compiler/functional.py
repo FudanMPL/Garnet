@@ -219,15 +219,22 @@ def log_softmax(input, dim=None):  # todo
 
 
 def linear(input, weight, bias=None):
-    assert isinstance(input,Tensor) and isinstance(weight,Tensor),"Invalid input or weight"
-    assert input.shape[-1]==weight.shape[-1],"Invalid Dimension"
-    weight.value=weight.value.transpose()
-    output=input.mm(weight)
+    assert isinstance(input,Tensor),"Invalid input"
+    assert isinstance(weight,Tensor),"Invalid weight"
+    assert input.shape[-1]==weight.shape[0],"Invalid Dimension"
+    if len(input.sizes) > len(weight.sizes):
+        output=input.single_bmm(weight)
+    elif len(input.sizes) == len(weight.sizes):
+        output=input.mm(weight)
+    else:
+        raise CompilerError("the dimension of input must not smaller than the dimension of weight")
     if bias is None:
         pass
     else:
-        output.value[:]=(bias+output)
+        output = bias + output
     return output
+
+
 def new_squant():
         class _(sfix):
             params = None
@@ -821,11 +828,12 @@ def batch_norm(input, weight=None, bias=None, training=False, eps=1e-05):
     
     assert isinstance(input,Tensor) ,"Invalid input"
     
-    x_mean = input.mean(dim=[0,2,3])
-    x_std = input.std(dim=[0,2,3])
-    x_hat = (input -x_mean) / (x_std) 
+    x_mean = input.mean(dim=[0,2,3], keepdim=True)
+    x_std = input.std(dim=[0,2,3], keepdim=True)
+    x_var = input.var(dim=[0,2,3], keepdim=True)
+    x_hat = (input - x_mean) / (x_std) 
     
-    return x_hat * weight + bias
+    return x_hat 
 
 
 

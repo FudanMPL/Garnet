@@ -1089,22 +1089,27 @@ class ClearImmediate(ImmediateBase):
 ###
 ### Memory access instructions
 ###
-
-class DirectMemoryInstruction(Instruction):
+class MemoryInstruction(Instruction):
+    __slots__ = ['_protect']
+    def __init__(self, *args, **kwargs):
+        super(MemoryInstruction, self).__init__(*args, **kwargs)
+        self._protect = program._protect_memory
+        
+class DirectMemoryInstruction(MemoryInstruction):
     __slots__ = []
     def __init__(self, *args, **kwargs):
         super(DirectMemoryInstruction, self).__init__(*args, **kwargs)
 
-class IndirectMemoryInstruction(Instruction):
+class IndirectMemoryInstruction(MemoryInstruction):
     __slots__ = []
 
     def get_direct(self, address):
         return self.direct(self.args[0], address, add_to_prog=False)
 
-class ReadMemoryInstruction(Instruction):
+class ReadMemoryInstruction(MemoryInstruction):
     __slots__ = []
 
-class WriteMemoryInstruction(Instruction):
+class WriteMemoryInstruction(MemoryInstruction):
     __slots__ = []
 
 class DirectMemoryWriteInstruction(DirectMemoryInstruction, \
