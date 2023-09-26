@@ -560,12 +560,37 @@ def test_avgpool2d():
     output.value.print_reveal_nested()
     print_ln("input grad shape:%s",input.shape)
     input.grad.print_reveal_nested()
-    
+
+@autograd_function
+def test_normalize():
+    print_ln("test_normalize:")
+    training_samples = MultiArray([4, 3,5, 5], sfix)
+    for i in range(0,4):
+        for j in range(0,3):
+            for k in range(0,5):
+                for m in range(5):
+                    training_samples[i][j][k][m]=i+j+k+m
+
+    input = Tensor(training_samples, req_grad = True)
 
 
+    output=F.normalize(input,dim=[3])
+    tensor.train()
+    tensor.reset_op_id()
+    output=F.normalize(input,dim=[3])
+   # output.backward()
+    print_ln("input value:")
+    input.value.print_reveal_nested()
+    print_ln("output shape:%s\n output_value",output.shape)
+    output.value.print_reveal_nested()
+    #print_ln("input grad shape:%s",input.shape)
+    #input.grad.print_reveal_nested()
+     
 
 
-test_avgpool2d()
+test_normalize()
+
+#test_avgpool2d()
 
 #test_maxpool2d()
 

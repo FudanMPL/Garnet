@@ -81,6 +81,7 @@ def matrix_reconst(matrix, new_matrix):
     return new_matrix
 
 def get_permute(n, dims):
+    print(n,dims)
     perm = list(filter(lambda x: x not in dims, range(n))) + dims
     return tuple(perm)
 
@@ -883,6 +884,8 @@ def mean_of_multiarray(self, dim, keepdim=False):
         
         dl_dinputs = [dl_dself]
         return dl_dinputs
+    
+    
     # forward
     global op_id
     if prepare:
@@ -905,8 +908,7 @@ def mean_of_multiarray(self, dim, keepdim=False):
         else:
             operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate, intermediate=[input_perm])
         gradient_operation.append(operation)
-        operation_id = len(gradient_operation) - 1
-
+        operation_id = len(gradient_operation)-1
         op_id_store[op_id] = operation_id
         op_id += 1
     else:
@@ -914,7 +916,7 @@ def mean_of_multiarray(self, dim, keepdim=False):
         input = tensors[operation.inputs[0]]
         output = tensors[operation.outputs[0]]
         input_perm = operation.intermediate[0]
-
+        
         new_perm = get_permute(len(input.value.sizes), dim)
         input.value.permute_without_malloc(input_perm, new_perm)
         
@@ -928,6 +930,77 @@ def mean_of_multiarray(self, dim, keepdim=False):
         op_id += 1
     # record the input and output of the op
     return output
+
+def Norm_of_multiarray(self, dim,p=2, keepdim=False):
+    # backward
+    @buildingblock(get_program().globalbuildingblock)
+    def propagate(dl_doutputs, operation):
+        dl_dx, = dl_doutputs
+        dl_dself = dl_d[operation.inputs[0]]
+        input_perm, = operation.intermediate
+
+        stride = reduce(lambda x, y: x * self.value.sizes[y], dim, 1)
+        @for_range(dl_dx.total_size())
+        def _(i):
+            @for_range(stride)
+            def _(j):
+                input_perm.assign_vector(dl_dx.get_vector(i, 1), i*stride+j)
+        input_perm[:] /= stride
+        # permute back
+        new_perm = get_permute_back(len(self.value.sizes), dim)
+        input_perm.permute_without_malloc(dl_dself, new_perm)
+        
+        dl_dinputs = [dl_dself]
+        return dl_dinputs
+    
+    
+    # forward
+    global op_id
+    if prepare:
+        if not keepdim:
+            new_sizes = [self.value.sizes[i] for i in list(filter(lambda x: x not in dim, range(len(self.value.sizes))))]
+        else:
+            new_sizes = [(1 if i in dim else self.value.sizes[i]) for i in range(len(self.value.sizes))]
+        if len(new_sizes) <= 1:
+            new_value = Array(new_sizes[0], self.value.value_type)
+        else:
+            new_value = MultiArray(new_sizes, self.value.value_type)
+        output = Tensor(new_value, req_grad=self.req_grad)
+        
+        new_perm = get_permute(len(self.value.sizes), dim)
+        target_size = self.value.tuple_permute(self.shape, new_perm)
+        input_perm = MultiArray(target_size, self.value.value_type)
+        
+        if self.req_grad:
+            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=[input_perm])
+        else:
+            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate, intermediate=[input_perm])
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation)-1
+        op_id_store[op_id] = operation_id
+        op_id += 1
+    else:
+        operation = gradient_operation[op_id_store[op_id]]
+        input = tensors[operation.inputs[0]]
+        for i in range(p-1):
+            input = input* tensors[operation.inputs[0]]
+        output = tensors[operation.outputs[0]]
+        input_perm = operation.intermediate[0]
+        
+        new_perm = get_permute(len(input.value.sizes), dim)
+        input.value.permute_without_malloc(input_perm, new_perm)
+        
+        stride = reduce(lambda x, y: x * self.value.sizes[y], dim, 1)
+        @for_range(input.value.total_size()//stride)
+        def _(i):
+            summary = sum(input_perm.get_vector(i*stride, stride))
+            output.value.assign_vector(mpc_math.sqrt(summary), i)
+        # output.value[:] /= stride
+        # output.value.reshape([(1 if i in dim else self.value.sizes[i]) for i in range(len(self.value.sizes))])
+        op_id += 1
+    # record the input and output of the op
+    return output
+
 
 def var_of_multiarray(self, dim, keepdim=False):
     # backward

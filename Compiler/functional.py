@@ -547,10 +547,6 @@ def max_pool2d(input, kernel_size=2, stride=2, padding=0):
         set_opid(op_id+1)  # record the input and output of the op
     return output
 
-    
-    
-
-
 def avg_pool2d(input, kernel_size, stride=None, padding=0,):
     op_id = get_opid()
     @buildingblock(get_program().globalbuildingblock)
@@ -785,8 +781,40 @@ def dropout(input, p=0.5, training=False, inplace=False):  # todo
 #     return Tensor(output)
 
 
-def normalize(input, p=2.0, dim=1, eps=1e-12, out=None):  # todo
-    pass
+def normalize(input, p=2.0, dim=[1], eps=1e-12, out=None):  # todo
+    assert isinstance(input,Tensor) ,"Invalid input"
+    x_=Norm_of_multiarray(input,dim,keepdim=True)
+    x_.print_reveal_nested()
+    return input/x_
+    # op_id = get_opid()
+    # @buildingblock(get_program().globalbuildingblock)
+    # def propagate(dl_doutputs, operation):
+    #     pass
+    
+    # prepare = get_prepare()
+    # if prepare:
+    #     assert isinstance(input,Tensor) ,"Invalid input"
+    #     if isinstance(input.value,Array):
+    #         new_value = Array(input.size, input.value.value_type)
+    #         bin_value = Array(input.size, input.value.value_type)
+    #     else:
+    #         new_value = MultiArray(input.sizes, input.value.value_type)
+    #         bin_value = MultiArray(input.sizes, input.value.value_type)
+    #     output = Tensor(new_value, req_grad=input.req_grad)
+    #     if input.req_grad:
+    #         operation = Operation(inputs=[input.name], outputs=[output.name], propagate=propagate, intermediate=[bin_value])
+    #     else:
+    #         operation = Operation(inputs=[input.name], outputs=[output.name], propagate=fake_propagate, intermediate=[bin_value])
+    #     gradient_operation.append(operation)
+    #     operation_id = len(gradient_operation) - 1
+    #     op_id_store[op_id] = operation_id
+    #     set_opid(op_id+1)
+    # else:
+    #     operation = gradient_operation[op_id_store[op_id]]
+    #     input = tensors[operation.inputs[0]]
+    #     output = tensors[operation.outputs[0]]
+        
+
 
 
 def batch_norm(input, weight=None, bias=None, training=False, eps=1e-05):
@@ -807,6 +835,36 @@ def layer_norm(input, normalized_shape, weight=None, bias=None, eps=1e-05):
 
 def cosine_similarity(x1, x2, dim=1, eps=1e-8):
     pass
+    # op_id = get_opid()
+    # @buildingblock(get_program().globalbuildingblock)
+    # def propagate(dl_doutputs, operation):
+    #     pass
+    # prepare = get_prepare()
+    # if prepare:
+    #     assert isinstance(x1, Tensor) and isinstance(x2, Tensor), "Invalid Input"
+    #     assert x1.shape==x2.shape,"Inequal dim, not care about broadcast!"
+    #     if isinstance(input.value,Array):
+    #         new_value = Array(1, input.value.value_type)
+    #     else:
+    #         output_size=x1.shape[:dim]+x1.shape[dim+1:]
+    #         new_value = MultiArray(output_size, input.value.value_type)
+    #     output = Tensor(new_value, req_grad=x1.req_grad or x2.req_grad)
+    #     if x1.req_grad:
+    #         operation = Operation(inputs=[input.name], outputs=[output.name], propagate=propagate, intermediate=[bin_value])
+    #     else:
+    #         operation = Operation(inputs=[input.name], outputs=[output.name], propagate=fake_propagate, intermediate=[bin_value])
+    #     gradient_operation.append(operation)
+    #     operation_id = len(gradient_operation) - 1
+    #     op_id_store[op_id] = operation_id
+    #     set_opid(op_id+1)
+    # else:
+    #     operation = gradient_operation[op_id_store[op_id]]
+    #     input = tensors[operation.inputs[0]]
+    #     output = tensors[operation.outputs[0]]
+    #     , = operation.intermediate
+    #     set_opid(op_id+1)  # record the input and output of the op
+    # return output
+    
 
 
 def pdist(input, p=2):  # todo
