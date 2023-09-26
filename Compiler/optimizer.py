@@ -401,6 +401,7 @@ def _single_tensor_sgd(params: List[Tensor],
     for i, param in enumerate(params):
         d_p = d_p_list[i] if not maximize else -d_p_list[i]
 
+
         if weight_decay != 0:
             # d_p = d_p.add(param, alpha=weight_decay)
             d_p[:] = d_p[:] + param.value[:] * weight_decay
