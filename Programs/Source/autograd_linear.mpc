@@ -19,13 +19,12 @@ class LinearRegression(nn.Module):
 x = MultiArray([3,2,3], sfix)
 for i in range(x.total_size()):
     x.assign_vector(sfix(i), i)
-x.print_reveal_nested()
 input1 = Tensor(x)
 
 
 model = LinearRegression()
 
-optimizer = optim.SGD(model.parameters(), lr = 0.01, momentum = 0.9, dampening = 0.9)
+optimizer = optim.SGD(model.parameters(), lr = 0.01, dampening = 0.9)
 model.train(input1)
 
 y = model(input1)

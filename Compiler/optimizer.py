@@ -296,7 +296,14 @@ class SGD(Optimizer):
             for group in self.param_groups:
                 self.init_momentum(group)
         self.iter = regint(0)
-                
+        
+    def __setstate__(self, state):
+        super().__setstate__(state)
+        for group in self.param_groups:
+            group.setdefault('nesterov', False)
+            group.setdefault('maximize', False)
+            group.setdefault('differentiable', False)
+
     def init_momentum(self, group):
         for p in group['params']:
             if p.grad is not None:
@@ -415,7 +422,6 @@ def _single_tensor_sgd(params: List[Tensor],
                        nesterov: bool,
                        maximize: bool,
                        has_sparse_grad: bool):
-
     for i, param in enumerate(params):
         d_p = d_p_list[i] if not maximize else -d_p_list[i]
 
@@ -432,14 +438,13 @@ def _single_tensor_sgd(params: List[Tensor],
             @else_
             def _():
                 buf[:] = buf[:] * momentum + d_p[:] * (1 - dampening)
-
             if nesterov:
                 # d_p = d_p.add(buf, alpha=momentum)
                 d_p[:] = d_p[:] + buf[:] * momentum
             else:
                 d_p[:] = buf[:]
-        
         param.value[:] = param.value[:] - lr * d_p[:]
+
     iter.update(iter + 1)
 
 def _multi_tensor_sgd(params: List[Tensor],
