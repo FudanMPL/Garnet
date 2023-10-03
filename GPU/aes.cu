@@ -9,7 +9,7 @@
 #include <cstring>
 #include <iomanip>
 #include <cuda.h>
-
+#include "utils.cu"
 
 typedef unsigned long u32;
 #define BYTE unsigned char
@@ -1082,7 +1082,7 @@ __global__ void aes256_decrypt_ecb(uint8_t *buf_d, unsigned long numbytes){
 
 //aes加密
 void encryptdemo(uint8_t *key, uint8_t *buf, unsigned long numbytes){
- uint8_t *buf_d;
+  uint8_t *buf_d;
   uint8_t *w_d;
   uint8_t *w;
 
@@ -1155,91 +1155,44 @@ void decryptdemo(uint8_t *key, uint8_t *buf, unsigned long numbytes){
   total=msecTotal1/1000;
   printf("time:%f\n",total);
   printf("Throughput: %fGbps\n", numbytes/total/1024/1024/1024*8);
-
-
 }
 
 
-// __global__ void GPU_init() { }
 
+void test_add(uint8_t * a, uint8_t * b, uint8_t * res, int numbytes){
+  uint8_t *buf_a;
+  uint8_t *buf_b;
+  uint8_t *buf_res;
 
-// int main(int argc,char** argv){
+  cudaMalloc((void**)&buf_a, numbytes);
+  cudaMalloc((void**)&buf_b, numbytes);
+  cudaMalloc((void**)&buf_res, numbytes);
+  //从内存拷贝至显存
+  cudaMemcpy(buf_a, a, numbytes, cudaMemcpyHostToDevice);
+  cudaMemcpy(buf_b, b, numbytes, cudaMemcpyHostToDevice);
 
-//   FILE *file;
-//   uint8_t *buf,*buf2; 
-//   unsigned long numbytes;
-//   char *fname;
-//   int  i;
-//   int padding;
- 
-//   uint8_t key[32];
+  dim3 dimBlock(ceil((double)numbytes / (double)(THREADS_PER_BLOCK * AES_BLOCK_SIZE)));
+  dim3 dimGrid(THREADS_PER_BLOCK);
 
-//   // 设置gpu
-//   int deviceCount = 0;
-//   cudaError_t error_id = cudaGetDeviceCount(&deviceCount);
-//   if (error_id != cudaSuccess){
-//     printf("Error: %s\n", cudaGetErrorString(error_id));
-//     printf("Exiting...\n");
-//     exit(EXIT_FAILURE);
-//   }
-//   if (deviceCount == 0){
-//     printf("There are no available device(s) that support CUDA\n");
-//     exit(EXIT_FAILURE);
-//   }
+  add<<<dimBlock, dimGrid>>>(buf_a, buf_b, buf_res, numbytes);
+  cudaMemcpy(res, buf_res, numbytes, cudaMemcpyDeviceToHost);
+  return;
+}
 
+void test_restricted_multiply(int value, uint8_t * a, uint8_t * res, int numbytes){
+  uint8_t *buf_a;
+  uint8_t *buf_res;
+  int *buf_value;
 
-//   // 打开待加密文件
-//   fname = argv[1];  
-//   file = fopen(fname, "r");
-//   if (file == NULL) {printf("File %s doesn't exist\n", fname); exit(1); }
-//   printf("Opened file %s\n", fname);
-//   fseek(file, 0L, SEEK_END);
-//   numbytes = ftell(file);
-//   printf("Size is %lu\n", numbytes);
-
-//   // 将待加密数据读取到内存
-//   fseek(file, 0L, SEEK_SET);
-//   //cudaMallocHost((void**)&buf_d_2, numbytes);
-//   buf = (uint8_t*)calloc(numbytes, sizeof(uint8_t));
-//   if(buf == NULL) exit(1);
-//   if (fread(buf, 1, numbytes, file) != numbytes)
-//   {
-//     printf("Unable to read all bytes from file %s\n", fname);
-//     exit(EXIT_FAILURE);
-//   }
-//   fclose(file);
-
-//   // 补全
-//   padding = AES_BLOCK_SIZE - numbytes % AES_BLOCK_SIZE;
-//   numbytes += padding;
-//   printf("Padding file with %d bytes for a new size of %lu\n", padding, numbytes);
-
-//   // 生成密钥
-//   for (i = 0; i < sizeof(key);i++) key[i] = i;
-//   cudaMallocHost((void**)&buf2, numbytes);
-//   cudaMemcpy(buf2, buf, numbytes, cudaMemcpyHostToHost);
-//   cudaMemcpyToSymbol(cuda_Te0,Te0,256*sizeof(u32));
-//   cudaMemcpyToSymbol(cuda_Te1,Te1,256*sizeof(u32));
-//   cudaMemcpyToSymbol(cuda_Te2,Te2,256*sizeof(u32));
-//   cudaMemcpyToSymbol(cuda_Te3,Te3,256*sizeof(u32));
-
-//   // gpu初始化
-//   GPU_init<<<1, 1>>>();
-
-//   // 调用加密算法
-//   encryptdemo(key, buf2, numbytes);
-//   // 将加密后的数据写入cipher.txt
-//   file = fopen("cipher.txt", "w");
-//   fwrite(buf2, 1, numbytes, file);
-//   fclose(file);
-
-//   // 解密
-//   decryptdemo(key, buf2, numbytes);
-//   // 将解密后的数据写回output.txt
-//   file = fopen("output.txt", "w");
-//   fwrite(buf2, 1, numbytes - padding, file);
-//   fclose(file);
-//   free(buf);
-
-//   return EXIT_SUCCESS;
-// }
+  cudaMalloc((void**)&buf_a, numbytes);
+  cudaMalloc((void**)&buf_res, numbytes);
+  cudaMalloc((void**)&buf_value, sizeof(int));
+  //从内存拷贝至显存
+  cudaMemcpy(buf_a, a, numbytes, cudaMemcpyHostToDevice);
+  cudaMemcpy(buf_value, &value, sizeof(int), cudaMemcpyHostToDevice);
+  dim3 dimBlock(ceil((double)numbytes / (double)(THREADS_PER_BLOCK * AES_BLOCK_SIZE)));
+  dim3 dimGrid(THREADS_PER_BLOCK);
+  restricted_multiply<<<dimBlock, dimGrid>>>(buf_value, buf_a,  buf_res, numbytes);
+  cudaMemcpy(res, buf_res, numbytes, cudaMemcpyDeviceToHost);
+  return;
+}

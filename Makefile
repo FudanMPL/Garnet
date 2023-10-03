@@ -223,15 +223,12 @@ BUILD_DIR = build
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
-$(BUILD_DIR)/gpu.o:
-	nvcc -c GPU/gpu.cu -o $(BUILD_DIR)/gpu.o -L/usr/lib/cuda/lib64 -shared -Xcompiler -fPIC -I. -I./deps
+$(BUILD_DIR)/aes.o:
+	nvcc -c GPU/aes.cu -o $(BUILD_DIR)/aes.o -L/usr/lib/cuda/lib64 -shared -Xcompiler -fPIC -I. -I./deps
 $(BUILD_DIR)/test.o:
 	g++ -c GPU/test.cpp -o $(BUILD_DIR)/test.o -I./local/include $(LDLIBS) $(CFLAGS)
-test_gpu: $(BUILD_DIR) $(BUILD_DIR)/test.o $(BUILD_DIR)/gpu.o 
-	g++ -o $(BUILD_DIR)/test_gpu $(BUILD_DIR)/test.o $(BUILD_DIR)/gpu.o -lcudart -L/usr/lib/cuda/lib64 $(LDLIBS) $(CFLAGS)
-gpu.o:
-	nvcc -c GPU/gpu.cu -o gpu.o -L/usr/lib/cuda/lib64 -shared -Xcompiler -fPIC -I. -I./deps
-
+test_gpu: $(BUILD_DIR) $(BUILD_DIR)/test.o $(BUILD_DIR)/aes.o 
+	g++ -o $(BUILD_DIR)/test_gpu $(BUILD_DIR)/test.o $(BUILD_DIR)/aes.o -lcudart -L/usr/lib/cuda/lib64 $(LDLIBS) $(CFLAGS)
 
 
 tree-inference.x:   Machines/tree-inference.cpp

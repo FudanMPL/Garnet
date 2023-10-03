@@ -14,7 +14,8 @@ template<class T>
 void Fss3Prep<T>::gen_fake_dcf(int beta, int lambda)
 {
    // Here represents the bytes that bigint will consume, the default number is 16, if the MAX_N_BITS is bigger than 128, then we should change.
-    int lambda_bytes = 16, random_bytes = 8;
+    int lambda_bytes = int(lambda/8);
+    std::cout << "lambda_bytes is " << lambda_bytes <<  std::endl;
     PRNG prng;
     prng.InitSeed();
     fstream k0, k1, r0, r1, r2;
@@ -23,7 +24,7 @@ void Fss3Prep<T>::gen_fake_dcf(int beta, int lambda)
     r0.open("Player-Data/2-fss/r0", ios::out);
     r1.open("Player-Data/2-fss/r1", ios::out);
     r2.open("Player-Data/2-fss/r2", ios::out);
-    octet seed[2][lambda_bytes];    
+    octet seed[2][2*(lambda_bytes*2+1)], convert_seed[2][lambda_bytes];    
     bigint s[2][2], v[2][2],  t[2][2], tmp_t[2], convert[2], tcw[2], a, scw, vcw, va, tmp[2], tmp_out, random_val;
     prng.InitSeed();
     prng.get(tmp[0], lambda);
@@ -42,84 +43,76 @@ void Fss3Prep<T>::gen_fake_dcf(int beta, int lambda)
     tmp_t[1] = 1;
     int keep, lose;
     va = 0;
+
+
     //We can optimize keep into one bit here
     // generate the correlated word!
     for(int i = 0; i < lambda - 1; i++){
         keep = bigint(a >> lambda - i - 1).get_ui() & 1;
         lose = 1^keep;
+        int n = 0;
         for(int j = 0; j < 2; j++){     
-            
             // k is used for left and right
-            for(int k = 0; k < 2; k++){
+            bytesFromBigint(&seed[j][0], tmp[j], 2*(2*lambda_bytes+1));
 
-                bytesFromBigint(&seed[k][0], tmp[k], lambda_bytes);
-                encryptwrapper(&seed[k][0], lambda_bytes, 1);
-                bigintFromBytes(t[k][j], &seed[k][0],lambda_bytes);
-                t[k][j].get_mpz_t()->_mp_d[0] = t[k][j].get_mpz_t()->_mp_d[0]%2;
-                // std::cout << tmp[k] << std::endl;
-                // prng.get(t[k][j], 1);
-                bytesFromBigint(&seed[k][0], tmp[k], lambda_bytes);
-                encryptwrapper(&seed[k][0], lambda_bytes, 2);
-                bigintFromBytes(v[k][j], &seed[k][0],lambda_bytes);
-                // std::cout << tmp[k] << std::endl;
-                // prng.get(v[k][j], lambda);
-                bytesFromBigint(&seed[k][0], tmp[k], lambda_bytes);
-                encryptwrapper(&seed[k][0], lambda_bytes, 3);
-                bigintFromBytes(s[k][j], &seed[k][0],lambda_bytes);
-                // prng.get(s[k][j] ,lambda);
-                // std::cout << tmp[k] << std::endl;
-            }
+            encryptwrapper(&seed[j][0], 2*(2*lambda_bytes+1), j);
+            bigintFromBytes(t[0][j], &seed[j][0],1);
+            t[0][j].get_mpz_t()->_mp_d[0] = t[0][j].get_mpz_t()->_mp_d[0]%2;
+            bigintFromBytes(v[0][j], &seed[j][1],lambda_bytes);
+            bigintFromBytes(s[0][j], &seed[j][lambda_bytes+1],lambda_bytes);
+
+            bigintFromBytes(t[1][j], &seed[j][2*lambda_bytes+1],1);
+            t[1][j].get_mpz_t()->_mp_d[0] = t[1][j].get_mpz_t()->_mp_d[0]%2;
+            bigintFromBytes(v[1][j], &seed[j][2*lambda_bytes+2],lambda_bytes);
+            bigintFromBytes(s[1][j], &seed[j][3*lambda_bytes+2],lambda_bytes);
+            
         }
         scw = s[lose][0] ^ s[lose][1]; 
-        // save convert(v0_lose) into convert[0]
-        bytesFromBigint(&seed[0][0], v[lose][0], lambda_bytes);
-        encryptwrapper(&seed[0][0], lambda_bytes, 1);
-        bigintFromBytes(convert[0], &seed[0][0], lambda_bytes);
-        // prng.SetSeed(seed[0]);
-        // prng.get(convert[0], lambda);     
-        // save convert(v1_lose) into convert[1]
-        bytesFromBigint(&seed[0][0], v[lose][1], lambda_bytes);
-        encryptwrapper(&seed[0][0], lambda_bytes, 1);
-        bigintFromBytes(convert[1], &seed[0][0], lambda_bytes);
-        // prng.SetSeed(seed[0]);
-        // prng.get(convert[1], lambda);
+        std::cout << "scw is " << scw << std::endl;
+
+        bytesFromBigint(&convert_seed[0][0], v[lose][0], lambda_bytes);
+        encryptwrapper(&convert_seed[0][0], lambda_bytes, 1);
+        bigintFromBytes(convert[0], &convert_seed[0][0], lambda_bytes);
+
+        bytesFromBigint(&convert_seed[1][0], v[lose][1], lambda_bytes);
+        encryptwrapper(&convert_seed[1][0], lambda_bytes, 1);
+        bigintFromBytes(convert[1], &convert_seed[1][0], lambda_bytes);
+
         if(tmp_t[1])
             vcw = convert[0] + va - convert[1];
         else
             vcw = convert[1] - convert[0] - va;
-        //keep == 1, lose = 0，so lose = LEFT
         if(keep)
-            vcw = vcw + tmp_t[1]*(-beta) + (1-tmp_t[1]) * beta;
-        // save convert(v0_keep) into convert[0]
-        bytesFromBigint(&seed[0][0], v[keep][0], lambda_bytes);
-        encryptwrapper(&seed[0][0], lambda_bytes, 1);
-        bigintFromBytes(convert[0], &seed[0][0], lambda_bytes);
-        // prng.SetSeed(seed[0]);
-        // prng.get(convert[0], lambda);
-        // save convert(v1_keep) into convert[1]
-        bytesFromBigint(&seed[0][0], v[keep][1], lambda_bytes);
-        encryptwrapper(&seed[0][0], lambda_bytes, 1);
-        bigintFromBytes(convert[1], &seed[0][0], lambda_bytes);
-        // prng.SetSeed(seed[0]);
-        // prng.get(convert[1], lambda);
+            vcw = vcw + tmp_t[1] * (-beta) + (1-tmp_t[1]) * beta;
+        
+        bytesFromBigint(&convert_seed[0][0], v[keep][0], lambda_bytes);
+        encryptwrapper(&convert_seed[0][0], lambda_bytes, 1);
+        bigintFromBytes(convert[0], &convert_seed[0][0], lambda_bytes);
+
+        bytesFromBigint(&convert_seed[1][0], v[keep][1], lambda_bytes);
+        encryptwrapper(&convert_seed[1][0], lambda_bytes, 1);
+        bigintFromBytes(convert[1], &convert_seed[1][0], lambda_bytes);
+
         va = va - convert[1] + convert[0] + tmp_t[1] * (-vcw) + (1-tmp_t[1]) * vcw;
+
         tcw[0] = t[0][0] ^ t[0][1] ^ keep ^ 1;
         tcw[1] = t[1][0] ^ t[1][1] ^ keep;
-        std::cout << scw << " " << vcw << " " << std::endl;
         k0 << scw << " " << vcw << " " << tcw[0] << " " << tcw[1] << " ";
         k1 << scw << " " << vcw << " " << tcw[0] << " " << tcw[1] << " ";
+        
         tmp[0] = s[keep][0] ^ (tmp_t[0] * scw);
         tmp[1] =  s[keep][1] ^ (tmp_t[1] * scw);
+
         tmp_t[0] = t[keep][0] ^ (tmp_t[0] * tcw[keep]);
         tmp_t[1] = t[keep][1] ^ (tmp_t[1] * tcw[keep]);
     }
     
-    encryptwrapper(&seed[0][0], lambda_bytes, 1);
-    bigintFromBytes(convert[0], &seed[0][0], lambda_bytes);
+    encryptwrapper(&convert_seed[0][0], lambda_bytes, 1);
+    bigintFromBytes(convert[0], &convert_seed[0][0], lambda_bytes);
     // prng.get(convert[0], lambda);
 
-    encryptwrapper(&seed[1][0], lambda_bytes, 1);
-    bigintFromBytes(convert[1], &seed[1][0], lambda_bytes);
+    encryptwrapper(&convert_seed[1][0], lambda_bytes, 1);
+    bigintFromBytes(convert[1], &convert_seed[1][0], lambda_bytes);
 
 
     bytesFromBigint(&seed[0][0],  s[keep][0] ^ (tmp_t[0] * scw), lambda_bytes);

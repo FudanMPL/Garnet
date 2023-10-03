@@ -208,27 +208,29 @@ void Fss<T>::distributed_comparison_function(SubProcessor<T> &proc, const Instru
             mpn_copyi((mp_limb_t*)dcf_v.get_ptr(), dcf_res_v.get_mpz_t()->_mp_d, abs(size));
             if(size < 0)
                 dcf_v = -dcf_v;
-            if(result.get_bit(lambda)){
-                r_tmp = dcf_v - dcf_u + P.my_num();
-            }
-            else{
-                r_tmp = dcf_v - dcf_u;
-            }
-            // if(lambda == 128){
-            //     if(result.get_bit(lambda)){
-            //         r_tmp = dcf_v - dcf_u + P.my_num();
-            //     }
-            //     else{
-            //         r_tmp = dcf_v - dcf_u;
-            //     }
+            // if(result.get_bit(lambda)){
+            //     r_tmp = dcf_v - dcf_u + P.my_num();
             // }
             // else{
-            if(result.get_bit(lambda-1)){
-                r_tmp = dcf_v - dcf_u + P.my_num();
+            //     r_tmp = dcf_v - dcf_u;
+            // }
+            if(lambda == 128){
+                if(result.get_bit(lambda-1)){
+                    r_tmp = dcf_v - dcf_u + P.my_num();
+                }
+                else{
+                    r_tmp = dcf_v - dcf_u;
+                }
             }
             else{
-                r_tmp = dcf_v - dcf_u;
+                if(result.get_bit(lambda)){
+                    r_tmp = dcf_v - dcf_u + P.my_num();
+                }
+                else{
+                    r_tmp = dcf_v - dcf_u;
+                }
             }
+
             // }  
             typename T::clear tmp;
             tmp.unpack(cs[P.my_num()]);
@@ -261,53 +263,53 @@ bigint Fss<T>::evaluate(typename T::clear x, int lambda){
     prng.ReSeed();
     int b = P.my_num(), xi;
     // Here represents the bytes that bigint will consume, the default number is 16, if the MAX_N_BITS is bigger than 128, then we should change.
-    int lambda_bytes = 16;
+    int lambda_bytes = int(lambda/8);
     k_in.open("Player-Data/2-fss/k" + to_string(P.my_num()), ios::in);
-    octet seed[lambda_bytes], tmp_seed[lambda_bytes];
+    octet seed[lambda_bytes*2+1], convert_seed[lambda_bytes];
     // r is the random value generate by GEN
-    bigint s_hat[2], v_hat[2], t_hat[2], s[2], v[2], t[2], scw, vcw, tcw[2], convert[2], cw, tmp_t, tmp_v, tmp_out;
-    k_in >> tmp_t;
+    bigint s_hat[2], v_hat[2], t_hat[2], s[2], v[2], t[2], scw, vcw, tcw[2], convert[2], cw, tmp_t, tmp_v, init_key;
+    k_in >> init_key;
     // std::cout << "init seed is " << tmp_t << std::endl;
     tmp_t = b;
     tmp_v = 0;
+    bytesFromBigint(&seed[0], init_key, lambda_bytes);
     for(int i = 0; i < lambda - 1; i++){
         xi = x.get_bit(lambda - i - 1);
-        bigintFromBytes(tmp_out, &seed[0], lambda_bytes);
         k_in >> scw >> vcw >> tcw[0] >> tcw[1];
-        for(int j = 0; j < 2; j++){
-            bytesFromBigint(&seed[0], tmp_t, lambda_bytes);
-            encryptwrapper(&seed[0], 2*lambda_bytes+1, 1);
-            bigintFromBytes(t[j], &seed[0],1);
-            t[j].get_mpz_t()->_mp_d[0] = t[j].get_mpz_t()->_mp_d[0]%2;
-            bigintFromBytes(v[j], &seed[1],lambda_bytes);
-            // prng.get(v[k][j], lambda);
-            bigintFromBytes(s[j], &seed[lambda_bytes+1],lambda_bytes);
-            s[j] = s_hat[j] ^ (tmp_t * scw);
-            t[j] = t_hat[j] ^ (tmp_t * tcw[j]);
-        }  
-        bytesFromBigint(&tmp_seed[0], v_hat[0], lambda_bytes);
-        encryptwrapper(&tmp_seed[0], lambda_bytes, 1);
-        bigintFromBytes(convert[0], &tmp_seed[0], lambda_bytes);
+        
+        encryptwrapper(&seed[0], 2*(2*lambda_bytes+1), 1);
+        bigintFromBytes(t_hat[0], &seed[0],1);
+        t_hat[0].get_mpz_t()->_mp_d[0] = t_hat[0].get_mpz_t()->_mp_d[0]%2;
+        bigintFromBytes(v_hat[0], &seed[1],lambda_bytes);
+        bigintFromBytes(s_hat[0], &seed[lambda_bytes+1],lambda_bytes);
+        s[0] = s_hat[0] ^ (tmp_t * scw);
+        t[0] = t_hat[0] ^ (tmp_t * tcw[0]);
 
-        bytesFromBigint(&tmp_seed[0], v_hat[1], lambda_bytes);
-        encryptwrapper(&tmp_seed[0], lambda_bytes, 1);
-        bigintFromBytes(convert[1], &tmp_seed[0], lambda_bytes);
-        // bytesFromBigint(&tmp_seed[0], v_hat[0], lambda_bytes);
-        // prng.SetSeed(tmp_seed);
-        // prng.get(convert[0], lambda); 
-        // bytesFromBigint(&tmp_seed[0], v_hat[1], lambda_bytes);
-        // prng.SetSeed(tmp_seed);
-        // prng.get(convert[1], lambda);
+        bigintFromBytes(t_hat[1], &seed[2*lambda_bytes+1],1);
+        t_hat[1].get_mpz_t()->_mp_d[0] = t_hat[1].get_mpz_t()->_mp_d[0]%2;
+        bigintFromBytes(v_hat[1], &seed[2*lambda_bytes+2],lambda_bytes);
+        bigintFromBytes(s_hat[1], &seed[3*lambda_bytes+2],lambda_bytes);
+        s[1] = s_hat[1] ^ (tmp_t * scw);
+        t[1] = t_hat[1] ^ (tmp_t * tcw[1]);
+          
+        bytesFromBigint(&convert_seed[0], v_hat[0], lambda_bytes);
+        encryptwrapper(&convert_seed[0], lambda_bytes, 1);
+        bigintFromBytes(convert[0], &convert_seed[0], lambda_bytes);
+
+        bytesFromBigint(&convert_seed[0], v_hat[1], lambda_bytes);
+        encryptwrapper(&convert_seed[0], lambda_bytes, 1);
+        bigintFromBytes(convert[1], &convert_seed[0], lambda_bytes);
         tmp_v = tmp_v + b * (-1) * (convert[xi] + tmp_t * vcw) + (1^b) * (convert[xi] + tmp_t * vcw);
+
         bytesFromBigint(&seed[0], s[xi], lambda_bytes);
         tmp_t = t[xi];
     }
     k_in >> cw;
     k_in.close();
     
-    bytesFromBigint(&seed[0], tmp_t, lambda_bytes);
-    encryptwrapper(&seed[0], lambda_bytes, 1);
-    bigintFromBytes(convert[0], &tmp_seed[0], lambda_bytes);
+    bytesFromBigint(&convert_seed[0], tmp_t, lambda_bytes);
+    encryptwrapper(&convert_seed[0], lambda_bytes, 1);
+    bigintFromBytes(convert[0], &convert_seed[0], lambda_bytes);
     // prng.get(convert[0], lambda);
     tmp_v = tmp_v + b * (-1) * (convert[0] + tmp_t * cw) + (1^b) * (convert[0] + tmp_t * cw);
     return tmp_v;  
@@ -545,9 +547,9 @@ void Fss<T>::cisc(SubProcessor<T> &processor, const Instruction &instruction)
     int r0 = instruction.get_r(0), lambda = T::clear::MAX_N_BITS;
     bigint signal = 0;
     string tag((char *)&r0, 4);
-    std::cout << tag << std::endl;
+    // std::cout << tag << std::endl;
 
-    std::cout << "-----------------------" << std::endl; 
+    // std::cout << "-----------------------" << std::endl; 
     if (tag == string("LTZ\0", 4))
     {
         octetStream cs;
