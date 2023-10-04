@@ -220,15 +220,16 @@ tree-inference.x: Machines/tree-inference.cpp  $(MINI_OT) $(SHAREDLIB)
 
 # -shared -Xcompiler -fPIC -I. -I./deps
 BUILD_DIR = build
-
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
-$(BUILD_DIR)/aes.o:
-	nvcc -c GPU/aes.cu -o $(BUILD_DIR)/aes.o -L/usr/lib/cuda/lib64 -shared -Xcompiler -fPIC -I. -I./deps
-$(BUILD_DIR)/test.o:
+$(BUILD_DIR)/interface.o:
+	nvcc -arch=sm_35 -rdc=true -std=c++11 -O3 -c GPU/interface.cu -o $(BUILD_DIR)/interface.o -lcudadevrt -lcudart -I/usr/lib/cuda/include -L/usr/lib/cuda/lib64 -shared -Xcompiler -fPIC -I. -I./deps 
+$(BUILD_DIR)/gpu.o:	$(BUILD_DIR)/interface.o
+	nvcc -arch=sm_35 -dlink -o $(BUILD_DIR)/gpu.o $(BUILD_DIR)/interface.o -lcudadevrt -lcudart
+$(BUILD_DIR)/test.o: 
 	g++ -c GPU/test.cpp -o $(BUILD_DIR)/test.o -I./local/include $(LDLIBS) $(CFLAGS)
-test_gpu: $(BUILD_DIR) $(BUILD_DIR)/test.o $(BUILD_DIR)/aes.o 
-	g++ -o $(BUILD_DIR)/test_gpu $(BUILD_DIR)/test.o $(BUILD_DIR)/aes.o -lcudart -L/usr/lib/cuda/lib64 $(LDLIBS) $(CFLAGS)
+test_gpu: $(BUILD_DIR) $(SHAREDLIB) $(BUILD_DIR)/test.o $(BUILD_DIR)/gpu.o
+	g++ -g $(BUILD_DIR)/test.o $(BUILD_DIR)/gpu.o $(BUILD_DIR)/interface.o -o $(BUILD_DIR)/test_gpu -lcudadevrt -lcudart -I/usr/lib/cuda/include -L/usr/lib/cuda/lib64 $(LDLIBS) $(SHAREDLIB) $(CFLAGS)
 
 
 tree-inference.x:   Machines/tree-inference.cpp
