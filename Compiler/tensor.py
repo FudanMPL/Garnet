@@ -1145,7 +1145,7 @@ def std_of_multiarray(self, dim, keepdim=False):
 class Tensor():
     check_indices = True
     def __init__(self, value, value_type=sfix, name=None, req_grad=False, grad=None):
-        assert isinstance(value, Array) or isinstance(value, MultiArray) or isinstance(value, list)
+        assert isinstance(value, Array) or isinstance(value, MultiArray) or isinstance(value, list) or isinstance(value, Tensor)
         assert isinstance(grad, Array) or isinstance(grad, MultiArray) or grad is None
         if isinstance(value, list):
             if len(value) == 0 or value_type is None:
@@ -1204,7 +1204,7 @@ class Tensor():
         self.grad.print_reveal_nested()
 
     def __repr__(self):
-        return self.value
+        return self.name
     # We need to start with some tensors whose values were not computed
     # inside the autograd. This function constructs leaf nodes.
 
@@ -2211,7 +2211,8 @@ class Tensor():
         return self.value.sizes
 
     def zero_grad(self):
-        self.grad.assign_all(0)
+        if self.grad != None:
+            self.grad.assign_all(0)
         
     def assign_all(self, value):
         assert isinstance(value, int) or isinstance(value, float)
@@ -2268,16 +2269,6 @@ def get_prepare():
 def untrain():
     global prepare
     prepare = True
-
-
-def same_shape(sizes1, sizes2):
-    if len(sizes1) != len(sizes2):
-        return False
-    for i in range(0, len(sizes1)):
-        if sizes1[i] != sizes2[i]:
-            return False
-    return True
-
 
 def autograd_function(func):
     def wrapper(*args, **kw):

@@ -1,5 +1,7 @@
 import nn as nn
 from tensor import Tensor,autograd_function
+import optimizer as optim
+
 
 class LinearRegression(nn.Module):
     """
@@ -8,19 +10,24 @@ class LinearRegression(nn.Module):
     """
     def __init__(self):
         super().__init__()
-        self.linear = nn.Linear(3,2)
+        self.linear = nn.Linear(3,1)
         
     def forward(self,x):
         out = self.linear(x)
         return out
 
-x = MultiArray([3, 2, 3], sfix)
+x = MultiArray([3,2,3], sfix)
 for i in range(x.total_size()):
     x.assign_vector(sfix(i), i)
-x.print_reveal_nested()
 input1 = Tensor(x)
+
+
 model = LinearRegression()
+
+optimizer = optim.SGD(model.parameters(), lr = 0.01, dampening = 0.9)
 model.train(input1)
+
 y = model(input1)
-print(y.req_grad)
+optimizer.zero_grad()
 y.backward()
+optimizer.step()
