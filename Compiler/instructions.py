@@ -2772,16 +2772,22 @@ class conv2ds(base.DataInstruction):
             return
         config = program.cost_config
         args = self.args
-        res = cost_func(config.bit_length, config._security, config.f, config.n_parties, 1 , args[7]*args[8], 1)
-        times = args[14] * args[11] * args[3] * args[4]    
-        req_node.increment(('online communication', 'bits'), res[0]*times)
-        req_node.increment(('offline communication', 'bits'), res[2]*times)
-        req_node.increment(('online', 'round'), res[1])
-        req_node.increment(('offline', 'round'), res[3])
+ 
+        for i in range(0, len(self.args), 15):
+            args = self.args[i:i + 15]
+            res = cost_func(config.bit_length, config._security, config.f, config.n_parties, 1 , args[7] * args[8] * args[11],  args[14] * args[3] * args[4])
+            req_node.increment(('online communication', 'bits'), res[0])
+            req_node.increment(('offline communication', 'bits'), res[2])
+            if i == 0:
+                req_node.increment(('online', 'round'), res[1])
+                req_node.increment(('offline', 'round'), res[3])
+
         super(conv2ds, self).add_usage(req_node)
         args = self.args
-        req_node.increment(('matmul', (1, args[7] * args[8] * args[11],
-                                       args[14] * args[3] * args[4])), 1)
+        for i in range(0, len(self.args), 15):
+            args = self.args[i:i + 15]
+            req_node.increment(('matmul', (1, args[7] * args[8] * args[11],
+                                           args[14] * args[3] * args[4])), 1)
 
 @base.vectorize
 class trunc_pr(base.VarArgsInstruction):

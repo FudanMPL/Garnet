@@ -328,7 +328,7 @@ class SGD(Optimizer):
                         momentum_buffer_list.append(state['momentum_buffer'])
 
         return has_sparse_grad
-
+    @buildingblock("sgd")
     def step(self, closure=None):
         """Performs a single optimization step.
 

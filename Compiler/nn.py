@@ -998,7 +998,8 @@ class Linear(Module):
         else:
             self.register_parameter('bias', None)
         self.reset_parameters()        
-        
+    
+    @buildingblock("linear")
     def forward(self, x):
         return F.linear(x, self.weight, self.bias)
     
@@ -1210,7 +1211,7 @@ class Conv2d(_ConvNd):
                             _pair(0), self.dilation, self.groups)
         return F.conv2d(input, weight, bias, self.stride,
                         self.padding, self.dilation, self.groups)
-
+    @buildingblock("conv2d")
     def forward(self, input: Tensor) -> Tensor:
         return self._conv_forward(input, self.weight, self.bias)
 
