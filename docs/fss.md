@@ -1,6 +1,6 @@
 ## 运行Function Secret Sharing与Replicated Secret Sharing混合协议
 
-**九月份更新:** 我们针对Function Secret Sharing的通信进行了并行优化，使得Function Secret Sharing相比Replicated Secret Sharing在非线性函数上通信轮次下降了10-20倍。实验数据显示在WAN下的计算非线性函数Function Secret Sharing至少比Replicated Secret Sharing快7-10倍。该优化极大地提高了Garnet在训练机器学习模型时的效率。
+**九月份更新:** 我们针对Function Secret Sharing的通信进行了并行优化，使得Function Secret Sharing相比Replicated Secret Sharing在比较函数上的通信轮次减少了2轮（如果去除offline阶段的signal通信则能进一步降低至3轮）。实验数据显示在LAN下Function Secret Sharing相比原本提速了3倍。该优化极大地提高了Garnet在训练机器学习模型时的效率。
 
 
 本协议通过Function Secret Sharing减小比较的通信量（通信轮次待优化），在乘法、加法运算时转换回Replicated Secret Sharing进行计算，兼容NFGen并提供分段时的加速。
