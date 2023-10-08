@@ -394,7 +394,7 @@ def element_wise_mul(self, other):
             @for_range_opt(v2.total_size())
             def _(i):
                 v3 = dl_dx.value_type.dot_product(dl_dx_pmt.get_vector(i*stride, stride), input1_pmt.get_vector(i*stride, stride))
-                v2.assign_vector(v2.get_vector(i)+v3, i)    
+                v2.assign_vector(v2.get_vector(i, 1)+v3, i)    
             break_point()
         dl_dinputs = [dl_dself, dl_dother]
         return dl_dinputs
@@ -980,7 +980,7 @@ def var_of_multiarray(self, dim, keepdim=False):
         def _(i):
             @for_range(stride)
             def _(j):
-                input_perm.assign_vector(dl_dx.get_vector(i), i*stride+j)
+                input_perm.assign_vector(dl_dx.get_vector(i, 1), i*stride+j)
         input_perm[:] *= 2
         input_perm[:] /= stride - 1
         input_perm[:] *= dmean[:]

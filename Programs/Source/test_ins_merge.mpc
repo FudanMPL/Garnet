@@ -1,0 +1,28 @@
+from Compiler.types import *
+from Compiler.instructions import *
+
+x = MultiArray([2,2,2,2], sfix)
+for i in range(0,2):
+    for j in range(0,2):
+        for k in range(0, 2):
+            for q in range(0, 2):
+                x[i][j][k][q] = sfix(((i*j*k*q+i+j+k+q)%101)*1e-2)
+# x.print_reveal_nested()
+
+y = MultiArray([2,2,2,2], sfix)
+for i in range(0,2):
+    for j in range(0,2):
+        for k in range(0, 2):
+            for q in range(0, 2):
+                y[i][j][k][q] = sfix((i+j+k+q))
+y.print_reveal_nested()    
+
+for i in range(0,10):
+    x[:] = x[:] -  i * y[:]
+    # break_point()
+    # z.print_reveal_nested()
+    # @for_range(5)
+    # def _(i):
+    #     c = x.get_vector(i, 1) + y.get_vector(i, 1)
+    #     c.reveal()
+

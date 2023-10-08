@@ -1,6 +1,7 @@
 from tensor import Tensor,autograd_function
 import tensor
 import functional as F
+from Compiler.types import *
 program.options_from_args()
 
 sfix.set_precision(30, 60)
@@ -507,8 +508,11 @@ def test_f_batchnorm():
     w[0], b[0] = sfix(1), sfix(0)
     W = Tensor(w, req_grad = True)
     B = Tensor(b, req_grad = True)
-
-    input2 = F.batch_norm(input1, weight=W, bias=B, training=True)
+    mean, std = MultiArray([1,2,1,1], sfix), MultiArray([1,2,1,1], sfix)
+    M = Tensor(mean, req_grad = False)
+    S = Tensor(std, req_grad = False)
+    input2 = F.batch_norm(input1, running_mean = M, running_std = S, 
+                          weight=W, bias=B, training=True)
 
     v = MultiArray([2,2,2,2], sfix)
     for i in range(0,2):
@@ -522,7 +526,8 @@ def test_f_batchnorm():
     tensor.train()
     tensor.reset_op_id()
 
-    input2 = F.batch_norm(input1, weight=W, bias=B, training=True)
+    input2 = F.batch_norm(input1, running_mean = M, running_std = S, 
+                          weight=W, bias=B, training=True)
     input4 = input2 * vec
 
     input4.backward()
@@ -540,7 +545,7 @@ def test_f_batchnorm():
 #test_mul()
 #test_add()
 #test_sub()
-#test_div()
+test_div()
 #test_abs()
 #test_exp()
 #test_log()
