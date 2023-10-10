@@ -291,7 +291,8 @@ bigint Fss<T>::evaluate(typename T::clear x, int lambda){
         bigintFromBytes(s_hat[1], &seed[3*lambda_bytes+2],lambda_bytes);
         s[1] = s_hat[1] ^ (tmp_t * scw);
         t[1] = t_hat[1] ^ (tmp_t * tcw[1]);
-          
+
+
         bytesFromBigint(&convert_seed[0], v_hat[0], lambda_bytes);
         encryptwrapper(&convert_seed[0], lambda_bytes, 1);
         bigintFromBytes(convert[0], &convert_seed[0], lambda_bytes);
@@ -307,7 +308,7 @@ bigint Fss<T>::evaluate(typename T::clear x, int lambda){
     k_in >> cw;
     k_in.close();
     
-    bytesFromBigint(&convert_seed[0], tmp_t, lambda_bytes);
+    bytesFromBigint(&convert_seed[0], seed, lambda_bytes);
     encryptwrapper(&convert_seed[0], lambda_bytes, 1);
     bigintFromBytes(convert[0], &convert_seed[0], lambda_bytes);
     // prng.get(convert[0], lambda);

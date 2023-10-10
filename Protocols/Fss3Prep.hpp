@@ -196,6 +196,7 @@ void Fss3Prep<T>::gen_fake_multi_spline_dcf(SubProcessor<T> &processor, int beta
         bytesFromBigint(&seed[0][0], v[keep][1], lambda_bytes);
         prng.SetSeed(seed[0]);
         prng.get(convert[1], lambda);
+        
         va = va - convert[1] + convert[0] + tmp_t[1] * (-vcw) + (1-tmp_t[1]) * vcw;
         tcw[0] = t[0][0] ^ t[0][1] ^ keep ^ 1;
         tcw[1] = t[1][0] ^ t[1][1] ^ keep;
