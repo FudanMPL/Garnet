@@ -70,4 +70,13 @@ def test_softmax():
 # test_one_hot()
 # test_forward_sum()
 # test_forward_mul()
-test_softmax()
+#test_softmax()
+
+def test_view():
+    x = Tensor.zeros([2,3], req_grad=True)
+    y = x.permute([1,0])
+    y.print_reveal_nested()
+
+test_view()
+
+

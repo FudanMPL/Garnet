@@ -1336,7 +1336,7 @@ class Tensor():
         
 
     @staticmethod
-    def ones(sizes: list, value_type = sfix):
+    def ones(sizes: list, value_type = sfix, req_grad = False):
         assert isinstance(sizes, list)
         if len(sizes) == 0 or value_type is None:
             raise CompilerError("the shape of a tensor must be a not-null list and value type must be determined")
@@ -1345,11 +1345,11 @@ class Tensor():
         if len(sizes) > 1:
             res_value = MultiArray(sizes, value_type)
         res_value.assign_all(1)
-        res = Tensor(res_value)        
+        res = Tensor(res_value, req_grad=req_grad)        
         return res
 
     @staticmethod
-    def zeros(sizes: list, value_type = sfix):
+    def zeros(sizes: list, value_type = sfix, req_grad = False):
         assert isinstance(sizes, list)
         if len(sizes) == 0 or value_type is None:
             raise CompilerError("the shape of a tensor must be a not-null list and value type must be determined")
@@ -1358,7 +1358,7 @@ class Tensor():
         if len(sizes) > 1:
             res_value = MultiArray(sizes, value_type)
         res_value.assign_all(0)
-        res = Tensor(res_value)        
+        res = Tensor(res_value, req_grad=req_grad)        
         return res
 
     @staticmethod
@@ -1640,7 +1640,7 @@ class Tensor():
         return len(self.value)
 
     @buildingblock("view-forward")
-    def view(self, sizes):
+    def view(self, *sizes):
         
         @backwardbuildingblock(get_program().globalbuildingblock[:-13]+"-view-backward")
         def propagate(dl_doutputs, operation):
@@ -1649,10 +1649,15 @@ class Tensor():
         global op_id
         if prepare:
             product = reduce(lambda x, y: x*y, self.shape)
-            if isinstance(sizes, int):
+            if len(sizes) == 1 and isinstance(sizes[0], int):
+                sizes = sizes[0]
                 assert sizes == product, "Invalid Dimension"
                 new_value = Array(sizes, self.value.value_type)
             else:
+                if len(sizes) == 1 and isinstance(sizes[0], list):
+                    sizes = sizes[0]
+                else:
+                    sizes = list(sizes)
                 assert all(isinstance(x, int) and x > 0 for x in sizes), "Invalid Dimensiopn"
                 if -1 in sizes:
                     assert sizes.count(-1) == 1, "-1 Occurs More than Once "
@@ -1748,7 +1753,7 @@ class Tensor():
         return self
 
     @buildingblock("reshape-forward")
-    def reshape(self, sizes):
+    def reshape(self, *sizes):
         
         @backwardbuildingblock(get_program().globalbuildingblock[:-16]+"-reshape-backward")
         def propagate(dl_doutputs, operation):
@@ -1757,10 +1762,15 @@ class Tensor():
         global op_id
         if prepare:
             product = reduce(lambda x, y: x*y, self.shape)
-            if isinstance(sizes, int):
+            if len(sizes) == 1 and isinstance(sizes[0], int):
+                sizes = sizes[0]
                 assert sizes == product, "Invalid Dimension"
                 new_value = Array(sizes, self.value.value_type)
             else:
+                if len(sizes) == 1 and isinstance(sizes[0], list):
+                    sizes = sizes[0]
+                else:
+                    sizes = list(sizes)
                 assert all(isinstance(x, int) and x > 0 for x in sizes), "Invalid Dimensiopn"
                 if -1 in sizes:
                     assert sizes.count(-1) == 1, "-1 Occurs More than Once "
@@ -1786,8 +1796,11 @@ class Tensor():
         return output
 
     @buildingblock("permute-forward")
-    def permute(self, new_perm):  # todo :这里的参数不应该是list类型的new-perm，而应该是*newperm :pytorch中：x.permute(2, 0, 1)
-        
+    def permute(self, *new_perm):  # todo :这里的参数不应该是list类型的new-perm，而应该是*newperm :pytorch中：x.permute(2, 0, 1)
+        if not isinstance(new_perm[0], list):
+            new_perm = list(new_perm)
+        else:
+            new_perm = new_perm[0]
         @backwardbuildingblock(get_program().globalbuildingblock[:-16]+"-permute-backward")
         def propagate(dl_doutputs,operation):
             dl_dy,=dl_doutputs
