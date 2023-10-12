@@ -1309,11 +1309,11 @@ class Tensor():
             else:
                 new_value = \
                     MultiArray(self.sizes[1:], self.value.value_type,
-                                  self.value.address, index, debug=self.debug)
+                                  address = self.value.address, index = index, debug=self.value.debug)
                 if self.req_grad:
                     new_grad = \
                         MultiArray(self.sizes[1:], self.grad.value_type,
-                                      self.grad.address, index, debug=self.debug)
+                                      address = self.grad.address, index = index, debug=self.value.debug)
                 else:
                     new_grad = None
         else:
@@ -1329,8 +1329,10 @@ class Tensor():
 
     #     :param index: public (regint/cint/int)
     #     :param other: container of matching size and type """
-
-        self.value[index] = other         
+        if isinstance(other, Tensor):
+            self.value[index] = other.value
+        else:
+            self.value[index] = other        
         
 
     @staticmethod
@@ -1633,6 +1635,9 @@ class Tensor():
         if isinstance(other, (int, float)):
             return ops_mul_constant(self, 1./other)
         return element_wise_div(self, other)
+
+    def __len__(self):
+        return len(self.value)
 
     @buildingblock("view-forward")
     def view(self, sizes):

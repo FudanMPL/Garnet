@@ -15,7 +15,7 @@ from Compiler.comparison import CarryOutRawLE
 # from Compiler.GC.types import sbitintis_train
 from functools import reduce
 from typing import List, NamedTuple, Callable, Dict, Optional, Union, Tuple, Any
-approx = False
+approx = True
 def relu(input, inplace=False):  # todo
     op_id = get_opid()
     @buildingblock(get_program().globalbuildingblock)
@@ -51,7 +51,7 @@ def relu(input, inplace=False):  # todo
     return output
 
 @vectorize
-def approx_sigmoid(x, n=3):
+def approx_sigmoid(x, n=5):
     """ Piece-wise approximate sigmoid as in
     `Hong et al. <https://arxiv.org/abs/2002.04344>`_
 
@@ -64,7 +64,7 @@ def approx_sigmoid(x, n=3):
         select = [le[i + 1] - le[i] for i in range(5)]
         outputs = [cfix(10 ** -4),
                    0.02776 * x + 0.145,
-                     * x + 0.5,
+                   0.17 *x + 0.5,
                    0.02776 * x + 0.85498,
                    cfix(1 - 10 ** -4)]
         return sum(a * b for a, b in zip(select, outputs))

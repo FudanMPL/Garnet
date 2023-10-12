@@ -1,8 +1,8 @@
 import nn as nn
 from tensor import Tensor,autograd_function
 import optimizer as optim
-
-
+import dataloader as dataloader
+import functional as F
 class LinearRegression(nn.Module):
     """
     Linear Regressoin Module, the input features and output 
@@ -14,20 +14,30 @@ class LinearRegression(nn.Module):
         
     def forward(self,x):
         out = self.linear(x)
+        if self.training:
+            out.print_reveal_nested()
+        out = F.sigmoid(out)
         return out
 
-x = MultiArray([3,2,3], sfix)
+x = MultiArray([3,3], sfix)
+y = MultiArray([3,1], sfix)
 for i in range(x.total_size()):
     x.assign_vector(sfix(i), i)
-input1 = Tensor(x)
 
+for i in range(y.total_size()):
+    y.assign_vector(sfix(i), i)
+
+dataload = dataloader.DataLoader(x, y, batch_size = 2, shuffle=True)
 
 model = LinearRegression()
 
-optimizer = optim.SGD(model.parameters(), lr = 0.01, dampening = 0.9)
-model.train(input1)
+optimizer = optim.SGD(model.parameters(), lr = 0.01)
+model.train(dataload.get_batch_sample(0))
 
-y = model(input1)
-optimizer.zero_grad()
-y.backward()
-optimizer.step()
+@for_range(2)
+def _(i):
+    input, label = dataload.get_data(i)
+    out = model(input)
+    optimizer.zero_grad()
+    out.backward()
+    optimizer.step()

@@ -6772,13 +6772,13 @@ class MultiArray(SubMultiArray):
     def disable_index_checks():
         SubMultiArray.check_indices = False
 
-    def __init__(self, sizes, value_type, debug=None, address=None, alloc=True):
+    def __init__(self, sizes, value_type, debug=None, address=None, alloc=True, index = 0):
         if isinstance(address, Array):
             self.array = address
         else:
             self.array = Array(reduce(operator.mul, sizes), \
                                value_type, address=address, alloc=alloc)
-        SubMultiArray.__init__(self, sizes, value_type, self.array.address, 0, \
+        SubMultiArray.__init__(self, sizes, value_type, self.array.address, index = index, \
                                debug=debug)
         if len(sizes) < 2:
             raise CompilerError('Use Array')
