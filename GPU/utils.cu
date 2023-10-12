@@ -14,6 +14,7 @@
 #ifndef UTILS_CU_
 #define UTILS_CU_
 
+
 __global__ void _mod2_t(uint8_t * a){
   a[0] = a[0] % 2;
 }
@@ -41,12 +42,23 @@ __global__ void _add(uint8_t *a, uint8_t *b, uint8_t * res, int length){
   }
 }
 
-__global__ void _add_c(uint8_t *a, int constant, uint8_t * res, int length){
+__global__ void _add_1(uint8_t *a, uint8_t * res, int length){
   uint16_t tmp;
   bool carry = 0;
   uint16_t need_carry = 1<<8;
-  for(int i = length - 1; i >= 0; i--){
-    tmp = a[i] + ((constant >> (i * 8))%256) + carry;
+
+  tmp = a[length - 1] + 1;
+  if(tmp < need_carry){
+    carry = 1;
+    tmp = tmp % need_carry;
+  }
+  else{
+    carry = 0;
+  }
+  res[length - 1] = tmp;
+
+  for(int i = length - 2; i >= 0; i--){
+    tmp = a[i] + carry;
     if(tmp < need_carry)
       carry = 0;
     else{
@@ -62,7 +74,7 @@ __global__ void _sub_1(uint8_t *minuend, uint8_t * res, int length){
   bool borrow = 0;
   uint16_t need_borrow = 1<<8;
   
-  tmp = minuend[0] - 1;
+  tmp = minuend[length - 1] - 1;
   if(tmp < 0){
     borrow = 1;
     tmp = need_borrow + tmp;
@@ -70,7 +82,7 @@ __global__ void _sub_1(uint8_t *minuend, uint8_t * res, int length){
   else{
     borrow = 0;
   }
-  res[0] = tmp;
+  res[length - 1] = tmp;
 
   if(borrow){
     for(int i = length - 2; i >= 0; i--){
@@ -142,13 +154,6 @@ __device__ void addKernel(uint8_t * a, uint8_t * b, uint8_t * res, int length){
   return;
 }
 
-__device__ void addCKernel(uint8_t * a, int constant, uint8_t * res, int length){
-  _add_c<<<1,1>>>(a, constant, res, length);
-  return;
-}
-
-
-
 __device__ void xorKernel(uint8_t * a, uint8_t * b, uint8_t * res, size_t num){
   _xor<<<1,num>>>(a, b, res, num);
   return;
@@ -159,6 +164,6 @@ int i;
 for (i=0; i<len; i++)
     printf("%x ", b[i]);
 //    cout << hex << b[i] << " " ;
-printf("\n----------------------\n");
+printf("\n");
 }
 #endif
