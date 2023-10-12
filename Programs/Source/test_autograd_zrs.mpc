@@ -572,23 +572,71 @@ def test_normalize():
                     training_samples[i][j][k][m]=i+j+k+m
 
     input = Tensor(training_samples, req_grad = True)
-
-
-    output=F.normalize(input,dim=[3])
+    
+    output=F.normalize(input,dim=[2])
     tensor.train()
     tensor.reset_op_id()
-    output=F.normalize(input,dim=[3])
-   # output.backward()
+    output=F.normalize(input,dim=[2])
+    output.backward()
     print_ln("input value:")
     input.value.print_reveal_nested()
     print_ln("output shape:%s\n output_value",output.shape)
     output.value.print_reveal_nested()
-    #print_ln("input grad shape:%s",input.shape)
-    #input.grad.print_reveal_nested()
-     
+    print_ln("input grad shape:%s",input.shape)
+    input.grad.print_reveal_nested()
+
+@autograd_function
+def test_l1_loss():
+    print_ln('test_l1loss')
+    x = MultiArray([3, 4], sfix)
+    for i in range(0,3):
+        for  j in range(0,4):
+            x[i][j] = sfix(i-j)
+    y = MultiArray([3, 4], sfix)
+    for i in range(0,3):
+        for  j in range(0,4):
+            y[i][j] = sfix(i+j)
+    x.print_reveal_nested()
+    y.print_reveal_nested()
+    input1 = Tensor(x, req_grad = True)
+    input2 = Tensor(y, req_grad = True)
+    output = F.l1_loss(input1,input2,'sum')
+    tensor.train()
+    tensor.reset_op_id()
+    output = F.l1_loss(input1,input2,'sum')
+    output.value.print_reveal_nested()
+    output.backward()
+    input1.grad.print_reveal_nested()
+
+@autograd_function
+def test_kl_div():
+    print_ln('test_div')
+    x = MultiArray([3, 4], sfix)
+    for i in range(0,3):
+        for  j in range(0,4):
+            x[i][j] = sfix(i-j)
+    y = MultiArray([3, 4], sfix)
+    for i in range(0,3):
+        for  j in range(0,4):
+            y[i][j] = sfix(i+j)
+    x.print_reveal_nested()
+    y.print_reveal_nested()
+    input1 = Tensor(x, req_grad = True)
+    input2 = Tensor(y, req_grad = True)
+    output = F.kl_div(input1,input2,True,'sum')
+    tensor.train()
+    tensor.reset_op_id()
+    output = F.kl_div(input1,input2,True,'sum')
+    output.value.print_reveal_nested()
+    output.backward()
+    input1.grad.print_reveal_nested()
 
 
-test_normalize()
+test_kl_div()
+
+#test_l1_loss()
+
+#test_normalize()
 
 #test_avgpool2d()
 
@@ -616,6 +664,7 @@ test_normalize()
 #test_concate_Array()
 #test_concate_MultiArray()
 #test_mm_MultiArray()
+
 
 
 '''

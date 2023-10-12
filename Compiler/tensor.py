@@ -81,7 +81,6 @@ def matrix_reconst(matrix, new_matrix):
     return new_matrix
 
 def get_permute(n, dims):
-    print(n,dims)
     perm = list(filter(lambda x: x not in dims, range(n))) + dims
     return tuple(perm)
 
@@ -142,9 +141,10 @@ def reconst_dims(v1, v2):
         dims = dim2
     return dims, v1, v2
 
+@buildingblock("add-forward")
 def element_wise_add(self, other):
     # backward
-    @buildingblock(get_program().globalbuildingblock)
+    @backwardbuildingblock(get_program().globalbuildingblock[:-12]+"-add-backward")
     def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
         inputs = operation.inputs
@@ -232,10 +232,10 @@ def element_wise_add(self, other):
         op_id += 1# record the input and output of the op
     return output
 
-
+@buildingblock("sub-forward")
 def element_wise_sub(self, other):
     # backward
-    @buildingblock(get_program().globalbuildingblock)
+    @backwardbuildingblock(get_program().globalbuildingblock[:-12]+"-sub-backward")
     def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
         inputs = operation.inputs
@@ -348,10 +348,10 @@ def boardcasted_multiarray_mul(v1, v2, inter, output):
     # permute back
     v1.permute_without_malloc(output, get_permute_back(len(v1.sizes), dims))
 
-
+@buildingblock("mul-forward")
 def element_wise_mul(self, other):
     # backward
-    @buildingblock(get_program().globalbuildingblock)
+    @backwardbuildingblock(get_program().globalbuildingblock[:-12]+"-mul-backward")
     def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
         inputs = operation.inputs
@@ -394,7 +394,7 @@ def element_wise_mul(self, other):
             @for_range_opt(v2.total_size())
             def _(i):
                 v3 = dl_dx.value_type.dot_product(dl_dx_pmt.get_vector(i*stride, stride), input1_pmt.get_vector(i*stride, stride))
-                v2.assign_vector(v2.get_vector(i)+v3, i)    
+                v2.assign_vector(v2.get_vector(i, 1)+v3, i)    
             break_point()
         dl_dinputs = [dl_dself, dl_dother]
         return dl_dinputs
@@ -464,9 +464,10 @@ def element_wise_mul(self, other):
         op_id += 1# record the input and output of the op
     return output
 
+@buildingblock("div-forward")
 def element_wise_div(self, other):
     # backward
-    @buildingblock(get_program().globalbuildingblock)
+    @backwardbuildingblock(get_program().globalbuildingblock[:-12]+"-div-backward")
     def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
         inputs = operation.inputs
@@ -571,10 +572,10 @@ def element_wise_div(self, other):
         op_id += 1# record the input and output of the op
     return output
 
-
+@buildingblock("mulconstant-forward")
 def ops_mul_constant(self, c):
     # backward
-    @buildingblock(get_program().globalbuildingblock)
+    @backwardbuildingblock(get_program().globalbuildingblock[:-20]+"-mulconstant-backward")
     def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
         inputs = operation.inputs
@@ -617,10 +618,10 @@ def mat_mul(self, other):
     # record the input and output of the op
     return 0
 
-
+@buildingblock("addconstant-forward")
 def ops_add_constant(self, c):
     # backward
-    @buildingblock(get_program().globalbuildingblock)
+    @backwardbuildingblock(get_program().globalbuildingblock[:-20]+"-addconstant-backward")
     def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
         inputs = operation.inputs
@@ -658,9 +659,10 @@ def ops_add_constant(self, c):
         # record the input and output of the op
     return output
 
+@buildingblock("sum-forward")
 def sum_of_array(self):
     # backward
-    @buildingblock(get_program().globalbuildingblock)
+    @backwardbuildingblock(get_program().globalbuildingblock[:-12]+"-sum-backward")
     def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
         inputs = operation.inputs
@@ -693,9 +695,10 @@ def sum_of_array(self):
     # record the input and output of the op
     return output
 
+@buildingblock("mean-forward")
 def mean_of_array(self):
     # backward
-    @buildingblock(get_program().globalbuildingblock)
+    @backwardbuildingblock(get_program().globalbuildingblock[:-13]+"-mean-backward")
     def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
         inputs = operation.inputs
@@ -729,9 +732,10 @@ def mean_of_array(self):
     # record the input and output of the op
     return output
 
+@buildingblock("var-forward")
 def var_of_array(self):
     # backward
-    @buildingblock(get_program().globalbuildingblock)
+    @backwardbuildingblock(get_program().globalbuildingblock[:-12]+"-var-backward")
     def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
         inputs = operation.inputs
@@ -775,9 +779,10 @@ def var_of_array(self):
     # record the input and output of the op
     return output
 
+@buildingblock("std-forward")
 def std_of_array(self):
     # backward
-    @buildingblock(get_program().globalbuildingblock)
+    @backwardbuildingblock(get_program().globalbuildingblock[:-12]+"-std-backward")
     def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
         inputs = operation.inputs
@@ -824,9 +829,10 @@ def std_of_array(self):
     # record the input and output of the op
     return output
 
+@buildingblock("sum-forward")
 def sum_of_multiarray(self, dim, keepdim=False):
     # backward
-    @buildingblock(get_program().globalbuildingblock)
+    @backwardbuildingblock(get_program().globalbuildingblock[:-12]+"-sum-backward")
     def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
         dl_dself = dl_d[operation.inputs[0]]
@@ -889,9 +895,10 @@ def sum_of_multiarray(self, dim, keepdim=False):
     # record the input and output of the op
     return output
 
+@buildingblock("mean-forward")
 def mean_of_multiarray(self, dim, keepdim=False):
     # backward
-    @buildingblock(get_program().globalbuildingblock)
+    @backwardbuildingblock(get_program().globalbuildingblock[:-13]+"-mean-backward")
     def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
         dl_dself = dl_d[operation.inputs[0]]
@@ -911,8 +918,6 @@ def mean_of_multiarray(self, dim, keepdim=False):
         
         dl_dinputs = [dl_dself]
         return dl_dinputs
-    
-    
     # forward
     global op_id
     if prepare:
@@ -937,7 +942,8 @@ def mean_of_multiarray(self, dim, keepdim=False):
         else:
             operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate, intermediate=[input_perm, temp1])
         gradient_operation.append(operation)
-        operation_id = len(gradient_operation)-1
+        operation_id = len(gradient_operation) - 1
+
         op_id_store[op_id] = operation_id
         op_id += 1
     else:
@@ -945,7 +951,7 @@ def mean_of_multiarray(self, dim, keepdim=False):
         input = tensors[operation.inputs[0]]
         output = tensors[operation.outputs[0]]
         input_perm = operation.intermediate[0]
-        
+
         new_perm = get_permute(len(input.value.sizes), dim)
         input.value.permute_without_malloc(input_perm, new_perm)
         
@@ -960,80 +966,10 @@ def mean_of_multiarray(self, dim, keepdim=False):
     # record the input and output of the op
     return output
 
-def Norm_of_multiarray(self, dim,p=2, keepdim=False):
-    # backward
-    @buildingblock(get_program().globalbuildingblock)
-    def propagate(dl_doutputs, operation):
-        dl_dx, = dl_doutputs
-        dl_dself = dl_d[operation.inputs[0]]
-        input_perm, = operation.intermediate
-
-        stride = reduce(lambda x, y: x * self.value.sizes[y], dim, 1)
-        @for_range(dl_dx.total_size())
-        def _(i):
-            @for_range(stride)
-            def _(j):
-                input_perm.assign_vector(dl_dx.get_vector(i, 1), i*stride+j)
-        input_perm[:] /= stride
-        # permute back
-        new_perm = get_permute_back(len(self.value.sizes), dim)
-        input_perm.permute_without_malloc(dl_dself, new_perm)
-        
-        dl_dinputs = [dl_dself]
-        return dl_dinputs
-    
-    
-    # forward
-    global op_id
-    if prepare:
-        if not keepdim:
-            new_sizes = [self.value.sizes[i] for i in list(filter(lambda x: x not in dim, range(len(self.value.sizes))))]
-        else:
-            new_sizes = [(1 if i in dim else self.value.sizes[i]) for i in range(len(self.value.sizes))]
-        if len(new_sizes) <= 1:
-            new_value = Array(new_sizes[0], self.value.value_type)
-        else:
-            new_value = MultiArray(new_sizes, self.value.value_type)
-        output = Tensor(new_value, req_grad=self.req_grad)
-        
-        new_perm = get_permute(len(self.value.sizes), dim)
-        target_size = self.value.tuple_permute(self.shape, new_perm)
-        input_perm = MultiArray(target_size, self.value.value_type)
-        
-        if self.req_grad:
-            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=[input_perm])
-        else:
-            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate, intermediate=[input_perm])
-        gradient_operation.append(operation)
-        operation_id = len(gradient_operation)-1
-        op_id_store[op_id] = operation_id
-        op_id += 1
-    else:
-        operation = gradient_operation[op_id_store[op_id]]
-        input = tensors[operation.inputs[0]]
-        for i in range(p-1):
-            input = input* tensors[operation.inputs[0]]
-        output = tensors[operation.outputs[0]]
-        input_perm = operation.intermediate[0]
-        
-        new_perm = get_permute(len(input.value.sizes), dim)
-        input.value.permute_without_malloc(input_perm, new_perm)
-        
-        stride = reduce(lambda x, y: x * self.value.sizes[y], dim, 1)
-        @for_range(input.value.total_size()//stride)
-        def _(i):
-            summary = sum(input_perm.get_vector(i*stride, stride))
-            output.value.assign_vector(mpc_math.sqrt(summary), i)
-        # output.value[:] /= stride
-        # output.value.reshape([(1 if i in dim else self.value.sizes[i]) for i in range(len(self.value.sizes))])
-        op_id += 1
-    # record the input and output of the op
-    return output
-
-
+@buildingblock("var-forward")
 def var_of_multiarray(self, dim, keepdim=False):
     # backward
-    @buildingblock(get_program().globalbuildingblock)
+    @backwardbuildingblock(get_program().globalbuildingblock[:-12]+"-var-backward")
     def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
         dl_dself = dl_d[operation.inputs[0]]
@@ -1044,7 +980,7 @@ def var_of_multiarray(self, dim, keepdim=False):
         def _(i):
             @for_range(stride)
             def _(j):
-                input_perm.assign_vector(dl_dx.get_vector(i), i*stride+j)
+                input_perm.assign_vector(dl_dx.get_vector(i, 1), i*stride+j)
         input_perm[:] *= 2
         input_perm[:] /= stride - 1
         input_perm[:] *= dmean[:]
@@ -1119,9 +1055,10 @@ def var_of_multiarray(self, dim, keepdim=False):
     # record the input and output of the op
     return output
 
+@buildingblock("std-forward")
 def std_of_multiarray(self, dim, keepdim=False):
     # backward
-    @buildingblock(get_program().globalbuildingblock)
+    @backwardbuildingblock(get_program().globalbuildingblock[:-12]+"-std-backward")
     def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
         dl_dself = dl_d[operation.inputs[0]]
@@ -1432,9 +1369,10 @@ class Tensor():
         res = Tensor(res_value)    
         return res
     
+    @buildingblock("mv-forward")
     def mv(self, other,out=None):
         # mul of Two-dimension * Array,return an output,whose type is Tensor and value is Array
-        @buildingblock(get_program().globalbuildingblock)
+        @backwardbuildingblock(get_program().globalbuildingblock[:-11]+"-mv-backward")
         def propagate(dl_doutputs, operation):
             dl_dy,=dl_doutputs
             input1=tensors[operation.inputs[0]]
@@ -1496,9 +1434,10 @@ class Tensor():
             op_id += 1# record the input and output of the op
         return output
     
+    @buildingblock("mm-forward")
     def mm(self, other): #Two-dimension * two-dimension,return an output,whose type is Tensor.
         # backward
-        @buildingblock(get_program().globalbuildingblock)
+        @backwardbuildingblock(get_program().globalbuildingblock[:-11]+"-mm-backward")
         def propagate(dl_doutputs, operation):
             dl_dy, = dl_doutputs
             input1 = tensors[operation.inputs[0]]
@@ -1533,7 +1472,8 @@ class Tensor():
             input1.value.mm(input2.value, output.value)
             op_id += 1  # record the input and output of the op
         return output
-
+    
+    @buildingblock("singlebmm-forward")
     def single_bmm(self, other: 'Tensor') -> 'Tensor':
         '''
         Performs a batch matrix-matrix product of matrices stored in self and other.
@@ -1543,7 +1483,7 @@ class Tensor():
         :return: return.shape: [*b, n, p]
         '''
         # backward
-        @buildingblock(get_program().globalbuildingblock)
+        @backwardbuildingblock(get_program().globalbuildingblock[:-18]+"-singlebmm-backward")
         def propagate(dl_doutputs, operation):
             dl_dy, = dl_doutputs
             input1, input2 = tensors[operation.inputs[0]], tensors[operation.inputs[1]]
@@ -1578,6 +1518,8 @@ class Tensor():
             op_id += 1
         return output
     
+    
+    @buildingblock("bmm-forward")
     def bmm(self, other: 'Tensor') -> 'Tensor':
         '''
         Performs a batch matrix-matrix product of matrices stored in self and other.
@@ -1587,7 +1529,7 @@ class Tensor():
         :return: return.shape: [*b, n, p]
         '''
         # backward
-        @buildingblock(get_program().globalbuildingblock)
+        @backwardbuildingblock(get_program().globalbuildingblock[:-12]+"-bmm-backward")
         def propagate(dl_doutputs, operation):
             dl_dy, = dl_doutputs
             input1, input2 = tensors[operation.inputs[0]], tensors[operation.inputs[1]]
@@ -1621,9 +1563,10 @@ class Tensor():
             op_id += 1
         return output
 
+    @buildingblock("dot-forward")
     def dot(self, other):
         #Mul of two Array 
-        @buildingblock(get_program().globalbuildingblock)
+        @backwardbuildingblock(get_program().globalbuildingblock[:-12]+"-dot-backward")
         def propagate(dl_doutputs, operation):
             dl_dy,=dl_doutputs
             dl_d[operation.inputs[0]][:]+= tensors[operation.inputs[1]].value[:]*dl_dy #dA=dC*B+dA
@@ -1691,8 +1634,10 @@ class Tensor():
             return ops_mul_constant(self, 1./other)
         return element_wise_div(self, other)
 
+    @buildingblock("view-forward")
     def view(self, sizes):
-        @buildingblock(get_program().globalbuildingblock)
+        
+        @backwardbuildingblock(get_program().globalbuildingblock[:-13]+"-view-backward")
         def propagate(dl_doutputs, operation):
             dl_dy, = dl_doutputs
             dl_d[operation.inputs[0]].assign(dl_dy)
@@ -1727,8 +1672,10 @@ class Tensor():
             op_id += 1
         return output
 
+    @buildingblock("squeeze-forward")
     def squeeze(self, dim=None):
-        @buildingblock(get_program().globalbuildingblock)
+        
+        @backwardbuildingblock(get_program().globalbuildingblock[:-16]+"-squeeze-backward")
         def propagate(dl_doutputs, operation):
             dl_dy, = dl_doutputs
             dl_d[operation.inputs[0]].assign(dl_dy)
@@ -1762,8 +1709,10 @@ class Tensor():
             op_id += 1
         return output
 
+    @buildingblock("unsqueeze-forward")
     def unsqueeze(self, dim):
-        @buildingblock(get_program().globalbuildingblock)
+        
+        @backwardbuildingblock(get_program().globalbuildingblock[:-18]+"-unsqueeze-backward")
         def propagate(dl_doutputs, operation):
             dl_d[operation.inputs[0]].assign(dl_doutputs[0])
         global op_id
@@ -1793,8 +1742,10 @@ class Tensor():
         # todo
         return self
 
+    @buildingblock("reshape-forward")
     def reshape(self, sizes):
-        @buildingblock(get_program().globalbuildingblock)
+        
+        @backwardbuildingblock(get_program().globalbuildingblock[:-16]+"-reshape-backward")
         def propagate(dl_doutputs, operation):
             dl_dy, = dl_doutputs
             dl_d[operation.inputs[0]].assign(dl_dy)
@@ -1829,8 +1780,10 @@ class Tensor():
             op_id += 1
         return output
 
+    @buildingblock("permute-forward")
     def permute(self, new_perm):  # todo :这里的参数不应该是list类型的new-perm，而应该是*newperm :pytorch中：x.permute(2, 0, 1)
-        @buildingblock(get_program().globalbuildingblock)
+        
+        @backwardbuildingblock(get_program().globalbuildingblock[:-16]+"-permute-backward")
         def propagate(dl_doutputs,operation):
             dl_dy,=dl_doutputs
             L=len(self.shape)
@@ -1860,8 +1813,10 @@ class Tensor():
             op_id += 1
         return output
 
+    @buildingblock("transpose-forward")
     def transpose(self):
-        @buildingblock(get_program().globalbuildingblock)
+        
+        @backwardbuildingblock(get_program().globalbuildingblock[:-18]+ "-transpose-backward")
         def propagate(dl_doutputs, operation):
             if isinstance(dl_doutputs[0], Array):
                 dl_d[operation.inputs[0]][:] += dl_doutputs[0][:]
@@ -1895,8 +1850,9 @@ class Tensor():
             op_id += 1
         return output
 
+    @buildingblock("concat-forward")
     def concate(self, other, axis=0):  # 按照axis指定维度进行拼接
-        @buildingblock(get_program().globalbuildingblock)
+        @backwardbuildingblock(get_program().globalbuildingblock[:-15]+"-concat-backward")
         def propagate(dl_doutputs,operation):
             input1=tensors[operation.inputs[0]]
             input2=tensors[operation.inputs[1]]
@@ -1956,15 +1912,17 @@ class Tensor():
             op_id+=1
         return output
 
+    @buildingblock("abs-forward")
     def abs(self):
         # backward
+        #@backwardbuildingblock(get_program().globalbuildingblock[:-12]+"-abs-backward")
         @buildingblock(get_program().globalbuildingblock)
         def propagate(dl_doutputs, operation):
             dl_dx, = dl_doutputs
             inputs = operation.inputs
             inter = operation.intermediate[0]  # reuse the intervalue in mem
             dl_dself = dl_d[inputs[0]]
-            dl_dself[:] += (2 * inter[:] - 1) * dl_dx[:]
+            dl_dself[:] += inter[:] * dl_dx[:]
             dl_dinputs = [dl_dself]
             return dl_dinputs
         # forward
@@ -1991,17 +1949,20 @@ class Tensor():
             outputs = operation.outputs
             input = tensors[inputs[0]]
             output = tensors[outputs[0]]
-            c = input.value[:] > 0
-            operation.intermediate[0].assign_vector(c)  # write to mem
+            larger = input.value[:] > 0
+            less = input.value[:]<0
+            final=larger-less
+            operation.intermediate[0].assign_vector(final)  # write to mem
 
-            output.value[:] = (2*c-1) * input.value[:]
+            output.value[:] = final * input.value[:]
             op_id += 1
         # record the input and output of the op
         return output
 
+    @buildingblock("exp-forward")
     def exp(self):
         # backward
-        @buildingblock(get_program().globalbuildingblock)
+        @backwardbuildingblock(get_program().globalbuildingblock[:-12]+"-exp-backward")
         def propagate(dl_doutputs, operation):
             dl_dx, = dl_doutputs
             inputs = operation.inputs
@@ -2043,9 +2004,10 @@ class Tensor():
         # record the input and output of the op
         return output
 
+    @buildingblock("log-forward")
     def log(self, base=math.e):
         # backward
-        @buildingblock(get_program().globalbuildingblock)
+        @backwardbuildingblock(get_program().globalbuildingblock[:-12]+"-log-backward")
         def propagate(dl_doutputs, operation):
             dl_dx, = dl_doutputs
             inputs = operation.inputs
@@ -2083,9 +2045,10 @@ class Tensor():
         # record the input and output of the op
         return output
 
+    @buildingblock("pow-forward")
     def pow(self, pow):
         # backward
-        @buildingblock(get_program().globalbuildingblock)
+        @backwardbuildingblock(get_program().globalbuildingblock[:-12]+"-pow-backward")
         def propagate(dl_doutputs, operation):
             dl_dx, = dl_doutputs
             inputs = operation.inputs
@@ -2123,8 +2086,10 @@ class Tensor():
         # record the input and output of the op
         return output
 
+    @buildingblock("cos-forward")
     def cos(self):
-        @buildingblock(get_program().globalbuildingblock)
+        
+        @backwardbuildingblock(get_program().globalbuildingblock[:-12]+"-cos-backward")
         def propagate(dl_doutputs, operation):  # dl_outputs is Tensor.value
             dl_dx, = dl_doutputs
             dl_dself = dl_d[operation.inputs[0]]
@@ -2154,8 +2119,10 @@ class Tensor():
             op_id += 1
         return output
 
+    @buildingblock("sin-forward")
     def sin(self):
-        @buildingblock(get_program().globalbuildingblock)
+        
+        @backwardbuildingblock(get_program().globalbuildingblock[:-12]+"-sin-backward")
         def propagate(dl_doutputs, operation):  # dl_outputs is Tensor.value
             dl_dx, = dl_doutputs
             dl_dself = dl_d[operation.inputs[0]]
@@ -2212,8 +2179,10 @@ class Tensor():
     def norm(self, dim=None, keepdim=False):
         pass
 
+    @buildingblock("softmax-forward")
     def softmax(self, dim=-1):
-        @buildingblock(get_program().globalbuildingblock)
+        
+        @backwardbuildingblock(get_program().globalbuildingblock[:-16]+"-sofxmax-backward")
         def propagate(dl_doutputs, operation):
             dl_dy, = dl_doutputs
             output = tensors[operation.outputs[0]]
@@ -2381,75 +2350,75 @@ def vec_softmax(x):
     e_x = mpc_math.exp_fx(x - util.max(x))
     return e_x / sum(e_x)
 
-def broadcast(*args: Tensor) -> List[Tensor]:
-    """
-    This function broadcasts the input arguments to match the shape of each other.
-    """
-    shapes = [arg.shape for arg in args]
-    broadcast_shape = compute_broadcast_shape(*shapes)
-    return (expand_to_shape(arg, broadcast_shape) for arg in args)
+# def broadcast(*args: Tensor) -> List[Tensor]:
+#     """
+#     This function broadcasts the input arguments to match the shape of each other.
+#     """
+#     shapes = [arg.shape for arg in args]
+#     broadcast_shape = compute_broadcast_shape(*shapes)
+#     return (expand_to_shape(arg, broadcast_shape) for arg in args)
 
 
-def compute_broadcast_shape(*shapes: Tuple[int]) -> Tuple[int]:
-    reversed_shapes = [shape[::-1] for shape in shapes]
-    broadcast_shape = []
-    for dims in zip_longest(*reversed_shapes, fillvalue=1):
-        greater_than_one_dims = [dim for dim in dims if dim > 1]
-        if len(set(greater_than_one_dims)) > 1:
-            raise ValueError("operands could not be broadcast together with shapes " + ' '.join(map(str, shapes)))
-        broadcast_shape.append(max(dims))
-    return tuple(broadcast_shape[::-1])
+# def compute_broadcast_shape(*shapes: Tuple[int]) -> Tuple[int]:
+#     reversed_shapes = [shape[::-1] for shape in shapes]
+#     broadcast_shape = []
+#     for dims in zip_longest(*reversed_shapes, fillvalue=1):
+#         greater_than_one_dims = [dim for dim in dims if dim > 1]
+#         if len(set(greater_than_one_dims)) > 1:
+#             raise ValueError("operands could not be broadcast together with shapes " + ' '.join(map(str, shapes)))
+#         broadcast_shape.append(max(dims))
+#     return tuple(broadcast_shape[::-1])
 
 
-def squeeze_first_dim(inp: Any, len: int = 1) -> Union[Array, MultiArray]:
-    assert isinstance(inp, (sfix, cfix, sint, cint, regint, Array, SubMultiArray, MultiArray)), "Input must be a scale(sfix,cfix,sint,cint,regint) or a array(Array,SubMultiArray,MultiArray)"
-    if isinstance(inp, (sfix, cfix, sint, cint, regint)):
-        res = Array(len, type(inp))
-        res.assign_all(inp)
-    else:
-        shape = (inp.length,) if isinstance(inp, Array) else inp.sizes
-        res = MultiArray([len, *shape], inp.value_type)
-        for i in range(len):
-            res[i] = inp
-    return res
+# def squeeze_first_dim(inp: Any, len: int = 1) -> Union[Array, MultiArray]:
+#     assert isinstance(inp, (sfix, cfix, sint, cint, regint, Array, SubMultiArray, MultiArray)), "Input must be a scale(sfix,cfix,sint,cint,regint) or a array(Array,SubMultiArray,MultiArray)"
+#     if isinstance(inp, (sfix, cfix, sint, cint, regint)):
+#         res = Array(len, type(inp))
+#         res.assign_all(inp)
+#     else:
+#         shape = (inp.length,) if isinstance(inp, Array) else inp.sizes
+#         res = MultiArray([len, *shape], inp.value_type)
+#         for i in range(len):
+#             res[i] = inp
+#     return res
 
 
-def expand_to_shape(inp: Tensor, target_shape: Tuple[int]) -> Tensor:
-    """
-    This function expands the inp to match the target_shape using broadcasting rules.
-    """
-    assert isinstance(inp, Tensor), "Input must be a Tensor"
-    input_shape = inp.shape
-    input = inp.value
-    # Calculate the difference in dimensions between the input and target
-    diff_dim = len(target_shape) - len(input_shape)
+# def expand_to_shape(inp: Tensor, target_shape: Tuple[int]) -> Tensor:
+#     """
+#     This function expands the inp to match the target_shape using broadcasting rules.
+#     """
+#     assert isinstance(inp, Tensor), "Input must be a Tensor"
+#     input_shape = inp.shape
+#     input = inp.value
+#     # Calculate the difference in dimensions between the input and target
+#     diff_dim = len(target_shape) - len(input_shape)
 
-    # If the input tensor has fewer dimensions than target shape, add dimensions to the front
-    if diff_dim > 0:
-        for _ in range(diff_dim):
-            input = squeeze_first_dim(input)
+#     # If the input tensor has fewer dimensions than target shape, add dimensions to the front
+#     if diff_dim > 0:
+#         for _ in range(diff_dim):
+#             input = squeeze_first_dim(input)
 
-    res = MultiArray(list(target_shape), input.value_type)
+#     res = MultiArray(list(target_shape), input.value_type)
 
-    def expand_dim(obj: Union[Array, MultiArray], res: MultiArray, dim: int) -> Union[Array, MultiArray]:
-        """
-        This is a recursive helper function to expand the list along the specified dimension.
-        """
-        # If the current dimension is less than the number of dimensions in target shape
-        if dim >= len(target_shape):
-            return obj
+#     def expand_dim(obj: Union[Array, MultiArray], res: MultiArray, dim: int) -> Union[Array, MultiArray]:
+#         """
+#         This is a recursive helper function to expand the list along the specified dimension.
+#         """
+#         # If the current dimension is less than the number of dimensions in target shape
+#         if dim >= len(target_shape):
+#             return obj
 
-        # Get the shape of the current input tensor
-        current_shape = (obj.length,) if isinstance(obj, Array) else obj.sizes
-        # If the size at the current dimension is 1, replicate the element to match target size
-        if current_shape[0] == 1 and target_shape[dim] != 1:
-            obj = squeeze_first_dim(obj[0], target_shape[dim])
-        # Continue to expand each item in the current list if not in the last dimension
-        if dim + 1 < len(target_shape):
-            for i in range(target_shape[dim]):
-                res[i] = expand_dim(obj[i], res[i], dim + 1)
-            return res
-        else:
-            return obj
+#         # Get the shape of the current input tensor
+#         current_shape = (obj.length,) if isinstance(obj, Array) else obj.sizes
+#         # If the size at the current dimension is 1, replicate the element to match target size
+#         if current_shape[0] == 1 and target_shape[dim] != 1:
+#             obj = squeeze_first_dim(obj[0], target_shape[dim])
+#         # Continue to expand each item in the current list if not in the last dimension
+#         if dim + 1 < len(target_shape):
+#             for i in range(target_shape[dim]):
+#                 res[i] = expand_dim(obj[i], res[i], dim + 1)
+#             return res
+#         else:
+#             return obj
 
-    return Tensor(expand_dim(input, res, 0))
+#     return Tensor(expand_dim(input, res, 0))

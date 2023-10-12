@@ -152,8 +152,7 @@ def test_div():
 @autograd_function
 def test_abs():
     print_ln('test_abs')
-    i, j = 3, 3
-    x = MultiArray([i, j], sfix)
+    x = MultiArray([3, 3], sfix)
     for i in range(0,3):
         for  j in range(0,3):
             x[i][j] = sfix(i-j)
@@ -579,4 +578,5 @@ def test_getitem():
 #test_neg()
 
 #test_f_droupout(0.5)
-test_f_batchnorm()
+#test_f_batchnorm()
+test_abs()

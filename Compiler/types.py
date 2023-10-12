@@ -6826,7 +6826,6 @@ class MultiArray(SubMultiArray):
         example: self.tuple_permute((3,2,5), (2,0,1)) = (5,3,2)
         """
         res = ()
-        print(tuple,perm)
         for _, x  in enumerate(perm):
             res = res[:] + (tuple[x],)
         return res
