@@ -1870,8 +1870,7 @@ class Tensor():
 
     @buildingblock("concat-forward")
     def concate(self, other, axis=0):  # 按照axis指定维度进行拼接
-        
-        @backwardbuildingblock(get_program().globalbuildingblock[:-15]+"-concat-backward")
+        @buildingblock(get_program().globalbuildingblock)
         def propagate(dl_doutputs,operation):
             input1=tensors[operation.inputs[0]]
             input2=tensors[operation.inputs[1]]
@@ -1934,13 +1933,13 @@ class Tensor():
     @buildingblock("abs-forward")
     def abs(self):
         # backward
-        @backwardbuildingblock(get_program().globalbuildingblock[:-12]+"-abs-backward")
+        @buildingblock(get_program().globalbuildingblock)
         def propagate(dl_doutputs, operation):
             dl_dx, = dl_doutputs
             inputs = operation.inputs
             inter = operation.intermediate[0]  # reuse the intervalue in mem
             dl_dself = dl_d[inputs[0]]
-            dl_dself[:] += (2 * inter[:] - 1) * dl_dx[:]
+            dl_dself[:] += inter[:] * dl_dx[:]
             dl_dinputs = [dl_dself]
             return dl_dinputs
         # forward
@@ -1967,10 +1966,12 @@ class Tensor():
             outputs = operation.outputs
             input = tensors[inputs[0]]
             output = tensors[outputs[0]]
-            c = input.value[:] > 0
-            operation.intermediate[0].assign_vector(c)  # write to mem
+            larger = input.value[:] > 0
+            less = input.value[:]<0
+            final=larger-less
+            operation.intermediate[0].assign_vector(final)  # write to mem
 
-            output.value[:] = (2*c-1) * input.value[:]
+            output.value[:] = final * input.value[:]
             op_id += 1
         # record the input and output of the op
         return output
@@ -2437,4 +2438,4 @@ def vec_softmax(x):
 #         else:
 #             return obj
 
-#     return Tensor(expand_dim(input, res, 0))
+    return Tensor(expand_dim(input, res, 0))
