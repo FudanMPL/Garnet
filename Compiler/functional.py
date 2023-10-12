@@ -730,8 +730,8 @@ def dropout(input, p=0.5, training=False, inplace=False):  # todo
     if prepare:
         assert isinstance(input, Tensor), "Invalid Input"
         if isinstance(input.value,Array):
-            new_value = Array(input.size, input.value.value_type)
-            bin_value = Array(input.size, input.value.value_type)
+            new_value = Array(input.sizes[0], input.value.value_type)
+            bin_value = Array(input.sizes[0], input.value.value_type)
         else:
             new_value = MultiArray(input.sizes, input.value.value_type)
             bin_value = MultiArray(input.sizes, input.value.value_type)
@@ -801,6 +801,12 @@ def batch_norm(input, running_mean, running_std, weight=None, bias=None, trainin
     
     assert isinstance(input,Tensor) ,"Invalid input"
     
+    new_sizes = [(input.value.sizes[i] if i == 1 else 1) for i in range(len(input.value.sizes))]
+    if isinstance(running_mean.value, Array):
+        running_mean.value = running_mean.value.reshape(new_sizes)
+    if isinstance(running_std.value, Array):
+        running_std.value = running_std.value.reshape(new_sizes)    
+        
     if training:
         x_mean = input.mean(dim=[0,2,3], keepdim=True)
         x_std = input.std(dim=[0,2,3], keepdim=True) 
@@ -861,7 +867,45 @@ def nll_loss(input, target, weight=None):
 
 
 def mse_loss(input, target): # todo
-    pass
+    op_id = get_opid()
+    # backward
+    @buildingblock(get_program().globalbuildingblock)
+    def propagate(dl_doutputs, operation):
+        dl_dx, = dl_doutputs
+        dl_dself = dl_d[operation.inputs[0]]
+        
+        dx = input.value[:] - target.value[:]
+        dl_dself[:] += 1 / input.value.total_size() * 2 * dx * dl_dx[:]
+        
+        dl_dinputs = [dl_dself]
+        return dl_dinputs
+    # forward
+    prepare = get_prepare()
+    if prepare:
+        new_value = Array(1, input.value.value_type)
+        output = Tensor(new_value, req_grad=input.req_grad)
+    
+        if input.req_grad:
+            operation = Operation(inputs=[input.name], outputs=[output.name], propagate=propagate)
+        else:
+            operation = Operation(inputs=[input.name], outputs=[output.name], propagate=fake_propagate)
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation) - 1
+        op_id_store[op_id] = operation_id
+        set_opid(op_id+1)  # record the input and output of the op
+    else:
+        operation = gradient_operation[op_id_store[op_id]]
+        input = tensors[operation.inputs[0]]
+        output = tensors[operation.outputs[0]]
+        
+        dx = input.value[:] - target.value[:]
+        dx2 = dx * dx
+        sumdx2 = sum(dx2)
+        
+        output.value[:] = sumdx2 / input.value.total_size()
+        
+        set_opid(op_id+1)  # record the input and output of the op
+    return output
 
 
 def binary_cross_entropy(input, target, weight=None):
