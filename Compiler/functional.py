@@ -866,7 +866,7 @@ def nll_loss(input, target, weight=None):
     pass
 
 
-def mse_loss(input, target): # todo
+def mse_loss(input, target, reduction='mean'): # todo
     op_id = get_opid()
     # backward
     @buildingblock(get_program().globalbuildingblock)
@@ -875,7 +875,10 @@ def mse_loss(input, target): # todo
         dl_dself = dl_d[operation.inputs[0]]
         
         dx = input.value[:] - target.value[:]
-        dl_dself[:] += 1 / input.value.total_size() * 2 * dx * dl_dx[:]
+        dl_dself[:] += 2 * dx * dl_dx[:]
+        
+        if reduction == 'mean':
+            dl_dself[:] /= input.value.total_size()
         
         dl_dinputs = [dl_dself]
         return dl_dinputs
@@ -902,8 +905,11 @@ def mse_loss(input, target): # todo
         dx2 = dx * dx
         sumdx2 = sum(dx2)
         
-        output.value[:] = sumdx2 / input.value.total_size()
-        
+        output.value[:] = sumdx2
+        if reduction == 'mean':
+            output.value[:] /= input.value.total_size()
+        else:
+            assert reduction == 'sum'
         set_opid(op_id+1)  # record the input and output of the op
     return output
 
