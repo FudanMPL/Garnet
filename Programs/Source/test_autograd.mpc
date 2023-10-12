@@ -1,6 +1,7 @@
 from tensor import Tensor,autograd_function
 import tensor
 import functional as F
+from Compiler.types import *
 program.options_from_args()
 
 sfix.set_precision(30, 60)
@@ -506,8 +507,11 @@ def test_f_batchnorm():
     w[0], b[0] = sfix(1), sfix(0)
     W = Tensor(w, req_grad = True)
     B = Tensor(b, req_grad = True)
-
-    input2 = F.batch_norm(input1, weight=W, bias=B, training=True)
+    mean, std = Array(2, sfix), Array(2, sfix)
+    M = Tensor(mean, req_grad = False)
+    S = Tensor(std, req_grad = False)
+    input2 = F.batch_norm(input1, running_mean = M, running_std = S, 
+                          weight=W, bias=B, training=True)
 
     v = MultiArray([2,2,2,2], sfix)
     for i in range(0,2):
@@ -521,7 +525,8 @@ def test_f_batchnorm():
     tensor.train()
     tensor.reset_op_id()
 
-    input2 = F.batch_norm(input1, weight=W, bias=B, training=True)
+    input2 = F.batch_norm(input1, running_mean = M, running_std = S, 
+                          weight=W, bias=B, training=True)
     input4 = input2 * vec
 
     input4.backward()
@@ -536,10 +541,86 @@ def test_f_batchnorm():
     print_ln('x_batchnorm_backward: ')
     input1.grad.print_reveal_nested()
 
+@autograd_function
+def test_f_layernorm():
+    print_ln('test_layernorm')
+    x = MultiArray([2,2,2,2], sfix)
+    for i in range(0,2):
+        for j in range(0,2):
+            for k in range(0, 2):
+                for q in range(0, 2):
+                    x[i][j][k][q] = sfix(((i*j*k*q+i+j+k+q)%101)*1e-2)
+    x.print_reveal_nested()
+    input1 = Tensor(x, req_grad = True)
+
+    w, b = Array(1, sfix), Array(1, sfix)
+    w[0], b[0] = sfix(1), sfix(0)
+    W = Tensor(w, req_grad = True)
+    B = Tensor(b, req_grad = True)
+    
+    input2 = F.layer_norm(input1, normalized_shape=[2,2], weight=W, bias=B)
+
+    v = MultiArray([2,2,2,2], sfix)
+    for i in range(0,2):
+        for j in range(0,2):
+            for k in range(0, 2):
+                for q in range(0, 2):
+                    v[i][j][k][q] = sfix((i+j+k+q))
+    vec = Tensor(v, req_grad = True)
+    input4 = input2 * vec 
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    input2 = F.layer_norm(input1, normalized_shape=[2,2], weight=W, bias=B)
+    input4 = input2 * vec
+
+    input4.backward()
+    
+    
+    print_ln('xhat_layernorm_output: ')
+    input2.value.print_reveal_nested()
+    print_ln('xhat_layernorm_backward: ')
+    input2.grad.print_reveal_nested()
+    
+    
+    print_ln('x_layernorm_backward: ')
+    input1.grad.print_reveal_nested()
+
+@autograd_function
+def test_f_mseloss():
+    print_ln('test_f_mseloss')
+    
+    dims = [3, 3]
+
+    y = MultiArray(dims, sfix)
+    for i in range(dims[0]):
+        for j in range(dims[1]):
+            y[i][j] = sfix(i+j)
+    y.print_reveal_nested()
+    Y = Tensor(y, req_grad = True)
+
+    x = MultiArray(dims, sfix)
+    for i in range(dims[0]):
+        for j in range(dims[1]):
+            x[i][j] = sfix(i*j)
+    x.print_reveal_nested()
+    label = Tensor(x, req_grad = False)
+    
+    loss = F.mse_loss(Y, label)
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    loss = F.mse_loss(Y, label)
+    loss.backward()
+    loss.value.print_reveal_nested()
+    Y.grad.print_reveal_nested()
+
 #test_mul()
 #test_add()
 #test_sub()
-#test_div()
+test_div()
 #test_abs()
 #test_exp()
 #test_log()
@@ -578,5 +659,8 @@ def test_getitem():
 #test_neg()
 
 #test_f_droupout(0.5)
+test_f_batchnorm()
+test_f_layernorm()
+test_f_mseloss()
 #test_f_batchnorm()
 test_abs()

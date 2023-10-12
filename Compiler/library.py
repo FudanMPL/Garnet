@@ -1998,6 +1998,21 @@ def buildingblock(name):
             res = func(*args, **kw)
             get_tape().start_new_basicblock(name = name + "-close")
             set_global_buildingblock(old_name)
+            return res
+        copy_doc(wrapper, func)
+        return wrapper
+    return decorator
+
+def backwardbuildingblock(name):
+    def decorator(func):
+        def wrapper(*args, **kw):
+            old_name = get_global_buildingblock()
+            set_global_buildingblock(name)
+            get_tape().start_new_basicblock(name = name+"-start")
+            res = func(*args, **kw)
+            get_tape().start_new_basicblock(name = name + "-close")
+            set_global_buildingblock(old_name)
+            return res
         copy_doc(wrapper, func)
         return wrapper
     return decorator

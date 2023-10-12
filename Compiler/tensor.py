@@ -1852,7 +1852,7 @@ class Tensor():
 
     @buildingblock("concat-forward")
     def concate(self, other, axis=0):  # 按照axis指定维度进行拼接
-        @backwardbuildingblock(get_program().globalbuildingblock[:-15]+"-concat-backward")
+        @buildingblock(get_program().globalbuildingblock)
         def propagate(dl_doutputs,operation):
             input1=tensors[operation.inputs[0]]
             input2=tensors[operation.inputs[1]]
@@ -1915,7 +1915,6 @@ class Tensor():
     @buildingblock("abs-forward")
     def abs(self):
         # backward
-        #@backwardbuildingblock(get_program().globalbuildingblock[:-12]+"-abs-backward")
         @buildingblock(get_program().globalbuildingblock)
         def propagate(dl_doutputs, operation):
             dl_dx, = dl_doutputs
@@ -2421,4 +2420,4 @@ def vec_softmax(x):
 #         else:
 #             return obj
 
-#     return Tensor(expand_dim(input, res, 0))
+    return Tensor(expand_dim(input, res, 0))

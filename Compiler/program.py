@@ -337,8 +337,25 @@ class Program(object):
             *sum(([x] + list(y) for x, y in zip(thread_numbers, args)), [])
         )
         self.curr_tape.start_new_basicblock(name="post-run_tape")
+        #could rounds of one thread for multithread
+        def aggregator(node_list):
+            if len(node_list) == 0:
+                return None
+            res = node_list[0]
+            for i in range(1, len(node_list)):
+                tmp_node = node_list[i]
+                for name, count in list(tmp_node.items()):
+                    if name == ('online', 'round') or name == ('offline', 'round'):
+                        continue
+                    res[name] += count
+            return res
+        child = self.tapes[arg[0]].ReqChild(aggregator, self.curr_tape.req_node)
         for arg in args:
-            self.curr_tape.req_node.children.append(self.tapes[arg[0]].req_tree)
+            child.nodes.append(self.tapes[arg[0]].req_tree)
+        self.curr_tape.req_node.children.append(child)
+        # count all rounds for multithread
+        # for arg in args:
+        #     self.curr_tape.req_node.children.append(self.tapes[arg[0]].req_tree)        
         return thread_numbers
 
     def join_tape(self, thread_number):
