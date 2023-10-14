@@ -632,7 +632,7 @@ def test_kl_div():
     input1.grad.print_reveal_nested()
 
 
-test_kl_div()
+#test_kl_div()
 
 #test_l1_loss()
 
@@ -642,7 +642,7 @@ test_kl_div()
 
 #test_maxpool2d()
 
-#test_conv2d()
+test_conv2d()
 #test_tanh()
 
 #test_logsigmoid()

@@ -14,9 +14,7 @@ class LinearRegression(nn.Module):
         
     def forward(self,x):
         out = self.linear(x)
-        if self.training:
-            out.print_reveal_nested()
-        out = F.sigmoid(out)
+       # out = F.sigmoid(out)
         return out
 
 x = MultiArray([3,3], sfix)
@@ -32,12 +30,13 @@ dataload = dataloader.DataLoader(x, y, batch_size = 2, shuffle=True)
 model = LinearRegression()
 
 optimizer = optim.SGD(model.parameters(), lr = 0.01)
-model.train(dataload.get_batch_sample(0))
+model.train(dataload.get_size())
+params = list(model.parameters())
 
-@for_range(2)
+@for_range(1)
 def _(i):
     input, label = dataload.get_data(i)
     out = model(input)
     optimizer.zero_grad()
     out.backward()
-    optimizer.step()
+    #optimizer.step()
