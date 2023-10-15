@@ -1006,7 +1006,6 @@ def mse_loss(input, target, reduction='mean'):
         operation = gradient_operation[op_id_store[op_id]]
         input = tensors[operation.inputs[0]]
         output = tensors[operation.outputs[0]]
-        
         dx = input.value[:] - target.value[:]
         dx2 = dx * dx
         sumdx2 = sum(dx2)

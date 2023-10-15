@@ -25,18 +25,21 @@ for i in range(x.total_size()):
 for i in range(y.total_size()):
     y.assign_vector(sfix(i), i)
 
-dataload = dataloader.DataLoader(x, y, batch_size = 2, shuffle=True)
+dataload = dataloader.DataLoader(x, y, batch_size = 2, shuffle=False)
 
 model = LinearRegression()
 
 optimizer = optim.SGD(model.parameters(), lr = 0.01)
-model.train(dataload.get_size())
 params = list(model.parameters())
+params[0].assign_all(1)
+mse = nn.MSELoss()
+model.train(mse, dataload)
 
-@for_range(1)
+@for_range(5)
 def _(i):
-    input, label = dataload.get_data(i)
-    out = model(input)
+    input, label = dataload.get_data(0)
+    output = model(input)
+    loss = mse(output, label)
     optimizer.zero_grad()
-    out.backward()
-    #optimizer.step()
+    loss.backward()
+    optimizer.step()

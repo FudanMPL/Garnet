@@ -61,6 +61,8 @@ class DataLoader():
     def get_size(self):
         return self.data_buffer
     
+    def get_labelsize(self):
+        return self.label_buffer
     
     def get_data(self, i):
         library.runtime_error_if(i >= len(self.samples),

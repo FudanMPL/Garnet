@@ -659,12 +659,14 @@ class Module():
             module.set_up(mode)
         return self
 
-    def train(self, *args, **kwargs):
+    def train(self, loss, dataload, *args, **kwargs):
         # todo, setup tensor space of the model, call it before training or evaluation
-        self.forward(*args, **kwargs)
+        self.set_up()
+        self.output = self.forward(dataload.get_size())
+        self.loss = loss.forward(self.output, dataload.get_labelsize())
         TS.reset_op_id()
         TS.train()
-        self.set_up()
+
         return self
 
     def reset(self):
@@ -771,7 +773,9 @@ class Module():
         return sorted(keys)
 
     def _call_impl(self, *args, **kwargs):
-        TS.reset_op_id()
+
+        if not self.training:
+            TS.reset_op_id()
         forward_call = self.forward
         break_point()
         result = forward_call(*args, **kwargs)
@@ -1739,6 +1743,7 @@ class _Loss(Module):
     def __init__(self, size_average=None, reduce=None, reduction: str = 'mean') -> None:
         super().__init__()
         self.reduction = reduction
+        self.training = True
     
 class MSELoss(_Loss):
     r"""Creates a criterion that measures the mean squared error (squared L2 norm) between
