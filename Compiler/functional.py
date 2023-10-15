@@ -15,7 +15,7 @@ from Compiler.comparison import CarryOutRawLE
 # from Compiler.GC.types import sbitintis_train
 from functools import reduce
 from typing import List, NamedTuple, Callable, Dict, Optional, Union, Tuple, Any
-approx = True
+approx = False
 
 
 @buildingblock("relu-forward")
