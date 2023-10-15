@@ -16,11 +16,9 @@ A.print_reveal_nested()
 B.print_reveal_nested()
 C.print_reveal_nested()
 break_point()
-for i in range(2):
-    B[:] = B[:] + 1
+for i in range(12):
     #A.print_reveal_nested()
     C.assign_vector(A.direct_mul(B))
-
     C.print_reveal_nested()
     #c = A.direct_mul(B)
     #print_ln("got %s", c.reveal())

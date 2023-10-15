@@ -6482,7 +6482,7 @@ class SubMultiArray(_vectorizable):
         :param res: matrix of matching dimension to store result
         :param n_threads: number of threads (default: single thread)
         """
-        @library.for_range_multithread(n_threads, 1, self.sizes[1])
+        @library.for_range_multithread(n_threads, self.sizes[1], self.sizes[1])
         def _(i):
             indices = [regint(i), regint.inc(self.sizes[0])]
             indices += [regint.inc(i) for i in other.sizes]
@@ -6499,7 +6499,8 @@ class SubMultiArray(_vectorizable):
         :param res: matrix of matching dimension to store (grad_result+res)
         :param n_threads: number of threads (default: single thread)
         """
-        @library.for_range_multithread(n_threads, self.sizes[1],self.sizes[1])
+
+        @library.for_range_multithread(n_threads, self.sizes[1], self.sizes[1])
         def _(i):
             indices = [regint(i), regint.inc(self.sizes[0])]
             indices += [regint.inc(i) for i in other.sizes]
@@ -6516,7 +6517,7 @@ class SubMultiArray(_vectorizable):
         :param res: matrix of matching dimension to store result
         :param n_threads: number of threads (default: single thread)
         """
-        @library.for_range_multithread(n_threads, 1, self.sizes[0])
+        @library.for_range_multithread(n_threads, self.sizes[0], self.sizes[0])
         def _(i):
             indices = [regint(i), regint.inc(self.sizes[1])]
             indices += [regint.inc(i) for i in reversed(other.sizes)]
@@ -6532,7 +6533,7 @@ class SubMultiArray(_vectorizable):
         :param res: matrix of matching dimension to store (grad_result + res)
         :param n_threads: number of threads (default: single thread)
         """
-        @library.for_range_multithread(n_threads, 1, self.sizes[0])
+        @library.for_range_multithread(n_threads, self.sizes[0], self.sizes[0])
         def _(i):
             indices = [regint(i), regint.inc(self.sizes[1])]
             indices += [regint.inc(i) for i in reversed(other.sizes)]

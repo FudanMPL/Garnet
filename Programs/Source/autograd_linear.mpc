@@ -14,7 +14,7 @@ class LinearRegression(nn.Module):
         
     def forward(self,x):
         out = self.linear(x)
-        out = F.sigmoid(out)
+        #out = F.sigmoid(out)
         return out
 
 x = MultiArray([3,3], sfix)
@@ -35,13 +35,11 @@ params[0].assign_all(0.1)
 mse = nn.MSELoss()
 model.train(mse, dataload)
 
-@for_range(5)
+@for_range(1)
 def _(i):
     input, label = dataload.get_data(0)
     output = model(input)
     loss = mse(output, label)
     optimizer.zero_grad()
     loss.backward()
-    params[0].grad.print_reveal_nested()
-    loss.print_reveal_nested()
-    optimizer.step()
+    #optimizer.step()

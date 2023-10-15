@@ -491,8 +491,6 @@ class Merger:
             reg_type = instr.args[0].reg_type
             
             if isinstance(addr, int):
-                if n == 608:
-                    print(addr)
                 handle_mem_access(addr, reg_type, last_access_this_kind,
                                     last_access_other_kind)
                 if block.warn_about_mem and \
