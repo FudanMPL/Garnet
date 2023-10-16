@@ -16,9 +16,12 @@ from Compiler.comparison import CarryOutRawLE
 from functools import reduce
 from typing import List, NamedTuple, Callable, Dict, Optional, Union, Tuple, Any
 approx = False
+
+
+@buildingblock("relu-forward")
 def relu(input, inplace=False):  # todo
     op_id = get_opid()
-    @buildingblock(get_program().globalbuildingblock)
+    @backwardbuildingblock(get_program().globalbuildingblock[:-13]+"-relu-backward")
     def propagate(dl_doutputs, operation):
         dl_dy, = dl_doutputs
         input_ = tensors[operation.inputs[0]]
@@ -51,7 +54,7 @@ def relu(input, inplace=False):  # todo
     return output
 
 @vectorize
-def approx_sigmoid(x, n=3):
+def approx_sigmoid(x, n=5):
     """ Piece-wise approximate sigmoid as in
     `Hong et al. <https://arxiv.org/abs/2002.04344>`_
 
@@ -64,7 +67,7 @@ def approx_sigmoid(x, n=3):
         select = [le[i + 1] - le[i] for i in range(5)]
         outputs = [cfix(10 ** -4),
                    0.02776 * x + 0.145,
-                     * x + 0.5,
+                   0.17 *x + 0.5,
                    0.02776 * x + 0.85498,
                    cfix(1 - 10 ** -4)]
         return sum(a * b for a, b in zip(select, outputs))
@@ -98,9 +101,10 @@ def sanitize(x, raw, lower, upper):
 def sigmoid_from_e_x(x,e_x):
     return sanitize(x, 1 / (1 + e_x), 0, 1)
 
+@buildingblock("sigmoid-forward")
 def sigmoid(input): #todo
     op_id = get_opid()
-    @buildingblock(get_program().globalbuildingblock)
+    @backwardbuildingblock(get_program().globalbuildingblock[:-16]+"-sigmoid-backward")
     def propagate(dl_doutputs, operation):
         dl_dy, = dl_doutputs
         input_ = tensors[operation.inputs[0]]
@@ -135,10 +139,10 @@ def sigmoid(input): #todo
         set_opid(op_id+1)  # record the input and output of the op
     return output
 
-
+@buildingblock("logsigmoid-forward")
 def logsigmoid(input):  # todo
     op_id = get_opid()
-    @buildingblock(get_program().globalbuildingblock)
+    @backwardbuildingblock(get_program().globalbuildingblock[:-19]+"-logsigmoid-backward")
     def propagate(dl_doutputs, operation):
         dl_dy, = dl_doutputs
         input_ = tensors[operation.inputs[0]]
@@ -170,10 +174,10 @@ def logsigmoid(input):  # todo
         set_opid(op_id+1)  # record the input and output of the op
     return output
 
-
+@buildingblock("tanh-forward")
 def tanh(input):  # todo
     op_id = get_opid()
-    @buildingblock(get_program().globalbuildingblock)
+    @backwardbuildingblock(get_program().globalbuildingblock[:-13]+"-tanh-backward")
     def propagate(dl_doutputs, operation):
         dl_dy, = dl_doutputs
         input_ = tensors[operation.inputs[0]]
@@ -217,7 +221,7 @@ def softmax(input, dim=None):  # todo
 def log_softmax(input, dim=None):  # todo
     pass
 
-
+@buildingblock("linear")
 def linear(input, weight, bias=None):
     assert isinstance(input,Tensor),"Invalid input"
     assert isinstance(weight,Tensor),"Invalid weight"
@@ -240,13 +244,13 @@ def new_squant():
             params = None
         return _
 
-
+@buildingblock("conv2d-forward")
 def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0]):
     #input.shape:(batch_size,channel_in,H,W)
     #weight.shape:(out_channels, in_channels // groups, H,W)
     #bais:(out_channels)
     op_id = get_opid()
-    @buildingblock(get_program().globalbuildingblock)
+    @backwardbuildingblock(get_program().globalbuildingblock[:-15]+"-conv2d-backward")
     def propagate(dl_doutputs, operation):
         dl_dy, = dl_doutputs
         input = tensors[operation.inputs[0]]
@@ -400,10 +404,10 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0]):
 def conv_transpose2d(input, weight, bias=None, stride=1, padding=0, outputpadding=0):
      pass
 
-
+@buildingblock("max_pool2d-forward")
 def max_pool2d(input, kernel_size=2, stride=2, padding=0):
     op_id=get_opid()
-    @buildingblock(get_program().globalbuildingblock)
+    @backwardbuildingblock(get_program().globalbuildingblock[:-19]+"-max_pool2d-backward")
     def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
         input = tensors[operation.inputs[0]]
@@ -557,10 +561,10 @@ def max_pool2d(input, kernel_size=2, stride=2, padding=0):
     
     
 
-
+@buildingblock("avg_pool2d-forward")
 def avg_pool2d(input, kernel_size, stride=None, padding=0,):
     op_id = get_opid()
-    @buildingblock(get_program().globalbuildingblock)
+    @backwardbuildingblock(get_program().globalbuildingblock[:-19]+"-avg_pool2d-backward")
     def propagate(dl_doutputs, operation):
         dl_dy, = dl_doutputs
         input = tensors[operation.inputs[0]]
@@ -716,10 +720,10 @@ def avg_pool2d(input, kernel_size, stride=None, padding=0,):
         set_opid(op_id+1)
     return output  
 
-
+@buildingblock("dropout-forward")
 def dropout(input, p=0.5, training=False, inplace=False):  # todo
     op_id = get_opid()
-    @buildingblock(get_program().globalbuildingblock)
+    @backwardbuildingblock(get_program().globalbuildingblock[:-16]+"-dropout-backward")
     def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
         bin_value, = operation.intermediate
@@ -802,6 +806,7 @@ def normalize(input, p=2, dim=1, eps=1e-12, out=None):  # todo
 
 
 # we should replace inv(std) to invsrqt(var) later
+@buildingblock("batch_norm")
 def batch_norm(input, running_mean, running_std, weight=None, bias=None, training=False, eps=1e-05, momentum=0.1):
     
     assert isinstance(input,Tensor) ,"Invalid input"
@@ -830,6 +835,7 @@ def batch_norm(input, running_mean, running_std, weight=None, bias=None, trainin
 
 
 # we should replace inv(std) to invsrqt(var) later
+@buildingblock("layer_norm")
 def layer_norm(input, normalized_shape, weight=None, bias=None, eps=1e-05):
     
     assert isinstance(input,Tensor) ,"Invalid input"
@@ -858,23 +864,123 @@ def cosine_similarity(x1, x2, dim=1, eps=1e-8):
 def pdist(input, p=2):  # todo
     pass
 
+@buildingblock("kl_div-forward")
+def kl_div(input, target, log_target=False,reduction='mean'):
+    op_id = get_opid()
+    @backwardbuildingblock(get_program().globalbuildingblock[:-15]+"-kl_div-backward")
+    def propagate(dl_doutputs, operation):
+        input=tensors[operation.inputs[0]]
+        inter=operation.intermediate
+        if inter[-1]=='mean':
+            dl_d[input.name][:]+=(-1/input.numel())*inter[0][:]
+        elif inter[-1]=='batchmean':
+            dl_d[input.name][:]+=(-1/input.sizes[0])*inter[0][:]
+        else:
+            dl_d[input.name][:]-=inter[0][:]
+        
+    prepare = get_prepare()
+    if prepare:
+        assert isinstance(input, Tensor) and isinstance(target, Tensor), "Invalid Input"
+        assert len(input.sizes)==len(target.sizes),"Inequal dimension"
+        assert reduction in ['mean','sum','batchmean'],"invalid reduction"
+        if isinstance(input.value,Array):
+            inter = Array(input.value.length, input.value.value_type)
+        else:
+            inter = MultiArray(input.value.sizes, input.value.value_type)
+        new_value=Array(1, input.value.value_type)
+        output = Tensor(new_value, req_grad=input.req_grad)
+        if input.req_grad:
+            operation = Operation(inputs=[input.name,target.name], outputs=[output.name], propagate=propagate, intermediate=[inter,reduction])
+        else:
+            operation = Operation(inputs=[input.name,target.name], outputs=[output.name], propagate=fake_propagate, intermediate=[inter,reduction])
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation) - 1
+        op_id_store[op_id] = operation_id
+        set_opid(op_id+1)
+    else:
+        operation = gradient_operation[op_id_store[op_id]]
+        input = tensors[operation.inputs[0]]
+        target= tensors[operation.inputs[1]]
+        output = tensors[operation.outputs[0]]
+        res=0
+        if log_target:
+            t=mpc_math.pow_fx(math.e,target.value[:])
+            operation.intermediate[0].assign_vector(t)
+            tmp=t*(target.value[:]-input.value[:])
+            res=sum(tmp)
+        else:
+            tmp=mpc_math.log_fx(target.value[:],math.e)
+            operation.intermediate[0].assign_vector(target.value[:])
+            res=sum(target.value[:]*(tmp-input.value[:]))
+        if reduction=='mean':
+            output.value[0]=res/input.numel()
+        elif reduction=='batchmean':
+            output.value[0]=res/input.sizes[0]
+        else:
+            output.value[0]=res
+        set_opid(op_id+1)  # record the input and output of the op
+    return output
 
-def kl_div(input, target, log_target=False):
-    pass
 
 
-def l1_loss(input, target):
-    pass
+@buildingblock("l1_loss-forward")
+def l1_loss(input, target,reduction='mean'):
+    op_id = get_opid()
+    @backwardbuildingblock(get_program().globalbuildingblock[:-16]+"-l1_loss-backward")
+    def propagate(dl_doutputs, operation):
+        input=tensors[operation.inputs[0]]
+        if operation.intermediate[-1]=='mean':
+            dl_d[operation.inputs[0]][:]+= (operation.intermediate[0][:]/input.numel())
+        else:
+            dl_d[operation.inputs[0]][:]+= operation.intermediate[0][:]
+    prepare = get_prepare()
+    if prepare:
+        assert isinstance(input, Tensor) and isinstance(target, Tensor), "Invalid Input"
+        assert len(input.sizes)==len(target.sizes),"Inequal dimension"
+        assert reduction in ['mean','sum'],"invalid reduction"
+        if isinstance(input.value,Array):
+            inter = Array(input.value.length, input.value.value_type)
+        else:
+            inter = MultiArray(input.value.sizes, input.value.value_type)
+        new_value=Array(1, input.value.value_type)
+        output = Tensor(new_value, req_grad=input.req_grad)
+        if input.req_grad:
+            operation = Operation(inputs=[input.name,target.name], outputs=[output.name], propagate=propagate, intermediate=[inter,reduction])
+        else:
+            operation = Operation(inputs=[input.name,target.name], outputs=[output.name], propagate=fake_propagate, intermediate=[inter,reduction])
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation) - 1
+        op_id_store[op_id] = operation_id
+        set_opid(op_id+1)
+    else:
+        operation = gradient_operation[op_id_store[op_id]]
+        input = tensors[operation.inputs[0]]
+        target= tensors[operation.inputs[1]]
+        output = tensors[operation.outputs[0]]
+        
+        larger = input.value[:]>target.value[:]
+        less=input.value[:]<target.value[:]
+        final=larger-less
+        operation.intermediate[0].assign_vector(final)
+        total=input.numel()
+        Sum= sum( final * (input.value[:]-target.value[:]))
+        if reduction=='sum':
+            output.value[0]=Sum
+        elif reduction=='mean' : #mean
+            output.value[0]=Sum/total
+        set_opid(op_id+1)  # record the input and output of the op
+    return output
+
 
 
 def nll_loss(input, target, weight=None):
     pass
 
-
-def mse_loss(input, target, reduction='mean'): # todo
+@buildingblock("mse_loss-forward")
+def mse_loss(input, target, reduction='mean'):
     op_id = get_opid()
     # backward
-    @buildingblock(get_program().globalbuildingblock)
+    @backwardbuildingblock(get_program().globalbuildingblock[:-17]+"-mse_loss-backward")
     def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
         dl_dself = dl_d[operation.inputs[0]]
@@ -905,7 +1011,6 @@ def mse_loss(input, target, reduction='mean'): # todo
         operation = gradient_operation[op_id_store[op_id]]
         input = tensors[operation.inputs[0]]
         output = tensors[operation.outputs[0]]
-        
         dx = input.value[:] - target.value[:]
         dx2 = dx * dx
         sumdx2 = sum(dx2)
@@ -917,6 +1022,10 @@ def mse_loss(input, target, reduction='mean'): # todo
             assert reduction == 'sum' , 'reduction should be mean or sum'
         set_opid(op_id+1)  # record the input and output of the op
     return output
+
+
+
+
 
 
 def binary_cross_entropy(input, target, weight=None):

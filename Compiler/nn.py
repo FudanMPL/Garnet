@@ -100,7 +100,7 @@ class Parameter(Tensor):
 
 class Module():
     def __init__(self):
-        self.training = True
+        self.training = False
         self._parameters: Dict[str, Optional[Parameter]] = OrderedDict()
         self._buffers: Dict[str, Optional[Tensor]] = OrderedDict()
         self._modules: Dict[str, Optional['Module']] = OrderedDict()
@@ -659,12 +659,14 @@ class Module():
             module.set_up(mode)
         return self
 
-    def train(self, *args, **kwargs):
+    def train(self, loss, dataload, *args, **kwargs):
         # todo, setup tensor space of the model, call it before training or evaluation
-        self.forward(*args, **kwargs)
+        self.set_up()
+        self.output = self.forward(dataload.get_size())
+        self.loss = loss.forward(self.output, dataload.get_labelsize())
         TS.reset_op_id()
         TS.train()
-        self.set_up()
+
         return self
 
     def reset(self):
@@ -771,7 +773,9 @@ class Module():
         return sorted(keys)
 
     def _call_impl(self, *args, **kwargs):
-        TS.reset_op_id()
+
+        if not self.training:
+            TS.reset_op_id()
         forward_call = self.forward
         break_point()
         result = forward_call(*args, **kwargs)
@@ -999,7 +1003,7 @@ class Linear(Module):
             self.register_parameter('bias', None)
         self.reset_parameters()        
     
-    @buildingblock("linear")
+        
     def forward(self, x):
         return F.linear(x, self.weight, self.bias)
     
@@ -1055,7 +1059,7 @@ class _ConvNd(Module):
                  padding_mode: str,
                  device=None,
                  dtype=None) -> None:
-        factory_kwargs = {'device': device, 'dtype': dtype}
+
         super().__init__()
         if groups <= 0:
             raise ValueError('groups must be a positive integer')
@@ -1104,11 +1108,11 @@ class _ConvNd(Module):
             self._reversed_padding_repeated_twice = _reverse_repeat_tuple(self.padding, 2)
 
         if transposed:
-            self.weight = Parameter(Tensor.zeros(in_channels, out_channels // groups, *kernel_size))
+            self.weight = Parameter(Tensor.zeros([in_channels, out_channels // groups, *kernel_size]))
         else:
-            self.weight = Parameter(Tensor.zeros(out_channels, in_channels // groups, *kernel_size))
+            self.weight = Parameter(Tensor.zeros([out_channels, in_channels // groups, *kernel_size]))
         if bias:
-            self.bias = Parameter(Tensor.zeros(out_channels, **factory_kwargs))
+            self.bias = Parameter(Tensor.zeros([out_channels]))
         else:
             self.register_parameter('bias', None)
 
@@ -1211,7 +1215,597 @@ class Conv2d(_ConvNd):
                             _pair(0), self.dilation, self.groups)
         return F.conv2d(input, weight, bias, self.stride,
                         self.padding, self.dilation, self.groups)
-    @buildingblock("conv2d")
+    
     def forward(self, input: Tensor) -> Tensor:
         return self._conv_forward(input, self.weight, self.bias)
 
+class _NormBase(Module):
+    """Common base of _InstanceNorm and _BatchNorm"""
+
+    _version = 2
+    __constants__ = ["track_running_stats", "momentum", "eps", "num_features", "affine"]
+    num_features: int
+    eps: float
+    momentum: float
+    affine: bool
+    track_running_stats: bool
+    # WARNING: weight and bias purposely not defined here.
+    # See https://github.com/pytorch/pytorch/issues/39670
+
+    def __init__(
+        self,
+        num_features: int,
+        eps: float = 1e-5,
+        momentum: float = 0.1,
+        affine: bool = True,
+        track_running_stats: bool = True,
+        device=None,
+        dtype=None
+    ) -> None:
+        super().__init__()
+        self.num_features = num_features
+        self.eps = eps
+        self.momentum = momentum
+        self.affine = affine
+        self.track_running_stats = track_running_stats
+        if self.affine:
+            self.weight = Parameter(Tensor.zeros(num_features))
+            self.bias = Parameter(Tensor.zeros(num_features))
+        else:
+            self.register_parameter("weight", None)
+            self.register_parameter("bias", None)
+        if self.track_running_stats:
+            self.register_buffer('running_mean', Tensor.zeros(num_features))
+            self.register_buffer('running_var', Tensor.ones(num_features))
+            self.running_mean: Optional[Tensor]
+            self.running_var: Optional[Tensor]
+            self.num_batches_tracked: Optional[Tensor]
+        else:
+            self.register_buffer("running_mean", None)
+            self.register_buffer("running_var", None)
+            self.register_buffer("num_batches_tracked", None)
+        self.reset_parameters()
+
+    def reset_running_stats(self) -> None:
+        if self.track_running_stats:
+            # running_mean/running_var/num_batches... are registered at runtime depending
+            # if self.track_running_stats is on
+            self.running_mean.assign_all(0)  # type: ignore[union-attr]
+            self.running_var.assign_all(1)   # type: ignore[union-attr]
+            self.num_batches_tracked.assign_all(0)   # type: ignore[union-attr,operator]
+
+    def reset_parameters(self) -> None:
+        self.reset_running_stats()
+        if self.affine:
+            self.weight.assign_all(1)
+            self.bias.assign_all(0)
+
+    def _check_input_dim(self, input):
+        raise NotImplementedError
+
+    def extra_repr(self):
+        return (
+            "{num_features}, eps={eps}, momentum={momentum}, affine={affine}, "
+            "track_running_stats={track_running_stats}".format(**self.__dict__)
+        )
+
+    def _load_from_state_dict(
+        self,
+        state_dict,
+        prefix,
+        local_metadata,
+        strict,
+        missing_keys,
+        unexpected_keys,
+        error_msgs,
+    ):
+        pass
+class _BatchNorm(_NormBase):
+    def __init__(
+        self,
+        num_features: int,
+        eps: float = 1e-5,
+        momentum: float = 0.1,
+        affine: bool = True,
+        track_running_stats: bool = True,
+        device=None,
+        dtype=None
+    ) -> None:
+        super().__init__(
+            num_features, eps, momentum, affine, track_running_stats
+        )
+
+    
+    def forward(self, input: Tensor) -> Tensor:
+        self._check_input_dim(input)
+
+        # exponential_average_factor is set to self.momentum
+        # (when it is available) only so that it gets updated
+        # in ONNX graph when this node is exported to ONNX.
+        if self.momentum is None:
+            exponential_average_factor = 0.0
+        else:
+            exponential_average_factor = self.momentum
+
+        if self.training and self.track_running_stats:
+            # TODO: if statement only here to tell the jit to skip emitting this when it is None
+            if self.num_batches_tracked is not None:  # type: ignore[has-type]
+                self.num_batches_tracked.add_(1)  # type: ignore[has-type]
+                if self.momentum is None:  # use cumulative moving average
+                    exponential_average_factor = 1.0 / float(self.num_batches_tracked)
+                else:  # use exponential moving average
+                    exponential_average_factor = self.momentum
+
+        r"""
+        Decide whether the mini-batch stats should be used for normalization rather than the buffers.
+        Mini-batch stats are used in training mode, and in eval mode when buffers are None.
+        """
+        if self.training:
+            bn_training = True
+        else:
+            bn_training = (self.running_mean is None) and (self.running_var is None)
+
+        r"""
+        Buffers are only updated if they are to be tracked and we are in training mode. Thus they only need to be
+        passed when the update should occur (i.e. in training mode when they are tracked), or when buffer stats are
+        used for normalization (i.e. in eval mode when buffers are not None).
+        """
+        return F.batch_norm(
+            input,
+            # If buffers are not to be tracked, ensure that they won't be updated
+            self.running_mean
+            if not self.training or self.track_running_stats
+            else None,
+            self.running_var if not self.training or self.track_running_stats else None,
+            self.weight,
+            self.bias,
+            bn_training,
+            self.eps,
+            exponential_average_factor,
+        )
+
+class BatchNorm2d(_BatchNorm):
+    r"""Applies Batch Normalization over a 4D input (a mini-batch of 2D inputs
+    with additional channel dimension) as described in the paper
+    `Batch Normalization: Accelerating Deep Network Training by Reducing
+    Internal Covariate Shift <https://arxiv.org/abs/1502.03167>`__ .
+
+    .. math::
+
+        y = \frac{x - \mathrm{E}[x]}{ \sqrt{\mathrm{Var}[x] + \epsilon}} * \gamma + \beta
+
+    The mean and standard-deviation are calculated per-dimension over
+    the mini-batches and :math:`\gamma` and :math:`\beta` are learnable parameter vectors
+    of size `C` (where `C` is the input size). By default, the elements of :math:`\gamma` are set
+    to 1 and the elements of :math:`\beta` are set to 0. At train time in the forward pass, the
+    standard-deviation is calculated via the biased estimator, equivalent to
+    `torch.var(input, unbiased=False)`. However, the value stored in the moving average of the
+    standard-deviation is calculated via the unbiased  estimator, equivalent to
+    `torch.var(input, unbiased=True)`.
+
+    Also by default, during training this layer keeps running estimates of its
+    computed mean and variance, which are then used for normalization during
+    evaluation. The running estimates are kept with a default :attr:`momentum`
+    of 0.1.
+
+    If :attr:`track_running_stats` is set to ``False``, this layer then does not
+    keep running estimates, and batch statistics are instead used during
+    evaluation time as well.
+
+    .. note::
+        This :attr:`momentum` argument is different from one used in optimizer
+        classes and the conventional notion of momentum. Mathematically, the
+        update rule for running statistics here is
+        :math:`\hat{x}_\text{new} = (1 - \text{momentum}) \times \hat{x} + \text{momentum} \times x_t`,
+        where :math:`\hat{x}` is the estimated statistic and :math:`x_t` is the
+        new observed value.
+
+    Because the Batch Normalization is done over the `C` dimension, computing statistics
+    on `(N, H, W)` slices, it's common terminology to call this Spatial Batch Normalization.
+
+    Args:
+        num_features: :math:`C` from an expected input of size
+            :math:`(N, C, H, W)`
+        eps: a value added to the denominator for numerical stability.
+            Default: 1e-5
+        momentum: the value used for the running_mean and running_var
+            computation. Can be set to ``None`` for cumulative moving average
+            (i.e. simple average). Default: 0.1
+        affine: a boolean value that when set to ``True``, this module has
+            learnable affine parameters. Default: ``True``
+        track_running_stats: a boolean value that when set to ``True``, this
+            module tracks the running mean and variance, and when set to ``False``,
+            this module does not track such statistics, and initializes statistics
+            buffers :attr:`running_mean` and :attr:`running_var` as ``None``.
+            When these buffers are ``None``, this module always uses batch statistics.
+            in both training and eval modes. Default: ``True``
+
+    Shape:
+        - Input: :math:`(N, C, H, W)`
+        - Output: :math:`(N, C, H, W)` (same shape as input)
+
+    Examples::
+
+        >>> # With Learnable Parameters
+        >>> m = nn.BatchNorm2d(100)
+        >>> # Without Learnable Parameters
+        >>> m = nn.BatchNorm2d(100, affine=False)
+        >>> input = torch.randn(20, 100, 35, 45)
+        >>> output = m(input)
+    """
+
+    def _check_input_dim(self, input):
+        if len(input.sizes) != 4:
+            raise ValueError("expected 4D input (got {}D input)".format(input.sizes))
+
+
+class LayerNorm(Module):
+    r"""Applies Layer Normalization over a mini-batch of inputs as described in
+    the paper `Layer Normalization <https://arxiv.org/abs/1607.06450>`__
+
+    .. math::
+        y = \frac{x - \mathrm{E}[x]}{ \sqrt{\mathrm{Var}[x] + \epsilon}} * \gamma + \beta
+
+    The mean and standard-deviation are calculated over the last `D` dimensions, where `D`
+    is the dimension of :attr:`normalized_shape`. For example, if :attr:`normalized_shape`
+    is ``(3, 5)`` (a 2-dimensional shape), the mean and standard-deviation are computed over
+    the last 2 dimensions of the input (i.e. ``input.mean((-2, -1))``).
+    :math:`\gamma` and :math:`\beta` are learnable affine transform parameters of
+    :attr:`normalized_shape` if :attr:`elementwise_affine` is ``True``.
+    The standard-deviation is calculated via the biased estimator, equivalent to
+    `torch.var(input, unbiased=False)`.
+
+    .. note::
+        Unlike Batch Normalization and Instance Normalization, which applies
+        scalar scale and bias for each entire channel/plane with the
+        :attr:`affine` option, Layer Normalization applies per-element scale and
+        bias with :attr:`elementwise_affine`.
+
+    This layer uses statistics computed from input data in both training and
+    evaluation modes.
+
+    Args:
+        normalized_shape (int or list or torch.Size): input shape from an expected input
+            of size
+
+            .. math::
+                [* \times \text{normalized\_shape}[0] \times \text{normalized\_shape}[1]
+                    \times \ldots \times \text{normalized\_shape}[-1]]
+
+            If a single integer is used, it is treated as a singleton list, and this module will
+            normalize over the last dimension which is expected to be of that specific size.
+        eps: a value added to the denominator for numerical stability. Default: 1e-5
+        elementwise_affine: a boolean value that when set to ``True``, this module
+            has learnable per-element affine parameters initialized to ones (for weights)
+            and zeros (for biases). Default: ``True``.
+
+    Attributes:
+        weight: the learnable weights of the module of shape
+            :math:`\text{normalized\_shape}` when :attr:`elementwise_affine` is set to ``True``.
+            The values are initialized to 1.
+        bias:   the learnable bias of the module of shape
+                :math:`\text{normalized\_shape}` when :attr:`elementwise_affine` is set to ``True``.
+                The values are initialized to 0.
+
+    Shape:
+        - Input: :math:`(N, *)`
+        - Output: :math:`(N, *)` (same shape as input)
+
+    Examples::
+
+        >>> # NLP Example
+        >>> batch, sentence_length, embedding_dim = 20, 5, 10
+        >>> embedding = torch.randn(batch, sentence_length, embedding_dim)
+        >>> layer_norm = nn.LayerNorm(embedding_dim)
+        >>> # Activate module
+        >>> layer_norm(embedding)
+        >>>
+        >>> # Image Example
+        >>> N, C, H, W = 20, 5, 10, 10
+        >>> input = torch.randn(N, C, H, W)
+        >>> # Normalize over the last three dimensions (i.e. the channel and spatial dimensions)
+        >>> # as shown in the image below
+        >>> layer_norm = nn.LayerNorm([C, H, W])
+        >>> output = layer_norm(input)
+
+    .. image:: ../_static/img/nn/layer_norm.jpg
+        :scale: 50 %
+
+    """
+    __constants__ = ['normalized_shape', 'eps', 'elementwise_affine']
+    normalized_shape: Tuple[int, ...]
+    eps: float
+    elementwise_affine: bool
+
+    def __init__(self, normalized_shape, eps: float = 1e-5, elementwise_affine: bool = True,
+                 device=None, dtype=None) -> None:
+        super().__init__()
+        if isinstance(normalized_shape, int):
+            # mypy error: incompatible types in assignment
+            normalized_shape = (normalized_shape,)  # type: ignore[assignment]
+        self.normalized_shape = list(normalized_shape)  # type: ignore[arg-type]
+        self.eps = eps
+        self.elementwise_affine = elementwise_affine
+        if self.elementwise_affine:
+            self.weight = Parameter(Tensor.zeros(self.normalized_shape))
+            self.bias = Parameter(Tensor.zeros(self.normalized_shape))
+        else:
+            self.register_parameter('weight', None)
+            self.register_parameter('bias', None)
+
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        if self.elementwise_affine:
+            self.weight.assign_all(1)
+            self.bias.assign_all(0)
+
+
+    
+    def forward(self, input: Tensor) -> Tensor:
+        return F.layer_norm(
+            input, self.normalized_shape, self.weight, self.bias, self.eps)
+
+    def extra_repr(self) -> str:
+        return '{normalized_shape}, eps={eps}, ' \
+            'elementwise_affine={elementwise_affine}'.format(**self.__dict__)
+
+class ReLU(Module):
+    r"""Applies the rectified linear unit function element-wise:
+
+    :math:`\text{ReLU}(x) = (x)^+ = \max(0, x)`
+
+    Args:
+        inplace: can optionally do the operation in-place. Default: ``False``
+
+    Shape:
+        - Input: :math:`(*)`, where :math:`*` means any number of dimensions.
+        - Output: :math:`(*)`, same shape as the input.
+
+    .. image:: ../scripts/activation_images/ReLU.png
+
+    Examples::
+
+        >>> m = nn.ReLU()
+        >>> input = torch.randn(2)
+        >>> output = m(input)
+
+
+      An implementation of CReLU - https://arxiv.org/abs/1603.05201
+
+        >>> m = nn.ReLU()
+        >>> input = torch.randn(2).unsqueeze(0)
+        >>> output = torch.cat((m(input), m(-input)))
+    """
+    __constants__ = ['inplace']
+    inplace: bool
+
+    def __init__(self, inplace: bool = False):
+        super().__init__()
+        self.inplace = inplace
+
+    def forward(self, input: Tensor) -> Tensor:
+        return F.relu(input, inplace=self.inplace)
+
+    def extra_repr(self) -> str:
+        inplace_str = 'inplace=True' if self.inplace else ''
+        return inplace_str
+        
+class _DropoutNd(Module):
+    __constants__ = ['p', 'inplace']
+    p: float
+    inplace: bool
+
+    def __init__(self, p: float = 0.5, inplace: bool = False) -> None:
+        super().__init__()
+        if p < 0 or p > 1:
+            raise ValueError("dropout probability has to be between 0 and 1, "
+                             "but got {}".format(p))
+        self.p = p
+        self.inplace = inplace
+
+    def extra_repr(self) -> str:
+        return 'p={}, inplace={}'.format(self.p, self.inplace)
+
+
+class Dropout(_DropoutNd):
+    r"""During training, randomly zeroes some of the elements of the input
+    tensor with probability :attr:`p` using samples from a Bernoulli
+    distribution. Each channel will be zeroed out independently on every forward
+    call.
+
+    This has proven to be an effective technique for regularization and
+    preventing the co-adaptation of neurons as described in the paper
+    `Improving neural networks by preventing co-adaptation of feature
+    detectors`_ .
+
+    Furthermore, the outputs are scaled by a factor of :math:`\frac{1}{1-p}` during
+    training. This means that during evaluation the module simply computes an
+    identity function.
+
+    Args:
+        p: probability of an element to be zeroed. Default: 0.5
+        inplace: If set to ``True``, will do this operation in-place. Default: ``False``
+
+    Shape:
+        - Input: :math:`(*)`. Input can be of any shape
+        - Output: :math:`(*)`. Output is of the same shape as input
+
+    Examples::
+
+        >>> m = nn.Dropout(p=0.2)
+        >>> input = torch.randn(20, 16)
+        >>> output = m(input)
+
+    .. _Improving neural networks by preventing co-adaptation of feature
+        detectors: https://arxiv.org/abs/1207.0580
+    """
+
+    def forward(self, input: Tensor) -> Tensor:
+        return F.dropout(input, self.p, self.training, self.inplace)
+
+class _MaxPoolNd(Module):
+    __constants__ = ['kernel_size', 'stride', 'padding', 'dilation',
+                     'return_indices', 'ceil_mode']
+    return_indices: bool
+    ceil_mode: bool
+
+    def __init__(self, kernel_size: int, stride: Optional[int] = None,
+                 padding: int = 0, dilation: int = 1,
+                 return_indices: bool = False, ceil_mode: bool = False) -> None:
+        super().__init__()
+        self.kernel_size = kernel_size
+        self.stride = stride if (stride is not None) else kernel_size
+        self.padding = padding
+        self.dilation = dilation
+        self.return_indices = return_indices
+        self.ceil_mode = ceil_mode
+
+    def extra_repr(self) -> str:
+        return 'kernel_size={kernel_size}, stride={stride}, padding={padding}' \
+            ', dilation={dilation}, ceil_mode={ceil_mode}'.format(**self.__dict__)
+            
+class MaxPool2d(_MaxPoolNd):
+    r"""Applies a 2D max pooling over an input signal composed of several input
+    planes.
+
+    In the simplest case, the output value of the layer with input size :math:`(N, C, H, W)`,
+    output :math:`(N, C, H_{out}, W_{out})` and :attr:`kernel_size` :math:`(kH, kW)`
+    can be precisely described as:
+
+    .. math::
+        \begin{aligned}
+            out(N_i, C_j, h, w) ={} & \max_{m=0, \ldots, kH-1} \max_{n=0, \ldots, kW-1} \\
+                                    & \text{input}(N_i, C_j, \text{stride[0]} \times h + m,
+                                                   \text{stride[1]} \times w + n)
+        \end{aligned}
+
+    If :attr:`padding` is non-zero, then the input is implicitly padded with negative infinity on both sides
+    for :attr:`padding` number of points. :attr:`dilation` controls the spacing between the kernel points.
+    It is harder to describe, but this `link`_ has a nice visualization of what :attr:`dilation` does.
+
+    Note:
+        When ceil_mode=True, sliding windows are allowed to go off-bounds if they start within the left padding
+        or the input. Sliding windows that would start in the right padded region are ignored.
+
+    The parameters :attr:`kernel_size`, :attr:`stride`, :attr:`padding`, :attr:`dilation` can either be:
+
+        - a single ``int`` -- in which case the same value is used for the height and width dimension
+        - a ``tuple`` of two ints -- in which case, the first `int` is used for the height dimension,
+          and the second `int` for the width dimension
+
+    Args:
+        kernel_size: the size of the window to take a max over
+        stride: the stride of the window. Default value is :attr:`kernel_size`
+        padding: Implicit negative infinity padding to be added on both sides
+        dilation: a parameter that controls the stride of elements in the window
+        return_indices: if ``True``, will return the max indices along with the outputs.
+                        Useful for :class:`torch.nn.MaxUnpool2d` later
+        ceil_mode: when True, will use `ceil` instead of `floor` to compute the output shape
+
+    Shape:
+        - Input: :math:`(N, C, H_{in}, W_{in})` or :math:`(C, H_{in}, W_{in})`
+        - Output: :math:`(N, C, H_{out}, W_{out})` or :math:`(C, H_{out}, W_{out})`, where
+
+          .. math::
+              H_{out} = \left\lfloor\frac{H_{in} + 2 * \text{padding[0]} - \text{dilation[0]}
+                    \times (\text{kernel\_size[0]} - 1) - 1}{\text{stride[0]}} + 1\right\rfloor
+
+          .. math::
+              W_{out} = \left\lfloor\frac{W_{in} + 2 * \text{padding[1]} - \text{dilation[1]}
+                    \times (\text{kernel\_size[1]} - 1) - 1}{\text{stride[1]}} + 1\right\rfloor
+
+    Examples::
+
+        >>> # pool of square window of size=3, stride=2
+        >>> m = nn.MaxPool2d(3, stride=2)
+        >>> # pool of non-square window
+        >>> m = nn.MaxPool2d((3, 2), stride=(2, 1))
+        >>> input = torch.randn(20, 16, 50, 32)
+        >>> output = m(input)
+
+    .. _link:
+        https://github.com/vdumoulin/conv_arithmetic/blob/master/README.md
+    """
+
+    kernel_size: int
+    stride: int
+    padding: int
+    dilation: int
+
+    def forward(self, input: Tensor):
+        return F.max_pool2d(input, self.kernel_size, self.stride,
+                            self.padding)
+
+class _Loss(Module):
+    reduction: str
+
+    def __init__(self, size_average=None, reduce=None, reduction: str = 'mean') -> None:
+        super().__init__()
+        self.reduction = reduction
+        self.training = True
+    
+class MSELoss(_Loss):
+    r"""Creates a criterion that measures the mean squared error (squared L2 norm) between
+    each element in the input :math:`x` and target :math:`y`.
+
+    The unreduced (i.e. with :attr:`reduction` set to ``'none'``) loss can be described as:
+
+    .. math::
+        \ell(x, y) = L = \{l_1,\dots,l_N\}^\top, \quad
+        l_n = \left( x_n - y_n \right)^2,
+
+    where :math:`N` is the batch size. If :attr:`reduction` is not ``'none'``
+    (default ``'mean'``), then:
+
+    .. math::
+        \ell(x, y) =
+        \begin{cases}
+            \operatorname{mean}(L), &  \text{if reduction} = \text{`mean';}\\
+            \operatorname{sum}(L),  &  \text{if reduction} = \text{`sum'.}
+        \end{cases}
+
+    :math:`x` and :math:`y` are tensors of arbitrary shapes with a total
+    of :math:`n` elements each.
+
+    The mean operation still operates over all the elements, and divides by :math:`n`.
+
+    The division by :math:`n` can be avoided if one sets ``reduction = 'sum'``.
+
+    Args:
+        size_average (bool, optional): Deprecated (see :attr:`reduction`). By default,
+            the losses are averaged over each loss element in the batch. Note that for
+            some losses, there are multiple elements per sample. If the field :attr:`size_average`
+            is set to ``False``, the losses are instead summed for each minibatch. Ignored
+            when :attr:`reduce` is ``False``. Default: ``True``
+        reduce (bool, optional): Deprecated (see :attr:`reduction`). By default, the
+            losses are averaged or summed over observations for each minibatch depending
+            on :attr:`size_average`. When :attr:`reduce` is ``False``, returns a loss per
+            batch element instead and ignores :attr:`size_average`. Default: ``True``
+        reduction (str, optional): Specifies the reduction to apply to the output:
+            ``'none'`` | ``'mean'`` | ``'sum'``. ``'none'``: no reduction will be applied,
+            ``'mean'``: the sum of the output will be divided by the number of
+            elements in the output, ``'sum'``: the output will be summed. Note: :attr:`size_average`
+            and :attr:`reduce` are in the process of being deprecated, and in the meantime,
+            specifying either of those two args will override :attr:`reduction`. Default: ``'mean'``
+
+    Shape:
+        - Input: :math:`(*)`, where :math:`*` means any number of dimensions.
+        - Target: :math:`(*)`, same shape as the input.
+
+    Examples::
+
+        >>> loss = nn.MSELoss()
+        >>> input = torch.randn(3, 5, requires_grad=True)
+        >>> target = torch.randn(3, 5)
+        >>> output = loss(input, target)
+        >>> output.backward()
+    """
+    __constants__ = ['reduction']
+
+    def __init__(self, size_average=None, reduce=None, reduction: str = 'mean') -> None:
+        super().__init__(size_average, reduce, reduction)
+
+    def forward(self, input: Tensor, target: Tensor) -> Tensor:
+        return F.mse_loss(input, target, reduction=self.reduction)
+    

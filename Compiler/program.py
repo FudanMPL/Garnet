@@ -456,6 +456,7 @@ class Program(object):
                 raise CompilerError("cannot allocate memory " "outside main thread")
         blocks = self.free_mem_blocks[mem_type]
         addr = blocks.pop(size)
+        
         if addr is not None:
             self.saved += size
         else:
@@ -494,7 +495,7 @@ class Program(object):
         #         print(len(value[i])) 
         profiling_res = self.curr_tape.req_node.aggregate_profiling()
         if self.is_profiling:
-            plot_cost(profiling_res, self.name)                    
+            # plot_cost(profiling_res, self.name)                    
             for key, value in profiling_res.items():
                 print(key)
                 for x in value.pretty():

@@ -2526,12 +2526,12 @@ class sint(_secret, _int):
         self._store_in_mem(address, stms, stmsi)
 
     @classmethod
-    def direct_matrix_mul(cls, A, B, n, m, l, reduce=None, indices=None):
+    def direct_matrix_mul(cls, first_size, second_size, A, B, n, m, l, reduce=None, indices=None):
         if indices is None:
             indices = [regint.inc(i) for i in (n, m, m, l)]
         res = cls(size=indices[0].size * indices[3].size)
-        matmulsm(res, regint(A), regint(B), len(indices[0]), len(indices[1]),
-                 len(indices[3]), *(list(indices) + [m, l]))
+        matmulsm(A, B, first_size, second_size,  res, regint(A), regint(B), len(indices[0]), len(indices[1]),
+                len(indices[3]), *(list(indices) + [m, l]))  
         return res
 
     @vectorize_init
@@ -4592,9 +4592,9 @@ class sfix(_fix):
             return r
 
     @classmethod
-    def direct_matrix_mul(cls, A, B, n, m, l, reduce=True, indices=None):
+    def direct_matrix_mul(cls , first_size, second_size, A, B, n, m, l, reduce=True, indices=None):
         # pre-multiplication must be identity
-        tmp = cls.int_type.direct_matrix_mul(A, B, n, m, l, indices=indices)
+        tmp = cls.int_type.direct_matrix_mul(first_size, second_size, A, B, n, m, l, indices=indices)
         res = unreduced_sfix._new(tmp)
         if reduce:
             res = res.reduce_after_mul()
@@ -6421,7 +6421,7 @@ class SubMultiArray(_vectorizable):
             assert len(other.sizes) == 2
         assert self.sizes[1] == other_sizes[0]
         assert self.value_type == other.value_type
-        return self.value_type.direct_matrix_mul(self.address, other.address,
+        return self.value_type.direct_matrix_mul(self.total_size(), other.total_size(), self.address, other.address,
                                                  self.sizes[0], *other_sizes,
                                                  reduce=reduce, indices=indices)
 
@@ -6445,7 +6445,7 @@ class SubMultiArray(_vectorizable):
         assert len(indices[1]) == len(indices[2])
         indices = list(indices)
         indices[3] *= other.sizes[1]
-        return self.value_type.direct_matrix_mul(
+        return self.value_type.direct_matrix_mul(self.total_size(), other.total_size(),
             self.address, other.address, None, self.sizes[1], 1,
             reduce=reduce, indices=indices)
 
@@ -6468,7 +6468,7 @@ class SubMultiArray(_vectorizable):
         assert len(indices[1]) == len(indices[2])
         indices = list(indices)
         indices[1] *= self.sizes[1]
-        return self.value_type.direct_matrix_mul(
+        return self.value_type.direct_matrix_mul(self.total_size(), other.total_size(),
             self.address, other.address, None, 1, other.sizes[1],
             reduce=reduce, indices=indices)
 
@@ -6499,7 +6499,7 @@ class SubMultiArray(_vectorizable):
         :param res: matrix of matching dimension to store (grad_result+res)
         :param n_threads: number of threads (default: single thread)
         """
-        @library.for_range_multithread(n_threads, 1, self.sizes[1])
+        @library.for_range_multithread(n_threads, self.sizes[1],self.sizes[1])
         def _(i):
             indices = [regint(i), regint.inc(self.sizes[0])]
             indices += [regint.inc(i) for i in other.sizes]
@@ -6772,13 +6772,13 @@ class MultiArray(SubMultiArray):
     def disable_index_checks():
         SubMultiArray.check_indices = False
 
-    def __init__(self, sizes, value_type, debug=None, address=None, alloc=True):
+    def __init__(self, sizes, value_type, debug=None, address=None, alloc=True, index = 0):
         if isinstance(address, Array):
             self.array = address
         else:
             self.array = Array(reduce(operator.mul, sizes), \
                                value_type, address=address, alloc=alloc)
-        SubMultiArray.__init__(self, sizes, value_type, self.array.address, 0, \
+        SubMultiArray.__init__(self, sizes, value_type, self.array.address, index = index, \
                                debug=debug)
         if len(sizes) < 2:
             raise CompilerError('Use Array')

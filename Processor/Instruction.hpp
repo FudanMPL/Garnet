@@ -319,16 +319,20 @@ void BaseInstruction::parse_operands(istream& s, int pos, int file_pos)
 //        get_vector(num_var_args, start, s);
 //        break;
       case MATMULS:
-        get_ints(r, s, 3);
-        get_vector(3, start, s);
+        // get_ints(r, s, 3);
+        // get_vector(3, start, s);
+        num_var_args = get_int(s);
+        get_vector(num_var_args, start, s);
         break;
       case MATMULSM:
-        get_ints(r, s, 3);
-        get_vector(9, start, s);
+        // get_ints(r, s, 3);
+        // get_vector(9, start, s);
+        num_var_args = get_int(s);
+        get_vector(num_var_args, start, s);
         break;
       case CONV2DS:
-        get_ints(r, s, 3);
-        get_vector(12, start, s);
+        num_var_args = get_int(s);
+        get_vector(num_var_args, start, s);
         break;
 
       // read from file, input is opcode num_args, 
@@ -721,10 +725,38 @@ unsigned BaseInstruction::get_max_reg(int reg_type) const
       return res;
   }
   case MATMULS:
+        {
+          unsigned res = 0;
+          for (size_t i = 0; i < start.size(); i += 6)
+          {
+              unsigned tmp = start[0]
+                                  + start[i + 3] * start[i + 5];
+              res = max(res, tmp);
+          }
+          return res;
+      }
   case MATMULSM:
-      return r[0] + start[0] * start[2];
+      {
+          unsigned res = 0;
+          for (size_t i = 0; i < start.size(); i += 12)
+          {
+              unsigned tmp = start[0]
+                                  + start[i + 3] * start[i + 5];
+              res = max(res, tmp);
+          }
+          return res;
+      }
   case CONV2DS:
-      return r[0] + start[0] * start[1] * start[11];
+      {
+          unsigned res = 0;
+          for (size_t i = 0; i < start.size(); i += 15)
+          {
+              unsigned tmp = start[i]
+                                  + start[i + 3] * start[i + 4] * start.at(i + 14);
+              res = max(res, tmp);
+          }
+          return res;
+      }
   case OPEN:
       skip = 2;
       break;
@@ -1118,11 +1150,12 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
         Proc.Proc2.dotprods(start, size);
         return;
       case MATMULS:
-        Proc.Procp.matmuls(Proc.Procp.get_S(), *this, r[1], r[2]);
+        Proc.Procp.matmuls(Proc.Procp.get_S(), *this);
         return;
       case MATMULSM:
-        Proc.Procp.protocol.matmulsm(Proc.Procp, Proc.machine.Mp.MS, *this,
-                                     Proc.sync_Ci(r[1]), Proc.sync_Ci(r[2]));
+        // Proc.Procp.protocol.matmulsm(Proc.Procp, Proc.machine.Mp.MS, *this,
+        //                              Proc.sync_Ci(r[1]), Proc.sync_Ci(r[2]));
+                Proc.Procp.protocol.matmulsm(Proc.Procp, Proc.machine.Mp.MS, *this);
         return;
       case CONV2DS:
         Proc.Procp.protocol.conv2ds(Proc.Procp, *this);
@@ -1757,11 +1790,10 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
         Proc.Proc2.dotprods(start, size);
         return;
       case MATMULS:
-          Proc.Procp.matmuls(Proc.Procp.get_S(), *this, r[1], r[2]);
+          Proc.Procp.matmuls(Proc.Procp.get_S(), *this);
         return;
       case MATMULSM:
-         Proc.Procp.protocol.matmulsm(Proc.Procp, Proc.machine.Mp.MS, *this,
-                                       Proc.sync_Ci(r[1]), Proc.sync_Ci(r[2]));
+         Proc.Procp.protocol.matmulsm(Proc.Procp, Proc.machine.Mp.MS, *this);
         return;
       case CONV2DS:
           Proc.Procp.protocol.conv2ds(Proc.Procp, *this);

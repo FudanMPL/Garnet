@@ -460,3 +460,355 @@ def _multi_tensor_sgd(params: List[Tensor],
                       has_sparse_grad: bool):
 
     raise NotImplementedError
+
+class Adam(Optimizer):
+    def __init__(self, params, lr=1e-3, betas=(0.9, 0.999), eps=1e-8, n_threads = 1, approx = True, 
+                 weight_decay=0, amsgrad=False, *, foreach: Optional[bool] = None,
+                 maximize: bool = False, capturable: bool = False,
+                 differentiable: bool = False, fused: Optional[bool] = None):
+        if not 0.0 <= lr:
+            raise ValueError("Invalid learning rate: {}".format(lr))
+        if not 0.0 <= eps:
+            raise ValueError("Invalid epsilon value: {}".format(eps))
+        if not 0.0 <= betas[0] < 1.0:
+            raise ValueError("Invalid beta parameter at index 0: {}".format(betas[0]))
+        if not 0.0 <= betas[1] < 1.0:
+            raise ValueError("Invalid beta parameter at index 1: {}".format(betas[1]))
+        if not 0.0 <= weight_decay:
+            raise ValueError("Invalid weight_decay value: {}".format(weight_decay))
+        beta_power = [MemValue(cfix(1)), MemValue(cfix(1))]
+        defaults = dict(lr=MemValue(cfix(lr)), betas=betas, beta_power = beta_power, eps=eps,
+                        n_threads = n_threads, approx = approx,
+                        weight_decay=weight_decay, amsgrad=amsgrad,
+                        maximize=maximize, foreach=foreach, capturable=capturable,
+                        differentiable=differentiable, fused=fused)
+        super().__init__(params, defaults)
+        for group in self.param_groups:
+            self.init_state(group)
+        
+    def __setstate__(self, state):
+        super().__setstate__(state)
+        for group in self.param_groups:
+            group.setdefault('amsgrad', False)
+            group.setdefault('maximize', False)
+            group.setdefault('foreach', None)
+            group.setdefault('capturable', False)
+            group.setdefault('differentiable', False)
+            group.setdefault('fused', None)
+        # Currently, we do not support GPU
+        # state_values = list(self.state.values())
+        # step_is_tensor = (len(state_values) != 0) and torch.is_tensor(state_values[0]['step'])
+        # if not step_is_tensor:
+        #     for s in state_values:
+        #         s['step'] = torch.tensor(float(s['step']))
+            
+
+    def init_state(self, group):
+        for p in group['params']:
+            if p.grad is not None:   
+                state = self.state[p]
+                if len(state) == 0:
+                    # note(crcrpar): [special device hosting for step]
+                    # Deliberately host `step` on CPU if both capturable and fused are off.
+                    # This is because kernel launches are costly on CUDA and XLA.
+                    # state['step'] = (
+                    #     torch.zeros((), dtype=torch.float, device=p.device)
+                    #     if group['capturable'] or group['fused']
+                    #     else torch.tensor(0.)
+                    # )
+                    # Exponential moving average of gradient values
+                    exp_avg = p.grad.same_shape()
+                    exp_avg.assign_all(0)
+                    state['exp_avg'] = exp_avg
+                    # Exponential moving average of squared gradient values
+                    exp_avg_sq = p.grad.same_shape()
+                    exp_avg_sq.assign_all(0)
+                    state['exp_avg_sq'] = exp_avg_sq
+                    if group['amsgrad']:
+                        max_exp_avg_sq = p.grad.same_shape()
+                        max_exp_avg_sq.assign_all(0)
+                        # Maintains max of all exp. moving avg. of sq. grad. values
+                        state['max_exp_avg_sq'] = max_exp_avg_sq
+     
+    def _init_group(
+        self,
+        group,
+        params_with_grad,
+        grads,
+        exp_avgs,
+        exp_avg_sqs,
+        max_exp_avg_sqs,
+        state_steps
+    ):
+        for p in group['params']:
+            if p.grad is not None:
+                params_with_grad.append(p)
+                grads.append(p.grad)
+
+                state = self.state[p]
+
+                exp_avgs.append(state['exp_avg'])
+                exp_avg_sqs.append(state['exp_avg_sq'])
+
+                if group['amsgrad']:
+                    max_exp_avg_sqs.append(state['max_exp_avg_sq'])
+                if group['differentiable'] and state['step'].requires_grad:
+                    raise RuntimeError('`requires_grad` is not supported for `step` in differentiable mode')
+                # state_steps.append(state['step'])
+
+    @buildingblock("Adam")
+    def step(self, closure=None):
+        """Performs a single optimization step.
+
+        Args:
+            closure (Callable, optional): A closure that reevaluates the model
+                and returns the loss.
+        """
+
+        loss = None
+        # if closure is not None:
+        #     with torch.enable_grad():
+        #         loss = closure()
+
+        for group in self.param_groups:
+            params_with_grad = []
+            grads = []
+            exp_avgs = []
+            exp_avg_sqs = []
+            max_exp_avg_sqs = []
+            state_steps = []
+            beta1, beta2 = group['betas']
+            beta_power = group['beta_power']
+            beta_power[0] *= beta1
+            beta_power[1] *= beta2
+            n_threads = group['n_threads']
+            approx = group['approx']
+            
+            self._init_group(
+                group,
+                params_with_grad,
+                grads,
+                exp_avgs,
+                exp_avg_sqs,
+                max_exp_avg_sqs,
+                state_steps)
+
+            adam(
+                params_with_grad,
+                grads,
+                exp_avgs,
+                exp_avg_sqs,
+                max_exp_avg_sqs,
+                state_steps,
+                amsgrad=group['amsgrad'],
+                beta1=beta1,
+                beta2=beta2,
+                beta_power1 = beta_power[0],
+                beta_power2 = beta_power[1],
+                n_threads = n_threads,
+                approx = approx,
+                lr=group['lr'],
+                weight_decay=group['weight_decay'],
+                eps=group['eps'],
+                maximize=group['maximize'],
+                foreach=group['foreach'],
+                capturable=group['capturable'],
+                differentiable=group['differentiable'],
+                fused=group['fused'],
+                grad_scale=getattr(self, "grad_scale", None),
+                found_inf=getattr(self, "found_inf", None),
+            )
+
+        return loss
+
+def adam(params: List[Tensor],
+         grads: List[Tensor],
+         exp_avgs: List[Tensor],
+         exp_avg_sqs: List[Tensor],
+         max_exp_avg_sqs: List[Tensor],
+         state_steps: List[Tensor],
+         # kwonly args with defaults are not supported by functions compiled with torchscript issue #70627
+         # setting this as kwarg for now as functional API is compiled by torch/distributed/optim
+         foreach: Optional[bool] = None,
+         capturable: bool = False,
+         differentiable: bool = False,
+         fused: Optional[bool] = None,
+         grad_scale: Optional[Tensor] = None,
+         found_inf: Optional[Tensor] = None,
+         *,
+         amsgrad: bool,
+         beta1: float,
+         beta2: float,
+         beta_power1,
+         beta_power2,
+         n_threads,
+         approx,         
+         lr: float,
+         weight_decay: float,
+         eps: float,
+         maximize: bool):
+    r"""Functional API that performs Adam algorithm computation.
+    See :class:`~torch.optim.Adam` for details.
+    """
+
+    # Respect when the user inputs False/True for foreach or fused. We only want to change
+    # the default when neither have been user-specified. Note that we default to foreach
+    # and pass False to use_fused. This is not a mistake--we want to give the fused impl
+    # bake-in time before making it the default, even if it is typically faster.
+    if fused is None:
+        fused = False
+    if foreach is None:
+        foreach = False
+
+    if not all(isinstance(t, Tensor) for t in state_steps):
+        raise RuntimeError("API has changed, `state_steps` argument must contain a list of singleton tensors")
+
+
+    if foreach:
+        func = _multi_tensor_adam
+    else:
+        func = _single_tensor_adam
+
+    func(params,
+         grads,
+         exp_avgs,
+         exp_avg_sqs,
+         max_exp_avg_sqs,
+         state_steps,
+         amsgrad=amsgrad,
+         beta1=beta1,
+         beta2=beta2,
+         beta_power1 = beta_power1,
+         beta_power2 = beta_power2,  
+         n_threads = n_threads,
+         approx = approx,
+         lr=lr,
+         weight_decay=weight_decay,
+         eps=eps,
+         maximize=maximize,
+         capturable=capturable,
+         differentiable=differentiable,
+         grad_scale=grad_scale,
+         found_inf=found_inf)
+
+
+def _single_tensor_adam(params: List[Tensor],
+                        grads: List[Tensor],
+                        exp_avgs: List[Tensor],
+                        exp_avg_sqs: List[Tensor],
+                        max_exp_avg_sqs: List[Tensor],
+                        state_steps: List[Tensor],
+                        grad_scale: Optional[Tensor],
+                        found_inf: Optional[Tensor],
+                        *,
+                        amsgrad: bool,
+                        beta1: float,
+                        beta2: float,
+                        beta_power1,
+                        beta_power2, 
+                        n_threads,
+                        approx, 
+                        lr: float,
+                        weight_decay: float,
+                        eps: float,
+                        maximize: bool,
+                        capturable: bool,
+                        differentiable: bool):
+
+    assert grad_scale is None and found_inf is None
+    m_factor = MemValue(1 / (1 - beta_power1))
+    v_factor = MemValue(1 / (1 - beta_power2))
+    for i, param in enumerate(params):
+
+        grad = grads[i] if not maximize else -grads[i]
+        exp_avg = exp_avgs[i]
+        exp_avg_sq = exp_avg_sqs[i]
+
+        # update step
+
+
+        if weight_decay != 0:
+            grad[:] = grad[:] + param.value[:] * weight_decay
+
+        # Decay the first and second moment running average coefficient
+        m = exp_avg
+        v = exp_avg_sq
+        g = grad
+
+        # if capturable or differentiable:
+        #     step = step_t
+
+        #     # 1 - beta1 ** step can't be captured in a CUDA graph, even if step is a CUDA tensor
+        #     # (incurs "RuntimeError: CUDA error: operation not permitted when stream is capturing")
+        #     bias_correction1 = 1 - torch.pow(beta1, step)
+        #     bias_correction2 = 1 - torch.pow(beta2, step)
+
+        #     step_size = lr / bias_correction1
+        #     step_size_neg = step_size.neg()
+
+        #     bias_correction2_sqrt = bias_correction2.sqrt()
+
+        #     if amsgrad:
+        #         # Maintains the maximum of all 2nd moment running avg. till now
+        #         if differentiable:
+        #             max_exp_avg_sqs_i = max_exp_avg_sqs[i].clone()
+        #         else:
+        #             max_exp_avg_sqs_i = max_exp_avg_sqs[i]
+        #         max_exp_avg_sqs[i].copy_(torch.maximum(max_exp_avg_sqs_i, exp_avg_sq))
+        #         # Uses the max. for normalizing running avg. of gradient
+        #         # Folds in (admittedly ugly) 1-elem step_size math here to avoid extra param-set-sized read+write
+        #         # (can't fold it into addcdiv_ below because addcdiv_ requires value is a Number, not a Tensor)
+        #         denom = (max_exp_avg_sqs[i].sqrt() / (bias_correction2_sqrt * step_size_neg)).add_(eps / step_size_neg)
+        #     else:
+        #         denom = (exp_avg_sq.sqrt() / (bias_correction2_sqrt * step_size_neg)).add_(eps / step_size_neg)
+
+        #     param.addcdiv_(exp_avg, denom)
+        # else:
+
+        if amsgrad:
+            # Maintains the maximum of all 2nd moment running avg. till now
+            vhats = max_exp_avg_sqs[i]
+        
+        @multithread(n_threads, m.total_size(),
+                         max_size=get_program().budget)
+        def _(base, size):
+            m_part = m.get_vector(base, size)
+            v_part = v.get_vector(base, size)
+            g_part = g.get_vector(base, size)
+            m_part = beta1 * m_part + (1 - beta1) * g_part
+            v_part = beta2 * v_part + (1 - beta2) * g_part ** 2
+            m.assign_vector(m_part, base)
+            v.assign_vector(v_part, base)
+            mhat = m_part * m_factor.expand_to_vector(size)
+            vhat = v_part * v_factor.expand_to_vector(size)
+            if amsgrad:
+                v_max = vhats.get_vector(base, size)
+                vhat = util.max(vhat, v_max)
+                vhats.assign_vector(vhat, base)
+            diff = lr.expand_to_vector(size) * mhat
+            if approx:
+                diff *= mpc_math.InvertSqrt(vhat + eps ** 2)
+            else:
+                diff /= mpc_math.sqrt(vhat) + eps
+            param.value.assign_vector(param.value.get_vector(base, size) - diff, base)
+
+
+def _multi_tensor_adam(params: List[Tensor],
+                       grads: List[Tensor],
+                       exp_avgs: List[Tensor],
+                       exp_avg_sqs: List[Tensor],
+                       max_exp_avg_sqs: List[Tensor],
+                       state_steps: List[Tensor],
+                       grad_scale: Optional[Tensor],
+                       found_inf: Optional[Tensor],
+                       *,
+                       amsgrad: bool,
+                       beta1: float,
+                       beta2: float,
+                       lr: float,
+                       weight_decay: float,
+                       eps: float,
+                       maximize: bool,
+                       capturable: bool,
+                       differentiable: bool):
+    pass

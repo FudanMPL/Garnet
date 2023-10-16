@@ -1262,6 +1262,7 @@ class Tensor():
                 flag = flag | searchset.get(it, False)
             if flag:
                 op.propagate(dl_doutputs, op)
+        reset_op_id()
         return 0
 
     # Multiplication of a Variable, tracking gradients
@@ -1309,11 +1310,11 @@ class Tensor():
             else:
                 new_value = \
                     MultiArray(self.sizes[1:], self.value.value_type,
-                                  self.value.address, index, debug=self.debug)
+                                  address = self.value.address, index = index, debug=self.value.debug)
                 if self.req_grad:
                     new_grad = \
                         MultiArray(self.sizes[1:], self.grad.value_type,
-                                      self.grad.address, index, debug=self.debug)
+                                      address = self.grad.address, index = index, debug=self.value.debug)
                 else:
                     new_grad = None
         else:
@@ -1329,12 +1330,14 @@ class Tensor():
 
     #     :param index: public (regint/cint/int)
     #     :param other: container of matching size and type """
-
-        self.value[index] = other         
+        if isinstance(other, Tensor):
+            self.value[index] = other.value
+        else:
+            self.value[index] = other        
         
 
     @staticmethod
-    def ones(sizes: list, value_type = sfix):
+    def ones(sizes: list, value_type = sfix, req_grad = False):
         assert isinstance(sizes, list)
         if len(sizes) == 0 or value_type is None:
             raise CompilerError("the shape of a tensor must be a not-null list and value type must be determined")
@@ -1343,11 +1346,11 @@ class Tensor():
         if len(sizes) > 1:
             res_value = MultiArray(sizes, value_type)
         res_value.assign_all(1)
-        res = Tensor(res_value)        
+        res = Tensor(res_value, req_grad=req_grad)        
         return res
 
     @staticmethod
-    def zeros(sizes: list, value_type = sfix):
+    def zeros(sizes: list, value_type = sfix, req_grad = False):
         assert isinstance(sizes, list)
         if len(sizes) == 0 or value_type is None:
             raise CompilerError("the shape of a tensor must be a not-null list and value type must be determined")
@@ -1356,7 +1359,7 @@ class Tensor():
         if len(sizes) > 1:
             res_value = MultiArray(sizes, value_type)
         res_value.assign_all(0)
-        res = Tensor(res_value)        
+        res = Tensor(res_value, req_grad=req_grad)        
         return res
 
     @staticmethod
@@ -1634,8 +1637,11 @@ class Tensor():
             return ops_mul_constant(self, 1./other)
         return element_wise_div(self, other)
 
+    def __len__(self):
+        return len(self.value)
+
     @buildingblock("view-forward")
-    def view(self, sizes):
+    def view(self, *sizes):
         
         @backwardbuildingblock(get_program().globalbuildingblock[:-13]+"-view-backward")
         def propagate(dl_doutputs, operation):
@@ -1644,10 +1650,15 @@ class Tensor():
         global op_id
         if prepare:
             product = reduce(lambda x, y: x*y, self.shape)
-            if isinstance(sizes, int):
+            if len(sizes) == 1 and isinstance(sizes[0], int):
+                sizes = sizes[0]
                 assert sizes == product, "Invalid Dimension"
                 new_value = Array(sizes, self.value.value_type)
             else:
+                if len(sizes) == 1 and isinstance(sizes[0], list):
+                    sizes = sizes[0]
+                else:
+                    sizes = list(sizes)
                 assert all(isinstance(x, int) and x > 0 for x in sizes), "Invalid Dimensiopn"
                 if -1 in sizes:
                     assert sizes.count(-1) == 1, "-1 Occurs More than Once "
@@ -1743,7 +1754,7 @@ class Tensor():
         return self
 
     @buildingblock("reshape-forward")
-    def reshape(self, sizes):
+    def reshape(self, *sizes):
         
         @backwardbuildingblock(get_program().globalbuildingblock[:-16]+"-reshape-backward")
         def propagate(dl_doutputs, operation):
@@ -1752,10 +1763,15 @@ class Tensor():
         global op_id
         if prepare:
             product = reduce(lambda x, y: x*y, self.shape)
-            if isinstance(sizes, int):
+            if len(sizes) == 1 and isinstance(sizes[0], int):
+                sizes = sizes[0]
                 assert sizes == product, "Invalid Dimension"
                 new_value = Array(sizes, self.value.value_type)
             else:
+                if len(sizes) == 1 and isinstance(sizes[0], list):
+                    sizes = sizes[0]
+                else:
+                    sizes = list(sizes)
                 assert all(isinstance(x, int) and x > 0 for x in sizes), "Invalid Dimensiopn"
                 if -1 in sizes:
                     assert sizes.count(-1) == 1, "-1 Occurs More than Once "
@@ -1781,8 +1797,11 @@ class Tensor():
         return output
 
     @buildingblock("permute-forward")
-    def permute(self, new_perm):  # todo :这里的参数不应该是list类型的new-perm，而应该是*newperm :pytorch中：x.permute(2, 0, 1)
-        
+    def permute(self, *new_perm):  # todo :这里的参数不应该是list类型的new-perm，而应该是*newperm :pytorch中：x.permute(2, 0, 1)
+        if not isinstance(new_perm[0], list):
+            new_perm = list(new_perm)
+        else:
+            new_perm = new_perm[0]
         @backwardbuildingblock(get_program().globalbuildingblock[:-16]+"-permute-backward")
         def propagate(dl_doutputs,operation):
             dl_dy,=dl_doutputs
@@ -1852,8 +1871,7 @@ class Tensor():
 
     @buildingblock("concat-forward")
     def concate(self, other, axis=0):  # 按照axis指定维度进行拼接
-        
-        @backwardbuildingblock(get_program().globalbuildingblock[:-15]+"-concat-backward")
+        @buildingblock(get_program().globalbuildingblock)
         def propagate(dl_doutputs,operation):
             input1=tensors[operation.inputs[0]]
             input2=tensors[operation.inputs[1]]
@@ -1916,13 +1934,13 @@ class Tensor():
     @buildingblock("abs-forward")
     def abs(self):
         # backward
-        @backwardbuildingblock(get_program().globalbuildingblock[:-12]+"-abs-backward")
+        @buildingblock(get_program().globalbuildingblock)
         def propagate(dl_doutputs, operation):
             dl_dx, = dl_doutputs
             inputs = operation.inputs
             inter = operation.intermediate[0]  # reuse the intervalue in mem
             dl_dself = dl_d[inputs[0]]
-            dl_dself[:] += (2 * inter[:] - 1) * dl_dx[:]
+            dl_dself[:] += inter[:] * dl_dx[:]
             dl_dinputs = [dl_dself]
             return dl_dinputs
         # forward
@@ -1949,10 +1967,12 @@ class Tensor():
             outputs = operation.outputs
             input = tensors[inputs[0]]
             output = tensors[outputs[0]]
-            c = input.value[:] > 0
-            operation.intermediate[0].assign_vector(c)  # write to mem
+            larger = input.value[:] > 0
+            less = input.value[:]<0
+            final=larger-less
+            operation.intermediate[0].assign_vector(final)  # write to mem
 
-            output.value[:] = (2*c-1) * input.value[:]
+            output.value[:] = final * input.value[:]
             op_id += 1
         # record the input and output of the op
         return output
@@ -2463,4 +2483,4 @@ def vec_softmax(x):
 #         else:
 #             return obj
 
-#     return Tensor(expand_dim(input, res, 0))
+    return Tensor(expand_dim(input, res, 0))
