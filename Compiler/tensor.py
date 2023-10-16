@@ -2104,10 +2104,11 @@ class Tensor():
         # record the input and output of the op
         return output
 
+    # todo: unsing 1 / mpc_math.sqrt(x) when 'approx' is False
     @buildingblock("invsqrt-forward")
     def invsqrt(self, eps=1e-12):
         # backward
-        @backwardbuildingblock(get_program().globalbuildingblock[:-12]+"-invsqrt-backward")
+        @backwardbuildingblock(get_program().globalbuildingblock[:-16]+"-invsqrt-backward")
         def propagate(dl_doutputs, operation):
             dl_dx, = dl_doutputs
             inputs = operation.inputs
