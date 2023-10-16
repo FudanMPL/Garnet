@@ -795,9 +795,9 @@ def dropout(input, p=0.5, training=False, inplace=False):  # todo
 #     output.view(*in_sizes, num_classes)
 #     return Tensor(output)
 
-
-def normalize(input, p=2, dim=1, eps=1e-12, out=None):  # todo
-    assert p == 2
+@buildingblock("normalize")
+def normalize(input, p=2, dim=1, eps=1e-12, out=None):
+    assert p == 2  # todo
     xp = input * input
     xpsum = xp.sum(dim=dim, keepdim=True)
     xpsumSqr = xpsum.invsqrt(eps=eps)
@@ -805,7 +805,7 @@ def normalize(input, p=2, dim=1, eps=1e-12, out=None):  # todo
     
 
 
-# we should replace inv(std) to invsrqt(var) later
+# todo: we should replace inv(std) to invsrqt(var)
 @buildingblock("batch_norm")
 def batch_norm(input, running_mean, running_std, weight=None, bias=None, training=False, eps=1e-05, momentum=0.1):
     
@@ -834,7 +834,7 @@ def batch_norm(input, running_mean, running_std, weight=None, bias=None, trainin
     return output
 
 
-# we should replace inv(std) to invsrqt(var) later
+# todo: we should replace inv(std) to invsrqt(var)
 @buildingblock("layer_norm")
 def layer_norm(input, normalized_shape, weight=None, bias=None, eps=1e-05):
     
