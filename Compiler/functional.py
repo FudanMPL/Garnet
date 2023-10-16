@@ -792,8 +792,13 @@ def dropout(input, p=0.5, training=False, inplace=False):  # todo
 #     return Tensor(output)
 
 
-def normalize(input, p=2.0, dim=1, eps=1e-12, out=None):  # todo
-    pass
+def normalize(input, p=2, dim=1, eps=1e-12, out=None):  # todo
+    assert p == 2
+    xp = input.pow(2)
+    xpsum = xp.sum(dim=dim, keepdim=True)
+    xpsumSqr = xpsum.invsqrt(eps=eps)
+    return input * xpsumSqr
+    
 
 
 # we should replace inv(std) to invsrqt(var) later
@@ -909,7 +914,7 @@ def mse_loss(input, target, reduction='mean'): # todo
         if reduction == 'mean':
             output.value[:] /= input.value.total_size()
         else:
-            assert reduction == 'sum'
+            assert reduction == 'sum' , 'reduction should be mean or sum'
         set_opid(op_id+1)  # record the input and output of the op
     return output
 
