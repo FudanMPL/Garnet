@@ -35,7 +35,8 @@ class DataLoader():
             
         self.samples = Tensor(MultiArray(new_sample_shape, sfix))
         self.labels = Tensor(MultiArray(new_label_shape, sfix))
-        
+        self.data_buffer = Tensor(MultiArray(new_sample_shape[1:], sfix))
+        self.label_buffer = Tensor(MultiArray(new_label_shape[1:], sfix))
         indices = regint.Array(len(samples))
         indices.assign(regint.inc(len(samples)))
         if shuffle:
@@ -56,18 +57,20 @@ class DataLoader():
                 self.labels[-1][self.size%batch_size+i] = self.labels.value[0][i].get_vector()
                 
         indices.delete()
-                
-    def get_batch_sample(self, i):
-        library.runtime_error_if(i >= len(self.samples),
-                            'dataset obatin overflow: %s/%s',
-                            i, len(self.samples))
-        return self.samples[i]
+
+    def get_size(self):
+        return self.data_buffer
+    
+    def get_labelsize(self):
+        return self.label_buffer
     
     def get_data(self, i):
         library.runtime_error_if(i >= len(self.samples),
                                     'dataset obatin overflow: %s/%s',
                                     i, len(self.samples))
-        return self.samples[i], self.labels[i]
+        self.data_buffer.value[:] = self.samples[i].value[:]
+        self.label_buffer.value[:] = self.labels[i].value[:]
+        return self.data_buffer, self.label_buffer
                
         
         

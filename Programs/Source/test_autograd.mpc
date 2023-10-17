@@ -267,6 +267,26 @@ def test_pow(pow):
     input1.grad.print_reveal_nested()
 
 @autograd_function
+def test_invsqrt():
+    i, j = 3, 3
+    x = MultiArray([i, j], sfix)
+    for i in range(0,3):
+        for  j in range(0,3):
+            x[i][j] = sfix(i+j)
+    x.print_reveal_nested()
+    input1 = Tensor(x, req_grad = True)
+
+    input2 = input1.invsqrt()
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    input2 = input1.invsqrt()
+    input2.backward()
+    input2.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+
+@autograd_function
 def test_sum(dim, keepdim=False):
     print_ln('test_sum')
     x = MultiArray([3, 3, 3, 3], sfix)
@@ -617,10 +637,33 @@ def test_f_mseloss():
     loss.value.print_reveal_nested()
     Y.grad.print_reveal_nested()
 
+@autograd_function
+def test_f_normalize(p, dim):
+    print_ln('test_f_normlize')
+    
+    dims = [3, 3]
+
+    x = MultiArray(dims, sfix)
+    for i in range(dims[0]):
+        for j in range(dims[1]):
+            x[i][j] = sfix(i+j)
+    x.print_reveal_nested()
+    X = Tensor(x, req_grad = True)
+    
+    loss = F.normalize(X, p, dim)
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    loss = F.normalize(X, p, dim)
+    loss.backward()
+    loss.value.print_reveal_nested()
+    X.grad.print_reveal_nested()
+
 #test_mul()
 #test_add()
 #test_sub()
-test_div()
+#test_div()
 #test_abs()
 #test_exp()
 #test_log()
@@ -639,7 +682,7 @@ def test_getitem():
 #test_exp()
 #test_log()
 #test_pow(3)
-
+test_invsqrt()
 
 #test_sum([0,2])
 #test_sum([0,2], keepdim=True)
@@ -659,8 +702,7 @@ def test_getitem():
 #test_neg()
 
 #test_f_droupout(0.5)
-test_f_batchnorm()
-test_f_layernorm()
-test_f_mseloss()
 #test_f_batchnorm()
-test_abs()
+#test_f_layernorm()
+#test_f_mseloss()
+test_f_normalize(p=2, dim=[0,1])

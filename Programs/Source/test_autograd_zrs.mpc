@@ -681,7 +681,7 @@ test_dim()
 
 #test_maxpool2d()
 
-#test_conv2d()
+test_conv2d()
 #test_tanh()
 
 #test_logsigmoid()

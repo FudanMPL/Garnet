@@ -14,8 +14,6 @@ class LinearRegression(nn.Module):
         
     def forward(self,x):
         out = self.linear(x)
-        if self.training:
-            out.print_reveal_nested()
         out = F.sigmoid(out)
         return out
 
@@ -27,17 +25,23 @@ for i in range(x.total_size()):
 for i in range(y.total_size()):
     y.assign_vector(sfix(i), i)
 
-dataload = dataloader.DataLoader(x, y, batch_size = 2, shuffle=True)
+dataload = dataloader.DataLoader(x, y, batch_size = 2, shuffle=False)
 
 model = LinearRegression()
 
 optimizer = optim.SGD(model.parameters(), lr = 0.01)
-model.train(dataload.get_batch_sample(0))
+params = list(model.parameters())
+params[0].assign_all(0.1)
+mse = nn.MSELoss()
+model.train(mse, dataload)
 
-@for_range(2)
+@for_range(5)
 def _(i):
-    input, label = dataload.get_data(i)
-    out = model(input)
+    input, label = dataload.get_data(0)
+    output = model(input)
+    loss = mse(output, label)
     optimizer.zero_grad()
-    out.backward()
+    loss.backward()
+    params[0].grad.print_reveal_nested()
+    loss.print_reveal_nested()
     optimizer.step()
