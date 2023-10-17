@@ -2198,7 +2198,6 @@ class Tensor():
 
     @buildingblock("softmax-forward")
     def softmax(self, dim=-1):
-        
         @backwardbuildingblock(get_program().globalbuildingblock[:-16]+"-sofxmax-backward")
         def propagate(dl_doutputs, operation):
             dl_dy, = dl_doutputs
@@ -2438,4 +2437,4 @@ def vec_softmax(x):
 #         else:
 #             return obj
 
-    return Tensor(expand_dim(input, res, 0))
+    # return Tensor(expand_dim(input, res, 0))

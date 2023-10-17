@@ -631,8 +631,47 @@ def test_kl_div():
     output.backward()
     input1.grad.print_reveal_nested()
 
+@autograd_function
+def test_softmax():
+    print_ln('test_softmax')
+    x = MultiArray([3, 4], sfix)
+    for i in range(0,3):
+        for  j in range(0,4):
+            x[i][j] = sfix(i-j)
+    x.print_reveal_nested()
+    input1 = Tensor(x, req_grad = True)
+    output = input1.softmax(dim=1)
+    tensor.train()
+    tensor.reset_op_id()
+    output = input1.softmax(dim=1)
+    output.value.print_reveal_nested()
+    output.backward()
+    input1.grad.print_reveal_nested()
 
-test_kl_div()
+
+def test_dim():
+    print_ln('test_dim')
+    x = MultiArray([3, 4,3], sfix)
+    for i in range(0,3):
+        for  j in range(0,4):
+            for k in range(0,3):
+                x[i][j][k] = sfix(i+j+k)
+    x.print_reveal_nested()
+    dim=1
+    part_suffix = reduce(operator.mul, self.sizes[dim+1:])
+    part_prefix = reduce(operator.mul, self.sizes[:dim])
+    index=regint.inc(x.sizes[dim],base=0,step=part_suffix,repeat=1)
+    print_ln(x.get(index).reveal())
+
+
+    
+
+test_dim()
+
+
+#test_softmax()
+
+#test_kl_div()
 
 #test_l1_loss()
 
