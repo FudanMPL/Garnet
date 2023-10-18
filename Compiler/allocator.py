@@ -614,6 +614,7 @@ class Merger:
 
             if isinstance(instr, merge_classes):
                 open_nodes.add(n)
+
                 G.add_node(n, merges=[])
                 # the following must happen after adding the edge
                 self.real_depths[n] += 1

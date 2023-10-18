@@ -3,6 +3,7 @@ from tensor import Tensor,autograd_function
 import optimizer as optim
 import dataloader as dataloader
 import functional as F
+import tensor as TS
 class LinearRegression(nn.Module):
     """
     Linear Regressoin Module, the input features and output 
@@ -11,10 +12,11 @@ class LinearRegression(nn.Module):
     def __init__(self):
         super().__init__()
         self.linear = nn.Linear(3,1)
-        
+
+    @buildingblock("log-Regressoin")    
     def forward(self,x):
         out = self.linear(x)
-        #out = F.sigmoid(out)
+        out = F.sigmoid(out)
         return out
 
 x = MultiArray([3,3], sfix)
@@ -35,11 +37,12 @@ params[0].assign_all(0.1)
 mse = nn.MSELoss()
 model.train(mse, dataload)
 
-@for_range(1)
+@for_range(10)
 def _(i):
     input, label = dataload.get_data(0)
     output = model(input)
     loss = mse(output, label)
     optimizer.zero_grad()
     loss.backward()
-    #optimizer.step()
+    loss.print_reveal_nested()
+    optimizer.step()

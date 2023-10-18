@@ -6482,7 +6482,7 @@ class SubMultiArray(_vectorizable):
         :param res: matrix of matching dimension to store result
         :param n_threads: number of threads (default: single thread)
         """
-        @library.for_range_multithread(n_threads, self.sizes[1], self.sizes[1])
+        @library.for_range_multithread(n_threads, 1, self.sizes[1])
         def _(i):
             indices = [regint(i), regint.inc(self.sizes[0])]
             indices += [regint.inc(i) for i in other.sizes]
@@ -6499,8 +6499,7 @@ class SubMultiArray(_vectorizable):
         :param res: matrix of matching dimension to store (grad_result+res)
         :param n_threads: number of threads (default: single thread)
         """
-
-        @library.for_range_multithread(n_threads, self.sizes[1], self.sizes[1])
+        @library.for_range_multithread(n_threads, self.sizes[1],self.sizes[1])
         def _(i):
             indices = [regint(i), regint.inc(self.sizes[0])]
             indices += [regint.inc(i) for i in other.sizes]
@@ -6517,7 +6516,7 @@ class SubMultiArray(_vectorizable):
         :param res: matrix of matching dimension to store result
         :param n_threads: number of threads (default: single thread)
         """
-        @library.for_range_multithread(n_threads, self.sizes[0], self.sizes[0])
+        @library.for_range_multithread(n_threads, 1, self.sizes[0])
         def _(i):
             indices = [regint(i), regint.inc(self.sizes[1])]
             indices += [regint.inc(i) for i in reversed(other.sizes)]
@@ -6533,7 +6532,7 @@ class SubMultiArray(_vectorizable):
         :param res: matrix of matching dimension to store (grad_result + res)
         :param n_threads: number of threads (default: single thread)
         """
-        @library.for_range_multithread(n_threads, self.sizes[0], self.sizes[0])
+        @library.for_range_multithread(n_threads, 1, self.sizes[0])
         def _(i):
             indices = [regint(i), regint.inc(self.sizes[1])]
             indices += [regint.inc(i) for i in reversed(other.sizes)]
@@ -7003,10 +7002,10 @@ class MultiArray(SubMultiArray):
         if res is None:
             res = MultiArray([self.shape[0], output_col], self.value_type)
 
-        @library.multithread(n_threads, N)
-        def _(base, size):
-            res.assign_part_vector(self.direct_mul(other, indices=(regint.inc(size, base=base), regint.inc(self.shape[1]), regint.inc(self.shape[1]), regint.inc(output_col))), base)
-            # res.assign_part_vector(self.get_part(base,size).direct_mul(other),base) # it uses address not create new. These two are the same in time and online or offline round.
+        @library.for_range_multithread(n_threads, N, N)
+        def _(i):
+            res[i] = self.direct_mul(other, indices=(regint(i), regint.inc(self.sizes[1]), regint.inc(self.sizes[1]), regint.inc(output_col)))
+        
         return res
 
     def single_bmm(self, other, res=None):  # i think single_bmm is a part of mm

@@ -1262,7 +1262,7 @@ class Tensor():
                 flag = flag | searchset.get(it, False)
             if flag:
                 op.propagate(dl_doutputs, op)
-        reset_op_id()
+        break_point()
         return 0
 
     # Multiplication of a Variable, tracking gradients

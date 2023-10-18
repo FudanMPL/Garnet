@@ -662,8 +662,8 @@ class Module():
     def train(self, loss, dataload, *args, **kwargs):
         # todo, setup tensor space of the model, call it before training or evaluation
         self.set_up()
-        self.output = self.forward(dataload.get_size())
-        self.loss = loss.forward(self.output, dataload.get_labelsize())
+        self.output = self.forward(dataload.get_size(), *args, **kwargs)
+        self.loss = loss.forward(self.output, dataload.get_labelsize(), *args, **kwargs)
         TS.reset_op_id()
         TS.train()
 
@@ -773,9 +773,7 @@ class Module():
         return sorted(keys)
 
     def _call_impl(self, *args, **kwargs):
-
-        if not self.training:
-            TS.reset_op_id()
+        TS.reset_op_id()
         forward_call = self.forward
         break_point()
         result = forward_call(*args, **kwargs)
@@ -1737,6 +1735,96 @@ class MaxPool2d(_MaxPoolNd):
         return F.max_pool2d(input, self.kernel_size, self.stride,
                             self.padding)
 
+class ReLU(Module):
+    r"""Applies the rectified linear unit function element-wise:
+
+    :math:`\text{ReLU}(x) = (x)^+ = \max(0, x)`
+
+    Args:
+        inplace: can optionally do the operation in-place. Default: ``False``
+
+    Shape:
+        - Input: :math:`(*)`, where :math:`*` means any number of dimensions.
+        - Output: :math:`(*)`, same shape as the input.
+
+    .. image:: ../scripts/activation_images/ReLU.png
+
+    Examples::
+
+        >>> m = nn.ReLU()
+        >>> input = torch.randn(2)
+        >>> output = m(input)
+
+
+      An implementation of CReLU - https://arxiv.org/abs/1603.05201
+
+        >>> m = nn.ReLU()
+        >>> input = torch.randn(2).unsqueeze(0)
+        >>> output = torch.cat((m(input), m(-input)))
+    """
+    __constants__ = ['inplace']
+    inplace: bool
+
+    def __init__(self, inplace: bool = False):
+        super().__init__()
+        self.inplace = inplace
+
+    def forward(self, input: Tensor) -> Tensor:
+        return F.relu(input, inplace=self.inplace)
+
+    def extra_repr(self) -> str:
+        inplace_str = 'inplace=True' if self.inplace else ''
+        return inplace_str
+
+class Sigmoid(Module):
+    r"""Applies the element-wise function:
+
+    .. math::
+        \text{Sigmoid}(x) = \sigma(x) = \frac{1}{1 + \exp(-x)}
+
+
+    Shape:
+        - Input: :math:`(*)`, where :math:`*` means any number of dimensions.
+        - Output: :math:`(*)`, same shape as the input.
+
+    .. image:: ../scripts/activation_images/Sigmoid.png
+
+    Examples::
+
+        >>> m = nn.Sigmoid()
+        >>> input = torch.randn(2)
+        >>> output = m(input)
+    """
+
+    def forward(self, input: Tensor) -> Tensor:
+        return torch.sigmoid(input)
+
+
+class Tanh(Module):
+    r"""Applies the Hyperbolic Tangent (Tanh) function element-wise.
+
+    Tanh is defined as:
+
+    .. math::
+        \text{Tanh}(x) = \tanh(x) = \frac{\exp(x) - \exp(-x)} {\exp(x) + \exp(-x)}
+
+    Shape:
+        - Input: :math:`(*)`, where :math:`*` means any number of dimensions.
+        - Output: :math:`(*)`, same shape as the input.
+
+    .. image:: ../scripts/activation_images/Tanh.png
+
+    Examples::
+
+        >>> m = nn.Tanh()
+        >>> input = torch.randn(2)
+        >>> output = m(input)
+    """
+
+    def forward(self, input: Tensor) -> Tensor:
+        return torch.tanh(input)
+
+
 class _Loss(Module):
     reduction: str
 
@@ -1744,7 +1832,14 @@ class _Loss(Module):
         super().__init__()
         self.reduction = reduction
         self.training = True
-    
+        
+    def __call__(self, *args, **kwargs):
+        forward_call = self.forward
+        break_point()
+        result = forward_call(*args, **kwargs)
+        break_point()
+
+        return result
 class MSELoss(_Loss):
     r"""Creates a criterion that measures the mean squared error (squared L2 norm) between
     each element in the input :math:`x` and target :math:`y`.
