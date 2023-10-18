@@ -795,12 +795,21 @@ def dropout(input, p=0.5, training=False, inplace=False):  # todo
 #     output.view(*in_sizes, num_classes)
 #     return Tensor(output)
 
+@buildingblock("normalize")
+def normalize(input, p=2, dim=1, eps=1e-12, out=None):
+    assert p == 2  # todo
+    assert isinstance(dim, (int, list))
+    if isinstance(dim, int):
+        dim = [dim]
+    
+    xp = input * input
+    xpsum = xp.sum(dim=dim, keepdim=True)
+    xpsumSqr = xpsum.invsqrt(eps=eps)
+    return input * xpsumSqr
+    
 
-def normalize(input, p=2.0, dim=1, eps=1e-12, out=None):  # todo
-    pass
 
-
-# we should replace inv(std) to invsrqt(var) later
+# todo: we should replace inv(std) to invsrqt(var)
 @buildingblock("batch_norm")
 def batch_norm(input, running_mean, running_std, weight=None, bias=None, training=False, eps=1e-05, momentum=0.1):
     
@@ -829,7 +838,7 @@ def batch_norm(input, running_mean, running_std, weight=None, bias=None, trainin
     return output
 
 
-# we should replace inv(std) to invsrqt(var) later
+# todo: we should replace inv(std) to invsrqt(var)
 @buildingblock("layer_norm")
 def layer_norm(input, normalized_shape, weight=None, bias=None, eps=1e-05):
     
@@ -853,7 +862,13 @@ def layer_norm(input, normalized_shape, weight=None, bias=None, eps=1e-05):
 
 
 def cosine_similarity(x1, x2, dim=1, eps=1e-8):
-    pass
+    assert isinstance(dim, int)
+    dim = [dim]
+    
+    x1_ = normalize(x1, 2, dim, eps)
+    x2_ = normalize(x2, 2, dim, eps)
+    xx = x1_ * x2_
+    return xx.sum(dim=dim, keepdim=False)
 
 
 def pdist(input, p=2):  # todo
@@ -973,52 +988,59 @@ def nll_loss(input, target, weight=None):
 
 @buildingblock("mse_loss-forward")
 def mse_loss(input, target, reduction='mean'):
-    op_id = get_opid()
-    # backward
-    @backwardbuildingblock(get_program().globalbuildingblock[:-17]+"-mse_loss-backward")
-    def propagate(dl_doutputs, operation):
-        dl_dx, = dl_doutputs
-        dl_dself = dl_d[operation.inputs[0]]
+    # op_id = get_opid()
+    # # backward
+    # @backwardbuildingblock(get_program().globalbuildingblock[:-17]+"-mse_loss-backward")
+    # def propagate(dl_doutputs, operation):
+    #     dl_dx, = dl_doutputs
+    #     dl_dself = dl_d[operation.inputs[0]]
         
-        dx = input.value[:] - target.value[:]
-        dl_dself[:] += 2 * dx * dl_dx[:]
+    #     dx = input.value[:] - target.value[:]
+    #     dl_dself[:] += 2 * dx * dl_dx[:]
         
-        if reduction == 'mean':
-            dl_dself[:] /= input.value.total_size()
+    #     if reduction == 'mean':
+    #         dl_dself[:] /= input.value.total_size()
         
-        dl_dinputs = [dl_dself]
-        return dl_dinputs
-    # forward
-    prepare = get_prepare()
-    if prepare:
-        new_value = Array(1, input.value.value_type)
-        output = Tensor(new_value, req_grad=input.req_grad)
+    #     dl_dinputs = [dl_dself]
+    #     return dl_dinputs
+    # # forward
+    # prepare = get_prepare()
+    # if prepare:
+    #     new_value = Array(1, input.value.value_type)
+    #     output = Tensor(new_value, req_grad=input.req_grad)
     
-        if input.req_grad:
-            operation = Operation(inputs=[input.name], outputs=[output.name], propagate=propagate)
-        else:
-            operation = Operation(inputs=[input.name], outputs=[output.name], propagate=fake_propagate)
-        gradient_operation.append(operation)
-        operation_id = len(gradient_operation) - 1
-        op_id_store[op_id] = operation_id
-        set_opid(op_id+1)  # record the input and output of the op
-    else:
-        operation = gradient_operation[op_id_store[op_id]]
-        input = tensors[operation.inputs[0]]
-        output = tensors[operation.outputs[0]]
-        dx = input.value[:] - target.value[:]
-        dx2 = dx * dx
-        sumdx2 = sum(dx2)
+    #     if input.req_grad:
+    #         operation = Operation(inputs=[input.name], outputs=[output.name], propagate=propagate)
+    #     else:
+    #         operation = Operation(inputs=[input.name], outputs=[output.name], propagate=fake_propagate)
+    #     gradient_operation.append(operation)
+    #     operation_id = len(gradient_operation) - 1
+    #     op_id_store[op_id] = operation_id
+    #     set_opid(op_id+1)  # record the input and output of the op
+    # else:
+    #     operation = gradient_operation[op_id_store[op_id]]
+    #     input = tensors[operation.inputs[0]]
+    #     output = tensors[operation.outputs[0]]
+    #     dx = input.value[:] - target.value[:]
+    #     dx2 = dx * dx
+    #     sumdx2 = sum(dx2)
         
-        output.value[:] = sumdx2
-        if reduction == 'mean':
-            output.value[:] /= input.value.total_size()
-        else:
-            assert reduction == 'sum'
-        set_opid(op_id+1)  # record the input and output of the op
-    return output
-
-
+    #     output.value[:] = sumdx2
+    #     if reduction == 'mean':
+    #         output.value[:] /= input.value.total_size()
+    #     else:
+    #         assert reduction == 'sum' , 'reduction should be mean or sum'
+    #     set_opid(op_id+1)  # record the input and output of the op
+    # return output
+    assert reduction == 'sum' or 'mean', 'reduction should be mean or sum'
+    
+    dx = input - target
+    dx2 = dx * dx
+        
+    out = dx2.sum()
+    if reduction == 'mean':
+        out /= input.value.total_size() 
+    return out
 
 
 

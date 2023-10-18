@@ -2104,6 +2104,51 @@ class Tensor():
         # record the input and output of the op
         return output
 
+    # todo: unsing 1 / mpc_math.sqrt(x) when 'approx' is False
+    @buildingblock("invsqrt-forward")
+    def invsqrt(self, eps=1e-12):
+        # backward
+        @backwardbuildingblock(get_program().globalbuildingblock[:-16]+"-invsqrt-backward")
+        def propagate(dl_doutputs, operation):
+            dl_dx, = dl_doutputs
+            inputs = operation.inputs
+            outputs = operation.outputs
+            output = tensors[outputs[0]]
+            dl_dself = dl_d[inputs[0]]
+        
+            dl_dself[:] += -0.5 * output.value[:] * output.value[:] * output.value[:] * dl_dx[:]
+            dl_dinputs = [dl_dself]
+            return dl_dinputs
+        # forward
+        global op_id
+        if prepare:
+            if isinstance(self.value, Array):
+                new_value = Array(self.value.length, self.value.value_type)
+            else:
+                new_value = MultiArray(self.value.sizes, self.value.value_type)
+            output = Tensor(new_value, req_grad=self.req_grad)
+            if self.req_grad:
+                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
+            else:
+                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate)
+            gradient_operation.append(operation)
+            operation_id = len(gradient_operation) - 1
+
+            op_id_store[op_id] = operation_id
+            op_id += 1
+        else:
+            operation = gradient_operation[op_id_store[op_id]]
+            inputs = operation.inputs
+            outputs = operation.outputs
+            input = tensors[inputs[0]]
+            output = tensors[outputs[0]]
+
+            output.value[:] = mpc_math.InvertSqrt(input.value[:] + eps)
+
+            op_id += 1
+        # record the input and output of the op
+        return output
+    
     @buildingblock("cos-forward")
     def cos(self):
         
