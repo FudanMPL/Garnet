@@ -734,6 +734,6 @@ def test_getitem():
 #test_f_droupout(0.5)
 #test_f_batchnorm()
 #test_f_layernorm()
-#test_f_mseloss()
+test_f_mseloss()
 #test_f_normalize(p=2, dim=[0,1])
-test_f_cossim()
+#test_f_cossim()
