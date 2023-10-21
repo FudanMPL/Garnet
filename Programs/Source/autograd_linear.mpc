@@ -31,7 +31,7 @@ dataload = dataloader.DataLoader(x, y, batch_size = 2, shuffle=False)
 
 model = LinearRegression()
 
-optimizer = optim.SGD(model.parameters(), lr = 0.01)
+optimizer = optim.Adam(model.parameters(), lr = 0.01)
 params = list(model.parameters())
 params[0].assign_all(0.1)
 mse = nn.MSELoss()
@@ -44,5 +44,6 @@ def _(i):
     loss = mse(output, label)
     optimizer.zero_grad()
     loss.backward()
+    params[0].print_reveal_nested()
     loss.print_reveal_nested()
     optimizer.step()
