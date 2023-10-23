@@ -923,7 +923,9 @@ def for_range(start, stop=None, step=None):
             x.update(x + 1)
 
     Note that you cannot overwrite data structures such as
-    :py:class:`~Compiler.types.Array` in a loop.  Use
+    :py:class:`~Compiler.types.Array` in a loop.  
+    
+    Use
     :py:func:`~Compiler.types.Array.assign` instead.
     """
     def decorator(loop_body):

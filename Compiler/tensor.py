@@ -347,6 +347,30 @@ def boardcasted_multiarray_mul(v1, v2, inter, output):
     
     # permute back
     v1.permute_without_malloc(output, get_permute_back(len(v1.sizes), dims))
+    
+def boardcasted_multiarray_sub(v1, v2, inter, output):
+    # permute input for boardcasted
+    dims, v1, v2 = reconst_dims(v1, v2)  
+
+    v1.permute_without_malloc(inter, get_permute(len(v1.sizes), dims))
+    v1 = inter
+
+    len1, len2 = v1.total_size(), v2.total_size()
+    assert len1 % len2==0, "Invalid Dimension"
+    # for i in range(0, len1//len2):
+    #     v3 = v1.get_vector(i*len2, len2) + v2.get_vector(0, len2)
+    #     output.value.assign_vector(v3, i*len2)
+    break_point()
+    @for_range_opt(len1//len2)
+    def _(i):
+        v3 = v1.get_vector(i*len2, len2) - v2.get_vector(0, len2)
+        v1.assign_vector(v3, i*len2)
+    break_point()
+    
+ 
+    # permute back
+
+    v1.permute_without_malloc(output, get_permute_back(len(v1.sizes), dims))
 
 @buildingblock("mul-forward")
 def element_wise_mul(self, other):
@@ -2184,7 +2208,6 @@ class Tensor():
 
     @buildingblock("sin-forward")
     def sin(self):
-        
         @backwardbuildingblock(get_program().globalbuildingblock[:-12]+"-sin-backward")
         def propagate(dl_doutputs, operation):  # dl_outputs is Tensor.value
             dl_dx, = dl_doutputs
@@ -2250,19 +2273,19 @@ class Tensor():
             output = tensors[operation.outputs[0]]
             if self.req_grad:
                 if isinstance(self.value, MultiArray):
-                    inter_mul1, inter_mul2, inter_sum = operation.intermediate[-3], operation.intermediate[-2], operation.intermediate[-1]
-                    # dl_dx = softmax(x)*(dl_dy-(dl_dy*softmax(x)).sum(dim=-1))
+                    inter_mul1, inter_mul2, inter_sum,inter1,inter2= operation.intermediate[-5], operation.intermediate[-4], operation.intermediate[-3],operation.intermediate[-2],operation.intermediate[-1]
+                    # dl_dx = softmax(x)*(   dl_dy    -    (dl_dy*softmax(x)).sum(dim=-1)  )
                     dl_dy.element_wise_mul(output.value, inter_mul1)
-                    inter = dl_dy - inter_mul1
-                    inter.sum(dim, res=inter_sum, keepdims=True)
-                    output.value.element_wise_mul(inter_sum, inter_mul2)
+                    inter_mul1.sum(dim, res=inter_sum, keepdims=True)
+                    _, v1, v2 = reconst_dims(dl_dy, inter_sum)
+                    boardcasted_multiarray_sub(v1,v2, inter2,inter1)
+                    output.value.element_wise_mul(inter1, inter_mul2)
                     dl_d[operation.inputs[0]][:] += inter_mul2[:]
-                    inter.delete()
                 else:
                     res = output.value[:]*(dl_dy[:]-sum(output.value[:]*dl_dy[:]))
                     dl_d[operation.inputs[0]][:] += res
         # forward
-        global op_id
+        global op_id 
         if prepare:
             if isinstance(self.value, Array):
                 output = Tensor(Array(self.sizes[0], self.value_type), req_grad=self.req_grad)
@@ -2275,11 +2298,17 @@ class Tensor():
                 inter = [per_x, per_res]
             if self.req_grad:
                 if isinstance(self.value, MultiArray):
-                    new_sizes = self.sizes[:dim] + self.sizes[dim+1:]
-                    new_sizes = new_sizes + (1,) if len(new_sizes) == 1 else new_sizes
+                    if dim in [-1 , len(self.sizes)]:
+                        new_sizes = self.sizes[:dim] +(1,) 
+                    else:
+                        new_sizes = self.sizes[:dim] +(1,) +self.sizes[dim+1:]
                     inter_mul1, inter_mul2, inter_sum = MultiArray(self.value.sizes, self.value.value_type), MultiArray(
                         self.value.sizes, self.value.value_type), MultiArray(new_sizes, self.value.value_type)
-                    inter += [inter_mul1, inter_mul2, inter_sum]
+                    dims, v1, v2 = reconst_dims(output.value, inter_sum)
+                    target_size = v1.tuple_permute(output.value.sizes, get_permute(len(output.sizes), dims))
+                    inter1,inter2=MultiArray(output.sizes,self.value_type),MultiArray(target_size,self.value_type)
+                    
+                    inter += [inter_mul1, inter_mul2, inter_sum,inter1,inter2]
                 operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=inter)
             else:
                 operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate, intermediate=inter)
