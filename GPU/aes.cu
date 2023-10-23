@@ -315,17 +315,8 @@ __global__ void AES_Encrypt(BYTE block_inp[], BYTE key[], int keyLen, int numbyt
         __syncthreads();
         BYTE block[16]; 
         //cudaMemcpy(block, aes_block_array[global_thread_index].block, 16*sizeof(BYTE), cudaMemcpyDeviceToDevice);
-        if(numbytes == 8){
-            for(int i=0; i<8; i++){
-                block[i] = block_inp[global_thread_index*8+i];
-                block[i*2] = block_inp[global_thread_index*8+i];
-    //		printf("%d %d %d\n",i, global_thread_index, block[i]);
-            }
-        }
-        else{
-            for(int i=0; i<16; i++){
+        for(int i=0; i<16; i++){
                 block[i] = block_inp[global_thread_index*16+i];
-            }
         }
         int l = keyLen, i;
         AES_AddRoundKey(block, &key[0]);

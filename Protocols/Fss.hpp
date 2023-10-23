@@ -5,7 +5,7 @@
 
 #ifndef PROTOCOLS_FSS_HPP_
 #define PROTOCOLS_FSS_HPP_
-
+#include <thread>
 #include "Fss.h"
 #include "Processor/Processor.h"
 #include "Processor/TruncPrTuple.h"
@@ -20,8 +20,11 @@
 #include <vector>
 #include <iostream>
 #include <string>
-
+#include "FssCpuStruct.h"
+//-------------------
 #include <math.h>
+
+
 
 template<class T>
 void Fss<T>::init(Preprocessing<T>& prep, typename T::MAC_Check& MC)
@@ -149,34 +152,50 @@ void Fss<T>::Muliti_Interval_Containment(SubProcessor<T> &proc, const Instructio
 
 
 template <class T>
-void Fss<T>::distributed_comparison_function(SubProcessor<T> &proc, const Instruction &instruction, int lambda)
+void Fss<T>::distributed_comparison_function(SubProcessor<T> &proc, const Instruction &instruction, int n)
 {
+    fstream k_in;
     PRNG prng;
     prng.ReSeed();
-    init(proc.DataF, proc.MC);    
-    typename T::clear result, r_tmp, dcf_u, dcf_v;
+    init(proc.DataF, proc.MC);
     auto& args = instruction.get_start();
+    int dcf_parallel = int(args.size()/args[0]);    
+    typename T::clear result[dcf_parallel], r_tmp[dcf_parallel], dcf_u[dcf_parallel], dcf_v[dcf_parallel];
     fstream r;
     octetStream cs[2], reshare_cs, t_cs; //cs0, cs1; 
     r.open("Player-Data/2-fss/r" + to_string(P.my_num()), ios::in);
-    r >> r_tmp;
+    r >> r_tmp[0];
     r.close();
-    MC->init_open(P, lambda);
+    k_in.open("Player-Data/2-fss/k" + to_string(P.my_num()), ios::in);
+    
+    int lambda_bytes = 16;
+    FssEval * fss_eval = new FssEval();
+    bigint tmp_bigint;
+    bool tmp_t;
+
+    k_in >> tmp_bigint;
+    bytesFromBigint(&fss_eval->seed[0], tmp_bigint, lambda_bytes);
+    for(int i = 0; i < n ; i++){
+        k_in >> tmp_bigint;
+        fss_eval->scw.push_back(tmp_bigint);
+        k_in >> tmp_bigint;
+        fss_eval->vcw.push_back(tmp_bigint);
+        k_in >> tmp_t;
+        fss_eval->tcw[0].push_back(tmp_t);
+        k_in >> tmp_t;
+        fss_eval->tcw[1].push_back(tmp_t);
+    }
+    k_in >> fss_eval->cw;
+    k_in.close();
+    MC->init_open(P, n);
     for(size_t i = 0; i < args.size(); i+= args[i]){ 
         auto dest = &proc.S[args[i+3]][0];
-        *dest = *dest + r_tmp;
+        *dest = *dest + r_tmp[0];
         MC->prepare_open(proc.S[args[i+3]]);   
         if(P.my_num() == GEN){
             typename T::clear r_sum, r0 = 0, r1 = 0;
-            bigint r_tmp;
-            prng.get(r_tmp, lambda); 
-            auto size = r_tmp.get_mpz_t()->_mp_size;
-            mpn_copyi((mp_limb_t*)r0.get_ptr(), r_tmp.get_mpz_t()->_mp_d, abs(size));
-            prng.get(r_tmp, lambda); 
-            size = r_tmp.get_mpz_t()->_mp_size;
-            mpn_copyi((mp_limb_t*)r1.get_ptr(), r_tmp.get_mpz_t()->_mp_d, abs(size));
-            if(size < 0)
-                r0 = - r0;
+            r0.randomize(prng, n);
+            r1.randomize(prng, n);
             r_sum = r0 + r1;
             proc.S[args[i+2]][0] = r_sum;
             r0.pack(cs[EVAL_1]);
@@ -191,50 +210,43 @@ void Fss<T>::distributed_comparison_function(SubProcessor<T> &proc, const Instru
         P.receive_player(GEN, cs[P.my_num()]);
     }
     MC->exchange(P);
-    for(size_t i = 0; i < args.size(); i+= args[i]){ 
-        result = MC->finalize_raw();
-        if(P.my_num() == EVAL_1 || P.my_num() == EVAL_2)
-        {
-            bigint dcf_res_u, dcf_res_v, dcf_res, dcf_res_reveal;
-            dcf_res_u = this->evaluate(result, lambda);
-            result += 1LL<<(lambda-1);
-            dcf_res_v = this->evaluate(result, lambda);
-        
-            auto size = dcf_res_u.get_mpz_t()->_mp_size;
-            mpn_copyi((mp_limb_t*)dcf_u.get_ptr(), dcf_res_u.get_mpz_t()->_mp_d, abs(size));
+
+    if(P.my_num() == EVAL_1 || P.my_num() == EVAL_2){
+        int cnt = 0;
+        bigint dcf_res_u[dcf_parallel], dcf_res_v[dcf_parallel];
+        typename T::clear tmp[dcf_parallel];
+        for(size_t t = 0; t < args.size(); t+= args[t]){
+            result[cnt] = MC->finalize_raw();
+            dcf_res_u[cnt] = this->evaluate(result[cnt], fss_eval, n);
+            result[cnt] += 1LL<<(n-1);
+            dcf_res_v[cnt] = this->evaluate(result[cnt], fss_eval, n);
+            auto size = dcf_res_u[cnt].get_mpz_t()->_mp_size;
+            mpn_copyi((mp_limb_t*)dcf_u[cnt].get_ptr(), dcf_res_u[cnt].get_mpz_t()->_mp_d, abs(size));
             if(size < 0)
-                dcf_u = -dcf_u;
-            size = dcf_res_v.get_mpz_t()->_mp_size;
-            mpn_copyi((mp_limb_t*)dcf_v.get_ptr(), dcf_res_v.get_mpz_t()->_mp_d, abs(size));
+                dcf_u[cnt] = -dcf_u[cnt];
+            size = dcf_res_v[cnt].get_mpz_t()->_mp_size;
+            mpn_copyi((mp_limb_t*)dcf_v[cnt].get_ptr(), dcf_res_v[cnt].get_mpz_t()->_mp_d, abs(size));
             if(size < 0)
-                dcf_v = -dcf_v;
-            // if(result.get_bit(lambda)){
-            //     r_tmp = dcf_v - dcf_u + P.my_num();
-            // }
-            // else{
-            //     r_tmp = dcf_v - dcf_u;
-            // }
-            if(lambda == 128){
-                if(result.get_bit(lambda-1)){
-                    r_tmp = dcf_v - dcf_u + P.my_num();
+                dcf_v[cnt] = -dcf_v[cnt];
+            if(n == 128){
+                if(result[cnt].get_bit(n)){
+                    r_tmp[cnt] = dcf_v[cnt] - dcf_u[cnt] + P.my_num();
                 }
                 else{
-                    r_tmp = dcf_v - dcf_u;
+                    r_tmp[cnt] = dcf_v[cnt] - dcf_u[cnt];
                 }
             }
             else{
-                if(result.get_bit(lambda)){
-                    r_tmp = dcf_v - dcf_u + P.my_num();
+                if(result[cnt].get_bit(n-1)){
+                    r_tmp[cnt] = dcf_v[cnt] - dcf_u[cnt] + P.my_num();
                 }
                 else{
-                    r_tmp = dcf_v - dcf_u;
+                    r_tmp[cnt] = dcf_v[cnt] - dcf_u[cnt];
                 }
-            }
-
-            // }  
-            typename T::clear tmp;
-            tmp.unpack(cs[P.my_num()]);
-            proc.S[args[i+2]][0] = typename T::clear(P.my_num()) - r_tmp - tmp;
+            }  
+            tmp[cnt].unpack(cs[P.my_num()]);
+            proc.S[args[t+2]][0] = typename T::clear(P.my_num()) - r_tmp[cnt] - tmp[cnt];
+            cnt += 1;
         }
     }
     for(size_t i = 0; i < args.size(); i+= args[i]){
@@ -257,63 +269,45 @@ void Fss<T>::generate(){
 
 
 template<class T>
-bigint Fss<T>::evaluate(typename T::clear x, int lambda){
-    fstream k_in;
+bigint Fss<T>::evaluate(typename T::clear x, FssEval * fss_eval, int n){
     PRNG prng;
     prng.ReSeed();
     int b = P.my_num(), xi;
     // Here represents the bytes that bigint will consume, the default number is 16, if the MAX_N_BITS is bigger than 128, then we should change.
-    int lambda_bytes = int(lambda/8);
-    k_in.open("Player-Data/2-fss/k" + to_string(P.my_num()), ios::in);
-    octet seed[lambda_bytes*2+1], convert_seed[lambda_bytes];
-    // r is the random value generate by GEN
-    bigint s_hat[2], v_hat[2], t_hat[2], s[2], v[2], t[2], scw, vcw, tcw[2], convert[2], cw, tmp_t, tmp_v, init_key;
-    k_in >> init_key;
-    // std::cout << "init seed is " << tmp_t << std::endl;
-    tmp_t = b;
-    tmp_v = 0;
-    bytesFromBigint(&seed[0], init_key, lambda_bytes);
-    for(int i = 0; i < lambda - 1; i++){
-        xi = x.get_bit(lambda - i - 1);
-        k_in >> scw >> vcw >> tcw[0] >> tcw[1];
-        
-        encryptwrapper(&seed[0], 2*(2*lambda_bytes+1), 1);
-        bigintFromBytes(t_hat[0], &seed[0],1);
-        t_hat[0].get_mpz_t()->_mp_d[0] = t_hat[0].get_mpz_t()->_mp_d[0]%2;
-        bigintFromBytes(v_hat[0], &seed[1],lambda_bytes);
-        bigintFromBytes(s_hat[0], &seed[lambda_bytes+1],lambda_bytes);
-        s[0] = s_hat[0] ^ (tmp_t * scw);
-        t[0] = t_hat[0] ^ (tmp_t * tcw[0]);
-
-        bigintFromBytes(t_hat[1], &seed[2*lambda_bytes+1],1);
-        t_hat[1].get_mpz_t()->_mp_d[0] = t_hat[1].get_mpz_t()->_mp_d[0]%2;
-        bigintFromBytes(v_hat[1], &seed[2*lambda_bytes+2],lambda_bytes);
-        bigintFromBytes(s_hat[1], &seed[3*lambda_bytes+2],lambda_bytes);
-        s[1] = s_hat[1] ^ (tmp_t * scw);
-        t[1] = t_hat[1] ^ (tmp_t * tcw[1]);
+    int lambda = 127, lambda_bytes = 16;   
+    fss_eval->pre_t = b;
+    fss_eval->tmp_v = 0;
 
 
-        bytesFromBigint(&convert_seed[0], v_hat[0], lambda_bytes);
-        encryptwrapper(&convert_seed[0], lambda_bytes, 1);
-        bigintFromBytes(convert[0], &convert_seed[0], lambda_bytes);
-
-        bytesFromBigint(&convert_seed[0], v_hat[1], lambda_bytes);
-        encryptwrapper(&convert_seed[0], lambda_bytes, 1);
-        bigintFromBytes(convert[1], &convert_seed[0], lambda_bytes);
-        tmp_v = tmp_v + b * (-1) * (convert[xi] + tmp_t * vcw) + (1^b) * (convert[xi] + tmp_t * vcw);
-
-        bytesFromBigint(&seed[0], s[xi], lambda_bytes);
-        tmp_t = t[xi];
+    // std::cout << "x is " << x << std::endl;
+    for(int i = 0; i < n ; i++){
+        xi = x.get_bit(n - i - 1);
+        prng.SetSeed(fss_eval->seed);
+        for(int j = 0; j < 2; j++){
+            prng.get(fss_eval->v_hat[j], lambda);
+            prng.get(fss_eval->s_hat[j], lambda);
+            fss_eval->t_hat[j] = fss_eval->s_hat[j].get_ui() & 1;
+            fss_eval->s[j] = fss_eval->s_hat[j] ^ (fss_eval->pre_t * fss_eval->scw[i]);
+            fss_eval->t[j] = fss_eval->t_hat[j] ^ (fss_eval->pre_t * fss_eval->tcw[j][i]);
+        }
+        if(n <= 128){
+            // std::cout << "length is " << lambda-n << std::endl;
+            fss_eval->convert[0] = fss_eval->v_hat[0] >> (lambda-n);
+            fss_eval->convert[1] = fss_eval->v_hat[1] >> (lambda-n);
+        }
+        // std::cout << "convert[0], convert[1] are " << convert[0] << " " << convert[1] << std::endl;
+        fss_eval->tmp_v = fss_eval->tmp_v + b * (-1) * (fss_eval->convert[xi] + fss_eval->pre_t * fss_eval->vcw[i]) + (1^b) * (fss_eval->convert[xi] + fss_eval->pre_t * fss_eval->vcw[i]);
+        // std::cout << "bit length of s[xi] is " << numBits(s[xi]) << std::endl;
+        bytesFromBigint(&fss_eval->seed[0], fss_eval->s[xi], lambda_bytes);
+        fss_eval->pre_t = fss_eval->t[xi];
+        // std::cout << "t[xi] is " << t[xi] << std::endl;
+        // std::cout << "s[xi] is " << s[xi] << std::endl;
     }
-    k_in >> cw;
-    k_in.close();
-    
-    bytesFromBigint(&convert_seed[0], seed, lambda_bytes);
-    encryptwrapper(&convert_seed[0], lambda_bytes, 1);
-    bigintFromBytes(convert[0], &convert_seed[0], lambda_bytes);
-    // prng.get(convert[0], lambda);
-    tmp_v = tmp_v + b * (-1) * (convert[0] + tmp_t * cw) + (1^b) * (convert[0] + tmp_t * cw);
-    return tmp_v;  
+
+    if(n <= 128)
+        fss_eval->convert[0] = fss_eval->s[xi] >> (lambda-n);
+    fss_eval->tmp_v = fss_eval->tmp_v + b * (-1) * (fss_eval->convert[0] + fss_eval->pre_t * fss_eval->cw) + (1^b) * (fss_eval->convert[0] + fss_eval->pre_t * fss_eval->cw);
+    return fss_eval->tmp_v;  
 }
 
 template <class T>
@@ -545,7 +539,7 @@ void Fss<T>::cisc(SubProcessor<T> &processor, const Instruction &instruction)
     
     // auto& args = instruction.get_start();
     
-    int r0 = instruction.get_r(0), lambda = T::clear::MAX_N_BITS;
+    int r0 = instruction.get_r(0), n = T::clear::MAX_N_BITS;
     bigint signal = 0;
     string tag((char *)&r0, 4);
     // std::cout << tag << std::endl;
@@ -555,8 +549,8 @@ void Fss<T>::cisc(SubProcessor<T> &processor, const Instruction &instruction)
     {
         octetStream cs;
         if(P.my_num() == GEN){  
-            std::cout << "Generating fake dcf " << std::endl;
-            this->fss3prep->gen_fake_dcf(1, lambda);  
+            // std::cout << "Generating fake dcf " << std::endl;
+            this->fss3prep->gen_fake_dcf(1, n);  
             signal = 1;
             signal.pack(cs);
             P.send_to(EVAL_1, cs);
@@ -568,34 +562,33 @@ void Fss<T>::cisc(SubProcessor<T> &processor, const Instruction &instruction)
             signal.unpack(cs);
         }
         if(signal){
-            processor.protocol.distributed_comparison_function(processor, instruction, lambda);
-        }
-        
+            processor.protocol.distributed_comparison_function(processor, instruction, n);
+        } 
     }
-    else{
-        auto& args = instruction.get_start();
-        // std::cout << "CISC CALLED!" << std::endl;
-        std::cout << "Arguments are: " << std::endl;
-        for(auto i : args)
-            std::cout << i << std::endl;
-        octetStream cs;
-        std::cout << "MTS CALLED!" << std::endl;
-        if(P.my_num() == GEN){  
-            std::cout << "Generating fake multi dcf " << std::endl;
-            this->fss3prep->gen_fake_multi_spline_dcf(processor, 1, lambda, args[4], args[8]);  
-            signal = 1;
-            signal.pack(cs);
-            P.send_to(EVAL_1, cs);
-            P.send_to(EVAL_2, cs);
-        }
-        else{
-            P.receive_player(GEN, cs);
-            signal.unpack(cs);
-        }
-        if(signal){
-            processor.protocol.Muliti_Interval_Containment(processor, instruction, lambda);
-        }
-    }
+    // else{
+    //     auto& args = instruction.get_start();
+    //     // std::cout << "CISC CALLED!" << std::endl;
+    //     std::cout << "Arguments are: " << std::endl;
+    //     for(auto i : args)
+    //         std::cout << i << std::endl;
+    //     octetStream cs;
+    //     std::cout << "MTS CALLED!" << std::endl;
+    //     if(P.my_num() == GEN){  
+    //         std::cout << "Generating fake multi dcf " << std::endl;
+    //         this->fss3prep->gen_fake_multi_spline_dcf(processor, 1, lambda, args[4], args[8]);  
+    //         signal = 1;
+    //         signal.pack(cs);
+    //         P.send_to(EVAL_1, cs);
+    //         P.send_to(EVAL_2, cs);
+    //     }
+    //     else{
+    //         P.receive_player(GEN, cs);
+    //         signal.unpack(cs);
+    //     }
+    //     if(signal){
+    //         processor.protocol.Muliti_Interval_Containment(processor, instruction, lambda);
+    //     }
+    // }
 }
 
 #endif // PROTOCOLS_FSS_HPP

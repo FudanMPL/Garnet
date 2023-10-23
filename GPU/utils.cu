@@ -14,9 +14,38 @@
 #ifndef UTILS_CU_
 #define UTILS_CU_
 
+// a[0]里存了最高位，a[length]里存了最低位
 
-__global__ void _mod2_t(uint8_t * a){
-  a[0] = a[0] % 2;
+// copy_pre_bit表示拷贝前缀，copy_byte表示有几个byte可以直接拷贝
+__global__ void rshift_1(uint8_t * org, uint8_t * dst, int org_begin, int dst_begin, size_t numbyte){
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  // 需要偏移的量
+  if (idx < numbyte) {
+    if(idx == 0){
+      dst[idx + dst_begin] = org[idx + org_begin] >> 1;
+    }
+    else{
+      dst[idx + dst_begin] = (org[idx + org_begin - 1] % 2) * 128 + (org[idx + org_begin] >> 1);
+    }
+  }
+}
+
+__global__ void lshift_1(uint8_t * org, uint8_t * dst, int org_begin, int dst_begin, size_t numbyte){
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  // 需要偏移的量
+  if (idx < numbyte) {
+    if(idx == numbyte - 1){
+      dst[idx + dst_begin] = org[idx + org_begin] << 1;
+    }
+    else{
+      if(org[idx + org_begin + 1] > 128)
+        dst[idx + dst_begin] = (org[idx + org_begin] << 1) + 1;
+    }
+  }
+}
+
+__global__ void _mod2_t(uint8_t * org, bool dst, int fidx){
+  dst = org[fidx] % 2;
 }
 
 __global__ void _set(uint8_t * org, uint8_t * dest, size_t num){
@@ -32,6 +61,7 @@ __global__ void _add(uint8_t *a, uint8_t *b, uint8_t * res, int length){
   uint16_t need_carry = 1<<8;
   for(int i = length - 1; i >= 0; i--){
     tmp = a[i] + b[i] + carry;
+    // printf("tmp is %d, a[i] is %d, b[i] is %d, carry is %d \n", tmp, a[i], b[i], carry);
     if(tmp < need_carry)
       carry = 0;
     else{
@@ -42,62 +72,37 @@ __global__ void _add(uint8_t *a, uint8_t *b, uint8_t * res, int length){
   }
 }
 
-__global__ void _add_1(uint8_t *a, uint8_t * res, int length){
+__global__ void _add(uint8_t *a, int value, int length){
   uint16_t tmp;
   bool carry = 0;
   uint16_t need_carry = 1<<8;
-
-  tmp = a[length - 1] + 1;
-  if(tmp < need_carry){
-    carry = 1;
-    tmp = tmp % need_carry;
-  }
-  else{
-    carry = 0;
-  }
-  res[length - 1] = tmp;
-
-  for(int i = length - 2; i >= 0; i--){
-    tmp = a[i] + carry;
+  for(int i = length - 1; i >= 0; i--){
+    tmp = a[i] + (value >> ((length - 1) * 8  - i * 8)) % 256 + carry;
     if(tmp < need_carry)
       carry = 0;
     else{
       carry = 1;
       tmp = tmp % need_carry;
     }
-    res[i] = tmp;
+    a[i] = tmp;
   }
 }
 
-__global__ void _sub_1(uint8_t *minuend, uint8_t * res, int length){
+__global__ void _sub(uint8_t *minuend, int value, int length){
   int tmp;
   bool borrow = 0;
   uint16_t need_borrow = 1<<8;
-  
-  tmp = minuend[length - 1] - 1;
-  if(tmp < 0){
-    borrow = 1;
-    tmp = need_borrow + tmp;
-  }
-  else{
-    borrow = 0;
-  }
-  res[length - 1] = tmp;
-
-  if(borrow){
-    for(int i = length - 2; i >= 0; i--){
-      tmp = minuend[i] - borrow;
-      if(tmp < 0){
-        borrow = 1;
-        tmp = need_borrow + tmp;
-      }
-      else{
-        borrow = 0;
-        break;
-      }
-      res[i] = tmp;
-    }  
-  }
+  for(int i = length - 1; i >= 0; i--){
+    tmp = minuend[i] - (value >> ((length - 1) * 8 - i * 8)) % 256 - borrow;
+    if(tmp < 0){
+      borrow = 1;
+      tmp = need_borrow + tmp;
+    }
+    else{
+      borrow = 0;
+    }
+    minuend[i] = tmp;
+  }  
 }
 
 __global__ void _sub(uint8_t *minuend, uint8_t *subtrahend, uint8_t * res, int length){
@@ -162,7 +167,7 @@ __device__ void xorKernel(uint8_t * a, uint8_t * b, uint8_t * res, size_t num){
 __global__ void printGpuBytes(uint8_t b[], int len) {
 int i;
 for (i=0; i<len; i++)
-    printf("%x ", b[i]);
+    printf("%02x", b[i]);
 //    cout << hex << b[i] << " " ;
 printf("\n");
 }

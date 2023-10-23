@@ -16,8 +16,6 @@ GC = $(patsubst %.cpp,%.o,$(wildcard GC/*.cpp)) $(PROCESSOR)
 GC_SEMI = GC/SemiPrep.o GC/square64.o GC/Semi.o
 
 
-GPU = gpu.o
-
 OT = $(patsubst %.cpp,%.o,$(wildcard OT/*.cpp)) $(LIBSIMPLEOT)
 OT_EXE = ot.x ot-offline.x
 
@@ -248,7 +246,7 @@ semi-party.x: $(OT)  $(GC_SEMI)
 semi2k-party.x: $(OT) $(GC_SEMI)
 sml-party.x: $(OT) $(GC_SEMI) 
 vss-party.x: $(OT) $(GC_SEMI)
-fss-ring-party.x: GC/square64.o $(GPU) 
+fss-ring-party.x: GC/square64.o 
 hemi-party.x: $(FHEOFFLINE) $(GC_SEMI) $(OT)
 temi-party.x: $(FHEOFFLINE) $(GC_SEMI) $(OT)
 soho-party.x: $(FHEOFFLINE) $(GC_SEMI) $(OT)

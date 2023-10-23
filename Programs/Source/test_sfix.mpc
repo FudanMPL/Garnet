@@ -2,17 +2,20 @@ import Compiler.mpc_math
 import random
 import math
 
-n = 10
+n = 10000
 cnt = 0
 
-#sfix.set_precision(31, 72)
-@for_range(n)
-def _(i):
-    a = sfix.get_random(-1000,1000)
-    b = sfix.get_random(-1000,1000)
-    c = (a > b)
-    clear_a = a.reveal()
-    clear_b = b.reveal()
-    d = (clear_a > clear_b)
-    if(c.reveal() != d):
-        print_ln("c is %s , a-b is %s", c.reveal(), (a-b).reveal())
+A = sfix.Array(n)
+B = sfix.Array(n)
+C = sfix.Array(n)
+for i in range(n):
+    A[i] = sfix.get_random(-500,500)
+    B[i] = sfix.get_random(-500,500)
+
+for i in range(n):
+    C[i] = (A[i] > B[i])
+    # clear_a = A[i].reveal()
+    # clear_b = B[i].reveal()
+    # d = (clear_a > clear_b)
+    # if(C[i].reveal() != d):
+    #    print_ln("c is %s , a-b is %s", C[i].reveal(), (A[i]-B[i]).reveal())
