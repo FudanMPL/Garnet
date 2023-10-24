@@ -823,14 +823,15 @@ def batch_norm(input, running_mean, running_std, weight=None, bias=None, trainin
         
     if training:
         x_mean = input.mean(dim=[0,2,3], keepdim=True)
-        x_std = input.std(dim=[0,2,3], keepdim=True) 
+        x_std = input.var(dim=[0,2,3], keepdim=True, unbiased=True) 
         running_mean = x_mean * momentum + running_mean * (1-momentum)
         running_std = x_std * momentum + running_std * (1-momentum)
     else:
         x_mean = running_mean
         x_std = running_std
-        
-    output = (input - x_mean) / (x_std + eps) 
+    
+    x_std = x_std + eps
+    output = (input - x_mean) * x_std.invsqrt() 
     if weight is not None:
         output = output * weight
     if bias is not None:

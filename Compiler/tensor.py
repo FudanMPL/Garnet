@@ -967,7 +967,7 @@ def mean_of_multiarray(self, dim, keepdim=False):
     return output
 
 @buildingblock("var-forward")
-def var_of_multiarray(self, dim, keepdim=False):
+def var_of_multiarray(self, dim, keepdim=False, unbiased=False):
     # backward
     @backwardbuildingblock(get_program().globalbuildingblock[:-12]+"-var-backward")
     def propagate(dl_doutputs, operation):
@@ -981,12 +981,17 @@ def var_of_multiarray(self, dim, keepdim=False):
             @for_range(stride)
             def _(j):
                 input_perm.assign_vector(dl_dx.get_vector(i, 1), i*stride+j)
+        break_point()
         input_perm[:] *= 2
-        input_perm[:] /= stride - 1
+        if unbiased:
+            input_perm[:] /= stride
+        else:
+            input_perm[:] /= stride - 1
         input_perm[:] *= dmean[:]
         # permute back
         new_perm = get_permute_back(len(self.value.sizes), dim)
-        input_perm.permute_without_malloc(dl_dself, new_perm)
+        input_perm.permute_without_malloc(dmean, new_perm)
+        dl_dself[:] += dmean[:]
         
         dl_dinputs = [dl_dself]
         return dl_dinputs
@@ -1035,8 +1040,8 @@ def var_of_multiarray(self, dim, keepdim=False):
         def _(i):
             summary = sum(input_perm.get_vector(i*stride, stride))
             mean.assign_vector(summary, i)
-        mean[:] /= stride
         break_point()
+        mean[:] /= stride
         # dmean
         @for_range_opt(output.value.total_size())
         def _(i):
@@ -1050,7 +1055,10 @@ def var_of_multiarray(self, dim, keepdim=False):
             summary = sum(dmean_sqr.get_vector(i*stride, stride))
             output.value.assign_vector(summary, i)
         break_point()
-        output.value[:] /= stride - 1
+        if unbiased:
+            output.value[:] /= stride
+        else:
+            output.value[:] /= stride - 1
         op_id += 1
     # record the input and output of the op
     return output
@@ -1062,16 +1070,24 @@ def std_of_multiarray(self, dim, keepdim=False):
     def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
         dl_dself = dl_d[operation.inputs[0]]
-        input_perm, mean, dmean, dmean_sqr, std = operation.intermediate
-        # dl_dself[:] += dl_dx[0] / stdvalue[0] / (self.value.total_size()-1) * dmean[:]
-        stride = reduce(lambda x, y: x * self.value.sizes[y], dim, 1)
+        input_perm, factor, dmean, dmean_sqr, std = operation.intermediate
         
+        # dl_dself[:] += dl_dx[0] / stdvalue[0] / (self.value.total_size()-1) * dmean[:]
+        # new_perm = get_permute_d2front(len(self.value.sizes), dim)
+        # target_size = self.value.tuple_permute(self.shape, new_perm)
+        # input_perm = MultiArray(target_size, self.value.value_type) 
+
+        # print(dmean_sqr.sizes)
+        # boardcasted_multiarray_mul(factor, dmean, input_perm, dmean_sqr)
+        # dmean_sqr[:] /= stride - 1
+        # dl_dself[:] += dmean_sqr[:]
+        stride = reduce(lambda x, y: x * self.value.sizes[y], dim, 1)
+        factor[:] = dl_dx[:] / std[:]
         @for_range_opt(dl_dx.total_size())
         def _(i):
-            fraction = dl_dx.get_vector(i, 1) / std.get_vector(i, 1)
             @for_range_opt(stride)
             def _(j):
-                input_perm.assign_vector(fraction, i*stride+j)
+                input_perm.assign_vector(factor.get_vector(i, 1), i*stride+j)
         break_point()
         input_perm[:] /= stride - 1
         input_perm[:] *= dmean[:]
@@ -1129,8 +1145,8 @@ def std_of_multiarray(self, dim, keepdim=False):
         def _(i):
             summary = sum(input_perm.get_vector(i*stride, stride))
             mean.assign_vector(summary, i)
+        break_point()    
         mean[:] /= stride
-        break_point()
         # dmean
         @for_range_opt(output.value.total_size())
         def _(i):
@@ -2233,11 +2249,11 @@ class Tensor():
         else:
             return std_of_multiarray(self, dim, keepdim)
 
-    def var(self, dim=None, keepdim=False):
+    def var(self, dim=None, keepdim=False, unbiased=False):
         if isinstance(self.value, Array) or dim==None:
             return var_of_array(self)
         else:
-            return var_of_multiarray(self, dim, keepdim)
+            return var_of_multiarray(self, dim, keepdim, unbiased)
 
     def norm(self, dim=None, keepdim=False):
         pass
