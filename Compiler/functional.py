@@ -806,30 +806,28 @@ def normalize(input, p=2, dim=1, eps=1e-12, out=None):
     return input * xpsumSqr
     
 
-
-# todo: we should replace inv(std) to invsrqt(var)
 @buildingblock("batch_norm")
-def batch_norm(input, running_mean, running_std, weight=None, bias=None, training=False, eps=1e-05, momentum=0.1):
+def batch_norm(input, running_mean, running_var, weight=None, bias=None, training=False, eps=1e-05, momentum=0.1):
     
     assert isinstance(input,Tensor) ,"Invalid input"
     
     new_sizes = [(input.value.sizes[i] if i == 1 else 1) for i in range(len(input.value.sizes))]
     if isinstance(running_mean.value, Array):
         running_mean.value = running_mean.value.reshape(new_sizes)
-    if isinstance(running_std.value, Array):
-        running_std.value = running_std.value.reshape(new_sizes)    
+    if isinstance(running_var.value, Array):
+        running_var.value = running_var.value.reshape(new_sizes)    
         
     if training:
         x_mean = input.mean(dim=[0,2,3], keepdim=True)
-        x_std = input.var(dim=[0,2,3], keepdim=True, unbiased=True) 
+        x_var = input.var(dim=[0,2,3], keepdim=True, unbiased=True) 
         running_mean = x_mean * momentum + running_mean * (1-momentum)
-        running_std = x_std * momentum + running_std * (1-momentum)
+        running_var = x_var * momentum + running_var * (1-momentum)
     else:
         x_mean = running_mean
-        x_std = running_std
+        x_var = running_var
     
-    x_std = x_std + eps
-    output = (input - x_mean) * x_std.invsqrt() 
+    x_var = x_var + eps
+    output = (input - x_mean) * x_var.invsqrt() 
     if weight is not None:
         output = output * weight
     if bias is not None:
@@ -850,9 +848,10 @@ def layer_norm(input, normalized_shape, weight=None, bias=None, eps=1e-05):
     dim.reverse()
     
     x_mean = input.mean(dim=dim, keepdim=True)
-    x_std = input.std(dim=dim, keepdim=True) 
+    x_var = input.var(dim=dim, keepdim=True, unbiased=True) 
     
-    output = (input - x_mean) / (x_std + eps) 
+    x_var = x_var + eps
+    output = (input - x_mean) * x_var.invsqrt() 
     if weight is not None:
         output = output * weight
     if bias is not None:
