@@ -214,12 +214,11 @@ def tanh(input):  # todo
     
 
 
-def softmax(input, dim=None):  # todo
-    pass
 
 
-def log_softmax(input, dim=None):  # todo
-    pass
+def log_softmax(input, dim=-1):  # todo
+    tmp=input.softmax(dim=dim)
+    return tmp.log()
 
 @buildingblock("linear")
 def linear(input, weight, bias=None):
@@ -409,7 +408,7 @@ def max_pool2d(input, kernel_size=2, stride=2, padding=0):
     op_id=get_opid()
     @backwardbuildingblock(get_program().globalbuildingblock[:-19]+"-max_pool2d-backward")
     def propagate(dl_doutputs, operation):
-        dl_dx, = dl_doutputs
+        dl_dy, = dl_doutputs
         input = tensors[operation.inputs[0]]
         output = tensors[operation.outputs[0]]
         strides=[1]+list(operation.intermediate[0])+[1]
@@ -577,17 +576,16 @@ def avg_pool2d(input, kernel_size, stride=None, padding=0,):
         ksize=operation.intermediate[1]
         padding=operation.intermediate[2]
         batch=Array.create_from(regint.inc(N))
-        if input.req_grad:
-            get_tape().start_new_basicblock(name='')
-            def process(pool, bi, k, i, j,nabla_Y,nabla_X,pool_size):
-                part = nabla_Y[bi][k][i][j] * (1 / pool_size)
-                for x, h_in, w_in, h, w in pool:
-                    hh = h * h_in
-                    ww = w * w_in
-                    res = h_in * w_in * part
-                    # get_program().protect_memory(True)
-                    nabla_X[bi][k][hh][ww] += res
-                    # get_program().protect_memory(False)
+        get_tape().start_new_basicblock(name='')
+        def process(pool, bi, k, i, j,nabla_Y,nabla_X,pool_size):
+            part = nabla_Y[bi][k][i][j] * (1 / pool_size)
+            for x, h_in, w_in, h, w in pool:
+                hh = h * h_in
+                ww = w * w_in
+                res = h_in * w_in * part
+                # get_program().protect_memory(True)
+                nabla_X[bi][k][hh][ww] += res
+                # get_program().protect_memory(False)
         Y_sizes = [N, output_h, output_w, n_channels_out]
         X_sizes = [N, inputs_h, inputs_w, n_channels_in]
         need_padding = [strides[i] * (Y_sizes[i] - 1) + ksize[i] >
@@ -823,14 +821,15 @@ def batch_norm(input, running_mean, running_std, weight=None, bias=None, trainin
         
     if training:
         x_mean = input.mean(dim=[0,2,3], keepdim=True)
-        x_std = input.std(dim=[0,2,3], keepdim=True) 
+        x_std = input.var(dim=[0,2,3], keepdim=True, unbiased=True) 
         running_mean = x_mean * momentum + running_mean * (1-momentum)
         running_std = x_std * momentum + running_std * (1-momentum)
     else:
         x_mean = running_mean
         x_std = running_std
-        
-    output = (input - x_mean) / (x_std + eps) 
+    
+    x_std = x_std + eps
+    output = (input - x_mean) * x_std.invsqrt() 
     if weight is not None:
         output = output * weight
     if bias is not None:
@@ -983,8 +982,52 @@ def l1_loss(input, target,reduction='mean'):
 
 
 
-def nll_loss(input, target, weight=None):
-    pass
+def nll_loss(input, target, weight=None,reduction='mean'):
+    op_id = get_opid()
+    # backward
+    @backwardbuildingblock(get_program().globalbuildingblock[:-17]+"-mse_loss-backward")
+    def propagate(dl_doutputs, operation):
+        if reduction=='mean':
+            dl_d[input.name].assign_vector( ( inter[:] ) /input.sizes[0] )
+        else:
+            dl_d[input.name].assign_vector(inter[:] )
+    # forward
+    prepare = get_prepare()
+    if prepare:
+        assert target.sizes==input.sizes,"Dimension invalid"
+        new_value = Array(1, input.value.value_type)
+        output = Tensor(new_value, req_grad=input.req_grad)
+        if isinstance(input.value,Array):
+            inter = Array(input.value.length, input.value.value_type)
+        else:
+            inter = MultiArray(input.value.sizes, input.value.value_type)
+    
+        if input.req_grad:
+            operation = Operation(inputs=[input.name], outputs=[output.name], propagate=propagate,intermediate=[inter])
+        else:
+            operation = Operation(inputs=[input.name], outputs=[output.name], propagate=fake_propagate,intermediate=[inter])
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation) - 1
+        op_id_store[op_id] = operation_id
+        set_opid(op_id+1)  # record the input and output of the op
+    else:
+        operation = gradient_operation[op_id_store[op_id]]
+        input = tensors[operation.inputs[0]]
+        output = tensors[operation.outputs[0]]
+        leq=input.value[:]>=0
+        tmp=(2*leq-1)*target.value[:]
+        output.value[:]=sum( input.value[:]*tmp)
+        operation.intermediate[0].assign_vector(tmp)
+        
+        if reduction == 'mean':
+            output.value[:] /= input.sizes[0]
+        else:
+            assert reduction == 'sum' , 'reduction should be mean or sum'
+        set_opid(op_id+1)  # record the input and output of the op
+    return output
+
+    
+
 
 @buildingblock("mse_loss-forward")
 def mse_loss(input, target, reduction='mean'):
@@ -1037,10 +1080,15 @@ def mse_loss(input, target, reduction='mean'):
     dx = input - target
     dx2 = dx * dx
         
-    out = dx2.sum()
-    if reduction == 'mean':
-        out /= input.value.total_size() 
-    return out
+        output.value[:] = sumdx2
+        if reduction == 'mean':
+            output.value[:] /= input.value.total_size()
+        else:
+            assert reduction == 'sum' , 'reduction should be mean or sum'
+        set_opid(op_id+1)  # record the input and output of the op
+    return output
+
+
 
 
 
@@ -1050,4 +1098,5 @@ def binary_cross_entropy(input, target, weight=None):
 
 
 def cross_entropy(input, target, weight=None):
-    pass
+    tmp=log_softmax(input)
+    return nll_loss(tmp,target,weight)

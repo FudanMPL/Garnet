@@ -347,6 +347,30 @@ def boardcasted_multiarray_mul(v1, v2, inter, output):
     
     # permute back
     v1.permute_without_malloc(output, get_permute_back(len(v1.sizes), dims))
+    
+def boardcasted_multiarray_sub(v1, v2, inter, output):
+    # permute input for boardcasted
+    dims, v1, v2 = reconst_dims(v1, v2)  
+
+    v1.permute_without_malloc(inter, get_permute(len(v1.sizes), dims))
+    v1 = inter
+
+    len1, len2 = v1.total_size(), v2.total_size()
+    assert len1 % len2==0, "Invalid Dimension"
+    # for i in range(0, len1//len2):
+    #     v3 = v1.get_vector(i*len2, len2) + v2.get_vector(0, len2)
+    #     output.value.assign_vector(v3, i*len2)
+    break_point()
+    @for_range_opt(len1//len2)
+    def _(i):
+        v3 = v1.get_vector(i*len2, len2) - v2.get_vector(0, len2)
+        v1.assign_vector(v3, i*len2)
+    break_point()
+    
+ 
+    # permute back
+
+    v1.permute_without_malloc(output, get_permute_back(len(v1.sizes), dims))
 
 @buildingblock("mul-forward")
 def element_wise_mul(self, other):
@@ -733,7 +757,7 @@ def mean_of_array(self):
     return output
 
 @buildingblock("var-forward")
-def var_of_array(self):
+def var_of_array(self, unbiased=False):
     # backward
     @backwardbuildingblock(get_program().globalbuildingblock[:-12]+"-var-backward")
     def propagate(dl_doutputs, operation):
@@ -742,7 +766,13 @@ def var_of_array(self):
         dmean = operation.intermediate[0] # reuse the intervalue in mem
         dl_dself = dl_d[inputs[0]]
         
-        dl_dself[:] += 2 / (self.value.total_size()-1) * dmean[:] * dl_dx[0]
+        factor = 2 * dmean[:] * dl_dx[0]
+        if unbiased:
+            factor /= self.value.total_size()
+        else:
+            factor /= self.value.total_size()-1
+        
+        dl_dself[:] += factor
         dl_dinputs = [dl_dself]
         return dl_dinputs
     # forward
@@ -771,7 +801,12 @@ def var_of_array(self):
 
         mean = sum(input.value[:]) / self.value.total_size()
         dmean = input.value[:] - mean
-        output.value[:] = sum(dmean ** 2) / (self.value.total_size()-1)
+        output.value[:] = sum(dmean ** 2) 
+        
+        if unbiased:
+            output.value[:] /= self.value.total_size()
+        else:
+            output.value[:] /= self.value.total_size()-1
         
         operation.intermediate[0].assign_vector(dmean)
         
@@ -967,7 +1002,7 @@ def mean_of_multiarray(self, dim, keepdim=False):
     return output
 
 @buildingblock("var-forward")
-def var_of_multiarray(self, dim, keepdim=False):
+def var_of_multiarray(self, dim, keepdim=False, unbiased=False):
     # backward
     @backwardbuildingblock(get_program().globalbuildingblock[:-12]+"-var-backward")
     def propagate(dl_doutputs, operation):
@@ -981,12 +1016,17 @@ def var_of_multiarray(self, dim, keepdim=False):
             @for_range(stride)
             def _(j):
                 input_perm.assign_vector(dl_dx.get_vector(i, 1), i*stride+j)
+        break_point()
         input_perm[:] *= 2
-        input_perm[:] /= stride - 1
+        if unbiased:
+            input_perm[:] /= stride
+        else:
+            input_perm[:] /= stride - 1
         input_perm[:] *= dmean[:]
         # permute back
         new_perm = get_permute_back(len(self.value.sizes), dim)
-        input_perm.permute_without_malloc(dl_dself, new_perm)
+        input_perm.permute_without_malloc(dmean, new_perm)
+        dl_dself[:] += dmean[:]
         
         dl_dinputs = [dl_dself]
         return dl_dinputs
@@ -1035,8 +1075,8 @@ def var_of_multiarray(self, dim, keepdim=False):
         def _(i):
             summary = sum(input_perm.get_vector(i*stride, stride))
             mean.assign_vector(summary, i)
-        mean[:] /= stride
         break_point()
+        mean[:] /= stride
         # dmean
         @for_range_opt(output.value.total_size())
         def _(i):
@@ -1050,7 +1090,10 @@ def var_of_multiarray(self, dim, keepdim=False):
             summary = sum(dmean_sqr.get_vector(i*stride, stride))
             output.value.assign_vector(summary, i)
         break_point()
-        output.value[:] /= stride - 1
+        if unbiased:
+            output.value[:] /= stride
+        else:
+            output.value[:] /= stride - 1
         op_id += 1
     # record the input and output of the op
     return output
@@ -1062,16 +1105,24 @@ def std_of_multiarray(self, dim, keepdim=False):
     def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
         dl_dself = dl_d[operation.inputs[0]]
-        input_perm, mean, dmean, dmean_sqr, std = operation.intermediate
-        # dl_dself[:] += dl_dx[0] / stdvalue[0] / (self.value.total_size()-1) * dmean[:]
-        stride = reduce(lambda x, y: x * self.value.sizes[y], dim, 1)
+        input_perm, factor, dmean, dmean_sqr, std = operation.intermediate
         
+        # dl_dself[:] += dl_dx[0] / stdvalue[0] / (self.value.total_size()-1) * dmean[:]
+        # new_perm = get_permute_d2front(len(self.value.sizes), dim)
+        # target_size = self.value.tuple_permute(self.shape, new_perm)
+        # input_perm = MultiArray(target_size, self.value.value_type) 
+
+        # print(dmean_sqr.sizes)
+        # boardcasted_multiarray_mul(factor, dmean, input_perm, dmean_sqr)
+        # dmean_sqr[:] /= stride - 1
+        # dl_dself[:] += dmean_sqr[:]
+        stride = reduce(lambda x, y: x * self.value.sizes[y], dim, 1)
+        factor[:] = dl_dx[:] / std[:]
         @for_range_opt(dl_dx.total_size())
         def _(i):
-            fraction = dl_dx.get_vector(i, 1) / std.get_vector(i, 1)
             @for_range_opt(stride)
             def _(j):
-                input_perm.assign_vector(fraction, i*stride+j)
+                input_perm.assign_vector(factor.get_vector(i, 1), i*stride+j)
         break_point()
         input_perm[:] /= stride - 1
         input_perm[:] *= dmean[:]
@@ -1129,8 +1180,8 @@ def std_of_multiarray(self, dim, keepdim=False):
         def _(i):
             summary = sum(input_perm.get_vector(i*stride, stride))
             mean.assign_vector(summary, i)
+        break_point()    
         mean[:] /= stride
-        break_point()
         # dmean
         @for_range_opt(output.value.total_size())
         def _(i):
@@ -2184,7 +2235,6 @@ class Tensor():
 
     @buildingblock("sin-forward")
     def sin(self):
-        
         @backwardbuildingblock(get_program().globalbuildingblock[:-12]+"-sin-backward")
         def propagate(dl_doutputs, operation):  # dl_outputs is Tensor.value
             dl_dx, = dl_doutputs
@@ -2233,37 +2283,36 @@ class Tensor():
         else:
             return std_of_multiarray(self, dim, keepdim)
 
-    def var(self, dim=None, keepdim=False):
+    def var(self, dim=None, keepdim=False, unbiased=False):
         if isinstance(self.value, Array) or dim==None:
-            return var_of_array(self)
+            return var_of_array(self, unbiased)
         else:
-            return var_of_multiarray(self, dim, keepdim)
+            return var_of_multiarray(self, dim, keepdim, unbiased)
 
     def norm(self, dim=None, keepdim=False):
         pass
 
     @buildingblock("softmax-forward")
     def softmax(self, dim=-1):
-        
         @backwardbuildingblock(get_program().globalbuildingblock[:-16]+"-sofxmax-backward")
         def propagate(dl_doutputs, operation):
             dl_dy, = dl_doutputs
             output = tensors[operation.outputs[0]]
             if self.req_grad:
                 if isinstance(self.value, MultiArray):
-                    inter_mul1, inter_mul2, inter_sum = operation.intermediate[-3], operation.intermediate[-2], operation.intermediate[-1]
-                    # dl_dx = softmax(x)*(dl_dy-(dl_dy*softmax(x)).sum(dim=-1))
+                    inter_mul1, inter_mul2, inter_sum,inter1,inter2= operation.intermediate[-5], operation.intermediate[-4], operation.intermediate[-3],operation.intermediate[-2],operation.intermediate[-1]
+                    # dl_dx = softmax(x)*(   dl_dy    -    (dl_dy*softmax(x)).sum(dim=-1)  )
                     dl_dy.element_wise_mul(output.value, inter_mul1)
-                    inter = dl_dy - inter_mul1
-                    inter.sum(dim, res=inter_sum, keepdims=True)
-                    output.value.element_wise_mul(inter_sum, inter_mul2)
+                    inter_mul1.sum(dim, res=inter_sum, keepdims=True)
+                    _, v1, v2 = reconst_dims(dl_dy, inter_sum)
+                    boardcasted_multiarray_sub(v1,v2, inter2,inter1)
+                    output.value.element_wise_mul(inter1, inter_mul2)
                     dl_d[operation.inputs[0]][:] += inter_mul2[:]
-                    inter.delete()
                 else:
                     res = output.value[:]*(dl_dy[:]-sum(output.value[:]*dl_dy[:]))
                     dl_d[operation.inputs[0]][:] += res
         # forward
-        global op_id
+        global op_id 
         if prepare:
             if isinstance(self.value, Array):
                 output = Tensor(Array(self.sizes[0], self.value_type), req_grad=self.req_grad)
@@ -2276,11 +2325,17 @@ class Tensor():
                 inter = [per_x, per_res]
             if self.req_grad:
                 if isinstance(self.value, MultiArray):
-                    new_sizes = self.sizes[:dim] + self.sizes[dim+1:]
-                    new_sizes = new_sizes + (1,) if len(new_sizes) == 1 else new_sizes
+                    if dim in [-1 , len(self.sizes)]:
+                        new_sizes = self.sizes[:dim] +(1,) 
+                    else:
+                        new_sizes = self.sizes[:dim] +(1,) +self.sizes[dim+1:]
                     inter_mul1, inter_mul2, inter_sum = MultiArray(self.value.sizes, self.value.value_type), MultiArray(
                         self.value.sizes, self.value.value_type), MultiArray(new_sizes, self.value.value_type)
-                    inter += [inter_mul1, inter_mul2, inter_sum]
+                    dims, v1, v2 = reconst_dims(output.value, inter_sum)
+                    target_size = v1.tuple_permute(output.value.sizes, get_permute(len(output.sizes), dims))
+                    inter1,inter2=MultiArray(output.sizes,self.value_type),MultiArray(target_size,self.value_type)
+                    
+                    inter += [inter_mul1, inter_mul2, inter_sum,inter1,inter2]
                 operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=inter)
             else:
                 operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate, intermediate=inter)
@@ -2484,4 +2539,4 @@ def vec_softmax(x):
 #         else:
 #             return obj
 
-    return Tensor(expand_dim(input, res, 0))
+    # return Tensor(expand_dim(input, res, 0))

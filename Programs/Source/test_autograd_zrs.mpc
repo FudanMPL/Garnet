@@ -1,7 +1,8 @@
 from tensor import Tensor,reset_gloabal_store,untrain,autograd_function
 import tensor as tensor
-
+from functools import reduce
 import functional as F
+import operator
 
 program.options_from_args()
 ROW=3
@@ -631,6 +632,114 @@ def test_kl_div():
     output.backward()
     input1.grad.print_reveal_nested()
 
+@autograd_function
+def test_softmax():
+    print_ln('test_softmax')
+    x = MultiArray([3, 4,2], sfix)
+    for i in range(0,3):
+        for  j in range(0,4):
+            for k in range(2):
+                x[i][j][k] = sfix(i-j-k)
+    x.print_reveal_nested()
+
+    y = MultiArray([3, 4,2], sfix)
+    for i in range(0,3):
+        for  j in range(0,4):
+            for k in range(2):
+                    y[i][j][k] = sfix(i+j+k)
+    y.print_reveal_nested()
+
+    input1 = Tensor(x, req_grad = True)
+    input2 = Tensor(y, req_grad = True)
+    output = input1.softmax(dim=1)
+    out = output*input2
+    tensor.train()
+    tensor.reset_op_id()
+    output = input1.softmax(dim=1)
+    out = output*input2
+    out.value.print_reveal_nested()
+    out.backward()
+    input1.grad.print_reveal_nested()
+
+
+
+
+
+def test_dim():
+    print_ln('test_dim')
+    x = MultiArray([3, 4,3], sfix)
+    for i in range(0,3):
+        for  j in range(0,4):
+            for k in range(0,3):
+                x[i][j][k] = sfix(i+j+k)
+    x.print_reveal_nested()
+    dim=1
+    part_suffix = reduce(operator.mul, x.sizes[dim+1:])
+    part_prefix = reduce(operator.mul, x.sizes[:dim])
+    index=regint.inc(x.sizes[dim],base=0,step=part_suffix,repeat=1)
+    print_ln(x.get(index).reveal())
+
+
+@autograd_function
+def test_nllloss():
+    print_ln('test_nllloss')
+    x = MultiArray([3, 4], sfix)
+    for i in range(0,3):
+        for  j in range(0,4):
+            x[i][j]= sfix(i-j)
+    x.print_reveal_nested()
+
+    y = MultiArray([3, 4], sint)
+    y[0][2]=1
+    y[1][0]=1
+    y[2][3]=1
+    y.print_reveal_nested()
+
+    input = Tensor(x, req_grad = True)
+    target = Tensor(y, req_grad = True)
+    output = F.nll_loss(input,target)
+    tensor.train()
+    tensor.reset_op_id()
+    output = F.nll_loss(input,target)
+    output.value.print_reveal_nested()
+    output.backward()
+    input.grad.print_reveal_nested()
+    output.grad.print_reveal_nested()
+
+
+@autograd_function
+def test_cross_entropy():
+    print_ln('test_cross_entropy')
+    x = MultiArray([3, 4], sfix)
+    for i in range(0,3):
+        for  j in range(0,4):
+            x[i][j]= sfix(i-j)
+    x.print_reveal_nested()
+
+    y = MultiArray([3, 4], sint)
+    y[0][0]=1
+    y[1][2]=1
+    y[2][1]=1
+    y.print_reveal_nested()
+
+    input = Tensor(x, req_grad = True)
+    target = Tensor(y, req_grad = True)
+    output = F.cross_entropy(input,target)
+    tensor.train()
+    tensor.reset_op_id()
+    output = F.cross_entropy(input,target)
+    output.value.print_reveal_nested()
+    output.backward()
+    input.grad.print_reveal_nested()
+
+    
+test_cross_entropy()
+
+#test_nllloss()
+#test_dim()
+
+
+#test_softmax()
 
 #test_kl_div()
 
@@ -642,7 +751,7 @@ def test_kl_div():
 
 #test_maxpool2d()
 
-test_conv2d()
+#test_conv2d()
 #test_tanh()
 
 #test_logsigmoid()

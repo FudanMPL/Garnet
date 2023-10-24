@@ -1,4 +1,15 @@
-a = sint.get_input_from(0)
-b = sint.get_input_from(0)
-c = a * b
-print_ln("c = %s", c.reveal())
+x = MultiArray([3,3], sfix)
+y = MultiArray([3,1], sfix)
+for i in range(x.total_size()):
+    x.assign_vector(sfix(i), i)
+
+for i in range(y.total_size()):
+    y.assign_vector(sfix(i), i)
+
+a = x[:]
+b = y[:]
+print_ln(' got %s', a.reveal())
+print_ln(' got %s', b.reveal())
+for i in range(12):
+    c = sfix.matrix_mul(a, b, 3)
+    print_ln(' got %s', c.reveal())
