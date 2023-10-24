@@ -6241,6 +6241,7 @@ class SubMultiArray(_vectorizable):
 
         :param other: container of matching size and type
         :return: container of same shape and type as :py:obj:`self` """
+        print(self.sizes, other.sizes,"-----------------")
         if is_zero(other):
             return self
         assert self.sizes == other.sizes
