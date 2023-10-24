@@ -757,7 +757,7 @@ def mean_of_array(self):
     return output
 
 @buildingblock("var-forward")
-def var_of_array(self):
+def var_of_array(self, unbiased=False):
     # backward
     @backwardbuildingblock(get_program().globalbuildingblock[:-12]+"-var-backward")
     def propagate(dl_doutputs, operation):
@@ -766,7 +766,13 @@ def var_of_array(self):
         dmean = operation.intermediate[0] # reuse the intervalue in mem
         dl_dself = dl_d[inputs[0]]
         
-        dl_dself[:] += 2 / (self.value.total_size()-1) * dmean[:] * dl_dx[0]
+        factor = 2 * dmean[:] * dl_dx[0]
+        if unbiased:
+            factor /= self.value.total_size()
+        else:
+            factor /= self.value.total_size()-1
+        
+        dl_dself[:] += factor
         dl_dinputs = [dl_dself]
         return dl_dinputs
     # forward
@@ -795,7 +801,12 @@ def var_of_array(self):
 
         mean = sum(input.value[:]) / self.value.total_size()
         dmean = input.value[:] - mean
-        output.value[:] = sum(dmean ** 2) / (self.value.total_size()-1)
+        output.value[:] = sum(dmean ** 2) 
+        
+        if unbiased:
+            output.value[:] /= self.value.total_size()
+        else:
+            output.value[:] /= self.value.total_size()-1
         
         operation.intermediate[0].assign_vector(dmean)
         
@@ -2274,7 +2285,7 @@ class Tensor():
 
     def var(self, dim=None, keepdim=False, unbiased=False):
         if isinstance(self.value, Array) or dim==None:
-            return var_of_array(self)
+            return var_of_array(self, unbiased)
         else:
             return var_of_multiarray(self, dim, keepdim, unbiased)
 
