@@ -835,7 +835,6 @@ def batch_norm(input, running_mean, running_var, weight=None, bias=None, trainin
     return output
 
 
-# todo: we should replace inv(std) to invsrqt(var)
 @buildingblock("layer_norm")
 def layer_norm(input, normalized_shape, weight=None, bias=None, eps=1e-05):
     
@@ -1078,14 +1077,11 @@ def mse_loss(input, target, reduction='mean'):
     
     dx = input - target
     dx2 = dx * dx
-        
-        output.value[:] = sumdx2
-        if reduction == 'mean':
-            output.value[:] /= input.value.total_size()
-        else:
-            assert reduction == 'sum' , 'reduction should be mean or sum'
-        set_opid(op_id+1)  # record the input and output of the op
-    return output
+    out = dx2.sum()
+   
+    if reduction == 'mean':
+        out /= input.value.total_size()
+    return out
 
 
 
