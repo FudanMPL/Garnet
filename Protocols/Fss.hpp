@@ -20,7 +20,7 @@
 #include <vector>
 #include <iostream>
 #include <string>
-#include "FssCpuStruct.h"
+
 //-------------------
 #include <math.h>
 
@@ -154,7 +154,6 @@ void Fss<T>::Muliti_Interval_Containment(SubProcessor<T> &proc, const Instructio
 template <class T>
 void Fss<T>::distributed_comparison_function(SubProcessor<T> &proc, const Instruction &instruction, int n)
 {
-    fstream k_in;
     PRNG prng;
     prng.ReSeed();
     init(proc.DataF, proc.MC);
@@ -166,27 +165,6 @@ void Fss<T>::distributed_comparison_function(SubProcessor<T> &proc, const Instru
     r.open("Player-Data/2-fss/r" + to_string(P.my_num()), ios::in);
     r >> r_tmp[0];
     r.close();
-    k_in.open("Player-Data/2-fss/k" + to_string(P.my_num()), ios::in);
-    
-    int lambda_bytes = 16;
-    FssEval * fss_eval = new FssEval();
-    bigint tmp_bigint;
-    bool tmp_t;
-
-    k_in >> tmp_bigint;
-    bytesFromBigint(&fss_eval->seed[0], tmp_bigint, lambda_bytes);
-    for(int i = 0; i < n ; i++){
-        k_in >> tmp_bigint;
-        fss_eval->scw.push_back(tmp_bigint);
-        k_in >> tmp_bigint;
-        fss_eval->vcw.push_back(tmp_bigint);
-        k_in >> tmp_t;
-        fss_eval->tcw[0].push_back(tmp_t);
-        k_in >> tmp_t;
-        fss_eval->tcw[1].push_back(tmp_t);
-    }
-    k_in >> fss_eval->cw;
-    k_in.close();
     MC->init_open(P, n);
     for(size_t i = 0; i < args.size(); i+= args[i]){ 
         auto dest = &proc.S[args[i+3]][0];
@@ -217,9 +195,9 @@ void Fss<T>::distributed_comparison_function(SubProcessor<T> &proc, const Instru
         typename T::clear tmp[dcf_parallel];
         for(size_t t = 0; t < args.size(); t+= args[t]){
             result[cnt] = MC->finalize_raw();
-            dcf_res_u[cnt] = this->evaluate(result[cnt], fss_eval, n);
+            dcf_res_u[cnt] = this->evaluate(result[cnt], n);
             result[cnt] += 1LL<<(n-1);
-            dcf_res_v[cnt] = this->evaluate(result[cnt], fss_eval, n);
+            dcf_res_v[cnt] = this->evaluate(result[cnt], n);
             auto size = dcf_res_u[cnt].get_mpz_t()->_mp_size;
             mpn_copyi((mp_limb_t*)dcf_u[cnt].get_ptr(), dcf_res_u[cnt].get_mpz_t()->_mp_d, abs(size));
             if(size < 0)
@@ -269,45 +247,58 @@ void Fss<T>::generate(){
 
 
 template<class T>
-bigint Fss<T>::evaluate(typename T::clear x, FssEval * fss_eval, int n){
+bigint Fss<T>::evaluate(typename T::clear x, int n){
+    fstream k_in;
     PRNG prng;
     prng.ReSeed();
     int b = P.my_num(), xi;
     // Here represents the bytes that bigint will consume, the default number is 16, if the MAX_N_BITS is bigger than 128, then we should change.
-    int lambda = 127, lambda_bytes = 16;   
-    fss_eval->pre_t = b;
-    fss_eval->tmp_v = 0;
-
-
+    int lambda = 127, lambda_bytes = 16;
+    k_in.open("Player-Data/2-fss/k" + to_string(P.my_num()), ios::in);
+    octet seed[lambda_bytes];
+    // r is the random value generate by GEN
+    bigint s_hat[2], v_hat[2], s[2], v[2], scw, vcw, convert[2], cw, tmp_bigint, tmp_v, tmp_out;
+    bool t_hat[2], tcw[2], t[2], tmp_t;
+    k_in >> tmp_bigint;
+    bytesFromBigint(&seed[0], tmp_bigint, lambda_bytes);
+    tmp_t = b;
+    tmp_v = 0;
     // std::cout << "x is " << x << std::endl;
     for(int i = 0; i < n ; i++){
         xi = x.get_bit(n - i - 1);
-        prng.SetSeed(fss_eval->seed);
+        // std::cout << "xi is " << xi << std::endl;
+        k_in >> scw >> vcw >> tcw[0] >> tcw[1];
+        // std::cout << "scw, vcw, tcw0, tcw1 are " << scw << " " << vcw << " "<< tcw[0] << " " << tcw[1] << std::endl;
+        prng.SetSeed(seed);
         for(int j = 0; j < 2; j++){
-            prng.get(fss_eval->v_hat[j], lambda);
-            prng.get(fss_eval->s_hat[j], lambda);
-            fss_eval->t_hat[j] = fss_eval->s_hat[j].get_ui() & 1;
-            fss_eval->s[j] = fss_eval->s_hat[j] ^ (fss_eval->pre_t * fss_eval->scw[i]);
-            fss_eval->t[j] = fss_eval->t_hat[j] ^ (fss_eval->pre_t * fss_eval->tcw[j][i]);
+            prng.get(v_hat[j], lambda);
+            prng.get(s_hat[j], lambda);
+            t_hat[j] = s_hat[j].get_ui() & 1;
+            s[j] = s_hat[j] ^ (tmp_t * scw);
+            t[j] = t_hat[j] ^ (tmp_t * tcw[j]);
         }
+
+        // std::cout << "v_hat[0], v_hat[1] are " << v_hat[0] << " " << v_hat[1] << std::endl;
         if(n <= 128){
+
             // std::cout << "length is " << lambda-n << std::endl;
-            fss_eval->convert[0] = fss_eval->v_hat[0] >> (lambda-n);
-            fss_eval->convert[1] = fss_eval->v_hat[1] >> (lambda-n);
+            convert[0] = v_hat[0] >> (lambda-n);
+            convert[1] = v_hat[1] >> (lambda-n);
         }
         // std::cout << "convert[0], convert[1] are " << convert[0] << " " << convert[1] << std::endl;
-        fss_eval->tmp_v = fss_eval->tmp_v + b * (-1) * (fss_eval->convert[xi] + fss_eval->pre_t * fss_eval->vcw[i]) + (1^b) * (fss_eval->convert[xi] + fss_eval->pre_t * fss_eval->vcw[i]);
+        tmp_v = tmp_v + b * (-1) * (convert[xi] + tmp_t * vcw) + (1^b) * (convert[xi] + tmp_t * vcw);
         // std::cout << "bit length of s[xi] is " << numBits(s[xi]) << std::endl;
-        bytesFromBigint(&fss_eval->seed[0], fss_eval->s[xi], lambda_bytes);
-        fss_eval->pre_t = fss_eval->t[xi];
+        bytesFromBigint(&seed[0], s[xi], lambda_bytes);
+        tmp_t = t[xi];
         // std::cout << "t[xi] is " << t[xi] << std::endl;
         // std::cout << "s[xi] is " << s[xi] << std::endl;
     }
-
+    k_in >> cw;
+    k_in.close();
     if(n <= 128)
-        fss_eval->convert[0] = fss_eval->s[xi] >> (lambda-n);
-    fss_eval->tmp_v = fss_eval->tmp_v + b * (-1) * (fss_eval->convert[0] + fss_eval->pre_t * fss_eval->cw) + (1^b) * (fss_eval->convert[0] + fss_eval->pre_t * fss_eval->cw);
-    return fss_eval->tmp_v;  
+        convert[0] = s[xi] >> (lambda-n);
+    tmp_v = tmp_v + b * (-1) * (convert[0] + tmp_t * cw) + (1^b) * (convert[0] + tmp_t * cw);
+    return tmp_v;  
 }
 
 template <class T>

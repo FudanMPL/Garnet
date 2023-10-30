@@ -1,12 +1,4 @@
 /*
- * @Author: SkyTu 1336923451@qq.com
- * @Date: 2023-06-25 16:09:01
- * @LastEditors: SkyTu 1336923451@qq.com
- * @LastEditTime: 2023-10-23 19:51:20
- * @FilePath: /txy/Garnet/Protocols/Fss.h
- * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
- */
-/*
  * FSS.h
  *
  */
@@ -28,7 +20,6 @@ using namespace std;
 #include "Networking/Player.h"
 #include <typeinfo>
 #include "Protocols/Replicated.h"
-#include "FssCpuStruct.h"
 #define GEN 2
 #define EVAL_1 0
 #define EVAL_2 1
@@ -101,7 +92,7 @@ public:
     void generate();
 
     //new added evaluate function
-    bigint evaluate(typename T::clear x, FssEval * fss_eval, int lambda);
+    bigint evaluate(typename T::clear x, int lambda);
 };
 
 
