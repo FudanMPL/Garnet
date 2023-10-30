@@ -1018,7 +1018,7 @@ def nll_loss(input, target, weight=None,reduction='mean'):
         operation.intermediate[0].assign_vector(tmp)
         
         if reduction == 'mean':
-            output.value[:] /= input.sizes[0]
+            output.value[:] *= 1 / input.sizes[0]
         else:
             assert reduction == 'sum' , 'reduction should be mean or sum'
         set_opid(op_id+1)  # record the input and output of the op
@@ -1068,7 +1068,8 @@ def mse_loss(input, target, reduction='mean'):
         
     #     output.value[:] = sumdx2
     #     if reduction == 'mean':
-    #         output.value[:] /= input.value.total_size()
+    #         print(type(input.value.total_size()))
+    #         output.value[:] *= 1 / input.value.total_size()
     #     else:
     #         assert reduction == 'sum' , 'reduction should be mean or sum'
     #     set_opid(op_id+1)  # record the input and output of the op
