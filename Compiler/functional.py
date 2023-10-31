@@ -1096,3 +1096,11 @@ def binary_cross_entropy(input, target, weight=None):
 def cross_entropy(input, target, weight=None):
     tmp=log_softmax(input)
     return nll_loss(tmp,target,weight)
+
+def gelu(input, approximate='none'):
+    assert approximate == 'tanh', 'approximate of gelu must be tanh'
+    factor = input + input * input * input * 0.044715
+    factor *= np.sqrt(2.0/np.pi)
+    factor = factor.tanh()
+    factor += 1
+    return factor * input * 0.5

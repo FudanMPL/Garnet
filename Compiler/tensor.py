@@ -604,7 +604,7 @@ def ops_mul_constant(self, c):
         dl_dx, = dl_doutputs
         inputs = operation.inputs
         dl_dself = dl_d[inputs[0]]
-        dl_dself[:] += c * dl_dx[:]
+        dl_dself[:] += dl_dx[:] * c
         dl_dinputs = [dl_dself]
         return dl_dinputs
     # forward
@@ -2364,8 +2364,51 @@ class Tensor():
     def sigmoid(self):
         pass
 
+    @buildingblock("tanh-forward")
     def tanh(self):
-        pass
+        # backward
+        @backwardbuildingblock(get_program().globalbuildingblock[:-13]+"-tanh-backward")
+        def propagate(dl_doutputs, operation):
+            dl_dx, = dl_doutputs
+            inputs = operation.inputs
+            inter = operation.intermediate[0]  # reuse the intervalue in mem
+            dl_dself = dl_d[inputs[0]]
+            denominator = inter[:] * inter[:] + 2 * inter[:] + 1
+            dl_dself[:] += 4 * inter[:] / denominator * dl_dx[:]
+            dl_dinputs = [dl_dself]
+            return dl_dinputs
+        # forward
+        global op_id
+        if prepare:
+            if isinstance(self.value, Array):
+                new_value = Array(self.value.length, self.value.value_type)
+                inter = Array(self.value.length, self.value.value_type)
+            else:
+                new_value = MultiArray(self.value.sizes, self.value.value_type)
+                inter = MultiArray(self.value.sizes, self.value.value_type)
+            output = Tensor(new_value, req_grad=self.req_grad)
+            if self.req_grad:
+                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=[inter])
+            else:
+                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate, intermediate=[inter])
+            gradient_operation.append(operation)
+            operation_id = len(gradient_operation) - 1
+            op_id_store[op_id] = operation_id
+            op_id += 1
+        else:
+            operation = gradient_operation[op_id_store[op_id]]
+            inputs = operation.inputs
+            outputs = operation.outputs
+            input = tensors[inputs[0]]
+            output = tensors[outputs[0]]
+
+            ex = mpc_math.pow_fx(math.e, 2 * input.value[:])
+            operation.intermediate[0].assign_vector(ex)
+            
+            output.value[:] = (ex-1) / (ex+1)
+            op_id += 1
+        # record the input and output of the op
+        return output
     
     def size(self):
         return self.value.sizes
