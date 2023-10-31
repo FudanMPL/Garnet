@@ -1018,7 +1018,7 @@ def nll_loss(input, target, weight=None,reduction='mean'):
         operation.intermediate[0].assign_vector(tmp)
         
         if reduction == 'mean':
-            output.value[:] /= input.sizes[0]
+            output.value[:] *= 1 / input.sizes[0]
         else:
             assert reduction == 'sum' , 'reduction should be mean or sum'
         set_opid(op_id+1)  # record the input and output of the op
@@ -1068,7 +1068,8 @@ def mse_loss(input, target, reduction='mean'):
         
     #     output.value[:] = sumdx2
     #     if reduction == 'mean':
-    #         output.value[:] /= input.value.total_size()
+    #         print(type(input.value.total_size()))
+    #         output.value[:] *= 1 / input.value.total_size()
     #     else:
     #         assert reduction == 'sum' , 'reduction should be mean or sum'
     #     set_opid(op_id+1)  # record the input and output of the op
@@ -1094,4 +1095,12 @@ def binary_cross_entropy(input, target, weight=None):
 
 def cross_entropy(input, target, weight=None, reduction = 'mean'):
     tmp=log_softmax(input)
-    return nll_loss(tmp, target, weight,  reduction=reduction)
+    return nll_loss(tmp,target,weight)
+
+def gelu(input, approximate='none'):
+    assert approximate == 'tanh', 'approximate of gelu must be tanh'
+    factor = input + input * input * input * 0.044715
+    factor *= np.sqrt(2.0/np.pi)
+    factor = factor.tanh()
+    factor += 1
+    return factor * input * 0.5

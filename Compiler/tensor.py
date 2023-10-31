@@ -604,7 +604,7 @@ def ops_mul_constant(self, c):
         dl_dx, = dl_doutputs
         inputs = operation.inputs
         dl_dself = dl_d[inputs[0]]
-        dl_dself[:] += c * dl_dx[:]
+        dl_dself[:] += dl_dx[:] * c
         dl_dinputs = [dl_dself]
         return dl_dinputs
     # forward
@@ -768,9 +768,9 @@ def var_of_array(self, unbiased=False):
         
         factor = 2 * dmean[:] * dl_dx[0]
         if unbiased:
-            factor /= self.value.total_size()
+            factor *= 1 / self.value.total_size()
         else:
-            factor /= self.value.total_size()-1
+            factor *= 1 / (self.value.total_size()-1)
         
         dl_dself[:] += factor
         dl_dinputs = [dl_dself]
@@ -804,9 +804,9 @@ def var_of_array(self, unbiased=False):
         output.value[:] = sum(dmean ** 2) 
         
         if unbiased:
-            output.value[:] /= self.value.total_size()
+            output.value[:] *= 1 / self.value.total_size()
         else:
-            output.value[:] /= self.value.total_size()-1
+            output.value[:] *= 1 / (self.value.total_size()-1)
         
         operation.intermediate[0].assign_vector(dmean)
         
@@ -945,7 +945,7 @@ def mean_of_multiarray(self, dim, keepdim=False):
             @for_range(stride)
             def _(j):
                 input_perm.assign_vector(dl_dx.get_vector(i, 1), i*stride+j)
-        input_perm[:] /= stride
+        input_perm[:] *= 1 / stride
         # permute back
         new_perm = get_permute_back(len(self.value.sizes), dim)
         input_perm.permute_without_malloc(temp, new_perm)
@@ -995,7 +995,7 @@ def mean_of_multiarray(self, dim, keepdim=False):
         def _(i):
             summary = sum(input_perm.get_vector(i*stride, stride))
             output.value.assign_vector(summary, i)
-        output.value[:] /= stride
+        output.value[:] *= 1 / stride
         # output.value.reshape([(1 if i in dim else self.value.sizes[i]) for i in range(len(self.value.sizes))])
         op_id += 1
     # record the input and output of the op
@@ -1019,9 +1019,9 @@ def var_of_multiarray(self, dim, keepdim=False, unbiased=False):
         break_point()
         input_perm[:] *= 2
         if unbiased:
-            input_perm[:] /= stride
+            input_perm[:] *= 1 / stride
         else:
-            input_perm[:] /= stride - 1
+            input_perm[:] *= 1 / (stride - 1)
         input_perm[:] *= dmean[:]
         # permute back
         new_perm = get_permute_back(len(self.value.sizes), dim)
@@ -1076,7 +1076,7 @@ def var_of_multiarray(self, dim, keepdim=False, unbiased=False):
             summary = sum(input_perm.get_vector(i*stride, stride))
             mean.assign_vector(summary, i)
         break_point()
-        mean[:] /= stride
+        mean[:] *= 1 / stride
         # dmean
         @for_range_opt(output.value.total_size())
         def _(i):
@@ -1091,9 +1091,9 @@ def var_of_multiarray(self, dim, keepdim=False, unbiased=False):
             output.value.assign_vector(summary, i)
         break_point()
         if unbiased:
-            output.value[:] /= stride
+            output.value[:] *= 1 / stride
         else:
-            output.value[:] /= stride - 1
+            output.value[:] *= 1 / (stride - 1)
         op_id += 1
     # record the input and output of the op
     return output
@@ -1124,7 +1124,7 @@ def std_of_multiarray(self, dim, keepdim=False):
             def _(j):
                 input_perm.assign_vector(factor.get_vector(i, 1), i*stride+j)
         break_point()
-        input_perm[:] /= stride - 1
+        input_perm[:] *= 1/(stride - 1)
         input_perm[:] *= dmean[:]
         # permute back
         new_perm = get_permute_back(len(self.value.sizes), dim)
@@ -1181,7 +1181,7 @@ def std_of_multiarray(self, dim, keepdim=False):
             summary = sum(input_perm.get_vector(i*stride, stride))
             mean.assign_vector(summary, i)
         break_point()    
-        mean[:] /= stride
+        mean[:] *= 1 / stride
         # dmean
         @for_range_opt(output.value.total_size())
         def _(i):
@@ -1195,7 +1195,7 @@ def std_of_multiarray(self, dim, keepdim=False):
             summary = sum(dmean_sqr.get_vector(i*stride, stride))
             std.assign_vector(summary, i)
         break_point()
-        std[:] /= stride - 1
+        std[:] *= 1 /( stride - 1)
         # std
         std[:] = mpc_math.sqrt(std[:])
         output.value[:] = std[:]
@@ -2364,8 +2364,51 @@ class Tensor():
     def sigmoid(self):
         pass
 
+    @buildingblock("tanh-forward")
     def tanh(self):
-        pass
+        # backward
+        @backwardbuildingblock(get_program().globalbuildingblock[:-13]+"-tanh-backward")
+        def propagate(dl_doutputs, operation):
+            dl_dx, = dl_doutputs
+            inputs = operation.inputs
+            inter = operation.intermediate[0]  # reuse the intervalue in mem
+            dl_dself = dl_d[inputs[0]]
+            denominator = inter[:] * inter[:] + 2 * inter[:] + 1
+            dl_dself[:] += 4 * inter[:] / denominator * dl_dx[:]
+            dl_dinputs = [dl_dself]
+            return dl_dinputs
+        # forward
+        global op_id
+        if prepare:
+            if isinstance(self.value, Array):
+                new_value = Array(self.value.length, self.value.value_type)
+                inter = Array(self.value.length, self.value.value_type)
+            else:
+                new_value = MultiArray(self.value.sizes, self.value.value_type)
+                inter = MultiArray(self.value.sizes, self.value.value_type)
+            output = Tensor(new_value, req_grad=self.req_grad)
+            if self.req_grad:
+                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=[inter])
+            else:
+                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate, intermediate=[inter])
+            gradient_operation.append(operation)
+            operation_id = len(gradient_operation) - 1
+            op_id_store[op_id] = operation_id
+            op_id += 1
+        else:
+            operation = gradient_operation[op_id_store[op_id]]
+            inputs = operation.inputs
+            outputs = operation.outputs
+            input = tensors[inputs[0]]
+            output = tensors[outputs[0]]
+
+            ex = mpc_math.pow_fx(math.e, 2 * input.value[:])
+            operation.intermediate[0].assign_vector(ex)
+            
+            output.value[:] = (ex-1) / (ex+1)
+            op_id += 1
+        # record the input and output of the op
+        return output
     
     def size(self):
         return self.value.sizes
