@@ -283,7 +283,7 @@ int AES_ExpandKey(BYTE key[], int keyLen) {
     return ks;
 }
 
-__global__ void AES_Encrypt(aes_block aes_block_array[], BYTE key[], int keyLen, int block_number) {
+__global__ void AES_Encrypt(FssDpfGen * cuda_dpf_gen, BYTE key[], int k, int j, int keyLen, int block_number) {
     int global_thread_index = blockDim.x*blockIdx.x + threadIdx.x;
 //    printf("global thread index = %d\n", global_thread_index);
     
@@ -304,7 +304,7 @@ __global__ void AES_Encrypt(aes_block aes_block_array[], BYTE key[], int keyLen,
         BYTE block[16]; 
         //cudaMemcpy(block, aes_block_array[global_thread_index].block, 16*sizeof(BYTE), cudaMemcpyDeviceToDevice);
         for(int i=0; i<16; i++){
-            block[i] = aes_block_array[global_thread_index].block[i];
+            block[i] = cuda_dpf_gen[global_thread_index].s[k][j][i];
 //		printf("%d %d %d\n",i, global_thread_index, block[i]);
         }
         int l = keyLen, i;
@@ -325,7 +325,7 @@ __global__ void AES_Encrypt(aes_block aes_block_array[], BYTE key[], int keyLen,
 //}
         for(int i=0; i<16; i++){
   //          printf("%d %d  %d\n",i, global_thread_index, aes_block_array[global_thread_index].block[i]);
-         aes_block_array[global_thread_index].block[i] = block[i];
+         cuda_dpf_gen[global_thread_index].s[k][j][i] = block[i];
         }
         //printf("block %d encrypted\n", global_thread_index);
     }

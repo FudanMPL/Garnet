@@ -1,3 +1,11 @@
+/*
+ * @Author: SkyTu 1336923451@qq.com
+ * @Date: 2023-10-24 10:34:10
+ * @LastEditors: SkyTu 1336923451@qq.com
+ * @LastEditTime: 2023-10-31 12:57:52
+ * @FilePath: /txy/Garnet/GPU/fss_struct.h
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -15,7 +23,6 @@
 
 #define INPUT_BYTE 8
 #define LAMBDA_BYTE 16
-#define MAX_PARALLEL 1024
 
 class aes_block
 {
@@ -28,43 +35,42 @@ public:
     uint8_t cuda_key[2][240];
 };
 
-class FssDpfGenerateBlock
+class RandomValueBlock
 {
 public:
-    uint8_t r[INPUT_BYTE * MAX_PARALLEL];
-    uint8_t seed[2][LAMBDA_BYTE * MAX_PARALLEL];
+    uint8_t r[LAMBDA_BYTE];
 };
 
 class CorrectionWord{
 public:
-    uint8_t scw[INPUT_BYTE * 8 * MAX_PARALLEL][LAMBDA_BYTE];
-    bool tcw[2 * MAX_PARALLEL];
-    uint8_t output[LAMBDA_BYTE * MAX_PARALLEL];
+    uint8_t scw[INPUT_BYTE * 8][LAMBDA_BYTE];
+    bool tcw[INPUT_BYTE * 8][2];
+    uint8_t output[LAMBDA_BYTE];
 };
 
 class CorrectionWordCompress8{
 public:
     uint8_t scw[INPUT_BYTE * 8 - 3][LAMBDA_BYTE];
-    bool tcw[2];
+    bool tcw[2][INPUT_BYTE * 8];
     uint8_t output[LAMBDA_BYTE];
 };
 
 class FssDpfGen
 {
 public:
-    uint8_t s[2][2][LAMBDA_BYTE * MAX_PARALLEL];
-    bool t[2][2][MAX_PARALLEL];
-    bool pre_t[2][MAX_PARALLEL]; 
-    bool keep[MAX_PARALLEL];
-    bool lose[MAX_PARALLEL];
+    uint8_t s[2][2][LAMBDA_BYTE];
+    bool t[2][2];
+    bool pre_t[2] = {0,1}; 
+    bool keep;
+    bool lose;
 };
 
 class FssDpfEval
 {
 public:
-    uint8_t s[2][2][LAMBDA_BYTE * MAX_PARALLEL];
-    bool t[2][2][MAX_PARALLEL];
-    bool pre_t[2][MAX_PARALLEL]; 
+    uint8_t s[2][2][LAMBDA_BYTE];
+    bool t[2][2];
+    bool pre_t[2]; 
 };
 
 
