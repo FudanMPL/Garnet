@@ -4445,6 +4445,7 @@ class _fix(_single):
         """ Secret fixed-point division.
 
         :param other: sfix/cfix/sint/cint/regint/int """
+        #Problematic div, low efficiency when div a constant
         if util.is_constant_float(other):
             assert other != 0
             log = math.ceil(math.log(abs(other), 2))

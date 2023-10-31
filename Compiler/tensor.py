@@ -1710,12 +1710,12 @@ class Tensor():
                     sizes = sizes[0]
                 else:
                     sizes = list(sizes)
-                assert all(isinstance(x, int) and x > 0 for x in sizes), "Invalid Dimensiopn"
+                assert all(isinstance(x, int) and x > -2 for x in sizes), "Invalid Dimensiopn"
                 if -1 in sizes:
                     assert sizes.count(-1) == 1, "-1 Occurs More than Once "
                     tmp = reduce(lambda x, y: x*y, sizes)
                     assert product % (-tmp) == 0, "Invalid Dimension"
-                    sizes[sizes.index(-1)] = product/(-tmp)
+                    sizes[sizes.index(-1)] = int(product/(-tmp))
                 new_value = MultiArray(sizes, self.value.value_type)
             output = Tensor(new_value, req_grad=self.req_grad)
             if self.req_grad:

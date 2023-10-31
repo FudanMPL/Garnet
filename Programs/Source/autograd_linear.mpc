@@ -34,6 +34,8 @@ model = LinearRegression()
 optimizer = optim.Adam(model.parameters(), lr = 0.01)
 params = list(model.parameters())
 params[0].assign_all(0.1)
+for i in params:
+    i.assign_all(0)
 mse = nn.MSELoss()
 model.train(mse, dataload)
 

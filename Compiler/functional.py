@@ -383,7 +383,7 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0]):
                     stride_h, stride_w, n_channels_in, padding_h, padding_w,
                     part_size)
             if bias:
-                res += bias.expand_to_vector(j, res.size).v
+                res += bias.value.expand_to_vector(j, res.size).v
             addresses = regint.inc(res.size,
                                     unreduced[i * part_size].address + j,
                                     n_channels_out)
@@ -979,11 +979,11 @@ def l1_loss(input, target,reduction='mean'):
     return output
 
 
-
+@buildingblock("nll_loss-forward")
 def nll_loss(input, target, weight=None,reduction='mean'):
     op_id = get_opid()
     # backward
-    @backwardbuildingblock(get_program().globalbuildingblock[:-17]+"-mse_loss-backward")
+    @backwardbuildingblock(get_program().globalbuildingblock[:-17]+"-nll_loss-backward")
     def propagate(dl_doutputs, operation):
         if reduction=='mean':
             dl_d[input.name].assign_vector( ( inter[:] ) /input.sizes[0] )
@@ -1092,6 +1092,6 @@ def binary_cross_entropy(input, target, weight=None):
     pass
 
 
-def cross_entropy(input, target, weight=None):
+def cross_entropy(input, target, weight=None, reduction = 'mean'):
     tmp=log_softmax(input)
-    return nll_loss(tmp,target,weight)
+    return nll_loss(tmp, target, weight,  reduction=reduction)
