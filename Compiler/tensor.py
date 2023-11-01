@@ -2507,21 +2507,6 @@ def sanitize(x, raw, lower, upper):
 def sigmoid_from_e_x(x,e_x):
     return sanitize(x, 1 / (1 + e_x), 0, 1)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # reset operation
 def reset_gloabal_store():
     gradient_operation.clear()
