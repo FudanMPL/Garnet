@@ -37,46 +37,24 @@ void fss_dpf_generate(RandomValueBlock * cpu_r_block, aes_gen_block * cpu_aes_bl
     cudaMemcpy(cuda_aes_block_array, cpu_aes_block_array, parallel*sizeof(class aes_gen_block), cudaMemcpyHostToDevice);
     
     cudaDeviceSynchronize();
-   
-    // std::cout << "copy finished!" << std::endl;
-    //记录加密算法开始时间
     cudaEvent_t start1;
     cudaEventCreate(&start1);
     cudaEvent_t stop1;
     cudaEventCreate(&stop1);
     cudaEventRecord(start1);
 
-    // int count;
- 
-    // cudaGetDeviceCount(&count);
-    // printf("gpu num %d\n", count);
-    // cudaGetDeviceProperties(&prop, 0);
-    // printf("max thread num: %d\n", prop.maxThreadsPerBlock);
-    // printf("max grid dimensions: %d, %d, %d)\n",
-    // prop.maxGridSize[0], prop.maxGridSize[1], prop.maxGridSize[2]);
     gen_init<<<BlockperGrid, ThreadperBlock>>>(cuda_dpf_gen, parallel);
-    for(int i = 0; i < bit_length; i++){
-        
-        
-        // printGpuBytes<<<1,1>>>(cuda_aes_block_array[0].block[0], 0, 2*LAMBDA_BYTE);
-        printGpuBytes<<<1,1>>>(cuda_aes_block_array[0].block[1], 0, 2*LAMBDA_BYTE);
+    for(int i = 0; i < bit_length; i++){        
         for(int j = 0; j < 2; j++){
             AES_Encrypt_Gen<<<BlockperGrid,ThreadperBlock>>>(cuda_aes_block_array, cuda_key_block, 176, j, parallel);
             st_copy_gen<<<BlockperGrid,ThreadperBlock>>>(cuda_aes_block_array, cuda_dpf_gen, j, parallel); 
         }
-        // printGpuBytes<<<1,1>>>(cuda_dpf_gen[0].s[0][0], 0, LAMBDA_BYTE);
-        printGpuBytes<<<1,1>>>(cuda_dpf_gen[0].s[0][1], 0, LAMBDA_BYTE);
-        // printGpuBytes<<<1,1>>>(cuda_dpf_gen[0].s[1][0], 0, LAMBDA_BYTE);
-        printGpuBytes<<<1,1>>>(cuda_dpf_gen[0].s[1][1], 0, LAMBDA_BYTE);
         cw_update_gen<<<BlockperGrid, ThreadperBlock>>>(cuda_r_block, cuda_cw, cuda_dpf_gen, i, parallel);        
         
         for(int b = 0; b < 2; b++){
             st_update_gen<<<BlockperGrid, ThreadperBlock>>>(cuda_aes_block_array, cuda_cw, cuda_dpf_gen, i, b, parallel);
         }
-        // test<<<1,1>>>(cuda_dpf_gen, cuda_cw, 0, i);
-        // aes_block_copy_gen<<<BlockperGrid, ThreadperBlock>>>(cuda_aes_block_array, parallel);
     }
-
     final_cw_update_gen<<<BlockperGrid, ThreadperBlock>>>(cuda_aes_block_array, cuda_cw, cuda_dpf_gen, parallel);
 
     cudaMemcpy(cpu_cw, cuda_cw, parallel*sizeof(class CorrectionWord), cudaMemcpyDeviceToHost);
@@ -136,20 +114,13 @@ void fss_dpf_evaluate(RevealValueBlock * cpu_reveal, aes_eval_block * cpu_aes_bl
     cudaEventRecord(start1);
     eval_init<<<BlockperGrid, ThreadperBlock>>>(cuda_dpf_eval, party, parallel);
     for(int i = 0; i < bit_length; i++){
-        printGpuBytes<<<1,1>>>(cuda_aes_block_array[0].block, 0, 2*LAMBDA_BYTE);
         AES_Encrypt_Eval<<<BlockperGrid,ThreadperBlock>>>(cuda_aes_block_array, cuda_key_block, 176, parallel);
         test<<<BlockperGrid, ThreadperBlock>>>(cuda_aes_block_array, cuda_dpf_eval, parallel);
-        printGpuBytes<<<1,1>>>(cuda_dpf_eval[0].s[0], 0, LAMBDA_BYTE);
-        printGpuBytes<<<1,1>>>(cuda_dpf_eval[0].s[1], 0, LAMBDA_BYTE);
         st_init_eval<<<BlockperGrid, ThreadperBlock>>>(cuda_aes_block_array, cuda_cw, cuda_dpf_eval, i, parallel);
-        printGpuBytes<<<1,1>>>(cuda_dpf_eval[0].s[0], 0, LAMBDA_BYTE);
-        printGpuBytes<<<1,1>>>(cuda_dpf_eval[0].s[1], 0, LAMBDA_BYTE);
-        // test<<<1,1>>>(cuda_dpf_eval, cuda_cw, i);
-        st_update_eval<<<BlockperGrid, ThreadperBlock>>>(cuda_aes_block_array, cuda_reveal_block, cuda_cw, cuda_dpf_eval, i, parallel);
-        // test<<<1,1>>>(cuda_dpf_eval, cuda_cw, i);
+        st_update_eval<<<BlockperGrid, ThreadperBlock>>>(cuda_aes_block_array, cuda_reveal_block, cuda_cw, cuda_dpf_eval, i, parallel);  
     }
     result_update_eval<<<BlockperGrid, ThreadperBlock>>>(cuda_res, cuda_aes_block_array, cuda_cw, cuda_dpf_eval, parallel);
-    printGpuBytes<<<1,1>>>(cuda_res[0].result, 0, INPUT_BYTE);
+    cudaMemcpy(cpu_res, cuda_res, parallel*sizeof(class ResultBlock), cudaMemcpyDeviceToHost);
     cudaEventRecord(stop1);
     cudaEventSynchronize(stop1);
     float msecTotal1,total;
