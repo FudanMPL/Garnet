@@ -530,7 +530,7 @@ def test_f_batchnorm():
     mean, std = Array(2, sfix), Array(2, sfix)
     M = Tensor(mean, req_grad = False)
     S = Tensor(std, req_grad = False)
-    input2 = F.batch_norm(input1, running_mean = M, running_std = S, 
+    input2 = F.batch_norm(input1, running_mean = M, running_var = S, 
                           weight=W, bias=B, training=True)
 
     v = MultiArray([2,2,2,2], sfix)
@@ -545,7 +545,7 @@ def test_f_batchnorm():
     tensor.train()
     tensor.reset_op_id()
 
-    input2 = F.batch_norm(input1, running_mean = M, running_std = S, 
+    input2 = F.batch_norm(input1, running_mean = M, running_var = S, 
                           weight=W, bias=B, training=True)
     input4 = input2 * vec
 
@@ -690,6 +690,47 @@ def test_f_cossim():
     loss.value.print_reveal_nested()
     Y.grad.print_reveal_nested()
 
+@autograd_function
+def test_f_gelu():
+    print_ln('test_gelu')
+    i, j = 3, 3
+    x = MultiArray([i, j], sfix)
+    for i in range(0,3):
+        for  j in range(0,3):
+            x[i][j] = sfix(i-j)
+    x.print_reveal_nested()
+    input1 = Tensor(x, req_grad = True)
+
+    input2 = F.gelu(input1, approximate='tanh')
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    input2 = F.gelu(input1, approximate='tanh')
+    #input2.backward()
+    input2.value.print_reveal_nested()
+    #input1.grad.print_reveal_nested()
+
+@autograd_function
+def test_flatten():
+    print_ln('test_flatten')
+    x = MultiArray([5, 4,3,2], sfix)
+    for i in range(x.total_size()):
+        x.assign_vector(sfix(i), i)
+    x.print_reveal_nested()
+    input1 = Tensor(x, req_grad = True)
+
+    input2 = input1.flatten(1,2)
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    input2 = input1.flatten(1,2)
+    input2.backward()
+    input2.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+
+
 #test_mul()
 #test_add()
 #test_sub()
@@ -734,6 +775,8 @@ def test_getitem():
 #test_f_droupout(0.5)
 #test_f_batchnorm()
 #test_f_layernorm()
-test_f_mseloss()
+#test_f_mseloss()
 #test_f_normalize(p=2, dim=[0,1])
 #test_f_cossim()
+#test_f_gelu()
+test_flatten()

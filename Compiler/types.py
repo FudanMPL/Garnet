@@ -4445,6 +4445,7 @@ class _fix(_single):
         """ Secret fixed-point division.
 
         :param other: sfix/cfix/sint/cint/regint/int """
+        #Problematic div, low efficiency when div a constant
         if util.is_constant_float(other):
             assert other != 0
             log = math.ceil(math.log(abs(other), 2))
@@ -7005,10 +7006,10 @@ class MultiArray(SubMultiArray):
         if res is None:
             res = MultiArray([self.shape[0], output_col], self.value_type)
 
-        @library.multithread(n_threads, N)
-        def _(base, size):
-            res.assign_part_vector(self.direct_mul(other, indices=(regint.inc(size, base=base), regint.inc(self.shape[1]), regint.inc(self.shape[1]), regint.inc(output_col))), base)
-            # res.assign_part_vector(self.get_part(base,size).direct_mul(other),base) # it uses address not create new. These two are the same in time and online or offline round.
+        @library.for_range_multithread(n_threads, N, N)
+        def _(i):
+            res[i] = self.direct_mul(other, indices=(regint(i), regint.inc(self.sizes[1]), regint.inc(self.sizes[1]), regint.inc(output_col)))
+        
         return res
 
     def single_bmm(self, other, res=None):  # i think single_bmm is a part of mm

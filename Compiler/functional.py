@@ -77,9 +77,6 @@ def approx_sigmoid(x, n=5):
         b = x > 0.5
         return a.if_else(0, b.if_else(1, 0.5 + x))
 
-def gelu(input):  # todo low priority
-    pass
-
 def log_e(x):
     return mpc_math.log_fx(x, math.e)
 
@@ -459,7 +456,7 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0]):
                     stride_h, stride_w, n_channels_in, padding_h, padding_w,
                     part_size)
             if bias:
-                res += bias.expand_to_vector(j, res.size).v
+                res += bias.value.expand_to_vector(j, res.size).v
             addresses = regint.inc(res.size,
                                     unreduced[i * part_size].address + j,
                                     n_channels_out)
@@ -878,29 +875,28 @@ def normalize(input, p=2, dim=1, eps=1e-12, out=None):
     return input * xpsumSqr
     
 
-
-# todo: we should replace inv(std) to invsrqt(var)
 @buildingblock("batch_norm")
-def batch_norm(input, running_mean, running_std, weight=None, bias=None, training=False, eps=1e-05, momentum=0.1):
+def batch_norm(input, running_mean, running_var, weight=None, bias=None, training=False, eps=1e-05, momentum=0.1):
     
     assert isinstance(input,Tensor) ,"Invalid input"
     
     new_sizes = [(input.value.sizes[i] if i == 1 else 1) for i in range(len(input.value.sizes))]
     if isinstance(running_mean.value, Array):
         running_mean.value = running_mean.value.reshape(new_sizes)
-    if isinstance(running_std.value, Array):
-        running_std.value = running_std.value.reshape(new_sizes)    
+    if isinstance(running_var.value, Array):
+        running_var.value = running_var.value.reshape(new_sizes)    
         
     if training:
         x_mean = input.mean(dim=[0,2,3], keepdim=True)
-        x_std = input.std(dim=[0,2,3], keepdim=True) 
+        x_var = input.var(dim=[0,2,3], keepdim=True, unbiased=True) 
         running_mean = x_mean * momentum + running_mean * (1-momentum)
-        running_std = x_std * momentum + running_std * (1-momentum)
+        running_var = x_var * momentum + running_var * (1-momentum)
     else:
         x_mean = running_mean
-        x_std = running_std
-        
-    output = (input - x_mean) / (x_std + eps) 
+        x_var = running_var
+    
+    x_var = x_var + eps
+    output = (input - x_mean) * x_var.invsqrt() 
     if weight is not None:
         output = output * weight
     if bias is not None:
@@ -908,7 +904,6 @@ def batch_norm(input, running_mean, running_std, weight=None, bias=None, trainin
     return output
 
 
-# todo: we should replace inv(std) to invsrqt(var)
 @buildingblock("layer_norm")
 def layer_norm(input, normalized_shape, weight=None, bias=None, eps=1e-05):
     
@@ -921,9 +916,10 @@ def layer_norm(input, normalized_shape, weight=None, bias=None, eps=1e-05):
     dim.reverse()
     
     x_mean = input.mean(dim=dim, keepdim=True)
-    x_std = input.std(dim=dim, keepdim=True) 
+    x_var = input.var(dim=dim, keepdim=True, unbiased=True) 
     
-    output = (input - x_mean) / (x_std + eps) 
+    x_var = x_var + eps
+    output = (input - x_mean) * x_var.invsqrt() 
     if weight is not None:
         output = output * weight
     if bias is not None:
@@ -1046,11 +1042,11 @@ def l1_loss(input, target,reduction='mean'):
     return output
 
 
-
+@buildingblock("nll_loss-forward")
 def nll_loss(input, target, weight=None,reduction='mean'):
     op_id = get_opid()
     # backward
-    @backwardbuildingblock(get_program().globalbuildingblock[:-17]+"-mse_loss-backward")
+    @backwardbuildingblock(get_program().globalbuildingblock[:-17]+"-nll_loss-backward")
     def propagate(dl_doutputs, operation):
         if reduction=='mean':
             dl_d[input.name].assign_vector( ( inter[:] ) /input.sizes[0] )
@@ -1085,7 +1081,7 @@ def nll_loss(input, target, weight=None,reduction='mean'):
         operation.intermediate[0].assign_vector(tmp)
         
         if reduction == 'mean':
-            output.value[:] /= input.sizes[0]
+            output.value[:] *= 1 / input.sizes[0]
         else:
             assert reduction == 'sum' , 'reduction should be mean or sum'
         set_opid(op_id+1)  # record the input and output of the op
@@ -1106,45 +1102,68 @@ def mse_loss(input, target, reduction='mean'):
         dx = input.value[:] - target.value[:]
         dl_dself[:] += 2 * dx * dl_dx[:]
         
-        if reduction == 'mean':
-            dl_dself[:] /= input.value.total_size()
+    #     if reduction == 'mean':
+    #         dl_dself[:] /= input.value.total_size()
         
-        dl_dinputs = [dl_dself]
-        return dl_dinputs
-    # forward
-    prepare = get_prepare()
-    if prepare:
-        new_value = Array(1, input.value.value_type)
-        output = Tensor(new_value, req_grad=input.req_grad)
+    #     dl_dinputs = [dl_dself]
+    #     return dl_dinputs
+    # # forward
+    # prepare = get_prepare()
+    # if prepare:
+    #     new_value = Array(1, input.value.value_type)
+    #     output = Tensor(new_value, req_grad=input.req_grad)
     
-        if input.req_grad:
-            operation = Operation(inputs=[input.name], outputs=[output.name], propagate=propagate)
-        else:
-            operation = Operation(inputs=[input.name], outputs=[output.name], propagate=fake_propagate)
-        gradient_operation.append(operation)
-        operation_id = len(gradient_operation) - 1
-        op_id_store[op_id] = operation_id
-        set_opid(op_id+1)  # record the input and output of the op
-    else:
-        operation = gradient_operation[op_id_store[op_id]]
-        input = tensors[operation.inputs[0]]
-        output = tensors[operation.outputs[0]]
-        dx = input.value[:] - target.value[:]
-        dx2 = dx * dx
-        sumdx2 = sum(dx2)
+    #     if input.req_grad:
+    #         operation = Operation(inputs=[input.name], outputs=[output.name], propagate=propagate)
+    #     else:
+    #         operation = Operation(inputs=[input.name], outputs=[output.name], propagate=fake_propagate)
+    #     gradient_operation.append(operation)
+    #     operation_id = len(gradient_operation) - 1
+    #     op_id_store[op_id] = operation_id
+    #     set_opid(op_id+1)  # record the input and output of the op
+    # else:
+    #     operation = gradient_operation[op_id_store[op_id]]
+    #     input = tensors[operation.inputs[0]]
+    #     output = tensors[operation.outputs[0]]
+    #     dx = input.value[:] - target.value[:]
+    #     dx2 = dx * dx
+    #     sumdx2 = sum(dx2)
         
-        output.value[:] = sumdx2
-        if reduction == 'mean':
-            output.value[:] /= input.value.total_size()
-        else:
-            assert reduction == 'sum' , 'reduction should be mean or sum'
-        set_opid(op_id+1)  # record the input and output of the op
-    return output
+    #     output.value[:] = sumdx2
+    #     if reduction == 'mean':
+    #         print(type(input.value.total_size()))
+    #         output.value[:] *= 1 / input.value.total_size()
+    #     else:
+    #         assert reduction == 'sum' , 'reduction should be mean or sum'
+    #     set_opid(op_id+1)  # record the input and output of the op
+    # return output
+    assert reduction == 'sum' or 'mean', 'reduction should be mean or sum'
+    
+    dx = input - target
+    dx2 = dx * dx
+    out = dx2.sum()
+   
+    if reduction == 'mean':
+        out /= input.value.total_size()
+    return out
+
+
+
+
+
 
 def binary_cross_entropy(input, target, weight=None):
     pass
 
 
-def cross_entropy(input, target, weight=None):
+def cross_entropy(input, target, weight=None, reduction = 'mean'):
     tmp=log_softmax(input)
     return nll_loss(tmp,target,weight)
+
+def gelu(input, approximate='none'):
+    assert approximate == 'tanh', 'approximate of gelu must be tanh'
+    factor = input + input * input * input * 0.044715
+    factor *= np.sqrt(2.0/np.pi)
+    factor = factor.tanh()
+    factor += 1
+    return factor * input * 0.5
