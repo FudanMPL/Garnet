@@ -149,13 +149,16 @@ def element_wise_add(self, other):
         dl_dx, = dl_doutputs
         inputs = operation.inputs
         temp1, temp2 = operation.intermediate
-        dl_dself = dl_d[inputs[0]]  # partial derivate of r = 1
-        dl_dother = dl_d[inputs[1]]  # partial derivate of r = 1
+        dl_dself, dl_dother = (None, None)
+        if self.req_grad:
+            dl_dself = dl_d[inputs[0]]  # partial derivate of r = 1
+        if other.req_grad:
+            dl_dother = dl_d[inputs[1]]  # partial derivate of r = 1
         
         # swap to ensure v1 size is bigger than v2 size  
         v1, v2 = dl_dself, dl_dother
         req_grad1, req_grad2 = self.req_grad, other.req_grad
-        if dl_dself.total_size()<dl_dother.total_size():
+        if input1.total_size()<input2.total_size():
             v1, v2 = v2, v1
             req_grad1, req_grad2 = req_grad2, req_grad1
         # v1 back directly 
@@ -163,12 +166,12 @@ def element_wise_add(self, other):
             v1[:] += dl_dx[:]
         # broadcasted v2 back with reduce
         if req_grad2:
-            dims, v1, v2 = reconst_dims(v1, v2)
-            dl_dx.permute_without_malloc(temp2, get_permute_d2front(len(v1.sizes), dims))
+            dims, input1, input2 = reconst_dims(input1, input2)
+            dl_dx.permute_without_malloc(temp2, get_permute_d2front(len(input1.sizes), dims))
             dl_dx_pmt = temp2
             
-            stride = v1.total_size()//v2.total_size()
-            @for_range(v2.total_size())
+            stride = input1.total_size()//input2.total_size()
+            @for_range(input2.total_size())
             def _(i):
                 vsum = sum(dl_dx_pmt.get_vector(i*stride, stride))
                 v2.assign_vector(v2.get_vector(i, 1)+vsum, i) 
@@ -380,8 +383,11 @@ def element_wise_mul(self, other):
         dl_dx, = dl_doutputs
         inputs = operation.inputs
         temp1, temp2, temp3, temp4, temp5 = operation.intermediate
-        dl_dself = dl_d[inputs[0]]  # partial derivate of r = 1
-        dl_dother = dl_d[inputs[1]]  # partial derivate of r = 1
+        dl_dself, dl_dother = (None, None)
+        if self.req_grad:
+            dl_dself = dl_d[inputs[0]]  # partial derivate of r = 1
+        if other.req_grad:
+            dl_dother = dl_d[inputs[1]]  # partial derivate of r = 1
         
         # swap to ensure v1 size is bigger than v2 size  
         v1, v2 = dl_dself, dl_dother
@@ -389,33 +395,33 @@ def element_wise_mul(self, other):
         input1=tensors[operation.inputs[0]].value
         input2=tensors[operation.inputs[1]].value
         
-        if dl_dself.total_size()<dl_dother.total_size():
+        if input1.total_size()<input2.total_size():
             v1, v2 = v2, v1
             req_grad1, req_grad2 = req_grad2, req_grad1
             input1, input2 = input2, input1
             
-        dims, v1, v2 = reconst_dims(v1, v2)
+        dims, input1, input2 = reconst_dims(input1, input2)
         # v1 back directly 
         if req_grad1:
             dl_dx.permute_without_malloc(temp1, get_permute(len(dl_dx.sizes), dims))
             dl_dx_pmt = temp1
-            stride = v2.total_size()
+            stride = input2.total_size()
             # temp3 = permute(dl_dx) * permute(input2.value)
-            @for_range_opt(v1.total_size()//v2.total_size())
+            @for_range_opt(input1.total_size()//input2.total_size())
             def _(i):
                 v3 = dl_dx_pmt.get_vector(i*stride, stride) * input2.get_vector(0, stride)
                 temp2.assign_vector(v3, i*stride)
             break_point()   
             # v1 = permute_back(temp3)
-            temp2.permute_without_malloc(temp5, get_permute_back(len(v1.sizes), dims))
+            temp2.permute_without_malloc(temp5, get_permute_back(len(input1.sizes), dims))
             v1[:] += temp5[:]
         # broadcasted v2 back with reduce
         if req_grad2:
             dl_dx.permute_without_malloc(temp3, get_permute_d2front(len(dl_dx.sizes), dims))
             input1.permute_without_malloc(temp4, get_permute_d2front(len(input1.sizes), dims))
             dl_dx_pmt, input1_pmt = temp3, temp4
-            stride = v1.total_size()//v2.total_size()
-            @for_range_opt(v2.total_size())
+            stride = input1.total_size()//input2.total_size()
+            @for_range_opt(input2.total_size())
             def _(i):
                 v3 = dl_dx.value_type.dot_product(dl_dx_pmt.get_vector(i*stride, stride), input1_pmt.get_vector(i*stride, stride))
                 v2.assign_vector(v2.get_vector(i, 1)+v3, i)    
@@ -497,8 +503,11 @@ def element_wise_div(self, other):
         inputs = operation.inputs
         output_value = tensors[operation.outputs[0]].value
         temp1, temp2, temp3, temp4, temp5, temp6, temp7 = operation.intermediate
-        dl_dself = dl_d[inputs[0]]  # partial derivate of r = 1
-        dl_dother = dl_d[inputs[1]]  # partial derivate of r = 1
+        dl_dself, dl_dother = (None, None)
+        if self.req_grad:
+            dl_dself = dl_d[inputs[0]]  # partial derivate of r = 1
+        if other.req_grad:
+            dl_dother = dl_d[inputs[1]]  # partial derivate of r = 1
         
         # convert "input" as convert div to mul 
         v1, v2 = dl_dself, dl_dother
@@ -510,19 +519,19 @@ def element_wise_div(self, other):
         input2, input1 = temp5, temp6
         
         # swap to ensure v1 size is bigger than v2 size  
-        if dl_dself.total_size()<dl_dother.total_size():
+        if input1.total_size()<input2.total_size():
             v1, v2 = v2, v1
             req_grad1, req_grad2 = req_grad2, req_grad1
             input1, input2 = input2, input1
             
-        dims, v1, v2 = reconst_dims(v1, v2)
+        dims, input1, input2 = reconst_dims(input1, input2)
         # v1 back directly 
         if req_grad1:
             dl_dx.permute_without_malloc(temp1, get_permute(len(dl_dx.sizes), dims))
             dl_dx_pmt = temp1
-            stride = v2.total_size()
+            stride = input2.total_size()
             # temp3 = permute(dl_dx) * permute(input2.value)
-            @for_range_opt(v1.total_size()//v2.total_size())
+            @for_range_opt(input1.total_size()//input2.total_size())
             def _(i):
                 v3 = dl_dx_pmt.get_vector(i*stride, stride) * input2.get_vector(0, stride)
                 temp2.assign_vector(v3, i*stride)
@@ -535,8 +544,8 @@ def element_wise_div(self, other):
             dl_dx.permute_without_malloc(temp3, get_permute_d2front(len(dl_dx.sizes), dims))
             input1.permute_without_malloc(temp4, get_permute_d2front(len(input1.sizes), dims))
             dl_dx_pmt, input1_pmt = temp3, temp4
-            stride = v1.total_size()//v2.total_size()
-            @for_range_opt(v2.total_size())
+            stride = input1.total_size()//input2.total_size()
+            @for_range_opt(input2.total_size())
             def _(i):
                 v3 = dl_dx.value_type.dot_product(dl_dx_pmt.get_vector(i*stride, stride), input1_pmt.get_vector(i*stride, stride))
                 v2.assign_vector(v2.get_vector(i,1)+v3, i)    
@@ -1227,7 +1236,7 @@ class Tensor():
             self.grad = grad
             dl_d[name] = self.grad
         else:
-            if is_train:
+            if is_train and req_grad:
                 self.grad = self.value.same_shape()
                 self.grad.assign_all(0)
                 dl_d[self.name] = self.grad
