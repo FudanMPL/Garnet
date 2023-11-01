@@ -1734,6 +1734,30 @@ class Tensor():
             op_id += 1
         return output
 
+    def flatten(self, start_dim, end_dim):
+        sizes = self.sizes
+        length = len(sizes)
+        if start_dim < 0:
+            start_dim = length + start_dim
+        
+        if end_dim < 0:
+            end_dim = length + end_dim 
+        
+        assert start_dim >= 0 and end_dim >= 0 and start_dim < length and end_dim < length and start_dim < end_dim
+        new_sizes = []
+        new_len = 1
+        for i in range(length):
+            if i < start_dim or i > end_dim:
+                new_sizes.append(sizes[i])  
+                continue
+            if i == end_dim:
+                new_len *= sizes[i]
+                new_sizes.append(int(new_len))
+                continue
+            new_len *= sizes[i]
+        print(new_sizes)
+        return self.view(new_sizes)
+                    
     @buildingblock("squeeze-forward")
     def squeeze(self, dim=None):
         

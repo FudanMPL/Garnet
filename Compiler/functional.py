@@ -76,9 +76,6 @@ def approx_sigmoid(x, n=5):
         b = x > 0.5
         return a.if_else(0, b.if_else(1, 0.5 + x))
 
-def gelu(input):  # todo low priority
-    pass
-
 def log_e(x):
     return mpc_math.log_fx(x, math.e)
 

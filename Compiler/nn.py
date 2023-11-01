@@ -1302,6 +1302,7 @@ class _NormBase(Module):
         error_msgs,
     ):
         pass
+    
 class _BatchNorm(_NormBase):
     def __init__(
         self,
@@ -1844,6 +1845,8 @@ class _Loss(Module):
         break_point()
 
         return result
+    
+
 class MSELoss(_Loss):
     r"""Creates a criterion that measures the mean squared error (squared L2 norm) between
     each element in the input :math:`x` and target :math:`y`.
@@ -2172,4 +2175,116 @@ class CrossEntropyLoss(_WeightedLoss):
 
     def forward(self, input: Tensor, target: Tensor) -> Tensor:
         return F.cross_entropy(input, target, weight=self.weight, reduction=self.reduction)
+
+class GELU(Module):
+    r"""Applies the Gaussian Error Linear Units function:
+
+    .. math:: \text{GELU}(x) = x * \Phi(x)
+
+    where :math:`\Phi(x)` is the Cumulative Distribution Function for Gaussian Distribution.
+
+    When the approximate argument is 'tanh', Gelu is estimated with:
+
+    .. math:: \text{GELU}(x) = 0.5 * x * (1 + \text{Tanh}(\sqrt{2 / \pi} * (x + 0.044715 * x^3)))
+
+    Args:
+        approximate (str, optional): the gelu approximation algorithm to use:
+            ``'none'`` | ``'tanh'``. Default: ``'none'``
+
+    Shape:
+        - Input: :math:`(*)`, where :math:`*` means any number of dimensions.
+        - Output: :math:`(*)`, same shape as the input.
+
+    .. image:: ../scripts/activation_images/GELU.png
+
+    Examples::
+
+        >>> m = nn.GELU()
+        >>> input = torch.randn(2)
+        >>> output = m(input)
+    """
+    __constants__ = ['approximate']
+    approximate: str
+
+    def __init__(self, approximate: str = 'none') -> None:
+        super().__init__()
+        self.approximate = approximate
+
+    def forward(self, input: Tensor) -> Tensor:
+        return F.gelu(input, approximate=self.approximate)
+
+    def extra_repr(self) -> str:
+        return 'approximate={}'.format(repr(self.approximate))
+    
+    
+class Flatten(Module):
+    r"""
+    Flattens a contiguous range of dims into a tensor. For use with :class:`~nn.Sequential`.
+    See :meth:`torch.flatten` for details.
+
+    Shape:
+        - Input: :math:`(*, S_{\text{start}},..., S_{i}, ..., S_{\text{end}}, *)`,'
+          where :math:`S_{i}` is the size at dimension :math:`i` and :math:`*` means any
+          number of dimensions including none.
+        - Output: :math:`(*, \prod_{i=\text{start}}^{\text{end}} S_{i}, *)`.
+
+    Args:
+        start_dim: first dim to flatten (default = 1).
+        end_dim: last dim to flatten (default = -1).
+
+    Examples::
+        >>> input = torch.randn(32, 1, 5, 5)
+        >>> # With default parameters
+        >>> m = nn.Flatten()
+        >>> output = m(input)
+        >>> output.size()
+        torch.Size([32, 25])
+        >>> # With non-default parameters
+        >>> m = nn.Flatten(0, 2)
+        >>> output = m(input)
+        >>> output.size()
+        torch.Size([160, 5])
+    """
+    __constants__ = ['start_dim', 'end_dim']
+    start_dim: int
+    end_dim: int
+
+    def __init__(self, start_dim: int = 1, end_dim: int = -1) -> None:
+        super().__init__()
+        self.start_dim = start_dim
+        self.end_dim = end_dim
+
+    def forward(self, input: Tensor) -> Tensor:
+        return input.flatten(self.start_dim, self.end_dim)
+
+    def extra_repr(self) -> str:
+        return 'start_dim={}, end_dim={}'.format(
+            self.start_dim, self.end_dim
+        )
+
+class Identity(Module):
+    r"""A placeholder identity operator that is argument-insensitive.
+
+    Args:
+        args: any argument (unused)
+        kwargs: any keyword argument (unused)
+
+    Shape:
+        - Input: :math:`(*)`, where :math:`*` means any number of dimensions.
+        - Output: :math:`(*)`, same shape as the input.
+
+    Examples::
+
+        >>> m = nn.Identity(54, unused_argument1=0.1, unused_argument2=False)
+        >>> input = torch.randn(128, 20)
+        >>> output = m(input)
+        >>> print(output.size())
+        torch.Size([128, 20])
+
+    """
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__()
+
+    def forward(self, input: Tensor) -> Tensor:
+        return input
     
