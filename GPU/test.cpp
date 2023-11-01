@@ -2,7 +2,7 @@
  * @Author: SkyTu 1336923451@qq.com
  * @Date: 2023-10-24 16:24:02
  * @LastEditors: SkyTu 1336923451@qq.com
- * @LastEditTime: 2023-10-31 14:06:48
+ * @LastEditTime: 2023-11-01 16:48:53
  * @FilePath: /txy/Garnet/GPU/test.cpp
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -31,31 +31,44 @@ int main(){
     int parallel = 1024;
     
     RandomValueBlock * cpu_r_block = new RandomValueBlock[parallel];
-    aes_block * cpu_aes_block_array[2];
-    cpu_aes_block_array[0] = new aes_block[parallel];
-    cpu_aes_block_array[1] = new aes_block[parallel];
-    CorrectionWord * cw_cpu = new CorrectionWord[parallel];
+    RevealValueBlock * cpu_reveal_block = new RevealValueBlock[parallel];
+    aes_gen_block * cpu_aes_gen_block_array;
+    aes_eval_block * cpu_aes_eval_block_array[2];
+    cpu_aes_gen_block_array = new aes_gen_block[parallel];
+    cpu_aes_eval_block_array[0] = new aes_eval_block[parallel];
+    cpu_aes_eval_block_array[1] = new aes_eval_block[parallel];
+    CorrectionWord * cpu_cw = new CorrectionWord[parallel];
+    ResultBlock * cpu_res = new ResultBlock[parallel];
     
     PRNG prng;
     bigint seed[2], r;
     prng.InitSeed();
     int group;
     for(int i = 0; i < parallel; i++){
-        // prng.get(r, lambda);
-        r = 12094302;
-        // prng.get(seed[0], lambda);
-        // prng.get(seed[1], lambda);
-        seed[0] = 120390;
-        seed[1] = 129832;
-        bytesFromBigint(&cpu_r_block[i].r[0], r, LAMBDA_BYTE);
-        bytesFromBigint(&cpu_aes_block_array[0][i].block[0], seed[0], LAMBDA_BYTE);
-        bytesFromBigint(&cpu_aes_block_array[1][i].block[0], seed[1], LAMBDA_BYTE);
+        r = 0;
+        // prng.get(r, bit_length);
+        prng.get(seed[0], lambda);
+        prng.get(seed[1], lambda);
+        bytesFromBigint(&cpu_reveal_block[i].reveal_val[0], r, INPUT_BYTE);
+        bytesFromBigint(&cpu_r_block[i].r[0], r, INPUT_BYTE);
+        bytesFromBigint(&cpu_aes_eval_block_array[0][i].block[0], seed[0], LAMBDA_BYTE);
+        bytesFromBigint(&cpu_aes_eval_block_array[0][i].block[LAMBDA_BYTE], seed[0], LAMBDA_BYTE);
+        
+        bytesFromBigint(&cpu_aes_eval_block_array[1][i].block[0], seed[1], LAMBDA_BYTE);
+        bytesFromBigint(&cpu_aes_eval_block_array[1][i].block[LAMBDA_BYTE], seed[1], LAMBDA_BYTE);
+        
+        bytesFromBigint(&cpu_aes_gen_block_array[i].block[0][0], seed[0], LAMBDA_BYTE);
+        bytesFromBigint(&cpu_aes_gen_block_array[i].block[0][LAMBDA_BYTE], seed[0], LAMBDA_BYTE);
+
+        bytesFromBigint(&cpu_aes_gen_block_array[i].block[1][0], seed[1], LAMBDA_BYTE);
+        bytesFromBigint(&cpu_aes_gen_block_array[i].block[1][LAMBDA_BYTE], seed[1], LAMBDA_BYTE);
     }
-    // for(int i = 0; i < 100; i++){
-    //     bigintFromBytes(r, &cpu_r_block[i].r[0], LAMBDA_BYTE);
+    // for(int i = 0; i < 10; i++){
+    //     bigintFromBytes(r, &cpu_aes_gen_block_array[i].block[0][0], LAMBDA_BYTE);
     //     std::cout << r << std::endl;
     // }
 
-    fss_dpf_generate(cpu_r_block, cpu_aes_block_array, cw_cpu, parallel);
-
+    fss_dpf_generate(cpu_r_block, cpu_aes_gen_block_array, cpu_cw, parallel);
+    fss_dpf_evaluate(cpu_reveal_block, cpu_aes_eval_block_array[0], cpu_cw, cpu_res, 0, parallel);
+    fss_dpf_evaluate(cpu_reveal_block, cpu_aes_eval_block_array[1], cpu_cw, cpu_res, 1, parallel);
 }

@@ -283,51 +283,77 @@ int AES_ExpandKey(BYTE key[], int keyLen) {
     return ks;
 }
 
-__global__ void AES_Encrypt(FssDpfGen * cuda_dpf_gen, BYTE key[], int k, int j, int keyLen, int block_number) {
-    int global_thread_index = blockDim.x*blockIdx.x + threadIdx.x;
-//    printf("global thread index = %d\n", global_thread_index);
-    
+__global__ void AES_Encrypt_Gen(aes_gen_block * cuda_aes_block_array, KeyBlock cuda_key_block[2], int keyLen, int j, int block_number) {
+    int global_thread_index = blockDim.x*blockIdx.x + threadIdx.x;   
     __shared__ BYTE AES_ShiftRowTab[16];
     __shared__ BYTE AES_Sbox[256];
     __shared__ BYTE AES_ShiftRowTab_Inv[16];
     __shared__ BYTE AES_Sbox_Inv[256];
     __shared__ BYTE AES_xtime[256];
-//    printf("aes block number: %d\n", block_number);
-//    printf("expand key length: %d\n", keyLen);
     if(global_thread_index < block_number){
 
         if(threadIdx.x == 0 ){
-        //    printf("hello from thread 0\n");
             AES_Init(AES_Sbox, AES_ShiftRowTab, AES_Sbox_Inv, AES_xtime, AES_ShiftRowTab_Inv);
         }
         __syncthreads();
         BYTE block[16]; 
-        //cudaMemcpy(block, aes_block_array[global_thread_index].block, 16*sizeof(BYTE), cudaMemcpyDeviceToDevice);
-        for(int i=0; i<16; i++){
-            block[i] = cuda_dpf_gen[global_thread_index].s[k][j][i];
-//		printf("%d %d %d\n",i, global_thread_index, block[i]);
-        }
-        int l = keyLen, i;
-        //printBytes(block, 16);
-        AES_AddRoundKey(block, &key[0]);
-        for(i = 16; i < l - 16; i += 16) {
+
+        for(int k = 0; k < 2; k++){
+            for(int i=0; i<16; i++){
+                block[i] = cuda_aes_block_array[global_thread_index].block[j][k*16+i];
+            }
+            int l = keyLen, i;
+            //printBytes(block, 16);
+            AES_AddRoundKey(block, &cuda_key_block[k].cuda_key[0]);
+            for(i = 16; i < l - 16; i += 16) {
+                AES_SubBytes(block, AES_Sbox);
+                AES_ShiftRows(block, AES_ShiftRowTab);
+                AES_MixColumns(block, AES_xtime);
+                AES_AddRoundKey(block, &cuda_key_block[k].cuda_key[i]);
+            }
             AES_SubBytes(block, AES_Sbox);
             AES_ShiftRows(block, AES_ShiftRowTab);
-            AES_MixColumns(block, AES_xtime);
-            AES_AddRoundKey(block, &key[i]);
+            AES_AddRoundKey(block, &cuda_key_block[k].cuda_key[i]);
+            for(int i=0; i<16; i++){
+                cuda_aes_block_array[global_thread_index].block[j][k*16+i] = block[i];
+            }
         }
-        AES_SubBytes(block, AES_Sbox);
-        AES_ShiftRows(block, AES_ShiftRowTab);
-        AES_AddRoundKey(block, &key[i]);
-//        for(int j=15; j>=0; j--)
-//{
-//printf("==%d %d\n",j, aes_block_array[global_thread_index].block[j] );
-//}
-        for(int i=0; i<16; i++){
-  //          printf("%d %d  %d\n",i, global_thread_index, aes_block_array[global_thread_index].block[i]);
-         cuda_dpf_gen[global_thread_index].s[k][j][i] = block[i];
+    }
+};
+
+__global__ void AES_Encrypt_Eval(aes_eval_block * cuda_aes_block_array, KeyBlock cuda_key_block[2], int keyLen, int block_number) {
+    int global_thread_index = blockDim.x*blockIdx.x + threadIdx.x;
+   
+    __shared__ BYTE AES_ShiftRowTab[16];
+    __shared__ BYTE AES_Sbox[256];
+    __shared__ BYTE AES_ShiftRowTab_Inv[16];
+    __shared__ BYTE AES_Sbox_Inv[256];
+    __shared__ BYTE AES_xtime[256];
+    if(global_thread_index < block_number){
+        if(threadIdx.x == 0 ){
+            AES_Init(AES_Sbox, AES_ShiftRowTab, AES_Sbox_Inv, AES_xtime, AES_ShiftRowTab_Inv);
         }
-        //printf("block %d encrypted\n", global_thread_index);
+        __syncthreads();
+        BYTE block[16]; 
+        for(int k = 0; k < 2; k++){
+            for(int i=0; i<16; i++){
+                block[i] = cuda_aes_block_array[global_thread_index].block[k*16+i];
+            }
+            int l = keyLen, i;
+            AES_AddRoundKey(block, &cuda_key_block[k].cuda_key[0]);
+            for(i = 16; i < l - 16; i += 16) {
+                AES_SubBytes(block, AES_Sbox);
+                AES_ShiftRows(block, AES_ShiftRowTab);
+                AES_MixColumns(block, AES_xtime);
+                AES_AddRoundKey(block, &cuda_key_block[k].cuda_key[i]);
+            }
+            AES_SubBytes(block, AES_Sbox);
+            AES_ShiftRows(block, AES_ShiftRowTab);
+            AES_AddRoundKey(block, &cuda_key_block[k].cuda_key[i]);
+            for(int i=0; i<16; i++){
+                cuda_aes_block_array[global_thread_index].block[k*16+i] = block[i];
+            }
+        }
     }
 };
 
