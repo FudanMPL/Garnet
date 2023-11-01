@@ -2319,7 +2319,7 @@ class Tensor():
     @buildingblock("softmax-forward")
     def softmax(self,dim=-1):
         op_id = get_opid()
-        @backwardbuildingblock(get_program().globalbuildingblock[:-13]+"-tanh-backward")
+        @backwardbuildingblock(get_program().globalbuildingblock[:-13]+"-softmax-backward")
         def propagate(dl_doutputs, operation):
             dl_dy, = dl_doutputs
             output = tensors[operation.outputs[0]]

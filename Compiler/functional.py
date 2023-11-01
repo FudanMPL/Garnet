@@ -174,41 +174,41 @@ def logsigmoid(input):  # todo
 
 @buildingblock("tanh-forward")
 def tanh(input):  # todo
-    op_id = get_opid()
-    @backwardbuildingblock(get_program().globalbuildingblock[:-13]+"-tanh-backward")
-    def propagate(dl_doutputs, operation):
-        dl_dy, = dl_doutputs
-        input_ = tensors[operation.inputs[0]]
-        output = tensors[operation.outputs[0]]
-        if input_.req_grad:
-            dl_d[input_.name]+=(1-output.value[:]*output.value[:])*dl_dy[:]
+    return input.tanh()
+    # op_id = get_opid()
+    # @backwardbuildingblock(get_program().globalbuildingblock[:-13]+"-tanh-backward")
+    # def propagate(dl_doutputs, operation):
+    #     dl_dy, = dl_doutputs
+    #     input_ = tensors[operation.inputs[0]]
+    #     output = tensors[operation.outputs[0]]
+    #     dl_d[input_.name]+=(1-output.value[:]*output.value[:])*dl_dy[:]
             
-    prepare = get_prepare()
-    if prepare:
-        assert isinstance(input, Tensor),"Invalid Input"
-        if isinstance(input.value,Array):
-            new_value=Array(input.shape[0],input.value.value_type)
-        else:
-            new_value=MultiArray(list(input.shape) ,input.value.value_type)
-        output = Tensor(new_value, req_grad=input.req_grad)
-        if input.req_grad:
-            operation = Operation(inputs=[input.name], outputs=[output.name], propagate=propagate)
-        else:
-            operation = Operation(inputs=[input.name], outputs=[output.name], propagate=fake_propagate)
-        gradient_operation.append(operation)
-        operation_id = len(gradient_operation) - 1
-        op_id_store[op_id] = operation_id
-        set_opid(op_id+1)
-    else:
-        operation = gradient_operation[op_id_store[op_id]]
-        input = tensors[operation.inputs[0]]
-        output = tensors[operation.outputs[0]]
-        x=input.value[:]
-        ex=exp(x)
-        e_x=exp(-x)
-        output.value[:] = sanitize(x, (ex-e_x)/(ex+e_x), -1, 1)    
-        set_opid(op_id+1)  # record the input and output of the op
-    return output
+    # prepare = get_prepare()
+    # if prepare:
+    #     assert isinstance(input, Tensor),"Invalid Input"
+    #     if isinstance(input.value,Array):
+    #         new_value=Array(input.shape[0],input.value.value_type)
+    #     else:
+    #         new_value=MultiArray(list(input.shape) ,input.value.value_type)
+    #     output = Tensor(new_value, req_grad=input.req_grad)
+    #     if input.req_grad:
+    #         operation = Operation(inputs=[input.name], outputs=[output.name], propagate=propagate)
+    #     else:
+    #         operation = Operation(inputs=[input.name], outputs=[output.name], propagate=fake_propagate)
+    #     gradient_operation.append(operation)
+    #     operation_id = len(gradient_operation) - 1
+    #     op_id_store[op_id] = operation_id
+    #     set_opid(op_id+1)
+    # else:
+    #     operation = gradient_operation[op_id_store[op_id]]
+    #     input = tensors[operation.inputs[0]]
+    #     output = tensors[operation.outputs[0]]
+    #     x=input.value[:]
+    #     ex=exp(x)
+    #     e_x=exp(-x)
+    #     output.value[:] = sanitize(x, (ex-e_x)/(ex+e_x), -1, 1)    
+    #     set_opid(op_id+1)  # record the input and output of the op
+    # return output
     
 
 
@@ -1092,15 +1092,15 @@ def nll_loss(input, target, weight=None,reduction='mean'):
 
 @buildingblock("mse_loss-forward")
 def mse_loss(input, target, reduction='mean'):
-    op_id = get_opid()
+    # op_id = get_opid()
     # backward
-    @backwardbuildingblock(get_program().globalbuildingblock[:-17]+"-mse_loss-backward")
-    def propagate(dl_doutputs, operation):
-        dl_dx, = dl_doutputs
-        dl_dself = dl_d[operation.inputs[0]]
+    # @backwardbuildingblock(get_program().globalbuildingblock[:-17]+"-mse_loss-backward")
+    # def propagate(dl_doutputs, operation):
+    #     dl_dx, = dl_doutputs
+    #     dl_dself = dl_d[operation.inputs[0]]
         
-        dx = input.value[:] - target.value[:]
-        dl_dself[:] += 2 * dx * dl_dx[:]
+    #     dx = input.value[:] - target.value[:]
+    #     dl_dself[:] += 2 * dx * dl_dx[:]
         
     #     if reduction == 'mean':
     #         dl_dself[:] /= input.value.total_size()
