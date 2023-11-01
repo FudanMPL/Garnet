@@ -210,6 +210,10 @@ size_t Machine<sint, sgf2n>::load_program(const string& threadname,
   Mp.minimum_size(SINT, CINT, progs[i], threadname);
   Mi.minimum_size(NONE, INT, progs[i], threadname);
 #ifdef BIG_DOMAIN_FOR_RSS
+  if (this->Mp_2 != NULL){
+      delete this->Mp_2;
+      this->Mp_2 = NULL;
+  }
   this->Mp_2 = new Memory<Rep3Share128>();
   this->Mp_2->template assign_S<sint>(Mp.get_S());
   this->Mp_2->template assign_C<sint>(Mp.get_C());
