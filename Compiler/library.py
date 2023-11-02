@@ -2004,4 +2004,51 @@ def start_profiling():
     
 def stop_profiling():
     break_point()
-    # instructions.program.is_profiling = False    
+    # instructions.program.is_profiling = False
+
+
+def mpc_psi_merge(*tables):
+    from Compiler.sorting import gen_perm_by_radix_sort, SortPerm
+    from Compiler.group_ops import GroupSum
+    num = 0
+    attr = 1
+    for table in tables:
+        num = num + len(table)
+        attr = attr + len(table[0]) - 1
+    # merge all the table into one table
+    final_table = tables[0].value_type.Matrix(num, attr)
+    num_count = 0
+    attr_count = 0
+    for table in tables:
+        table_attr = len(table[0])
+        for ele in table:
+            final_table[num_count][0] = ele[0]
+            for i in range(1, table_attr):
+                final_table[num_count][attr_count + i] = ele[i]
+            num_count = num_count + 1
+        attr_count = attr_count + table_attr - 1  # the id column should not be added
+
+    ids = final_table.get_column(0)
+    perm = gen_perm_by_radix_sort(ids)
+    for i in range(attr):
+        final_table.set_column(i, perm.apply(final_table.get_column(i)).get_vector())
+    ids = final_table.get_column(0)
+    flag = sint.Array(size=num)
+    flag[0] = 1
+    flag.assign_vector(ids.get_vector(size=len(ids) - 1) !=
+                       ids.get_vector(size=len(ids) - 1, base=1), base=1)
+    for i in range(1, attr):
+        final_table.set_column(i, GroupSum(flag, final_table.get_column(i)))
+
+    in_intersection = sint.Array(size=num)
+    in_intersection.assign_vector(ids.get_vector(size=len(ids) - 1) ==
+                       ids.get_vector(size=len(ids) - 1, base=1), base=0)
+    in_intersection[num - 1] = 0
+    for i in range(attr):
+        final_table.set_column(i, final_table.get_column(i) * in_intersection)
+    perm = SortPerm(in_intersection.get_vector().bit_not())
+    for i in range(attr):
+        final_table.set_column(i, perm.apply(final_table.get_column(i)).get_vector())
+    return final_table, sum(in_intersection)
+
+

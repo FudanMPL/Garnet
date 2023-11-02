@@ -1,2 +1,14 @@
-x = sint.Array(10)
-x[0] = 1
+program.use_split(3)
+
+table0 = sint.Matrix(1000, 1)
+table1 = sint.Matrix(1000, 1)
+
+# for x in table0:
+#     x.input_from(0)
+
+# for x in table1:
+#     x.input_from(1)
+
+merge_table, n = mpc_psi_merge(table0, table1)
+
+
