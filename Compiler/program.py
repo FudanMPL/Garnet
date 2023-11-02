@@ -987,7 +987,6 @@ class Tape:
 
         # now remove any empty blocks (must be done after setting jumps)
         self.basicblocks = [x for x in self.basicblocks if len(x.instructions) != 0]
-        print("allocate registers",  time.asctime())
         # allocate registers
         reg_counts = self.count_regs()
         if options.noreallocate:
@@ -1047,7 +1046,6 @@ class Tape:
             allocator.finalize(options)
             # if self.program.verbose:
             #     print("Tape register usage:", dict(allocator.usage))
-        print("offline data requirements",  time.asctime())
         # offline data requirements
         if self.program.verbose:
             print("Compile offline data requirements...")
