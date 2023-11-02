@@ -810,18 +810,28 @@ def normalize(input, p=2, dim=1, eps=1e-12, out=None):
 def batch_norm(input, running_mean, running_var, weight=None, bias=None, training=False, eps=1e-05, momentum=0.1):
     
     assert isinstance(input,Tensor) ,"Invalid input"
+    # assert input.value.sizes[1] == running_mean.value.sizes[1], "Invalid input"
+    # assert input.value.sizes[1] == running_var.value.sizes[1], "Invalid input"
+    # assert input.value.sizes[1] == weight.value.sizes[1], "Invalid input"
+    # assert input.value.sizes[1] == bias.value.sizes[1], "Invalid input"
     
     new_sizes = [(input.value.sizes[i] if i == 1 else 1) for i in range(len(input.value.sizes))]
     if isinstance(running_mean.value, Array):
         running_mean.value = running_mean.value.reshape(new_sizes)
     if isinstance(running_var.value, Array):
-        running_var.value = running_var.value.reshape(new_sizes)    
-        
+        running_var.value = running_var.value.reshape(new_sizes)
+    if isinstance(weight.value, Array):
+        weight.value = weight.value.reshape(new_sizes)
+        weight.grad = weight.grad.reshape(new_sizes)
+    if isinstance(bias.value, Array):
+        bias.value = bias.value.reshape(new_sizes)
+        bias.grad = bias.grad.reshape(new_sizes)
+    
     if training:
         x_mean = input.mean(dim=[0,2,3], keepdim=True)
         x_var = input.var(dim=[0,2,3], keepdim=True, unbiased=True) 
-        running_mean = x_mean * momentum + running_mean * (1-momentum)
-        running_var = x_var * momentum + running_var * (1-momentum)
+        running_mean.value[:] = x_mean.value[:] * momentum + running_mean.value[:] * (1-momentum)
+        running_var.value[:] = x_var.value[:] * momentum + running_var.value[:] * (1-momentum)
     else:
         x_mean = running_mean
         x_var = running_var

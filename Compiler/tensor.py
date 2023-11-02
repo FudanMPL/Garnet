@@ -158,9 +158,12 @@ def element_wise_add(self, other):
         # swap to ensure v1 size is bigger than v2 size  
         v1, v2 = dl_dself, dl_dother
         req_grad1, req_grad2 = self.req_grad, other.req_grad
+        input1=tensors[operation.inputs[0]].value
+        input2=tensors[operation.inputs[1]].value
         if input1.total_size()<input2.total_size():
             v1, v2 = v2, v1
             req_grad1, req_grad2 = req_grad2, req_grad1
+            input1, input2 = input2, input1
         # v1 back directly 
         if req_grad1:
             v1[:] += dl_dx[:]
@@ -954,6 +957,7 @@ def mean_of_multiarray(self, dim, keepdim=False):
             @for_range(stride)
             def _(j):
                 input_perm.assign_vector(dl_dx.get_vector(i, 1), i*stride+j)
+        break_point()
         input_perm[:] *= 1 / stride
         # permute back
         new_perm = get_permute_back(len(self.value.sizes), dim)

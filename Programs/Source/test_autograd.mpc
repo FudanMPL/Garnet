@@ -711,7 +711,7 @@ def test_f_gelu():
     input2.value.print_reveal_nested()
     #input1.grad.print_reveal_nested()
 
-test_mul()
+#test_mul()
 #test_add()
 #test_sub()
 #test_div()
@@ -753,7 +753,7 @@ def test_getitem():
 #test_neg()
 
 #test_f_droupout(0.5)
-#test_f_batchnorm()
+test_f_batchnorm()
 #test_f_layernorm()
 #test_f_mseloss()
 #test_f_normalize(p=2, dim=[0,1])
