@@ -407,16 +407,17 @@ def test_dot():
     input2.grad.print_reveal_nested()
 
 @autograd_function
-def test_sigmoid():
+def test_sigmoid(approx=False):
+    print_ln('test sigmoid')
     xMultiArray_2_1 = MultiArray([COL, HEIGHT], sfix)
     for i in range(0,COL):
         for  j in range(0,HEIGHT):
             xMultiArray_2_1[i][j] = sfix(i-j)
     input = Tensor(xMultiArray_2_1, req_grad = True)
-    output=F.sigmoid(input)
+    output=F.sigmoid(input,approx=approx)
     tensor.train()
     tensor.reset_op_id()
-    output=F.sigmoid(input)
+    output=F.sigmoid(input,approx=approx)
     output.backward()
     input.value.print_reveal_nested()
     output.value.print_reveal_nested()
@@ -431,10 +432,10 @@ def test_relu():
         for  j in range(0,HEIGHT):
             xMultiArray_2_1[i][j] = sfix(i-j)
     input = Tensor(xMultiArray_2_1, req_grad = True)
-    output=F.relu(input)
+    output=F.relu(input,inplace=True)
     tensor.train()
     tensor.reset_op_id()
-    output=F.relu(input)
+    output=F.relu(input,inplace=True)
     output.backward()
     input.value.print_reveal_nested()
     output.value.print_reveal_nested()
@@ -503,14 +504,18 @@ def test_conv2d():
     input = Tensor(training_samples, req_grad = True)
     weight=Tensor(weight_v,req_grad = True )
 
-    output=F.conv2d(input,weight)
+    output=F.conv2d(input,weight,padding=[2,2])
     tensor.train()
     tensor.reset_op_id()
-    output=F.conv2d(input,weight)
+    output=F.conv2d(input,weight,padding=[2,2])
     output.backward()
     output.value.print_reveal_nested()
     weight.grad.print_reveal_nested()
     input.grad.print_reveal_nested()
+
+#test_conv2d()
+
+
 
 @autograd_function
 def test_maxpool2d():
@@ -732,14 +737,158 @@ def test_cross_entropy():
     output.backward()
     input.grad.print_reveal_nested()
 
-    
-test_cross_entropy()
+
+@autograd_function
+def test_softmax_0():
+    print_ln('test_softmax_0')
+    x = MultiArray([3, 4,2], sfix)
+    for i in range(0,3):
+        for  j in range(0,4):
+            for k in range(2):
+                x[i][j][k] = sfix(i-j-k)
+    x.print_reveal_nested()
+
+    y = MultiArray([3, 4,2], sfix)
+    for i in range(0,3):
+        for  j in range(0,4):
+            for k in range(2):
+                    y[i][j][k] = sfix(i+j+k)
+    y.print_reveal_nested()
+
+    input1 = Tensor(x, req_grad = True)
+    input2 = Tensor(y, req_grad = True)
+    output = F.softmax(input1,dim=1)
+    out = output*input2
+    tensor.train()
+    tensor.reset_op_id()
+    output = F.softmax(input1,dim=1)
+    out = output*input2
+    out.value.print_reveal_nested()
+    out.backward()
+    input1.grad.print_reveal_nested()
+
+@autograd_function
+def test_softmax_F_Array():
+    print_ln('test_softmax_F_Array')
+    x = Array(10, sfix)
+    for i in range(0,10):
+        x[i] = sfix(i)
+    x.print_reveal_nested()
+
+    y = Array(10, sfix)
+    for i in range(0,10):
+        y[i] = sfix(-i)
+    y.print_reveal_nested()
+
+    input1 = Tensor(x, req_grad = True)
+    input2 = Tensor(y, req_grad = True)
+    output = F.softmax(input1,dim=0)
+    #out = output*input2
+    tensor.train()
+    tensor.reset_op_id()
+    output = F.softmax(input1,dim=0)
+    #out = output*input2
+    output.value.print_reveal_nested()
+    output.backward()
+    input1.grad.print_reveal_nested()
+
+
+@autograd_function
+def test_log_softmax_0():
+    print_ln('test_log_softmax_0')
+    x = MultiArray([3, 4,2], sfix)
+    for i in range(0,3):
+        for  j in range(0,4):
+            for k in range(2):
+                x[i][j][k] = sfix(i-j-k)
+    x.print_reveal_nested()
+
+    y = MultiArray([3, 4,2], sfix)
+    for i in range(0,3):
+        for  j in range(0,4):
+            for k in range(2):
+                    y[i][j][k] = sfix(i+j+k)
+    y.print_reveal_nested()
+
+    input1 = Tensor(x, req_grad = True)
+    input2 = Tensor(y, req_grad = True)
+    output = F.log_softmax(input1,dim=1)
+    out = output*input2
+    tensor.train()
+    tensor.reset_op_id()
+    output = F.log_softmax(input1,dim=1)
+    out = output*input2
+    out.value.print_reveal_nested()
+    out.backward()
+    input1.grad.print_reveal_nested()
+
+
+@autograd_function
+def test_logsoftmax_F_Array():
+    print_ln('test_logsoftmax_F_Array')
+    x = Array(10, sfix)
+    for i in range(0,10):
+        x[i] = sfix(i)
+    x.print_reveal_nested()
+
+    y = Array(10, sfix)
+    for i in range(0,10):
+        y[i] = sfix(-i)
+    y.print_reveal_nested()
+
+    input1 = Tensor(x, req_grad = True)
+    input2 = Tensor(y, req_grad = True)
+    output = F.log_softmax(input1,dim=0)
+    #out = output*input2
+    tensor.train()
+    tensor.reset_op_id()
+    output = F.log_softmax(input1,dim=0)
+    #out = output*input2
+    output.value.print_reveal_nested()
+    output.backward()
+    input1.grad.print_reveal_nested()
+
+test_logsoftmax_F_Array()
+
+#test_softmax_0()
+
+#test_log_softmax_0()
+
+
+
+
+
+'''
+x = Array(10, sfix)
+for i in range(0,10):
+    x[i] = sfix(i)
+x.print_reveal_nested()
+
+y=x
+tmp=x+y
+print_ln('%s',tmp.reveal())
+y.print_reveal_nested()
+y[i]=1000
+y.print_reveal_nested()
+x.print_reveal_nested()
+print_ln('%s',tmp.reveal())
+'''
+
+
+
+
+
+
+#test_softmax_F_Array()
+
+#test_cross_entropy()
 
 #test_nllloss()
 #test_dim()
 
 
 #test_softmax()
+#test_softmax_0()
 
 #test_kl_div()
 
@@ -755,7 +904,8 @@ test_cross_entropy()
 #test_tanh()
 
 #test_logsigmoid()
-#test_sigmoid()
+#test_sigmoid(True)
+#test_sigmoid(False)
 #test_relu()
 #test_mv_3Dim_MultiArray_Array()
 #test_mv_MultiArray_Array()
