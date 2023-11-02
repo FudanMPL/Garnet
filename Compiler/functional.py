@@ -319,7 +319,7 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0]):
                     weights_h, weights_w, 1, 1, n_channels_out,
                     weights_h - 1, weights_w - 1, 1)
             input.grad.assign_vector_by_indices(
-                unreduced_sfix._new(res).reduce_after_mul(),i, j,None, None)
+                unreduced_sfix._new(res).reduce_after_mul(), i  , j, None, None)
         if padding_h or padding_w:
             @for_range_opt_multithread(n_threads, N)
             def _(i):
@@ -366,7 +366,7 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0]):
         n_parts = max(1, round((n_threads or 1) / n_channels_out))
         while N % n_parts != 0:
             n_parts -= 1
-        print('Convolution in %d parts' % n_parts)
+        # print('Convolution in %d parts' % n_parts)
         unreduced = MultiArray(output_value.sizes, sint, address=output_value.address)
         part_size =N // n_parts
         size_=part_size*reduce(operator.mul,input.shape[1:])
@@ -816,15 +816,14 @@ def batch_norm(input, running_mean, running_var, weight=None, bias=None, trainin
         
     if training:
         x_mean = input.mean(dim=[0,2,3], keepdim=True)
-        x_var = input.var(dim=[0,2,3], keepdim=True, unbiased=True) 
-        running_mean = x_mean * momentum + running_mean * (1-momentum)
-        running_var = x_var * momentum + running_var * (1-momentum)
+        x_var = input.var(dim=[0,2,3], keepdim=True, unbiased=True) #5s
+        running_mean.value[:] = x_mean.value[:] * momentum + running_mean.value[:] * (1-momentum)
+        running_var.value[:] = x_var.value[:] * momentum + running_var.value[:] * (1-momentum)
     else:
         x_mean = running_mean
         x_var = running_var
-    
-    x_var = x_var + eps
-    output = (input - x_mean) * x_var.invsqrt() 
+    x_var = x_var + eps # todo
+    output = (input - x_mean) * x_var.invsqrt() #9s 5s 4s
     if weight is not None:
         output = output * weight
     if bias is not None:
