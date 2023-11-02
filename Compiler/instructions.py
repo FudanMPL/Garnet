@@ -2826,7 +2826,8 @@ class conv2ds(base.DataInstruction, base.VarArgsInstruction, base.Mergeable):
             req_node.increment(('offline communication', 'bits'), res[2])
             online_round = max(online_round, res[1])
             offline_round = max(offline_round, res[3])
-
+        req_node.increment(('online', 'round'), online_round)
+        req_node.increment(('offline', 'round'), offline_round)
         super(conv2ds, self).add_usage(req_node)
         args = self.args
         for i in range(0, len(self.args), 15):

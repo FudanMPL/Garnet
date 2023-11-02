@@ -15,7 +15,7 @@ from Compiler.comparison import CarryOutRawLE
 # from Compiler.GC.types import sbitintis_train
 from functools import reduce
 from typing import List, NamedTuple, Callable, Dict, Optional, Union, Tuple, Any
-
+from ml import approx_sigmoid
 _name = 1
 
 
@@ -1008,7 +1008,11 @@ def mean_of_multiarray(self, dim, keepdim=False):
         def _(i):
             summary = sum(input_perm.get_vector(i*stride, stride))
             output.value.assign_vector(summary, i)
-        output.value[:] *= 1 / stride
+        tmp = 1 / stride
+        @multithread(1, output.value.total_size())
+        def _(base, size):
+            output.value.assign_vector(output.value.get_vector(base, size)* tmp, base)
+
         # output.value.reshape([(1 if i in dim else self.value.sizes[i]) for i in range(len(self.value.sizes))])
         op_id += 1
     # record the input and output of the op
@@ -1104,9 +1108,17 @@ def var_of_multiarray(self, dim, keepdim=False, unbiased=False):
             output.value.assign_vector(summary, i)
         break_point()
         if unbiased:
-            output.value[:] *= 1 / stride
+            tmp = 1 / stride
+            @multithread(1, output.value.total_size())
+            def _(base, size):
+                output.value.assign_vector(output.value.get_vector(base, size)* tmp , base)
+
         else:
-            output.value[:] *= 1 / (stride - 1)
+            tmp = 1 / (stride-1)
+            @multithread(1, output.value.total_size())
+            def _(base, size):
+                output.value.assign_vector(output.value.get_vector(base, size)* tmp , base)
+
         op_id += 1
     # record the input and output of the op
     return output
@@ -1401,8 +1413,11 @@ class Tensor():
         
 
     @staticmethod
-    def ones(sizes: list, value_type = sfix, req_grad = False):
-        assert isinstance(sizes, list)
+    def ones(*sizes, value_type = sfix, req_grad = False):
+        if len(sizes) == 1 and isinstance(sizes[0], list):
+            sizes = sizes[0]
+        else:
+            sizes = list(sizes)
         if len(sizes) == 0 or value_type is None:
             raise CompilerError("the shape of a tensor must be a not-null list and value type must be determined")
         if len(sizes) == 1:
@@ -1414,8 +1429,12 @@ class Tensor():
         return res
 
     @staticmethod
-    def zeros(sizes: list, value_type = sfix, req_grad = False):
-        assert isinstance(sizes, list)
+    def zeros(*sizes, value_type = sfix, req_grad = False):
+ 
+        if len(sizes) == 1 and isinstance(sizes[0], list):
+            sizes = sizes[0]
+        else:
+            sizes = list(sizes)        
         if len(sizes) == 0 or value_type is None:
             raise CompilerError("the shape of a tensor must be a not-null list and value type must be determined")
         if len(sizes) == 1:
@@ -1958,13 +1977,13 @@ class Tensor():
         return output
 
     @buildingblock("concat-forward")
-    def concate(self, other, axis=0):  # 按照axis指定维度进行拼接
+    def concat(self, other, dim=0):  # 按照dim指定维度进行拼接
         @buildingblock(get_program().globalbuildingblock)
         def propagate(dl_doutputs,operation):
             input1=tensors[operation.inputs[0]]
             input2=tensors[operation.inputs[1]]
-            size_pre=reduce(lambda x,y:x*y,input1.shape[axis:])
-            size_next=reduce(lambda x,y:x*y,input2.shape[axis:]) 
+            size_pre=reduce(lambda x,y:x*y,input1.shape[dim:])
+            size_next=reduce(lambda x,y:x*y,input2.shape[dim:]) 
             if input1.req_grad and input2.req_grad:
                 @for_range(input1.value.length//size_pre)
                 def _(i):    
@@ -1987,10 +2006,10 @@ class Tensor():
             else:
                 assert len(self.shape)==len(other.shape),"Inequal Dimension"
                 for i in range(len(self.shape)):
-                    if i != axis and self.shape[i] != other.shape[i]:
+                    if i != dim and self.shape[i] != other.shape[i]:
                         raise ValueError("Invalid Dimension")
                 target_size = other.value.shape
-                target_size[axis] += self.value.shape[axis]
+                target_size[dim] += self.value.shape[dim]
                 new_value = MultiArray(target_size, self.value.value_type)
             output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
             if self.req_grad or other.req_grad:
@@ -2003,8 +2022,8 @@ class Tensor():
             op_id += 1
         else:
             operation=gradient_operation[op_id_store[op_id]]
-            size_pre=reduce(lambda x,y:x*y,self.shape[axis:])
-            size_next=reduce(lambda x,y:x*y,other.shape[axis:])
+            size_pre=reduce(lambda x,y:x*y,self.shape[dim:])
+            size_next=reduce(lambda x,y:x*y,other.shape[dim:])
             input1=tensors[operation.inputs[0]]
             input2=tensors[operation.inputs[1]]
             output=tensors[operation.outputs[0]]
@@ -2231,7 +2250,10 @@ class Tensor():
             input = tensors[inputs[0]]
             output = tensors[outputs[0]]
 
-            output.value[:] = mpc_math.InvertSqrt(input.value[:] + eps)
+            # output.value[:] = mpc_math.InvertSqrt(input.value[:] + eps)
+            @multithread(1, output.value.total_size())
+            def _(base, size):
+                output.value.assign_vector(mpc_math.InvertSqrt(output.value.get_vector(base, size)+eps) , base)
 
             op_id += 1
         # record the input and output of the op
@@ -2468,7 +2490,7 @@ class Tensor():
             operation = gradient_operation[op_id_store[op_id]]
             output = tensors[operation.outputs[0]]
             if approx:
-                output.value[:]=approx_sigmoid(self.value[:])
+                output.value[:]= approx_sigmoid(self.value[:])
             else:
                 output.value[:] =  sigmoid_from_e_x(self.value[:],exp(-self.value[:]))
             set_opid(op_id+1)  # record the input and output of the op
@@ -2520,8 +2542,11 @@ class Tensor():
         # record the input and output of the op
         return output
     
-    def size(self):
-        return self.value.sizes
+    def size(self, dim = None):
+        if dim == None:
+            return self.value.sizes
+        else:
+            return self.value.sizes[dim]
 
     def zero_grad(self):
         if self.grad != None:
@@ -2536,28 +2561,30 @@ def vec_softmax(x):
     e_x = mpc_math.exp_fx(x - util.max(x))
     return e_x / sum(e_x)
 
-@vectorize
-def approx_sigmoid(x, n=5):
-    """ Piece-wise approximate sigmoid as in
-    `Hong et al. <https://arxiv.org/abs/2002.04344>`_
+# @vectorize
+# def approx_sigmoid(x, n=5):
+#     """ Piece-wise approximate sigmoid as in
+#     `Hong et al. <https://arxiv.org/abs/2002.04344>`_
 
-    :param x: input
-    :param n: number of pieces, 3 (default) or 5
-    """
-    if n == 5:
-        cuts = [-5, -2.5, 2.5, 5]
-        le = [0] + [x <= cut for cut in cuts] + [1]
-        select = [le[i + 1] - le[i] for i in range(5)]
-        outputs = [cfix(10 ** -4),
-                   0.02776 * x + 0.145,
-                   0.17 *x + 0.5,
-                   0.02776 * x + 0.85498,
-                   cfix(1 - 10 ** -4)]
-        return sum(a * b for a, b in zip(select, outputs))
-    else:
-        a = x < -0.5
-        b = x > 0.5
-        return a.if_else(0, b.if_else(1, 0.5 + x))
+#     :param x: input
+#     :param n: number of pieces, 3 (default) or 5
+#     """
+#     if n == 5:
+#         cuts = [-5, -2.5, 2.5, 5]
+#         le = [0] + [x <= cut for cut in cuts] + [1]
+#         select = [le[i + 1] - le[i] for i in range(5)]
+#         outputs = [cfix(10 ** -4),
+#                    0.02776 * x + 0.145,
+#                    0.17 *x + 0.5,
+#                    0.02776 * x + 0.85498,
+#                    cfix(1 - 10 ** -4)]
+#         return sum(a * b for a, b in zip(select, outputs))
+#     else:
+#         a = x < -0.5
+#         b = x > 0.5
+#         return a.if_else(0, b.if_else(1, 0.5 + x))
+    
+    
 def log_e(x):
     return mpc_math.log_fx(x, math.e)
 
@@ -2656,7 +2683,7 @@ def softmax_last_dim(x, dim=-1, res=None, inter=None):
         n, m = reduce(operator.mul, batch) if len(batch) >= 2 else batch[0], per_x.sizes[-1]
         per_x.view(-1, per_x.sizes[-1]), per_res.view(-1, per_res.sizes[-1])
         index = regint(0)
-        @for_range_opt(n, n)
+        @for_range_opt(n)
         def _(i):
             per_res.assign_vector(vec_softmax(per_x.get_vector(i*m, m)), index)
             index.update(index+m)

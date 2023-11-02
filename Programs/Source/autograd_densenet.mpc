@@ -1,0 +1,162 @@
+import nn as nn
+from tensor import Tensor,autograd_function
+import optimizer as optim
+import dataloader as dataloader
+import functional as F
+program.use_trunc_pr = True
+class FirstConv(nn.Module):
+    def __init__(self, channels_in, channels_out):
+        """
+        DenseNet第一个卷积层，将输入图片从3通道变为其它自定义通道数
+        :param channels_in: 输入图片通道数
+        :param channels_out: 自己设定的输出通道数
+        """
+        super().__init__()
+        self.layers = nn.Sequential(nn.Conv2d(in_channels=channels_in, out_channels=channels_out, kernel_size=3, stride=2, padding=3, bias=False),
+                                    nn.BatchNorm2d(num_features=channels_out),
+                                    nn.ReLU(),
+                                    nn.AvgPool2d(kernel_size=2))
+    def forward(self, x):
+        return self.layers(x)
+
+class BottleneckLayer(nn.Module):
+    def __init__(self, channels_in, growth_rate):
+        super().__init__()
+        self.growth_rate = growth_rate
+        self.channels_in = channels_in
+        self.out_channels_1x1 = 4*self.growth_rate
+        self.layers = nn.Sequential(nn.BatchNorm2d(num_features=self.channels_in),
+                                    nn.ReLU(),
+                                    nn.Conv2d(in_channels=self.channels_in, out_channels=self.out_channels_1x1, kernel_size=1, padding=0,bias=False),
+                                    nn.BatchNorm2d(num_features=self.out_channels_1x1),
+                                    nn.ReLU(),
+                                    nn.Conv2d(in_channels=self.out_channels_1x1, out_channels=self.growth_rate, kernel_size=3, stride=1, padding=1, bias=False))
+
+    def forward(self, x):
+        out = self.layers(x)
+        # 重点：这里是x前面所有层的输出特征图
+        out = x.concat(out, dim=1)
+        return out
+
+class TransitionLayer(nn.Module):
+    def __init__(self, channels_in, channels_out):
+        super().__init__()
+        # 1：定义转换层的输入输出通道数
+        self.channels_in = channels_in
+        self.channels_out = channels_out
+        # 2：BN+ReLU+Conv1x1+AvgPool2x2
+        self.layers = nn.Sequential(nn.BatchNorm2d(num_features=channels_in),
+                                    nn.ReLU(),
+                                    nn.Conv2d(in_channels=channels_in, out_channels=channels_out, kernel_size=1, stride=1, padding=0, bias=False),
+                                    nn.AvgPool2d(kernel_size=2))
+
+    def forward(self, x):
+        out = self.layers(x)
+        return out
+
+def make_dense_block(num_bottleneck, growth_rate, channels_in):
+    """
+    根据Bottleneck制作Dense Block
+    :param num_bottleneck: 目标Dense Block层数
+    :param growth_rate: 增长率，即通道数
+    :param channels_in: 输入通道数
+    :return: 返回nn.Sequential类型的Dense Block
+    """
+    # 1：创建容器
+    layers = []
+    # 2：每一个bottleneck层的输入通道数是前面所有bottleneck层输出通道数之和
+    #    每一个bottleneck层输出通道数都是增长率k，即论文中growth rate
+    current_channels = channels_in
+    for i in range(num_bottleneck):
+        # 3：给Dense Block添加Bottleneck层
+        layers.append(BottleneckLayer(channels_in=current_channels, growth_rate=growth_rate))
+        # 4：每次添加current_channels都增大growth rate
+        current_channels += growth_rate
+    return nn.Sequential(*layers)
+
+class DenseNet(nn.Module):
+    def __init__(self, growth_rate, channels_in, num_dense_block, num_bottleneck, num_channels_before_dense, compression, num_classes):
+        """
+        DenseNet核心代码
+        :param growth_rate: 增长率
+        :param channels_in: 输入数据通道数
+        :param num_dense_block: 需要几个Dense Block，暂时不用此参数
+        :param num_bottleneck: 用list表示每个DenseBlock包含的bottleneck个数，如list(6, 12, 24, 16)表示DenseNet121
+        :param num_channels_before_dense: 第一个卷积层的输出通道数
+        :param compression: 压缩率，Transition层的输出通道数为Compression乘输入通道数
+        :param num_classes:类别数
+        """
+        super().__init__()
+        self.growth_rate = growth_rate
+        self.channel_in = channels_in
+        self.num_dense_block = num_dense_block
+        self.num_bottleneck = num_bottleneck
+
+        # 1：定义第1个卷积层
+        self.first_conv = FirstConv(channels_in=channels_in, channels_out=num_channels_before_dense)
+
+        # 2：定义第1个Dense Block，其输出通道数为输入通道数加上层数*增长率
+        self.dense_1 = make_dense_block(num_bottleneck=num_bottleneck[0], channels_in=num_channels_before_dense,
+                                        growth_rate=growth_rate)
+        dense_1_out_channels = int(num_channels_before_dense + num_bottleneck[0]*growth_rate)
+        self.transition_1 = TransitionLayer(channels_in=dense_1_out_channels,
+                                            channels_out=int(compression*dense_1_out_channels))
+
+        # 3：定义第2个Dense Block，其输出通道数为输入通道数加上层数*增长率
+        self.dense_2 = make_dense_block(num_bottleneck=num_bottleneck[1], channels_in=int(compression*dense_1_out_channels),
+                                        growth_rate=growth_rate)
+        dense_2_out_channels = int(compression*dense_1_out_channels + num_bottleneck[1]*growth_rate)
+        self.transition_2 = TransitionLayer(channels_in=dense_2_out_channels,
+                                            channels_out=int(compression*dense_2_out_channels))
+
+        # 4：定义第3个Dense Block，其输出通道数为输入通道数加上层数*增长率
+        self.dense_3 = make_dense_block(num_bottleneck=num_bottleneck[2], channels_in=int(compression * dense_2_out_channels),
+                                        growth_rate=growth_rate)
+        dense_3_out_channels = int(compression * dense_2_out_channels + num_bottleneck[2] * growth_rate)
+        self.transition_3 = TransitionLayer(channels_in=dense_3_out_channels,
+                                            channels_out=int(compression * dense_3_out_channels))
+
+        # 5：定义第4个Dense Block，其输出通道数为输入通道数加上层数 * 增长率
+        self.dense_4 = make_dense_block(num_bottleneck=num_bottleneck[3],
+                                        channels_in=int(compression * dense_3_out_channels),
+                                        growth_rate=growth_rate)
+        dense_4_out_channels = int(compression * dense_3_out_channels + num_bottleneck[3] * growth_rate)
+
+        # 6：定义最后的7x7池化层，和分类全连接层
+        self.BN_before_classify = nn.BatchNorm2d(num_features=dense_4_out_channels)
+        self.pool_before_classify = nn.AvgPool2d(kernel_size=7)
+        self.classify = nn.Linear(in_features=dense_4_out_channels, out_features=num_classes)
+
+
+    def forward(self, x):
+        out_1 = self.first_conv(x)
+        out_2 = self.transition_1(self.dense_1(out_1))
+        out_3 = self.transition_2(self.dense_2(out_2))
+        out_4 = self.transition_3(self.dense_3(out_3))
+        out_5 = self.dense_4(out_4)
+        out_6 = self.BN_before_classify(out_5)
+        out_7 = self.pool_before_classify(out_6)
+        out_8 = self.classify(out_7.view(x.size(0), -1))
+        return out_8
+
+#model = DenseNet(channels_in=3, compression=0.5, growth_rate=12, num_classes=10,num_bottleneck=[6, 12, 24, 16],
+#                        num_channels_before_dense=64,
+#                        num_dense_block=4)
+model = DenseNet(channels_in=3, compression=0.5, growth_rate=32, num_classes=10,num_bottleneck=[1, 2, 4,3],
+                        num_channels_before_dense=64,
+                        num_dense_block=4)
+x = Tensor.ones(4, 3, 224, 224)
+labels = Tensor.ones(4, 10)
+crossloss = nn.CrossEntropyLoss()
+dataload = dataloader.DataLoader(x, labels, batch_size = 2, shuffle=False)
+optimizer = optim.SGD(model.parameters(), lr = 0.01)
+input, label = dataload.get_data(0)
+model.train(crossloss, dataload)
+
+output = model(input)
+loss = crossloss(output, label)
+optimizer.zero_grad()
+#loss.backward()
+#output.print_reveal_nested()
+
+
