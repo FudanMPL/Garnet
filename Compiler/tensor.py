@@ -2253,7 +2253,7 @@ class Tensor():
             # output.value[:] = mpc_math.InvertSqrt(input.value[:] + eps)
             @multithread(1, output.value.total_size())
             def _(base, size):
-                output.value.assign_vector(mpc_math.InvertSqrt(output.value.get_vector(base, size)+eps) , base)
+                output.value.assign_vector(mpc_math.InvertSqrt(input.value.get_vector(base, size)+eps) , base)
 
             op_id += 1
         # record the input and output of the op

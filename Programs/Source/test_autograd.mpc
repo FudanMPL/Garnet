@@ -523,8 +523,8 @@ def test_f_batchnorm():
     x.print_reveal_nested()
     input1 = Tensor(x, req_grad = True)
 
-    w, b = Array(1, sfix), Array(1, sfix)
-    w[0], b[0] = sfix(1), sfix(0)
+    w, b = Array(2, sfix), Array(2, sfix)
+    w.assign_all(1)
     W = Tensor(w, req_grad = True)
     B = Tensor(b, req_grad = True)
     mean, std = Array(2, sfix), Array(2, sfix)

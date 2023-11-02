@@ -962,6 +962,10 @@ def dropout(input, p=0.5, training=False, inplace=False):  # todo
 @buildingblock("normalize")
 def normalize(input, p=2, dim=1, eps=1e-12, out=None):
     assert p == 2  # todo
+    assert isinstance(dim, (int, list))
+    if isinstance(dim, int):
+        dim = [dim]
+        
     xp = input * input
     xpsum = xp.sum(dim=dim, keepdim=True)
     xpsumSqr = xpsum.invsqrt(eps=eps)
