@@ -1326,7 +1326,7 @@ class Tensor():
                 flag = flag | searchset.get(it, False)
             if flag:
                 op.propagate(dl_doutputs, op)
-        reset_op_id()
+        break_point()
         return 0
 
     # Multiplication of a Variable, tracking gradients
@@ -1723,12 +1723,12 @@ class Tensor():
                     sizes = sizes[0]
                 else:
                     sizes = list(sizes)
-                assert all(isinstance(x, int) and x > 0 for x in sizes), "Invalid Dimensiopn"
+                assert all(isinstance(x, int) and x > -2 for x in sizes), "Invalid Dimensiopn"
                 if -1 in sizes:
                     assert sizes.count(-1) == 1, "-1 Occurs More than Once "
                     tmp = reduce(lambda x, y: x*y, sizes)
                     assert product % (-tmp) == 0, "Invalid Dimension"
-                    sizes[sizes.index(-1)] = product/(-tmp)
+                    sizes[sizes.index(-1)] = int(product/(-tmp))
                 new_value = MultiArray(sizes, self.value.value_type)
             output = Tensor(new_value, req_grad=self.req_grad)
             if self.req_grad:
@@ -1747,6 +1747,30 @@ class Tensor():
             op_id += 1
         return output
 
+    def flatten(self, start_dim, end_dim):
+        sizes = self.sizes
+        length = len(sizes)
+        if start_dim < 0:
+            start_dim = length + start_dim
+        
+        if end_dim < 0:
+            end_dim = length + end_dim 
+        
+        assert start_dim >= 0 and end_dim >= 0 and start_dim < length and end_dim < length and start_dim < end_dim
+        new_sizes = []
+        new_len = 1
+        for i in range(length):
+            if i < start_dim or i > end_dim:
+                new_sizes.append(sizes[i])  
+                continue
+            if i == end_dim:
+                new_len *= sizes[i]
+                new_sizes.append(int(new_len))
+                continue
+            new_len *= sizes[i]
+        print(new_sizes)
+        return self.view(new_sizes)
+                    
     @buildingblock("squeeze-forward")
     def squeeze(self, dim=None):
         
@@ -2306,76 +2330,149 @@ class Tensor():
         pass
 
     @buildingblock("softmax-forward")
-    def softmax(self, dim=-1):
-        @backwardbuildingblock(get_program().globalbuildingblock[:-16]+"-sofxmax-backward")
+    def softmax(self,dim=-1):
+        op_id = get_opid()
+        @backwardbuildingblock(get_program().globalbuildingblock[:-13]+"-softmax-backward")
         def propagate(dl_doutputs, operation):
             dl_dy, = dl_doutputs
             output = tensors[operation.outputs[0]]
-            if self.req_grad:
-                if isinstance(self.value, MultiArray):
-                    inter_mul1, inter_mul2, inter_sum,inter1,inter2= operation.intermediate[-5], operation.intermediate[-4], operation.intermediate[-3],operation.intermediate[-2],operation.intermediate[-1]
-                    # dl_dx = softmax(x)*(   dl_dy    -    (dl_dy*softmax(x)).sum(dim=-1)  )
-                    dl_dy.element_wise_mul(output.value, inter_mul1)
-                    inter_mul1.sum(dim, res=inter_sum, keepdims=True)
-                    _, v1, v2 = reconst_dims(dl_dy, inter_sum)
-                    boardcasted_multiarray_sub(v1,v2, inter2,inter1)
-                    output.value.element_wise_mul(inter1, inter_mul2)
-                    dl_d[operation.inputs[0]][:] += inter_mul2[:]
-                else:
-                    res = output.value[:]*(dl_dy[:]-sum(output.value[:]*dl_dy[:]))
-                    dl_d[operation.inputs[0]][:] += res
-        # forward
-        global op_id 
+            if isinstance(self.value, MultiArray):
+                # dl_dx = softmax(x)*(   dl_dy    -    (dl_dy*softmax(x)).sum(dim=-1)  )
+                inter_sum=operation.intermediate[2]
+                inter_inital0=operation.intermediate[3]
+                inter_broadcast_sub=operation.intermediate[4]
+                dl_dy.element_wise_mul(output.value,inter_inital0 )
+                inter_inital0.sum(dim,res=inter_sum,keepdims=True)
+                boardcasted_multiarray_sub(dl_dy, inter_sum,inter_broadcast_sub,inter_inital0)
+                output.value.element_wise_mul(inter_inital0, inter_inital0)
+                dl_d[operation.inputs[0]][:] += inter_inital0[:]
+            else:
+                res = output.value[:]*(dl_dy[:]-sum(output.value[:]*dl_dy[:]))
+                dl_d[operation.inputs[0]][:] += res
+                
+        prepare = get_prepare()
         if prepare:
-            if isinstance(self.value, Array):
-                output = Tensor(Array(self.sizes[0], self.value_type), req_grad=self.req_grad)
-                inter = []
+            assert isinstance(self, Tensor),"Invalid Input"
+            if isinstance(self.value,Array):
+                new_value=Array(self.shape[0],self.value.value_type)
+                inter=[]
             else:
-                output = Tensor(MultiArray(self.sizes, self.value_type), req_grad=self.req_grad)
-                new_sizes = [*self.sizes]
-                new_sizes[dim], new_sizes[-1] = new_sizes[-1], new_sizes[dim]
-                per_x, per_res = MultiArray(new_sizes, self.value_type), MultiArray(new_sizes, self.value_type)
-                inter = [per_x, per_res]
+                new_value=MultiArray(list(self.shape) ,self.value.value_type)
+                changed_size=list(self.shape)
+                changed_size=self.value.tuple_permute(self.shape,get_permute(len(self.sizes), [dim])) #dim=2,input:[4,3,2,5]-->[4,3,5,2]
+                inter=[MultiArray(changed_size,self.value.value_type),MultiArray(changed_size,self.value.value_type)]
+            output = Tensor(new_value, req_grad=self.req_grad)
             if self.req_grad:
-                if isinstance(self.value, MultiArray):
-                    if dim in [-1 , len(self.sizes)]:
-                        new_sizes = self.sizes[:dim] +(1,) 
-                    else:
-                        new_sizes = self.sizes[:dim] +(1,) +self.sizes[dim+1:]
-                    inter_mul1, inter_mul2, inter_sum = MultiArray(self.value.sizes, self.value.value_type), MultiArray(
-                        self.value.sizes, self.value.value_type), MultiArray(new_sizes, self.value.value_type)
-                    dims, v1, v2 = reconst_dims(output.value, inter_sum)
-                    target_size = v1.tuple_permute(output.value.sizes, get_permute(len(output.sizes), dims))
-                    inter1,inter2=MultiArray(output.sizes,self.value_type),MultiArray(target_size,self.value_type)
-                    
-                    inter += [inter_mul1, inter_mul2, inter_sum,inter1,inter2]
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=inter)
+                if isinstance(self.value,MultiArray):
+                    reduced_dim=list(self.shape)
+                    reduced_dim[dim]=1
+                    inter_sum=MultiArray(reduced_dim,self.value.value_type)  
+                    dims, v1, _ = reconst_dims(output.value, inter_sum)
+                    target_size = v1.tuple_permute(output.value.sizes, get_permute(len(output.sizes), dims))        
+                    inter+=[inter_sum,MultiArray(list(self.shape) ,self.value.value_type)
+                            ,MultiArray(target_size ,self.value.value_type)]       
+                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate,intermediate=inter)
             else:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate, intermediate=inter)
+                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate,intermediate=inter)
             gradient_operation.append(operation)
             operation_id = len(gradient_operation) - 1
-
             op_id_store[op_id] = operation_id
-            op_id += 1
+            set_opid(op_id+1)
         else:
             operation = gradient_operation[op_id_store[op_id]]
-            inputs = operation.inputs
-            outputs = operation.outputs
-            input = tensors[inputs[0]]
-            output = tensors[outputs[0]]
-            if isinstance(self.value, Array):
-                softmax_last_dim(input.value, dim, output.value)
+            input = tensors[operation.inputs[0]]
+            output = tensors[operation.outputs[0]]
+            if isinstance(input.value,Array):
+                output.value.assign_vector(vec_softmax(input.value.get_vector()),0)
             else:
-                softmax_last_dim(input.value, dim, output.value, [operation.intermediate[0],operation.intermediate[1]])
-            op_id += 1
-        # record the input and output of the op
+                changed_0= operation.intermediate[0]  
+                changed_output_1=operation.intermediate[1]
+                input.value.permute_without_malloc( changed_0 ,get_permute(len(output.sizes), [dim]))      
+                times, num_per_time = reduce(operator.mul, changed_0.shape[:-1]) if len(changed_0.shape[:-1]) >= 1 else 1, changed_0.shape[-1]
+                index = regint(0)
+                @for_range_opt(times)
+                def _(i):
+                    changed_output_1.assign_vector(vec_softmax(changed_0.get_vector(i*num_per_time, num_per_time)), index)
+                    index.update(index+num_per_time)
+                break_point()
+                
+                changed_output_1.permute_without_malloc(output.value,get_permute(len(output.sizes), [dim]))
+            
+            set_opid(op_id+1)  # record the input and output of the op
         return output
-
-    def relu(self):
-        pass
     
-    def sigmoid(self):
-        pass
+    @buildingblock("relu-forward")
+    def relu(self, inplace=False):  
+        # Considering that the saved memory overhead has very little impact on MPC computing performance, 
+        #the inplace parameter is not considered
+        op_id = get_opid()
+        @backwardbuildingblock(get_program().globalbuildingblock[:-13]+"-relu-backward")
+        def propagate(dl_doutputs, operation):
+            dl_dy, = dl_doutputs
+            dl_d[self.name]+=operation.intermediate[0][:]*dl_dy[:]        
+        prepare = get_prepare()
+        if prepare:
+            assert isinstance(self, Tensor),"Invalid Input"
+            if isinstance(self.value,Array):
+                new_value=Array(self.shape[0],self.value.value_type)
+                inter=Array(self.shape[0],sint)
+            else:
+                new_value=MultiArray(list(self.shape) ,self.value.value_type)
+                inter=MultiArray(list(self.shape) ,sint)
+            output = Tensor(new_value, req_grad=self.req_grad)
+            if self.req_grad:
+                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate,intermediate=[inter])
+            else:
+                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate,intermediate=[inter])
+            gradient_operation.append(operation)
+            operation_id = len(gradient_operation) - 1
+            op_id_store[op_id] = operation_id
+            set_opid(op_id+1)
+        else:
+            operation = gradient_operation[op_id_store[op_id]]
+            output = tensors[operation.outputs[0]]
+            larger=0 < self.value[:]
+            operation.intermediate[0].assign_vector(larger)
+            output.value[:] = (larger).if_else(self.value[:], 0) 
+            set_opid(op_id+1)  # record the input and output of the op
+        return output
+        
+    @buildingblock("sigmoid-forward")
+    def sigmoid(self,approx=False): # added approx parameter to speed up the computation
+        op_id = get_opid()
+        @backwardbuildingblock(get_program().globalbuildingblock[:-16]+"-sigmoid-backward")
+        def propagate(dl_doutputs, operation):
+            dl_dy, = dl_doutputs
+            input_ = tensors[operation.inputs[0]]
+            output = tensors[operation.outputs[0]]
+            # if input_.req_grad:
+            dl_d[input_.name]+=output.value[:]*(1-output.value[:])*dl_dy[:]
+                
+        prepare = get_prepare()
+        if prepare:
+            assert isinstance(self, Tensor),"Invalid Input"
+            if isinstance(self.value,Array):
+                new_value=Array(self.shape[0],self.value.value_type)
+            else:
+                new_value=MultiArray(list(self.shape) ,self.value.value_type)
+            output = Tensor(new_value, req_grad=self.req_grad)
+            if self.req_grad:
+                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
+            else:
+                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate)
+            gradient_operation.append(operation)
+            operation_id = len(gradient_operation) - 1
+            op_id_store[op_id] = operation_id
+            set_opid(op_id+1)
+        else:
+            operation = gradient_operation[op_id_store[op_id]]
+            output = tensors[operation.outputs[0]]
+            if approx:
+                output.value[:]=approx_sigmoid(self.value[:])
+            else:
+                output.value[:] =  sigmoid_from_e_x(self.value[:],exp(-self.value[:]))
+            set_opid(op_id+1)  # record the input and output of the op
+        return output
 
     @buildingblock("tanh-forward")
     def tanh(self):
@@ -2434,6 +2531,54 @@ class Tensor():
         assert isinstance(value, int) or isinstance(value, float)
         self.value.assign_all(value)
 
+
+def vec_softmax(x):
+    e_x = mpc_math.exp_fx(x - util.max(x))
+    return e_x / sum(e_x)
+
+@vectorize
+def approx_sigmoid(x, n=5):
+    """ Piece-wise approximate sigmoid as in
+    `Hong et al. <https://arxiv.org/abs/2002.04344>`_
+
+    :param x: input
+    :param n: number of pieces, 3 (default) or 5
+    """
+    if n == 5:
+        cuts = [-5, -2.5, 2.5, 5]
+        le = [0] + [x <= cut for cut in cuts] + [1]
+        select = [le[i + 1] - le[i] for i in range(5)]
+        outputs = [cfix(10 ** -4),
+                   0.02776 * x + 0.145,
+                   0.17 *x + 0.5,
+                   0.02776 * x + 0.85498,
+                   cfix(1 - 10 ** -4)]
+        return sum(a * b for a, b in zip(select, outputs))
+    else:
+        a = x < -0.5
+        b = x > 0.5
+        return a.if_else(0, b.if_else(1, 0.5 + x))
+def log_e(x):
+    return mpc_math.log_fx(x, math.e)
+
+use_mux = False
+def exp(x):
+    if use_mux:
+        return mpc_math.mux_exp(math.e, x)
+    else:
+        return mpc_math.pow_fx(math.e, x)
+
+def get_limit(x):
+    exp_limit = 2 ** (x.k - x.f - 1)
+    return math.log(exp_limit)
+
+def sanitize(x, raw, lower, upper):
+    limit = get_limit(x)
+    res = (x > limit).if_else(upper, raw)
+    return (x < -limit).if_else(lower, res)
+
+def sigmoid_from_e_x(x,e_x):
+    return sanitize(x, 1 / (1 + e_x), 0, 1)
 
 # reset operation
 def reset_gloabal_store():
@@ -2596,3 +2741,69 @@ def vec_softmax(x):
 #             return obj
 
     # return Tensor(expand_dim(input, res, 0))
+    
+      # @buildingblock("softmax-forward")
+    # def softmax(self, dim=-1):
+    #     @backwardbuildingblock(get_program().globalbuildingblock[:-16]+"-sofxmax-backward")
+    #     def propagate(dl_doutputs, operation):
+    #         dl_dy, = dl_doutputs
+    #         output = tensors[operation.outputs[0]]
+    #         if self.req_grad:
+    #             if isinstance(self.value, MultiArray):
+    #                 inter_mul1, inter_mul2, inter_sum,inter1,inter2= operation.intermediate[-5], operation.intermediate[-4], operation.intermediate[-3],operation.intermediate[-2],operation.intermediate[-1]
+    #                 # dl_dx = softmax(x)*(   dl_dy    -    (dl_dy*softmax(x)).sum(dim=-1)  )
+    #                 dl_dy.element_wise_mul(output.value, inter_mul1)
+    #                 inter_mul1.sum(dim, res=inter_sum, keepdims=True)
+    #                 _, v1, v2 = reconst_dims(dl_dy, inter_sum)
+                    
+    #                 boardcasted_multiarray_sub(v1,v2, inter2,inter1)
+    #                 output.value.element_wise_mul(inter1, inter_mul2)
+    #                 dl_d[operation.inputs[0]][:] += inter_mul2[:]
+    #             else:
+    #                 res = output.value[:]*(dl_dy[:]-sum(output.value[:]*dl_dy[:]))
+    #                 dl_d[operation.inputs[0]][:] += res
+    #     # forward        
+    #     global op_id 
+    #     if prepare:
+    #         if isinstance(self.value, Array):
+    #             output = Tensor(Array(self.sizes[0], self.value_type), req_grad=self.req_grad)
+    #             inter = []
+    #         else:
+    #             output = Tensor(MultiArray(self.sizes, self.value_type), req_grad=self.req_grad)
+    #             new_sizes = [*self.sizes]
+    #             new_sizes[dim], new_sizes[-1] = new_sizes[-1], new_sizes[dim]
+    #             per_x, per_res = MultiArray(new_sizes, self.value_type), MultiArray(new_sizes, self.value_type)
+    #             inter = [per_x, per_res]
+    #         if self.req_grad:
+    #             if isinstance(self.value, MultiArray):
+    #                 if dim in [-1 , len(self.sizes)-1]:
+    #                     new_sizes = self.sizes[:dim] +(1,) 
+    #                 else:
+    #                     new_sizes = self.sizes[:dim] +(1,) +self.sizes[dim+1:]
+    #                 inter_mul1, inter_mul2, inter_sum = MultiArray(self.value.sizes, self.value.value_type), MultiArray(
+    #                     self.value.sizes, self.value.value_type), MultiArray(new_sizes, self.value.value_type)
+    #                 dims, v1, v2 = reconst_dims(output.value, inter_sum)
+    #                 target_size = v1.tuple_permute(output.value.sizes, get_permute(len(output.sizes), dims))
+    #                 inter1,inter2=MultiArray(output.sizes,self.value_type),MultiArray(target_size,self.value_type)
+    #                 inter += [inter_mul1, inter_mul2, inter_sum,inter1,inter2]
+    #             operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=inter)
+    #         else:
+    #             operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate, intermediate=inter)
+    #         gradient_operation.append(operation)
+    #         operation_id = len(gradient_operation) - 1
+
+    #         op_id_store[op_id] = operation_id
+    #         op_id += 1
+    #     else:
+    #         operation = gradient_operation[op_id_store[op_id]]
+    #         inputs = operation.inputs
+    #         outputs = operation.outputs
+    #         input = tensors[inputs[0]]
+    #         output = tensors[outputs[0]]
+    #         if isinstance(self.value, Array):
+    #             softmax_last_dim(input.value, dim, output.value)
+    #         else:
+    #             softmax_last_dim(input.value, dim, output.value, [operation.intermediate[0],operation.intermediate[1]])
+    #         op_id += 1
+    #     # record the input and output of the op
+    #     return output

@@ -2650,16 +2650,18 @@ class dotprods(base.VarArgsInstruction, base.DataInstruction,
             return
         res = (0, 0, 0, 0)
         config = program.cost_config
+        online_round = 0
+        offline_round = 0
         for i, n in self.bases(iter(self.args)):
             dimension = self.args[i] // 2 - 1
             tmpres = cost_func(config.bit_length, config._security, config.f, config.n_parties, 1, dimension, 1)
-            online_round = tmpres[1]
-            offline_round = tmpres[3]
+            online_round = max(online_round, res[1])
+            offline_round = max(offline_round, res[3])
             res = merge_tuple(res, tmpres)
         req_node.increment(('online communication', 'bits'), res[0])
         req_node.increment(('offline communication', 'bits'), res[2])
         req_node.increment(('online', 'round'), online_round)
-        req_node.increment(('offline', 'round'), online_round)
+        req_node.increment(('offline', 'round'), offline_round)
         req_node.increment((self.field_type, self.data_type),
                            self.get_size() * self.get_repeat())
  
@@ -2700,16 +2702,19 @@ class matmuls(matmul_base, base.VarArgsInstruction, base.Mergeable):
             print("Please config the cost of matmuls in cost_config.py")
             return
         config = program.cost_config
+        online_round = 0
+        offline_round = 0
         for i in range(0, len(self.args), 6):
             res = cost_func(config.bit_length, config._security, config.f, config.n_parties, self.args[i+3], self.args[i+4], self.args[i+5])       
             req_node.increment(('online communication', 'bits'), res[0])
             req_node.increment(('offline communication', 'bits'), res[2])
-            req_node.increment(('online', 'round'), res[1])
-            req_node.increment(('offline', 'round'), res[3])
+            online_round = max(online_round, res[1])
+            offline_round = max(offline_round, res[3])
             req_node.increment((self.field_type, self.data_type),
                             self.get_size() * self.get_repeat())
-            
-class matmulsm(matmul_base, base.VarArgsInstruction,base.Mergeable):
+        req_node.increment(('online', 'round'), online_round)
+        req_node.increment(('offline', 'round'), offline_round)
+class matmulsm(matmul_base, base.VarArgsInstruction, base.Mergeable):
     """ Secret matrix multiplication reading directly from memory.
 
     :param: result (sint vector in row-first order)
@@ -2755,15 +2760,18 @@ class matmulsm(matmul_base, base.VarArgsInstruction,base.Mergeable):
             print("Please config the cost of matmuls in cost_config.py")
             return
         config = program.cost_config
+        online_round = 0
+        offline_round = 0
         for i in range(0, len(self.args), 12):
             res = cost_func(config.bit_length, config._security, config.f, config.n_parties, self.args[i+3], self.args[i+4], self.args[i+5])       
             req_node.increment(('online communication', 'bits'), res[0])
             req_node.increment(('offline communication', 'bits'), res[2])
-            req_node.increment(('online', 'round'), res[1])
-            req_node.increment(('offline', 'round'), res[3])
+            online_round = max(online_round, res[1])
+            offline_round = max(offline_round, res[3])
             req_node.increment((self.field_type, self.data_type),
                             self.get_size() * self.get_repeat())
-
+        req_node.increment(('online', 'round'), online_round)
+        req_node.increment(('offline', 'round'), offline_round)
 
 class conv2ds(base.DataInstruction, base.VarArgsInstruction, base.Mergeable):
     """ Secret 2D convolution.
@@ -2809,15 +2817,15 @@ class conv2ds(base.DataInstruction, base.VarArgsInstruction, base.Mergeable):
             return
         config = program.cost_config
         args = self.args
- 
+        online_round = 0
+        offline_round = 0
         for i in range(0, len(self.args), 15):
             args = self.args[i:i + 15]
             res = cost_func(config.bit_length, config._security, config.f, config.n_parties, 1 , args[7] * args[8] * args[11],  args[14] * args[3] * args[4])
             req_node.increment(('online communication', 'bits'), res[0])
             req_node.increment(('offline communication', 'bits'), res[2])
-            if i == 0:
-                req_node.increment(('online', 'round'), res[1])
-                req_node.increment(('offline', 'round'), res[3])
+            online_round = max(online_round, res[1])
+            offline_round = max(offline_round, res[3])
 
         super(conv2ds, self).add_usage(req_node)
         args = self.args
@@ -2846,7 +2854,10 @@ class trunc_pr(base.VarArgsInstruction):
             print("The profiling results could be biased")
             print("Please config the cost of trunc in cost_config.py")
             return
-        req_node.increment(('online communication', 'bits'), res[0]*self.get_size() )
+        if program.protocol == "ABY3":
+            req_node.increment(('online communication', 'bits'), res[0]*self.get_size() + 6*program.bit_length )
+        else:
+            req_node.increment(('online communication', 'bits'), res[0]*self.get_size() )
         req_node.increment(('offline communication', 'bits'), res[2]*self.get_size())
         req_node.increment(('online', 'round'), res[1])
         req_node.increment(('offline', 'round'), res[3])

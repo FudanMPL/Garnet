@@ -711,6 +711,26 @@ def test_f_gelu():
     input2.value.print_reveal_nested()
     #input1.grad.print_reveal_nested()
 
+@autograd_function
+def test_flatten():
+    print_ln('test_flatten')
+    x = MultiArray([5, 4,3,2], sfix)
+    for i in range(x.total_size()):
+        x.assign_vector(sfix(i), i)
+    x.print_reveal_nested()
+    input1 = Tensor(x, req_grad = True)
+
+    input2 = input1.flatten(1,2)
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    input2 = input1.flatten(1,2)
+    input2.backward()
+    input2.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+
+
 #test_mul()
 #test_add()
 #test_sub()

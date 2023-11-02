@@ -97,11 +97,11 @@ class ABY3(Cost): #done
         "open" : lambda bit_length, kapaa, precision, n_parties: (bit_length*3, 1, 0, 0),
         "muls" : lambda bit_length, kapaa, precision, n_parties: (bit_length*3, 1, 0, 0),
         "matmuls": lambda bit_length, kapaa, precision, n_parties, p ,q, r: (p*r*bit_length*3, 1, 0, 0),
-        "TruncPr": lambda bit_length, kapaa, precision, n_parties: (bit_length*3, 1, 0, 0),
+        "TruncPr": lambda bit_length, kapaa, precision, n_parties: (bit_length*6+6, 4, 0, 0),
         "bit_share":lambda bit_length, kapaa, precision, n_parties: (3, 1, 0, 0),
         "ands":lambda bit_length, kapaa, precision, n_parties: (3, 1, 0, 0),
         "LTZ": lambda bit_length, kapaa, precision, n_parties: (bit_length*3, 1, 10, 0),
-        "trunc": lambda bit_length, kapaa, precision, n_parties: (bit_length*3, 1, 0, 0)
+        "trunc": lambda bit_length, kapaa, precision, n_parties: (bit_length*8, 4, 0, 0)
    }
 
 class SecureML(Cost): #done

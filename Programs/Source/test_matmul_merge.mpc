@@ -1,26 +1,20 @@
 
 
+#program.use_trunc_pr = True
+
+A = sfix.Matrix(9, 4)
+B = sfix.Matrix(4, 9)
+C = sfix.Matrix(9, 9)
 
 
-A = sfix.Matrix(7, 4)
-B = sfix.Matrix(4, 5)
 for i in range(A.total_size()):
     A.assign_vector(sfix(i), i)
 
 for i in range(B.total_size()):
     B.assign_vector(sfix(i), i)
-C = sfix.Matrix(7, 5)
+
 for i in range(C.total_size()):
     C.assign_vector(sfix(i), i)
-A.print_reveal_nested()
-B.print_reveal_nested()
-C.print_reveal_nested()
-break_point()
-for i in range(2):
-    B[:] = B[:] + 1
-    #A.print_reveal_nested()
-    C.assign_vector(A.direct_mul(B))
 
-    C.print_reveal_nested()
-    #c = A.direct_mul(B)
-    #print_ln("got %s", c.reveal())
+
+C.assign_vector(A.direct_mul(B))

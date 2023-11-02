@@ -106,6 +106,7 @@ class Module():
         self._modules: Dict[str, Optional['Module']] = OrderedDict()
         self.xxxx : 234
         self._non_persistent_buffers_set: Set[str] = set()
+        self.main = False
 
     def register_buffer(self, name: str, tensor: Optional[Tensor], persistent: bool = True) -> None:
         r"""Adds a buffer to the module.
@@ -153,6 +154,7 @@ class Module():
                             .format((type(tensor).__name__), name))
         else:
             self._buffers[name] = tensor
+
 
     def register_parameter(self, name: str, param: Optional[Parameter]) -> None:
         r"""Adds a parameter to the module.
@@ -662,8 +664,9 @@ class Module():
     def train(self, loss, dataload, *args, **kwargs):
         # todo, setup tensor space of the model, call it before training or evaluation
         self.set_up()
-        self.output = self.forward(dataload.get_size())
-        self.loss = loss.forward(self.output, dataload.get_labelsize())
+        self.output = self.forward(dataload.get_size(), *args, **kwargs)
+        self.loss = loss.forward(self.output, dataload.get_labelsize(), *args, **kwargs)
+        self.main = True
         TS.reset_op_id()
         TS.train()
 
@@ -773,8 +776,7 @@ class Module():
         return sorted(keys)
 
     def _call_impl(self, *args, **kwargs):
-
-        if not self.training:
+        if self.main:
             TS.reset_op_id()
         forward_call = self.forward
         break_point()
@@ -957,7 +959,7 @@ class Sequential(Module):
     # with Any as TorchScript expects a more precise type
     def forward(self, input):
         for module in self:
-            input = module(input)
+            input = module.forward(input)
         return input
 
     def append(self, module: Module) -> 'Sequential':
@@ -1017,7 +1019,7 @@ class Linear(Module):
         # Setting a=sqrt(5) in kaiming_uniform is the same as initializing with
         # uniform(-1/sqrt(in_features), 1/sqrt(in_features)). For details, see
         # https://github.com/pytorch/pytorch/issues/57109
-        self.weight.randomize(-math.sqrt(5), math.sqrt(5))
+        # self.weight.randomize(-math.sqrt(5), math.sqrt(5))
         if self.bias is not None:
             self.bias.assign_all(0)
 
@@ -1212,9 +1214,9 @@ class Conv2d(_ConvNd):
         if self.padding_mode != 'zeros':
             return F.conv2d(F.pad(input, self._reversed_padding_repeated_twice, mode=self.padding_mode),
                             weight, bias, self.stride,
-                            _pair(0), self.dilation, self.groups)
+                            _pair(0))
         return F.conv2d(input, weight, bias, self.stride,
-                        self.padding, self.dilation, self.groups)
+                        self.padding)
     
     def forward(self, input: Tensor) -> Tensor:
         return self._conv_forward(input, self.weight, self.bias)
@@ -1300,6 +1302,7 @@ class _NormBase(Module):
         error_msgs,
     ):
         pass
+    
 class _BatchNorm(_NormBase):
     def __init__(
         self,
@@ -1737,6 +1740,96 @@ class MaxPool2d(_MaxPoolNd):
         return F.max_pool2d(input, self.kernel_size, self.stride,
                             self.padding)
 
+class ReLU(Module):
+    r"""Applies the rectified linear unit function element-wise:
+
+    :math:`\text{ReLU}(x) = (x)^+ = \max(0, x)`
+
+    Args:
+        inplace: can optionally do the operation in-place. Default: ``False``
+
+    Shape:
+        - Input: :math:`(*)`, where :math:`*` means any number of dimensions.
+        - Output: :math:`(*)`, same shape as the input.
+
+    .. image:: ../scripts/activation_images/ReLU.png
+
+    Examples::
+
+        >>> m = nn.ReLU()
+        >>> input = torch.randn(2)
+        >>> output = m(input)
+
+
+      An implementation of CReLU - https://arxiv.org/abs/1603.05201
+
+        >>> m = nn.ReLU()
+        >>> input = torch.randn(2).unsqueeze(0)
+        >>> output = torch.cat((m(input), m(-input)))
+    """
+    __constants__ = ['inplace']
+    inplace: bool
+
+    def __init__(self, inplace: bool = False):
+        super().__init__()
+        self.inplace = inplace
+
+    def forward(self, input: Tensor) -> Tensor:
+        return F.relu(input, inplace=self.inplace)
+
+    def extra_repr(self) -> str:
+        inplace_str = 'inplace=True' if self.inplace else ''
+        return inplace_str
+
+class Sigmoid(Module):
+    r"""Applies the element-wise function:
+
+    .. math::
+        \text{Sigmoid}(x) = \sigma(x) = \frac{1}{1 + \exp(-x)}
+
+
+    Shape:
+        - Input: :math:`(*)`, where :math:`*` means any number of dimensions.
+        - Output: :math:`(*)`, same shape as the input.
+
+    .. image:: ../scripts/activation_images/Sigmoid.png
+
+    Examples::
+
+        >>> m = nn.Sigmoid()
+        >>> input = torch.randn(2)
+        >>> output = m(input)
+    """
+
+    def forward(self, input: Tensor) -> Tensor:
+        return F.sigmoid(input)
+
+
+class Tanh(Module):
+    r"""Applies the Hyperbolic Tangent (Tanh) function element-wise.
+
+    Tanh is defined as:
+
+    .. math::
+        \text{Tanh}(x) = \tanh(x) = \frac{\exp(x) - \exp(-x)} {\exp(x) + \exp(-x)}
+
+    Shape:
+        - Input: :math:`(*)`, where :math:`*` means any number of dimensions.
+        - Output: :math:`(*)`, same shape as the input.
+
+    .. image:: ../scripts/activation_images/Tanh.png
+
+    Examples::
+
+        >>> m = nn.Tanh()
+        >>> input = torch.randn(2)
+        >>> output = m(input)
+    """
+
+    def forward(self, input: Tensor) -> Tensor:
+        return torch.tanh(input)
+
+
 class _Loss(Module):
     reduction: str
 
@@ -1744,7 +1837,16 @@ class _Loss(Module):
         super().__init__()
         self.reduction = reduction
         self.training = True
+        
+    def __call__(self, *args, **kwargs):
+        forward_call = self.forward
+        break_point()
+        result = forward_call(*args, **kwargs)
+        break_point()
+
+        return result
     
+
 class MSELoss(_Loss):
     r"""Creates a criterion that measures the mean squared error (squared L2 norm) between
     each element in the input :math:`x` and target :math:`y`.
@@ -1808,4 +1910,381 @@ class MSELoss(_Loss):
 
     def forward(self, input: Tensor, target: Tensor) -> Tensor:
         return F.mse_loss(input, target, reduction=self.reduction)
+    
+class _WeightedLoss(_Loss):
+    def __init__(self, weight: Optional[Tensor] = None, size_average=None, reduce=None, reduction: str = 'mean') -> None:
+        super().__init__(size_average, reduce, reduction)
+        self.register_buffer('weight', weight)
+        self.weight: Optional[Tensor]
+
+
+class NLLLoss(_WeightedLoss):
+    r"""The negative log likelihood loss. It is useful to train a classification
+    problem with `C` classes.
+
+    If provided, the optional argument :attr:`weight` should be a 1D Tensor assigning
+    weight to each of the classes. This is particularly useful when you have an
+    unbalanced training set.
+
+    The `input` given through a forward call is expected to contain
+    log-probabilities of each class. `input` has to be a Tensor of size either
+    :math:`(minibatch, C)` or :math:`(minibatch, C, d_1, d_2, ..., d_K)`
+    with :math:`K \geq 1` for the `K`-dimensional case. The latter is useful for
+    higher dimension inputs, such as computing NLL loss per-pixel for 2D images.
+
+    Obtaining log-probabilities in a neural network is easily achieved by
+    adding a  `LogSoftmax`  layer in the last layer of your network.
+    You may use `CrossEntropyLoss` instead, if you prefer not to add an extra
+    layer.
+
+    The `target` that this loss expects should be a class index in the range :math:`[0, C-1]`
+    where `C = number of classes`; if `ignore_index` is specified, this loss also accepts
+    this class index (this index may not necessarily be in the class range).
+
+    The unreduced (i.e. with :attr:`reduction` set to ``'none'``) loss can be described as:
+
+    .. math::
+        \ell(x, y) = L = \{l_1,\dots,l_N\}^\top, \quad
+        l_n = - w_{y_n} x_{n,y_n}, \quad
+        w_{c} = \text{weight}[c] \cdot \mathbb{1}\{c \not= \text{ignore\_index}\},
+
+    where :math:`x` is the input, :math:`y` is the target, :math:`w` is the weight, and
+    :math:`N` is the batch size. If :attr:`reduction` is not ``'none'``
+    (default ``'mean'``), then
+
+    .. math::
+        \ell(x, y) = \begin{cases}
+            \sum_{n=1}^N \frac{1}{\sum_{n=1}^N w_{y_n}} l_n, &
+            \text{if reduction} = \text{`mean';}\\
+            \sum_{n=1}^N l_n,  &
+            \text{if reduction} = \text{`sum'.}
+        \end{cases}
+
+    Args:
+        weight (Tensor, optional): a manual rescaling weight given to each
+            class. If given, it has to be a Tensor of size `C`. Otherwise, it is
+            treated as if having all ones.
+        size_average (bool, optional): Deprecated (see :attr:`reduction`). By default,
+            the losses are averaged over each loss element in the batch. Note that for
+            some losses, there are multiple elements per sample. If the field :attr:`size_average`
+            is set to ``False``, the losses are instead summed for each minibatch. Ignored
+            when :attr:`reduce` is ``False``. Default: ``None``
+        ignore_index (int, optional): Specifies a target value that is ignored
+            and does not contribute to the input gradient. When
+            :attr:`size_average` is ``True``, the loss is averaged over
+            non-ignored targets.
+        reduce (bool, optional): Deprecated (see :attr:`reduction`). By default, the
+            losses are averaged or summed over observations for each minibatch depending
+            on :attr:`size_average`. When :attr:`reduce` is ``False``, returns a loss per
+            batch element instead and ignores :attr:`size_average`. Default: ``None``
+        reduction (str, optional): Specifies the reduction to apply to the output:
+            ``'none'`` | ``'mean'`` | ``'sum'``. ``'none'``: no reduction will
+            be applied, ``'mean'``: the weighted mean of the output is taken,
+            ``'sum'``: the output will be summed. Note: :attr:`size_average`
+            and :attr:`reduce` are in the process of being deprecated, and in
+            the meantime, specifying either of those two args will override
+            :attr:`reduction`. Default: ``'mean'``
+
+    Shape:
+        - Input: :math:`(N, C)` or :math:`(C)`, where `C = number of classes`, or
+          :math:`(N, C, d_1, d_2, ..., d_K)` with :math:`K \geq 1`
+          in the case of `K`-dimensional loss.
+        - Target: :math:`(N)` or :math:`()`, where each value is
+          :math:`0 \leq \text{targets}[i] \leq C-1`, or
+          :math:`(N, d_1, d_2, ..., d_K)` with :math:`K \geq 1` in the case of
+          K-dimensional loss.
+        - Output: If :attr:`reduction` is ``'none'``, shape :math:`(N)` or
+          :math:`(N, d_1, d_2, ..., d_K)` with :math:`K \geq 1` in the case of K-dimensional loss.
+          Otherwise, scalar.
+
+    Examples::
+
+        >>> m = nn.LogSoftmax(dim=1)
+        >>> loss = nn.NLLLoss()
+        >>> # input is of size N x C = 3 x 5
+        >>> input = torch.randn(3, 5, requires_grad=True)
+        >>> # each element in target has to have 0 <= value < C
+        >>> target = torch.tensor([1, 0, 4])
+        >>> output = loss(m(input), target)
+        >>> output.backward()
+        >>>
+        >>>
+        >>> # 2D loss example (used, for example, with image inputs)
+        >>> N, C = 5, 4
+        >>> loss = nn.NLLLoss()
+        >>> # input is of size N x C x height x width
+        >>> data = torch.randn(N, 16, 10, 10)
+        >>> conv = nn.Conv2d(16, C, (3, 3))
+        >>> m = nn.LogSoftmax(dim=1)
+        >>> # each element in target has to have 0 <= value < C
+        >>> target = torch.empty(N, 8, 8, dtype=torch.long).random_(0, C)
+        >>> output = loss(m(conv(data)), target)
+        >>> output.backward()
+    """
+    __constants__ = ['ignore_index', 'reduction']
+    ignore_index: int
+
+    def __init__(self, weight: Optional[Tensor] = None, size_average=None, ignore_index: int = -100,
+                 reduce=None, reduction: str = 'mean') -> None:
+        super().__init__(weight, size_average, reduce, reduction)
+        self.ignore_index = ignore_index
+
+    def forward(self, input: Tensor, target: Tensor) -> Tensor:
+        return F.nll_loss(input, target, weight=self.weight, reduction=self.reduction)
+
+class CrossEntropyLoss(_WeightedLoss):
+    r"""This criterion computes the cross entropy loss between input logits
+    and target.
+
+    It is useful when training a classification problem with `C` classes.
+    If provided, the optional argument :attr:`weight` should be a 1D `Tensor`
+    assigning weight to each of the classes.
+    This is particularly useful when you have an unbalanced training set.
+
+    The `input` is expected to contain the unnormalized logits for each class (which do `not` need
+    to be positive or sum to 1, in general).
+    `input` has to be a Tensor of size :math:`(C)` for unbatched input,
+    :math:`(minibatch, C)` or :math:`(minibatch, C, d_1, d_2, ..., d_K)` with :math:`K \geq 1` for the
+    `K`-dimensional case. The last being useful for higher dimension inputs, such
+    as computing cross entropy loss per-pixel for 2D images.
+
+    The `target` that this criterion expects should contain either:
+
+    - Class indices in the range :math:`[0, C)` where :math:`C` is the number of classes; if
+      `ignore_index` is specified, this loss also accepts this class index (this index
+      may not necessarily be in the class range). The unreduced (i.e. with :attr:`reduction`
+      set to ``'none'``) loss for this case can be described as:
+
+      .. math::
+          \ell(x, y) = L = \{l_1,\dots,l_N\}^\top, \quad
+          l_n = - w_{y_n} \log \frac{\exp(x_{n,y_n})}{\sum_{c=1}^C \exp(x_{n,c})}
+          \cdot \mathbb{1}\{y_n \not= \text{ignore\_index}\}
+
+      where :math:`x` is the input, :math:`y` is the target, :math:`w` is the weight,
+      :math:`C` is the number of classes, and :math:`N` spans the minibatch dimension as well as
+      :math:`d_1, ..., d_k` for the `K`-dimensional case. If
+      :attr:`reduction` is not ``'none'`` (default ``'mean'``), then
+
+      .. math::
+          \ell(x, y) = \begin{cases}
+              \sum_{n=1}^N \frac{1}{\sum_{n=1}^N w_{y_n} \cdot \mathbb{1}\{y_n \not= \text{ignore\_index}\}} l_n, &
+               \text{if reduction} = \text{`mean';}\\
+                \sum_{n=1}^N l_n,  &
+                \text{if reduction} = \text{`sum'.}
+            \end{cases}
+
+      Note that this case is equivalent to applying :class:`~torch.nn.LogSoftmax`
+      on an input, followed by :class:`~torch.nn.NLLLoss`.
+
+    - Probabilities for each class; useful when labels beyond a single class per minibatch item
+      are required, such as for blended labels, label smoothing, etc. The unreduced (i.e. with
+      :attr:`reduction` set to ``'none'``) loss for this case can be described as:
+
+      .. math::
+          \ell(x, y) = L = \{l_1,\dots,l_N\}^\top, \quad
+          l_n = - \sum_{c=1}^C w_c \log \frac{\exp(x_{n,c})}{\sum_{i=1}^C \exp(x_{n,i})} y_{n,c}
+
+      where :math:`x` is the input, :math:`y` is the target, :math:`w` is the weight,
+      :math:`C` is the number of classes, and :math:`N` spans the minibatch dimension as well as
+      :math:`d_1, ..., d_k` for the `K`-dimensional case. If
+      :attr:`reduction` is not ``'none'`` (default ``'mean'``), then
+
+      .. math::
+          \ell(x, y) = \begin{cases}
+              \frac{\sum_{n=1}^N l_n}{N}, &
+               \text{if reduction} = \text{`mean';}\\
+                \sum_{n=1}^N l_n,  &
+                \text{if reduction} = \text{`sum'.}
+            \end{cases}
+
+    .. note::
+        The performance of this criterion is generally better when `target` contains class
+        indices, as this allows for optimized computation. Consider providing `target` as
+        class probabilities only when a single class label per minibatch item is too restrictive.
+
+    Args:
+        weight (Tensor, optional): a manual rescaling weight given to each class.
+            If given, has to be a Tensor of size `C`
+        size_average (bool, optional): Deprecated (see :attr:`reduction`). By default,
+            the losses are averaged over each loss element in the batch. Note that for
+            some losses, there are multiple elements per sample. If the field :attr:`size_average`
+            is set to ``False``, the losses are instead summed for each minibatch. Ignored
+            when :attr:`reduce` is ``False``. Default: ``True``
+        ignore_index (int, optional): Specifies a target value that is ignored
+            and does not contribute to the input gradient. When :attr:`size_average` is
+            ``True``, the loss is averaged over non-ignored targets. Note that
+            :attr:`ignore_index` is only applicable when the target contains class indices.
+        reduce (bool, optional): Deprecated (see :attr:`reduction`). By default, the
+            losses are averaged or summed over observations for each minibatch depending
+            on :attr:`size_average`. When :attr:`reduce` is ``False``, returns a loss per
+            batch element instead and ignores :attr:`size_average`. Default: ``True``
+        reduction (str, optional): Specifies the reduction to apply to the output:
+            ``'none'`` | ``'mean'`` | ``'sum'``. ``'none'``: no reduction will
+            be applied, ``'mean'``: the weighted mean of the output is taken,
+            ``'sum'``: the output will be summed. Note: :attr:`size_average`
+            and :attr:`reduce` are in the process of being deprecated, and in
+            the meantime, specifying either of those two args will override
+            :attr:`reduction`. Default: ``'mean'``
+        label_smoothing (float, optional): A float in [0.0, 1.0]. Specifies the amount
+            of smoothing when computing the loss, where 0.0 means no smoothing. The targets
+            become a mixture of the original ground truth and a uniform distribution as described in
+            `Rethinking the Inception Architecture for Computer Vision <https://arxiv.org/abs/1512.00567>`__. Default: :math:`0.0`.
+
+    Shape:
+        - Input: Shape :math:`(C)`, :math:`(N, C)` or :math:`(N, C, d_1, d_2, ..., d_K)` with :math:`K \geq 1`
+          in the case of `K`-dimensional loss.
+        - Target: If containing class indices, shape :math:`()`, :math:`(N)` or :math:`(N, d_1, d_2, ..., d_K)` with
+          :math:`K \geq 1` in the case of K-dimensional loss where each value should be between :math:`[0, C)`.
+          If containing class probabilities, same shape as the input and each value should be between :math:`[0, 1]`.
+        - Output: If reduction is 'none', shape :math:`()`, :math:`(N)` or :math:`(N, d_1, d_2, ..., d_K)` with :math:`K \geq 1`
+          in the case of K-dimensional loss, depending on the shape of the input. Otherwise, scalar.
+
+
+        where:
+
+        .. math::
+            \begin{aligned}
+                C ={} & \text{number of classes} \\
+                N ={} & \text{batch size} \\
+            \end{aligned}
+
+    Examples::
+
+        >>> # Example of target with class indices
+        >>> loss = nn.CrossEntropyLoss()
+        >>> input = torch.randn(3, 5, requires_grad=True)
+        >>> target = torch.empty(3, dtype=torch.long).random_(5)
+        >>> output = loss(input, target)
+        >>> output.backward()
+        >>>
+        >>> # Example of target with class probabilities
+        >>> input = torch.randn(3, 5, requires_grad=True)
+        >>> target = torch.randn(3, 5).softmax(dim=1)
+        >>> output = loss(input, target)
+        >>> output.backward()
+    """
+    __constants__ = ['ignore_index', 'reduction', 'label_smoothing']
+    ignore_index: int
+    label_smoothing: float
+
+    def __init__(self, weight: Optional[Tensor] = None, size_average=None, ignore_index: int = -100,
+                 reduce=None, reduction: str = 'mean', label_smoothing: float = 0.0) -> None:
+        super().__init__(weight, size_average, reduce, reduction)
+        self.ignore_index = ignore_index
+        self.label_smoothing = label_smoothing
+
+    def forward(self, input: Tensor, target: Tensor) -> Tensor:
+        return F.cross_entropy(input, target, weight=self.weight, reduction=self.reduction)
+
+class GELU(Module):
+    r"""Applies the Gaussian Error Linear Units function:
+
+    .. math:: \text{GELU}(x) = x * \Phi(x)
+
+    where :math:`\Phi(x)` is the Cumulative Distribution Function for Gaussian Distribution.
+
+    When the approximate argument is 'tanh', Gelu is estimated with:
+
+    .. math:: \text{GELU}(x) = 0.5 * x * (1 + \text{Tanh}(\sqrt{2 / \pi} * (x + 0.044715 * x^3)))
+
+    Args:
+        approximate (str, optional): the gelu approximation algorithm to use:
+            ``'none'`` | ``'tanh'``. Default: ``'none'``
+
+    Shape:
+        - Input: :math:`(*)`, where :math:`*` means any number of dimensions.
+        - Output: :math:`(*)`, same shape as the input.
+
+    .. image:: ../scripts/activation_images/GELU.png
+
+    Examples::
+
+        >>> m = nn.GELU()
+        >>> input = torch.randn(2)
+        >>> output = m(input)
+    """
+    __constants__ = ['approximate']
+    approximate: str
+
+    def __init__(self, approximate: str = 'none') -> None:
+        super().__init__()
+        self.approximate = approximate
+
+    def forward(self, input: Tensor) -> Tensor:
+        return F.gelu(input, approximate=self.approximate)
+
+    def extra_repr(self) -> str:
+        return 'approximate={}'.format(repr(self.approximate))
+    
+    
+class Flatten(Module):
+    r"""
+    Flattens a contiguous range of dims into a tensor. For use with :class:`~nn.Sequential`.
+    See :meth:`torch.flatten` for details.
+
+    Shape:
+        - Input: :math:`(*, S_{\text{start}},..., S_{i}, ..., S_{\text{end}}, *)`,'
+          where :math:`S_{i}` is the size at dimension :math:`i` and :math:`*` means any
+          number of dimensions including none.
+        - Output: :math:`(*, \prod_{i=\text{start}}^{\text{end}} S_{i}, *)`.
+
+    Args:
+        start_dim: first dim to flatten (default = 1).
+        end_dim: last dim to flatten (default = -1).
+
+    Examples::
+        >>> input = torch.randn(32, 1, 5, 5)
+        >>> # With default parameters
+        >>> m = nn.Flatten()
+        >>> output = m(input)
+        >>> output.size()
+        torch.Size([32, 25])
+        >>> # With non-default parameters
+        >>> m = nn.Flatten(0, 2)
+        >>> output = m(input)
+        >>> output.size()
+        torch.Size([160, 5])
+    """
+    __constants__ = ['start_dim', 'end_dim']
+    start_dim: int
+    end_dim: int
+
+    def __init__(self, start_dim: int = 1, end_dim: int = -1) -> None:
+        super().__init__()
+        self.start_dim = start_dim
+        self.end_dim = end_dim
+
+    def forward(self, input: Tensor) -> Tensor:
+        return input.flatten(self.start_dim, self.end_dim)
+
+    def extra_repr(self) -> str:
+        return 'start_dim={}, end_dim={}'.format(
+            self.start_dim, self.end_dim
+        )
+
+class Identity(Module):
+    r"""A placeholder identity operator that is argument-insensitive.
+
+    Args:
+        args: any argument (unused)
+        kwargs: any keyword argument (unused)
+
+    Shape:
+        - Input: :math:`(*)`, where :math:`*` means any number of dimensions.
+        - Output: :math:`(*)`, same shape as the input.
+
+    Examples::
+
+        >>> m = nn.Identity(54, unused_argument1=0.1, unused_argument2=False)
+        >>> input = torch.randn(128, 20)
+        >>> output = m(input)
+        >>> print(output.size())
+        torch.Size([128, 20])
+
+    """
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__()
+
+    def forward(self, input: Tensor) -> Tensor:
+        return input
     

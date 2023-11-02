@@ -491,8 +491,6 @@ class Merger:
             reg_type = instr.args[0].reg_type
             
             if isinstance(addr, int):
-                if n == 608:
-                    print(addr)
                 handle_mem_access(addr, reg_type, last_access_this_kind,
                                     last_access_other_kind)
                 if block.warn_about_mem and \
@@ -616,6 +614,7 @@ class Merger:
 
             if isinstance(instr, merge_classes):
                 open_nodes.add(n)
+
                 G.add_node(n, merges=[])
                 # the following must happen after adding the edge
                 self.real_depths[n] += 1
