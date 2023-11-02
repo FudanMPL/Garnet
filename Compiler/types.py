@@ -5464,7 +5464,7 @@ class Array(_vectorizable):
         if self.address is None:
             self.address = self.value_type.malloc(self.length,
                                                   self.creator_tape)
-            print("Malloc",self.address)
+            # print("Malloc",self.address)
             # @library.print_ln("%s",self.address)
 
     @property

@@ -256,8 +256,8 @@ class Compiler:
     def build_program(self, name=None):
         self.prog = Program(self.args, self.options, name=name)
 
-    def build_vars(self):
-        from . import comparison, floatingpoint, instructions, library, types, tensor
+    def build_vars(self): 
+        from . import comparison, floatingpoint, instructions, library, types
 
         # add all instructions to the program VARS dictionary
         instr_classes = [

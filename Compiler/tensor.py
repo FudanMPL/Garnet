@@ -15,7 +15,7 @@ from Compiler.comparison import CarryOutRawLE
 # from Compiler.GC.types import sbitintis_train
 from functools import reduce
 from typing import List, NamedTuple, Callable, Dict, Optional, Union, Tuple, Any
-
+from ml import approx_sigmoid
 _name = 1
 
 
@@ -2455,7 +2455,7 @@ class Tensor():
             operation = gradient_operation[op_id_store[op_id]]
             output = tensors[operation.outputs[0]]
             if approx:
-                output.value[:]=approx_sigmoid(self.value[:])
+                output.value[:]= approx_sigmoid(self.value[:])
             else:
                 output.value[:] =  sigmoid_from_e_x(self.value[:],exp(-self.value[:]))
             set_opid(op_id+1)  # record the input and output of the op
@@ -2523,28 +2523,30 @@ def vec_softmax(x):
     e_x = mpc_math.exp_fx(x - util.max(x))
     return e_x / sum(e_x)
 
-@vectorize
-def approx_sigmoid(x, n=5):
-    """ Piece-wise approximate sigmoid as in
-    `Hong et al. <https://arxiv.org/abs/2002.04344>`_
+# @vectorize
+# def approx_sigmoid(x, n=5):
+#     """ Piece-wise approximate sigmoid as in
+#     `Hong et al. <https://arxiv.org/abs/2002.04344>`_
 
-    :param x: input
-    :param n: number of pieces, 3 (default) or 5
-    """
-    if n == 5:
-        cuts = [-5, -2.5, 2.5, 5]
-        le = [0] + [x <= cut for cut in cuts] + [1]
-        select = [le[i + 1] - le[i] for i in range(5)]
-        outputs = [cfix(10 ** -4),
-                   0.02776 * x + 0.145,
-                   0.17 *x + 0.5,
-                   0.02776 * x + 0.85498,
-                   cfix(1 - 10 ** -4)]
-        return sum(a * b for a, b in zip(select, outputs))
-    else:
-        a = x < -0.5
-        b = x > 0.5
-        return a.if_else(0, b.if_else(1, 0.5 + x))
+#     :param x: input
+#     :param n: number of pieces, 3 (default) or 5
+#     """
+#     if n == 5:
+#         cuts = [-5, -2.5, 2.5, 5]
+#         le = [0] + [x <= cut for cut in cuts] + [1]
+#         select = [le[i + 1] - le[i] for i in range(5)]
+#         outputs = [cfix(10 ** -4),
+#                    0.02776 * x + 0.145,
+#                    0.17 *x + 0.5,
+#                    0.02776 * x + 0.85498,
+#                    cfix(1 - 10 ** -4)]
+#         return sum(a * b for a, b in zip(select, outputs))
+#     else:
+#         a = x < -0.5
+#         b = x > 0.5
+#         return a.if_else(0, b.if_else(1, 0.5 + x))
+    
+    
 def log_e(x):
     return mpc_math.log_fx(x, math.e)
 
