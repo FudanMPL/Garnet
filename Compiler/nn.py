@@ -76,9 +76,15 @@ class Parameter(Tensor):
     """
     def __init__(self, data):
         self.value = data.value
-        self.grad = data.grad
-        self.value_type = self.value.value_type
         self.name = data.name
+        if data.req_grad:
+            self.grad = data.grad
+        else:
+            self.grad = self.value.same_shape()
+            self.grad.assign_all(0)
+            TS.dl_d[self.name] = self.grad
+        self.value_type = self.value.value_type
+        
         self.shape = data.shape
         TS.tensors[self.name] = self
         self.set_req_grad(True)

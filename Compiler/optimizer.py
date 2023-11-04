@@ -505,7 +505,7 @@ class Adam(Optimizer):
 
     def init_state(self, group):
         for p in group['params']:
-            if p.grad is not None:   
+            if p.req_grad:   
                 state = self.state[p]
                 if len(state) == 0:
                     # note(crcrpar): [special device hosting for step]

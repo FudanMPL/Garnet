@@ -12,6 +12,7 @@ from Compiler.instructions import *
 from Compiler.instructions_base import *
 from Compiler.util import is_zero, tree_reduce
 from Compiler.comparison import CarryOutRawLE
+from Compiler import graph_visualization
 # from Compiler.GC.types import sbitintis_train
 from functools import reduce
 from typing import List, NamedTuple, Callable, Dict, Optional, Union, Tuple, Any
@@ -195,7 +196,6 @@ def element_wise_add(self, other):
             else:
                 new_value = Array(other.value.sizes[0], self.value.value_type)
         output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
-        
         dim, v1, v2 = reconst_dims(self.value, other.value)
         target_size = v1.tuple_permute(v1.sizes, get_permute(len(v1.sizes), dim))
         temp1 = MultiArray(target_size, v1.value_type)
@@ -1256,6 +1256,9 @@ class Tensor():
                 self.grad = self.value.same_shape()
                 self.grad.assign_all(0)
                 dl_d[self.name] = self.grad
+            else:
+                self.grad = None
+                dl_d[self.name] = self.grad
         tensors[self.name] = self
 
     def numel(self):
@@ -1328,6 +1331,33 @@ class Tensor():
                 continue
             for it in op.inputs:
                 searchset[it] = True
+        
+        # show tensor graph
+        nodes_op = []
+        nodes_tensor = []
+        edges = []
+        
+        for i in range(0, index):
+            op = gradient_operation[index-i-1]
+            
+            o = 'op' + str(index-i-1)
+            if index-i-1 not in nodes_op:
+                nodes_op.append(o)
+            
+            for u in op.inputs:
+                if u not in nodes_tensor:
+                    nodes_tensor.append(u)
+                edges.append((u, o))
+            for v in op.outputs:    
+                if v not in nodes_tensor:
+                    nodes_tensor.append(v)
+                edges.append((o, v))
+        
+        # print(nodes_op)
+        # print(nodes_tensor)
+        # print(edges)
+        # graph_visualization.draw_computingGraph(nodes_op, nodes_tensor, edges)
+        
         
         # do backward propagate          
         for i in range(0, index):
@@ -2549,7 +2579,7 @@ class Tensor():
             return self.value.sizes[dim]
 
     def zero_grad(self):
-        if self.grad != None:
+        if self.req_grad:
             self.grad.assign_all(0)
         
     def assign_all(self, value):
