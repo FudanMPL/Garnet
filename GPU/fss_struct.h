@@ -2,7 +2,7 @@
  * @Author: SkyTu 1336923451@qq.com
  * @Date: 2023-10-24 10:34:10
  * @LastEditors: SkyTu 1336923451@qq.com
- * @LastEditTime: 2023-11-01 20:35:37
+ * @LastEditTime: 2023-11-04 10:40:24
  * @FilePath: /txy/Garnet/GPU/fss_struct.h
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -93,6 +93,20 @@ public:
     bool xi;
 };
 
+struct InputByteRelatedValuesGen{
+    uint8_t * r;
+    uint8_t * scw;
+    bool * tcw[2];
+    uint8_t * output;
+};
+
+struct InputByteRelatedValuesEval{
+    uint8_t * reveal;
+    uint8_t * scw;
+    bool * tcw[2];
+    uint8_t * output;
+    uint8_t * result;
+};
 
 
 #endif

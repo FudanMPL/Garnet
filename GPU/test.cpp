@@ -2,7 +2,7 @@
  * @Author: SkyTu 1336923451@qq.com
  * @Date: 2023-10-24 16:24:02
  * @LastEditors: SkyTu 1336923451@qq.com
- * @LastEditTime: 2023-11-01 20:28:53
+ * @LastEditTime: 2023-11-04 10:32:31
  * @FilePath: /txy/Garnet/GPU/test.cpp
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -28,7 +28,7 @@
 int main(){
     int lambda = 127;
     int bit_length = INPUT_BYTE * 8;
-    int parallel = 102400;
+    int parallel = 10;
     clock_t begin, end;
     begin = clock();
     RandomValueBlock * cpu_r_block = new RandomValueBlock[parallel];
@@ -47,7 +47,7 @@ int main(){
     bigint seed[2], r, res0, res1;
     prng.InitSeed();
     for(int i = 0; i < parallel; i++){
-        r = 0;
+        r = 12300;
         // prng.get(r, bit_length);
         prng.get(seed[0], lambda);
         prng.get(seed[1], lambda);
@@ -77,6 +77,21 @@ int main(){
         if((res0 - res1)!=1)
             std::cout << "Error!" << res0 - res1 << std::endl;
     }
-
     std::cout << "Finished in " << double(end-begin) / CLOCKS_PER_SEC * 1000 << "ms" << std::endl;
+
+    int input_byte = 5;
+    InputByteRelatedValues cpu_values;
+    cpu_values.r = (uint8_t*)malloc(parallel * input_byte * sizeof(uint8_t));
+    // correction words, scw.shape = [parallel, input_length, input_byte]
+    cpu_values.scw = (uint8_t*)malloc(parallel * input_byte * 8 * LAMBDA_BYTE * sizeof(uint8_t));
+    cpu_values.tcw[0] = (bool*)malloc(parallel * input_byte * 8 * sizeof(bool));
+    cpu_values.tcw[1] = (bool*)malloc(parallel * input_byte * 8 * sizeof(bool));
+    cpu_values.output = (uint8_t*)malloc(parallel * input_byte * sizeof(uint8_t));
+    // tcw.shape = [parallel, input_length]
+    for(int i = 0; i < parallel; i++){
+        bytesFromBigint(&cpu_values.r[i * input_byte], r, input_byte);
+    }
+    fss_dpf_compress_generate(cpu_values, cpu_aes_gen_block_array, input_byte * 8, parallel);
+
+    
 }

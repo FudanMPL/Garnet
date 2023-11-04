@@ -16,9 +16,9 @@
 using namespace std;
 
 
-void printBytes(BYTE b[], int len) {
+void printBytes(BYTE b[], int begin, int len) {
 int i;
-for (i=0; i<len; i++)
+for (i=begin; i<begin+len; i++)
     printf("%x ", b[i]);
 //    cout << hex << b[i] << " " ;
 printf("\n");
