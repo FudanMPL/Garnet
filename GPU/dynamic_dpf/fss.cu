@@ -34,6 +34,8 @@ __host__ void init_sm_thrd(int &num_sm, int &thrdperblock, int parallel){
     return;
 }
 
+
+
 __global__ void gen_init(FssDpfGen * cuda_dpf_gen, int parallel){
     int global_thread_index = blockDim.x * blockIdx.x + threadIdx.x;
     __syncthreads();
@@ -59,50 +61,52 @@ __global__ void st_copy_gen(aes_gen_block * cuda_aes_block_array, FssDpfGen * cu
 }
 
 
-__global__ void cw_update_gen(RandomValueBlock * cuda_r_block, CorrectionWord * cuda_cw, FssDpfGen * cuda_dpf_gen, int i, int parallel){
+__global__ void cw_update_gen(uint8_t * cuda_r, uint8_t * cuda_scw, bool * cuda_tcw_0, bool * cuda_tcw_1, FssDpfGen * cuda_dpf_gen, int i, int input_byte, int input_length, int parallel){
     int global_thread_index = blockDim.x * blockIdx.x + threadIdx.x;
     __syncthreads();
     int idx = int(i/8);
     if(global_thread_index < parallel){
-        cuda_dpf_gen[global_thread_index].keep = ((cuda_r_block[global_thread_index].r[idx]) >> (7 - (i - (idx) * 8)))%2;
+        cuda_dpf_gen[global_thread_index].keep = ((cuda_r[global_thread_index * input_byte + idx]) >> (input_byte - 1 - (i - (idx) * 8)))%2;
         cuda_dpf_gen[global_thread_index].lose = cuda_dpf_gen[global_thread_index].keep ^ 1;
-        _xor(cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].lose][0], cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].lose][1], cuda_cw[global_thread_index].scw[i], LAMBDA_BYTE); 
-        cuda_cw[global_thread_index].tcw[i][0] = cuda_dpf_gen[global_thread_index].t[0][0] ^ cuda_dpf_gen[global_thread_index].t[0][1] ^ cuda_dpf_gen[global_thread_index].keep ^ 1;
-        cuda_cw[global_thread_index].tcw[i][1] = cuda_dpf_gen[global_thread_index].t[1][0] ^ cuda_dpf_gen[global_thread_index].t[1][1] ^ cuda_dpf_gen[global_thread_index].keep;
+        _xor(cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].lose][0], cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].lose][1], &cuda_scw[global_thread_index * input_length * LAMBDA_BYTE + i * LAMBDA_BYTE], LAMBDA_BYTE); 
+        cuda_tcw_0[global_thread_index * input_length + i] = cuda_dpf_gen[global_thread_index].t[0][0] ^ cuda_dpf_gen[global_thread_index].t[0][1] ^ cuda_dpf_gen[global_thread_index].keep ^ 1;
+        cuda_tcw_1[global_thread_index * input_length + i] = cuda_dpf_gen[global_thread_index].t[1][0] ^ cuda_dpf_gen[global_thread_index].t[1][1] ^ cuda_dpf_gen[global_thread_index].keep;
     }
     __syncthreads();
     return;
 }
 
-
-__global__ void st_update_gen(aes_gen_block * cuda_aes_block_array, CorrectionWord * cuda_cw, FssDpfGen * cuda_dpf_gen, int i, int b, int parallel){
+__global__ void st_update_gen(aes_gen_block * cuda_aes_block_array, uint8_t * cuda_scw, bool * cuda_tcw_0, bool * cuda_tcw_1, FssDpfGen * cuda_dpf_gen, int i, int b, int input_byte, int input_length, int parallel){
     int global_thread_index = blockDim.x * blockIdx.x + threadIdx.x;
     __syncthreads();
     if(global_thread_index < parallel){
         //這裏有可能有錯
-        _restricted_multiply(cuda_dpf_gen[global_thread_index].pre_t[b], cuda_cw[global_thread_index].scw[i] ,cuda_aes_block_array[global_thread_index].block[b], LAMBDA_BYTE);
+        _restricted_multiply(cuda_dpf_gen[global_thread_index].pre_t[b], &cuda_scw[global_thread_index * input_length * LAMBDA_BYTE + i * LAMBDA_BYTE] ,cuda_aes_block_array[global_thread_index].block[b], LAMBDA_BYTE);
         _xor(cuda_aes_block_array[global_thread_index].block[b], cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][b], cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][b], LAMBDA_BYTE);
         _double_copy(cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][b], cuda_aes_block_array[global_thread_index].block[b], LAMBDA_BYTE);
-        cuda_dpf_gen[global_thread_index].pre_t[b] = cuda_dpf_gen[global_thread_index].t[cuda_dpf_gen[global_thread_index].keep][b] ^ (cuda_dpf_gen[global_thread_index].pre_t[b] * cuda_cw[global_thread_index].tcw[i][cuda_dpf_gen[global_thread_index].keep]);
+        if(cuda_dpf_gen[global_thread_index].keep)
+            cuda_dpf_gen[global_thread_index].pre_t[b] = cuda_dpf_gen[global_thread_index].t[cuda_dpf_gen[global_thread_index].keep][b] ^ (cuda_dpf_gen[global_thread_index].pre_t[b] * cuda_tcw_1[global_thread_index * input_length * 1 + i * 1]);
+        else
+            cuda_dpf_gen[global_thread_index].pre_t[b] = cuda_dpf_gen[global_thread_index].t[cuda_dpf_gen[global_thread_index].keep][b] ^ (cuda_dpf_gen[global_thread_index].pre_t[b] * cuda_tcw_0[global_thread_index * input_length * 1 + i * 1]);
     }
     __syncthreads();
     return;
 }
 
-__global__ void final_cw_update_gen(aes_gen_block * cuda_aes_block_array, CorrectionWord * cuda_cw, FssDpfGen * cuda_dpf_gen, int parallel){
+__global__ void final_cw_update_gen(aes_gen_block * cuda_aes_block_array, uint8_t * cuda_output, FssDpfGen * cuda_dpf_gen, int input_byte, int parallel){
     int global_thread_index = blockDim.x * blockIdx.x + threadIdx.x;
     __syncthreads();
     if(global_thread_index < parallel){
-        _convert(cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][0], cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][0], LAMBDA_BYTE, INPUT_BYTE);
-        _convert(cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][1], cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][1], LAMBDA_BYTE, INPUT_BYTE);
+        _convert(cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][0], cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][0], LAMBDA_BYTE, input_byte);
+        _convert(cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][1], cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][1], LAMBDA_BYTE, input_byte);
         //假定beta是1
         if(cuda_dpf_gen[global_thread_index].pre_t[1]){
-            _add(cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][1], 1, INPUT_BYTE);  
-            _sub(cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][0], cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][1], cuda_cw[global_thread_index].output, INPUT_BYTE, INPUT_BYTE);
+            _add(cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][1], 1, input_byte);  
+            _sub(cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][0], cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][1], &cuda_output[global_thread_index * input_byte], input_byte, input_byte);
         }
         else{
-            _sub(cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][1], cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][0], cuda_cw[global_thread_index].output, INPUT_BYTE, INPUT_BYTE);
-            _add(cuda_cw[global_thread_index].output, 1, INPUT_BYTE);                                                                                                                                                                                                                                                                                                                    
+            _sub(cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][1], cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][0], &cuda_output[global_thread_index * input_byte], input_byte, input_byte);
+            _add(&cuda_output[global_thread_index * input_byte], 1, input_byte);                                                                                                                                                                                                                                                                                                                    
         }
     }
     __syncthreads();   
@@ -119,43 +123,43 @@ __global__ void eval_init(FssDpfEval * cuda_dpf_eval, bool party,int parallel){
     return;
 }
 
-__global__ void st_init_eval(aes_eval_block * cuda_aes_block_array, CorrectionWord * cuda_cw, FssDpfEval * cuda_dpf_eval, int i, int parallel){
+__global__ void st_init_eval(aes_eval_block * cuda_aes_block_array, uint8_t * cuda_scw, FssDpfEval * cuda_dpf_eval, int i, int input_byte, int input_length, int parallel){
     int global_thread_index = blockDim.x * blockIdx.x + threadIdx.x;
     __syncthreads();
     if(global_thread_index < parallel){
-        _restricted_multiply(cuda_dpf_eval[global_thread_index].pre_t, cuda_cw[global_thread_index].scw[i], cuda_cw[global_thread_index].scw[i], LAMBDA_BYTE);    
+        _restricted_multiply(cuda_dpf_eval[global_thread_index].pre_t, &cuda_scw[global_thread_index * input_length * LAMBDA_BYTE + i * LAMBDA_BYTE], &cuda_scw[global_thread_index * input_length * LAMBDA_BYTE + i * LAMBDA_BYTE], LAMBDA_BYTE);    
         _copy(cuda_aes_block_array[global_thread_index].block, cuda_dpf_eval[global_thread_index].s[0], 0, 0 ,LAMBDA_BYTE);
         _copy(cuda_aes_block_array[global_thread_index].block, cuda_dpf_eval[global_thread_index].s[1], LAMBDA_BYTE, 0 ,LAMBDA_BYTE);
         cuda_dpf_eval[global_thread_index].t[0] = (cuda_dpf_eval[global_thread_index].s[0][LAMBDA_BYTE-1] % 2);
         cuda_dpf_eval[global_thread_index].t[1] = (cuda_dpf_eval[global_thread_index].s[1][LAMBDA_BYTE-1] % 2);
-        _xor(cuda_dpf_eval[global_thread_index].s[0], cuda_cw[global_thread_index].scw[i], cuda_dpf_eval[global_thread_index].s[0], LAMBDA_BYTE);
-        _xor(cuda_dpf_eval[global_thread_index].s[1], cuda_cw[global_thread_index].scw[i], cuda_dpf_eval[global_thread_index].s[1], LAMBDA_BYTE);
+        _xor(cuda_dpf_eval[global_thread_index].s[0], &cuda_scw[global_thread_index * input_length * LAMBDA_BYTE + i * LAMBDA_BYTE] , cuda_dpf_eval[global_thread_index].s[0], LAMBDA_BYTE);
+        _xor(cuda_dpf_eval[global_thread_index].s[1], &cuda_scw[global_thread_index * input_length * LAMBDA_BYTE + i * LAMBDA_BYTE] , cuda_dpf_eval[global_thread_index].s[1], LAMBDA_BYTE);
     }
     __syncthreads();
     return;
 }
 
-__global__ void st_update_eval(aes_eval_block * cuda_aes_block_array, RevealValueBlock * cuda_reveal_block, CorrectionWord * cuda_cw, FssDpfEval * cuda_dpf_eval, int i, int parallel){
+__global__ void st_update_eval(aes_eval_block * cuda_aes_block_array, uint8_t * cuda_reveal, uint8_t * cuda_scw, bool * cuda_tcw_0, bool * cuda_tcw_1, FssDpfEval * cuda_dpf_eval, int i, int input_byte, int input_length, int parallel){
     int global_thread_index = blockDim.x * blockIdx.x + threadIdx.x;
     __syncthreads();
     int idx = int(i/8);
     if(global_thread_index < parallel){
-        cuda_dpf_eval[global_thread_index].xi = ((cuda_reveal_block[global_thread_index].reveal_val[idx]) >> (7 - (i - (idx) * 8)))%2;
+        cuda_dpf_eval[global_thread_index].xi = ((cuda_reveal[global_thread_index * input_byte + idx]) >> (7 - (i - (idx) * 8)))%2;
         _double_copy(cuda_dpf_eval[global_thread_index].s[cuda_dpf_eval[global_thread_index].xi], cuda_aes_block_array[global_thread_index].block, LAMBDA_BYTE);
-        cuda_dpf_eval[global_thread_index].t[0] = cuda_dpf_eval[global_thread_index].t[0] ^ (cuda_dpf_eval[global_thread_index].pre_t * cuda_cw[global_thread_index].tcw[i][0]);
-        cuda_dpf_eval[global_thread_index].t[1] = cuda_dpf_eval[global_thread_index].t[1] ^ (cuda_dpf_eval[global_thread_index].pre_t * cuda_cw[global_thread_index].tcw[i][1]);
+        cuda_dpf_eval[global_thread_index].t[0] = cuda_dpf_eval[global_thread_index].t[0] ^ (cuda_dpf_eval[global_thread_index].pre_t * cuda_tcw_0[global_thread_index * input_length + i]);
+        cuda_dpf_eval[global_thread_index].t[1] = cuda_dpf_eval[global_thread_index].t[1] ^ (cuda_dpf_eval[global_thread_index].pre_t * cuda_tcw_1[global_thread_index * input_length + i]);
         cuda_dpf_eval[global_thread_index].pre_t = cuda_dpf_eval[global_thread_index].t[cuda_dpf_eval[global_thread_index].xi];
     }
     __syncthreads();   
     return;
 }
-__global__ void result_update_eval(ResultBlock * cuda_res, aes_eval_block * cuda_aes_block_array, CorrectionWord * cuda_cw, FssDpfEval * cuda_dpf_eval, int parallel){
+__global__ void result_update_eval(uint8_t * cuda_result, aes_eval_block * cuda_aes_block_array, uint8_t * cuda_output, FssDpfEval * cuda_dpf_eval, int input_byte, int parallel){
     int global_thread_index = blockDim.x * blockIdx.x + threadIdx.x;
     __syncthreads();
     if(global_thread_index < parallel){
-        _restricted_multiply(cuda_dpf_eval[global_thread_index].pre_t, cuda_cw[global_thread_index].output, cuda_cw[global_thread_index].output, INPUT_BYTE);
-        _convert(cuda_dpf_eval[global_thread_index].s[cuda_dpf_eval[global_thread_index].xi], cuda_res[global_thread_index].result , LAMBDA_BYTE, INPUT_BYTE);
-        _add(cuda_res[global_thread_index].result, cuda_cw[global_thread_index].output, cuda_res[global_thread_index].result, INPUT_BYTE, INPUT_BYTE);
+        _restricted_multiply(cuda_dpf_eval[global_thread_index].pre_t, &cuda_output[global_thread_index * input_byte], &cuda_output[global_thread_index * input_byte], input_byte);
+        _convert(cuda_dpf_eval[global_thread_index].s[cuda_dpf_eval[global_thread_index].xi], &cuda_result[global_thread_index * input_byte] , LAMBDA_BYTE, input_byte);
+        _add(&cuda_result[global_thread_index * input_byte], &cuda_output[global_thread_index * input_byte], &cuda_result[global_thread_index * input_byte], input_byte, input_byte);
     }
     __syncthreads();   
     return;  

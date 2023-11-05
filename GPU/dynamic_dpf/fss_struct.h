@@ -41,39 +41,6 @@ public:
     uint8_t cuda_key[240];
 };
 
-class RandomValueBlock
-{
-public:
-    uint8_t r[INPUT_BYTE];
-};
-
-class RevealValueBlock
-{
-public:
-    uint8_t reveal_val[INPUT_BYTE];
-};
-
-class ResultBlock
-{
-public:
-    uint8_t result[INPUT_BYTE];
-};
-
-class CorrectionWord
-{
-public:
-    uint8_t scw[INPUT_BYTE * 8][LAMBDA_BYTE];
-    bool tcw[INPUT_BYTE * 8][2];
-    uint8_t output[INPUT_BYTE];
-};
-
-class CorrectionWordCompress8{
-public:
-    uint8_t scw[INPUT_BYTE * 8 - 3][LAMBDA_BYTE];
-    bool tcw[2][INPUT_BYTE * 8];
-    uint8_t output[LAMBDA_BYTE];
-};
-
 class FssDpfGen
 {
 public:
@@ -101,10 +68,6 @@ struct InputByteRelatedValuesGen{
 };
 
 struct InputByteRelatedValuesEval{
-    uint8_t * reveal;
-    uint8_t * scw;
-    bool * tcw[2];
-    uint8_t * output;
     uint8_t * result;
 };
 
