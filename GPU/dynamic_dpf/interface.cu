@@ -60,11 +60,13 @@ void fss_dpf_compress_generate(InputByteRelatedValuesGen cpu_values, aes_gen_blo
         for(int j = 0; j < 2; j++){
             AES_Encrypt_Gen<<<BlockperGrid,ThreadperBlock>>>(cuda_aes_block_array, cuda_key_block, 176, j, parallel);
             st_copy_gen<<<BlockperGrid,ThreadperBlock>>>(cuda_aes_block_array, cuda_dpf_gen, j, parallel); 
-        }
+        }       
         cw_update_gen<<<BlockperGrid, ThreadperBlock>>>(cuda_r, cuda_scw, cuda_tcw_0, cuda_tcw_1, cuda_dpf_gen, i, input_byte, input_length, parallel);        
-        printGpuBytes<<<1,1>>>(cuda_dpf_gen[0].s[1][0], 0, LAMBDA_BYTE);
-        printGpuBytes<<<1,1>>>(cuda_dpf_gen[0].s[1][1], 0, LAMBDA_BYTE);
-        printGpuBytes<<<1,1>>>(cuda_scw, 0 * input_length * LAMBDA_BYTE + i * LAMBDA_BYTE, LAMBDA_BYTE);
+        // printGpuBytes<<<1,1>>>(cuda_dpf_gen[0].s[0][0], 0 ,LAMBDA_BYTE);
+        // printGpuBytes<<<1,1>>>(cuda_dpf_gen[0].s[1][0], 0 ,LAMBDA_BYTE);
+        // printGpuBytes<<<1,1>>>(cuda_dpf_gen[0].s[0][1], 0 ,LAMBDA_BYTE);
+        // printGpuBytes<<<1,1>>>(cuda_dpf_gen[0].s[1][1], 0 ,LAMBDA_BYTE);
+        // printGpuBytes<<<1,1>>>(cuda_scw, i * LAMBDA_BYTE, LAMBDA_BYTE);
         for(int b = 0; b < 2; b++){
             st_update_gen<<<BlockperGrid, ThreadperBlock>>>(cuda_aes_block_array, cuda_scw, cuda_tcw_0, cuda_tcw_1, cuda_dpf_gen, i, b, input_byte, input_length, parallel);
         }
@@ -147,9 +149,13 @@ void fss_dpf_compress_evaluate(InputByteRelatedValuesEval cpu_eval_values, Input
     eval_init<<<BlockperGrid, ThreadperBlock>>>(cuda_dpf_eval, party, parallel);
     for(int i = 0; i < input_length; i++){
         AES_Encrypt_Eval<<<BlockperGrid,ThreadperBlock>>>(cuda_aes_block_array, cuda_key_block, 176, parallel);
+        test<<<BlockperGrid,ThreadperBlock>>>(cuda_aes_block_array, cuda_scw, cuda_dpf_eval, parallel);
+        printGpuBytes<<<1,1>>>(cuda_dpf_eval[0].s[0], 0 ,LAMBDA_BYTE);
+        printGpuBytes<<<1,1>>>(cuda_dpf_eval[0].s[1], 0 ,LAMBDA_BYTE);
         st_init_eval<<<BlockperGrid, ThreadperBlock>>>(cuda_aes_block_array, cuda_scw, cuda_dpf_eval, i, input_byte, input_length, parallel);
         st_update_eval<<<BlockperGrid, ThreadperBlock>>>(cuda_aes_block_array, cuda_reveal, cuda_scw, cuda_tcw_0, cuda_tcw_1, cuda_dpf_eval, i, input_byte, input_length, parallel);  
     }
+
     result_update_eval<<<BlockperGrid, ThreadperBlock>>>(cuda_result, cuda_aes_block_array, cuda_output, cuda_dpf_eval, input_byte, parallel);
     printGpuBytes<<<1,1>>>(cuda_result, 0, input_byte);
     cudaMemcpy(cpu_eval_values.result, cuda_result, parallel*input_byte*sizeof(uint8_t), cudaMemcpyDeviceToHost);

@@ -28,7 +28,7 @@
 int main(){
     int lambda = 127;
     int bit_length = INPUT_BYTE * 8;
-    int parallel = 10;
+    int parallel = 1024000;
     clock_t begin, end;
     begin = clock();
     RandomValueBlock * cpu_r_block = new RandomValueBlock[parallel];
@@ -47,8 +47,7 @@ int main(){
     bigint seed[2], r, res0, res1;
     prng.InitSeed();
     for(int i = 0; i < parallel; i++){
-        r = 12300;
-        // prng.get(r, bit_length);
+        prng.get(r, bit_length);
         prng.get(seed[0], lambda);
         prng.get(seed[1], lambda);
         bytesFromBigint(&cpu_reveal_block[i].reveal_val[0], r, INPUT_BYTE);

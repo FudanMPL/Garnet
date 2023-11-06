@@ -128,7 +128,7 @@ __device__ void _in_place_convert(uint8_t * org, uint8_t * dst, int org_group_si
 }
 
 __global__ void printGpuBytes(uint8_t b[], int begin, int len) {
-  for (int i=0; i<len; i++){
+  for (int i=begin; i<len+begin; i++){
       // printf("%d\n",i);
       printf("%02x", b[i]);
   }

@@ -2,7 +2,7 @@
  * @Author: SkyTu 1336923451@qq.com
  * @Date: 2023-10-24 16:24:02
  * @LastEditors: SkyTu 1336923451@qq.com
- * @LastEditTime: 2023-11-05 11:59:30
+ * @LastEditTime: 2023-11-06 15:05:15
  * @FilePath: /txy/Garnet/GPU/test.cpp
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -35,7 +35,7 @@ void _printBytes(uint8_t b[], int begin, int len) {
 int main(){
     int lambda = 127;
     
-    int parallel = 102400;
+    int parallel = 1024;
     
     int input_length = 40;
     int input_byte = ceil(input_length / 8);
@@ -63,8 +63,10 @@ int main(){
     for(int i = 0; i < parallel; i++){
         r = 0;
         // prng.get(r, bit_length);
-        prng.get(seed[0], lambda);
-        prng.get(seed[1], lambda);
+        // prng.get(seed[0], lambda);
+        // prng.get(seed[1], lambda);
+        seed[0] = 1023984;
+        seed[1] = 1209302;
 
         bytesFromBigint(&cpu_values.r[i * input_byte], r, input_byte);
         bytesFromBigint(&cpu_aes_eval_block_array[0][i].block[0], seed[0], LAMBDA_BYTE);

@@ -123,6 +123,17 @@ __global__ void eval_init(FssDpfEval * cuda_dpf_eval, bool party,int parallel){
     return;
 }
 
+__global__ void test(aes_eval_block * cuda_aes_block_array, uint8_t * cuda_scw, FssDpfEval * cuda_dpf_eval, int parallel){
+    int global_thread_index = blockDim.x * blockIdx.x + threadIdx.x;
+    __syncthreads();
+    if(global_thread_index < parallel){
+        _copy(cuda_aes_block_array[global_thread_index].block, cuda_dpf_eval[global_thread_index].s[0], 0, 0 ,LAMBDA_BYTE);
+        _copy(cuda_aes_block_array[global_thread_index].block, cuda_dpf_eval[global_thread_index].s[1], LAMBDA_BYTE, 0 ,LAMBDA_BYTE);
+    }
+    __syncthreads();
+    return;
+}
+
 __global__ void st_init_eval(aes_eval_block * cuda_aes_block_array, uint8_t * cuda_scw, FssDpfEval * cuda_dpf_eval, int i, int input_byte, int input_length, int parallel){
     int global_thread_index = blockDim.x * blockIdx.x + threadIdx.x;
     __syncthreads();
