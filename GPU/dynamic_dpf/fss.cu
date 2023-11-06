@@ -97,8 +97,6 @@ __global__ void final_cw_update_gen(aes_gen_block * cuda_aes_block_array, uint8_
     int global_thread_index = blockDim.x * blockIdx.x + threadIdx.x;
     __syncthreads();
     if(global_thread_index < parallel){
-        if(global_thread_index == 0)
-            printf("%d\n", cuda_dpf_gen[global_thread_index].pre_t[1]);
         _convert(cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][0], cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][0], LAMBDA_BYTE, input_byte);
         _convert(cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][1], cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][1], LAMBDA_BYTE, input_byte);
         //假定beta是1
@@ -114,6 +112,28 @@ __global__ void final_cw_update_gen(aes_gen_block * cuda_aes_block_array, uint8_
     __syncthreads();   
     return;
 }
+
+__global__ void final_cw_update_gen_compress(uint8_t * cuda_r, aes_gen_block * cuda_aes_block_array, uint8_t * cuda_output, FssDpfGen * cuda_dpf_gen, int input_byte, int compress, int parallel){
+    int global_thread_index = blockDim.x * blockIdx.x + threadIdx.x;
+    __syncthreads();
+    if(global_thread_index < parallel){
+        _convert(cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][0], cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][0], LAMBDA_BYTE, input_byte);
+        _convert(cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][1], cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][1], LAMBDA_BYTE, input_byte);
+        //计算select_vector哪一个对应下标处为1 
+        //最多压缩64位，8个比特构成的数
+        int select_idx = ((cuda_r[global_thread_index * input_byte + input_byte - 1] << (8 - compress)) >> (8 - compress));
+        if(global_thread_index == 0)
+            printf("%d\n", select_idx);
+        cuda_output[global_thread_index * input_byte + input_byte - 1 - int(select_idx / 8)] = (uint8_t(1) << (select_idx % 8 - 1));
+        //注释掉这两行就能测试beta的正确性
+        _add(cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][cuda_dpf_gen[global_thread_index].pre_t[1] ^ 1], &cuda_output[global_thread_index * input_byte], &cuda_output[global_thread_index * input_byte], input_byte ,input_byte);  
+        _sub(&cuda_output[global_thread_index * input_byte], cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][cuda_dpf_gen[global_thread_index].pre_t[1]], &cuda_output[global_thread_index * input_byte], input_byte, input_byte);
+
+    }
+    __syncthreads();   
+    return;
+}
+
 
 __global__ void eval_init(FssDpfEval * cuda_dpf_eval, bool party,int parallel){
     int global_thread_index = blockDim.x * blockIdx.x + threadIdx.x;

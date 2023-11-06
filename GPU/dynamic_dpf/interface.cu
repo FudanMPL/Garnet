@@ -56,7 +56,7 @@ void fss_dpf_generate(InputByteRelatedValuesGen cpu_values, aes_gen_block * cpu_
     cudaEventRecord(start1);
 
     gen_init<<<BlockperGrid, ThreadperBlock>>>(cuda_dpf_gen, parallel);
-    for(int i = 0; i < input_length; i++){        
+    for(int i = 0; i < input_length; i++){   
         for(int j = 0; j < 2; j++){
             AES_Encrypt_Gen<<<BlockperGrid,ThreadperBlock>>>(cuda_aes_block_array, cuda_key_block, 176, j, parallel);
             st_copy_gen<<<BlockperGrid,ThreadperBlock>>>(cuda_aes_block_array, cuda_dpf_gen, j, parallel); 
@@ -67,6 +67,7 @@ void fss_dpf_generate(InputByteRelatedValuesGen cpu_values, aes_gen_block * cpu_
         }
     }
     final_cw_update_gen<<<BlockperGrid, ThreadperBlock>>>(cuda_aes_block_array, cuda_output, cuda_dpf_gen, input_byte, parallel);
+
     cudaMemcpy(cpu_values.scw, cuda_scw, parallel * input_length * LAMBDA_BYTE * sizeof(uint8_t), cudaMemcpyDeviceToHost);
     cudaMemcpy(cpu_values.tcw[0], cuda_tcw_0, parallel * input_length * sizeof(bool), cudaMemcpyDeviceToHost);
     cudaMemcpy(cpu_values.tcw[1], cuda_tcw_1, parallel * input_length * sizeof(bool), cudaMemcpyDeviceToHost);
@@ -167,9 +168,11 @@ void fss_dpf_evaluate(InputByteRelatedValuesEval cpu_eval_values, InputByteRelat
     cudaFree(cuda_aes_block_array);
 }
 
-void fss_dpf_generate(InputByteRelatedValuesGen cpu_values, aes_gen_block * cpu_aes_block_array, int input_length, int parallel){
+void fss_dpf_generate_traverse(InputByteRelatedValuesGen cpu_values, aes_gen_block * cpu_aes_block_array, int input_length, int compress, int parallel){
     int lambda = 127;  
     int input_byte = ceil(input_length/8);  
+    input_length = input_length - compress;
+
     BYTE key[240];
     int keyLen = 16;
     int blockLen = 16;
@@ -205,6 +208,9 @@ void fss_dpf_generate(InputByteRelatedValuesGen cpu_values, aes_gen_block * cpu_
     // output.shape = [parallel, input_byte]
     uint8_t * cuda_output;
     cudaMalloc(&cuda_output, parallel * input_byte * sizeof(uint8_t));
+    cudaMemset(cuda_output, 0, parallel * input_byte * sizeof(uint8_t));
+    // beta.shape = [parallel, input_byte]
+
     cudaMalloc(&cuda_dpf_gen, parallel*sizeof(class FssDpfGen));
     cudaMalloc(&cuda_aes_block_array, parallel*sizeof(class aes_gen_block));
     cudaMemcpy(cuda_aes_block_array, cpu_aes_block_array, parallel*sizeof(class aes_gen_block), cudaMemcpyHostToDevice);
@@ -227,7 +233,8 @@ void fss_dpf_generate(InputByteRelatedValuesGen cpu_values, aes_gen_block * cpu_
             st_update_gen<<<BlockperGrid, ThreadperBlock>>>(cuda_aes_block_array, cuda_scw, cuda_tcw_0, cuda_tcw_1, cuda_dpf_gen, i, b, input_byte, input_length, parallel);
         }
     }
-    final_cw_update_gen<<<BlockperGrid, ThreadperBlock>>>(cuda_aes_block_array, cuda_output, cuda_dpf_gen, input_byte, parallel);
+    final_cw_update_gen_compress<<<BlockperGrid, ThreadperBlock>>>(cuda_r, cuda_aes_block_array, cuda_output, cuda_dpf_gen, input_byte, compress, parallel);
+    printGpuBytes<<<1,1>>>(cuda_output, 0, input_byte);
     cudaMemcpy(cpu_values.scw, cuda_scw, parallel * input_length * LAMBDA_BYTE * sizeof(uint8_t), cudaMemcpyDeviceToHost);
     cudaMemcpy(cpu_values.tcw[0], cuda_tcw_0, parallel * input_length * sizeof(bool), cudaMemcpyDeviceToHost);
     cudaMemcpy(cpu_values.tcw[1], cuda_tcw_1, parallel * input_length * sizeof(bool), cudaMemcpyDeviceToHost);
@@ -248,4 +255,3 @@ void fss_dpf_generate(InputByteRelatedValuesGen cpu_values, aes_gen_block * cpu_
     cudaFree(cuda_tcw_1);
 }
 
-void fss_dpf_evaluate(InputByteRelatedValuesEval cpu_eval_values, InputByteRelatedValuesGen cpu_values, aes_eval_block * cpu_aes_block_array, bool party, int input_length, int parallel){
