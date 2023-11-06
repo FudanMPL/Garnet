@@ -2,7 +2,7 @@
  * @Author: SkyTu 1336923451@qq.com
  * @Date: 2023-10-24 16:24:02
  * @LastEditors: SkyTu 1336923451@qq.com
- * @LastEditTime: 2023-11-04 18:32:44
+ * @LastEditTime: 2023-11-06 16:44:59
  * @FilePath: /txy/Garnet/GPU/test.cpp
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -28,7 +28,7 @@
 int main(){
     int lambda = 127;
     int bit_length = INPUT_BYTE * 8;
-    int parallel = 1024000;
+    int parallel = 1024;
     clock_t begin, end;
     begin = clock();
     RandomValueBlock * cpu_r_block = new RandomValueBlock[parallel];

@@ -97,6 +97,8 @@ __global__ void final_cw_update_gen(aes_gen_block * cuda_aes_block_array, uint8_
     int global_thread_index = blockDim.x * blockIdx.x + threadIdx.x;
     __syncthreads();
     if(global_thread_index < parallel){
+        if(global_thread_index == 0)
+            printf("%d\n", cuda_dpf_gen[global_thread_index].pre_t[1]);
         _convert(cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][0], cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][0], LAMBDA_BYTE, input_byte);
         _convert(cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][1], cuda_dpf_gen[global_thread_index].s[cuda_dpf_gen[global_thread_index].keep][1], LAMBDA_BYTE, input_byte);
         //假定beta是1
@@ -155,7 +157,7 @@ __global__ void st_update_eval(aes_eval_block * cuda_aes_block_array, uint8_t * 
     __syncthreads();
     int idx = int(i/8);
     if(global_thread_index < parallel){
-        cuda_dpf_eval[global_thread_index].xi = ((cuda_reveal[global_thread_index * input_byte + idx]) >> (7 - (i - (idx) * 8)))%2;
+        cuda_dpf_eval[global_thread_index].xi = ((cuda_reveal[global_thread_index * input_byte + idx]) >> (input_byte - 1 - (i - (idx) * 8)))%2;
         _double_copy(cuda_dpf_eval[global_thread_index].s[cuda_dpf_eval[global_thread_index].xi], cuda_aes_block_array[global_thread_index].block, LAMBDA_BYTE);
         cuda_dpf_eval[global_thread_index].t[0] = cuda_dpf_eval[global_thread_index].t[0] ^ (cuda_dpf_eval[global_thread_index].pre_t * cuda_tcw_0[global_thread_index * input_length + i]);
         cuda_dpf_eval[global_thread_index].t[1] = cuda_dpf_eval[global_thread_index].t[1] ^ (cuda_dpf_eval[global_thread_index].pre_t * cuda_tcw_1[global_thread_index * input_length + i]);

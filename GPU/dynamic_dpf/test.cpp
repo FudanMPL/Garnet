@@ -2,7 +2,7 @@
  * @Author: SkyTu 1336923451@qq.com
  * @Date: 2023-10-24 16:24:02
  * @LastEditors: SkyTu 1336923451@qq.com
- * @LastEditTime: 2023-11-06 15:05:15
+ * @LastEditTime: 2023-11-06 18:14:51
  * @FilePath: /txy/Garnet/GPU/test.cpp
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -34,10 +34,8 @@ void _printBytes(uint8_t b[], int begin, int len) {
 
 int main(){
     int lambda = 127;
-    
-    int parallel = 1024;
-    
-    int input_length = 40;
+    int parallel = 5024000;
+    int input_length = 24;
     int input_byte = ceil(input_length / 8);
     clock_t begin, end;
     begin = clock();
@@ -61,12 +59,10 @@ int main(){
     bigint seed[2], r, res0, res1;
     prng.InitSeed();
     for(int i = 0; i < parallel; i++){
-        r = 0;
-        // prng.get(r, bit_length);
-        // prng.get(seed[0], lambda);
-        // prng.get(seed[1], lambda);
-        seed[0] = 1023984;
-        seed[1] = 1209302;
+        prng.get(r, input_length);
+        prng.get(seed[0], lambda);
+        prng.get(seed[1], lambda);
+
 
         bytesFromBigint(&cpu_values.r[i * input_byte], r, input_byte);
         bytesFromBigint(&cpu_aes_eval_block_array[0][i].block[0], seed[0], LAMBDA_BYTE);
@@ -82,30 +78,27 @@ int main(){
         bytesFromBigint(&cpu_aes_gen_block_array[i].block[1][LAMBDA_BYTE], seed[1], LAMBDA_BYTE);
     }
 
-    fss_dpf_compress_generate(cpu_values, cpu_aes_gen_block_array, input_length, parallel);
+    fss_dpf_generate(cpu_values, cpu_aes_gen_block_array, input_length, parallel);
+    _printBytes(cpu_values.output, 0, LAMBDA_BYTE);
 
     InputByteRelatedValuesEval cpu_eval_values_0;
-
-    for(int i = 0; i < 10; i++){
-        _printBytes(cpu_values.scw, i * input_length, LAMBDA_BYTE);
-    }
-    std::cout << "-----------------" << std::endl;
-
     cpu_eval_values_0.result = (uint8_t *)malloc(parallel * input_byte * sizeof(uint8_t));
-    fss_dpf_compress_evaluate(cpu_eval_values_0, cpu_values, cpu_aes_eval_block_array[0], 0, input_length, parallel);
+    fss_dpf_evaluate(cpu_eval_values_0, cpu_values, cpu_aes_eval_block_array[0], 0, input_length, parallel);
     
-    for(int i = 0; i < 10; i++){
-        _printBytes(cpu_values.scw, i * input_length, LAMBDA_BYTE);
-    }
-    std::cout << "-----------------" << std::endl;
-
     InputByteRelatedValuesEval cpu_eval_values_1;
     cpu_eval_values_1.result = (uint8_t *)malloc(parallel * input_byte * sizeof(uint8_t));
-    fss_dpf_compress_evaluate(cpu_eval_values_1, cpu_values, cpu_aes_eval_block_array[0], 1, input_length, parallel);
+    fss_dpf_evaluate(cpu_eval_values_1, cpu_values, cpu_aes_eval_block_array[1], 1, input_length, parallel);
 
-    for(int i = 0; i < 10; i++){
-        _printBytes(cpu_values.scw, i * input_length, LAMBDA_BYTE);
-    }
-    std::cout << "-----------------" << std::endl;
 
-}
+    // for(int i = 0; i < parallel; i++){
+    //     bigintFromBytes(res0, &cpu_eval_values_0.result[i * input_byte], input_byte);
+    //     bigintFromBytes(res1, &cpu_eval_values_1.result[i * input_byte], input_byte);
+    //     if((res0 - res1)==1){
+    //         std::cout << res0 << std::endl;
+    //         std::cout << res1 << std::endl;
+    //         std::cout << "Correct!" << res0 - res1 << std::endl;
+    //     }
+    // }
+    end = clock();
+    std::cout << "Finished in " << double(end-begin) / CLOCKS_PER_SEC * 1000 << "ms" << std::endl;   
+}   
