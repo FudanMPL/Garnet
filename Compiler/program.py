@@ -21,7 +21,7 @@ import Compiler.instructions_base as inst_base
 from Compiler.config import REG_MAX, USER_MEM, COST
 from Compiler.exceptions import CompilerError
 from Compiler.instructions_base import RegType
-
+import time
 from . import allocator as al
 from . import util
 
@@ -51,7 +51,7 @@ class defaults:
     garbled = False
     prime = None
     galois = 40
-    budget = 100000
+    budget = 10000
     mixed = False
     edabit = False
     invperm = False
@@ -912,7 +912,7 @@ class Tape:
 
         for block in self.basicblocks:
             al.determine_scope(block, options)
-
+        print("Processing basic block",  time.asctime())
         # merge open instructions
         # need to do this if there are several blocks
         if (options.merge_opens and self.merge_opens) or options.dead_code_elimination:
@@ -987,7 +987,6 @@ class Tape:
 
         # now remove any empty blocks (must be done after setting jumps)
         self.basicblocks = [x for x in self.basicblocks if len(x.instructions) != 0]
-
         # allocate registers
         reg_counts = self.count_regs()
         if options.noreallocate:
@@ -1045,9 +1044,8 @@ class Tape:
                             print("%s:%d " % (t, n - usage[t]), end="")
                     print()
             allocator.finalize(options)
-            if self.program.verbose:
-                print("Tape register usage:", dict(allocator.usage))
-
+            # if self.program.verbose:
+            #     print("Tape register usage:", dict(allocator.usage))
         # offline data requirements
         if self.program.verbose:
             print("Compile offline data requirements...")

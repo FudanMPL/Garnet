@@ -230,8 +230,8 @@ def test_transpose_MultiArray():
 
 
 @autograd_function
-def test_concate_Array():
-    print_ln('test_concate_Array():')
+def test_concat_Array():
+    print_ln('test_concat_Array():')
     xArray_1 = Array(LENGTH, sfix)
     for i in range(0,LENGTH):
         xArray_1[i]=sfix(i-LENGTH/2)
@@ -243,15 +243,15 @@ def test_concate_Array():
     xArray_2.print_reveal_nested()
     input1 = Tensor(xArray_1, req_grad = True)
     input2 = Tensor(xArray_2, req_grad = True)
-    output=input1.concate(input2)
+    output=input1.concat(input2)
 
     tensor.train()
     tensor.reset_op_id()
 
-    output=input1.concate(input2)
+    output=input1.concat(input2)
     
     output.backward()
-    print_str("The output of Array1 concate Array2:\n")
+    print_str("The output of Array1 concat Array2:\n")
     output.value.print_reveal_nested()
     print_str("The grad of Array1 and Array2:\n")
     input1.grad.print_reveal_nested()
@@ -260,8 +260,8 @@ def test_concate_Array():
 
 
 @autograd_function
-def test_concate_MultiArray():
-    print_ln('test_concate_MultiArray():')
+def test_concat_MultiArray():
+    print_ln('test_concat_MultiArray():')
     xMultiArray_3_1 = MultiArray([ROW, COL+2,HEIGHT], sfix)
     for i in range(0,ROW):
         for  j in range(0,COL+2):
@@ -281,15 +281,15 @@ def test_concate_MultiArray():
 
     input1 = Tensor(xMultiArray_3_1, req_grad = True)
     input2 = Tensor(xMultiArray_3_2, req_grad = True)
-    output=input1.concate(input2,1)
+    output=input1.concat(input2,1)
 
     tensor.train()
     tensor.reset_op_id()
 
-    output=input1.concate(input2,1)
+    output=input1.concat(input2,1)
     
     output.backward()
-    print_str("The output of 3-Dimension MultiArray1 concate MultiArray2 in axis=1:\n")
+    print_str("The output of 3-Dimension MultiArray1 concat MultiArray2 in axis=1:\n")
     output.value.print_reveal_nested()
     print_str("The grad of MultiArray1 and MultiArray2:\n")
     input1.grad.print_reveal_nested()
@@ -922,8 +922,8 @@ print_ln('%s',tmp.reveal())
 #test_reshape_ArrayToMultiArray()
 #test_reshape_MultiArrayToArray()
 
-#test_concate_Array()
-#test_concate_MultiArray()
+#test_concat_Array()
+#test_concat_MultiArray()
 #test_mm_MultiArray()
 
 

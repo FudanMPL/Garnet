@@ -6848,10 +6848,16 @@ class MultiArray(SubMultiArray):
                 res.assign_vector_by_indices(tmp, *new_indices)
                 # res.print_reveal_nested()
             return
-        @library.for_range(self.sizes[i])
-        def _(j):
-            tmp_indices = indices[:] + (j,)
-            self.permute_singledim(new_perm, tmp_indices, i+1, res)
+        if i == 0:
+            @library.for_range_multithread(1, 1, self.sizes[i])
+            def _(j):
+                tmp_indices = indices[:] + (j,)
+                self.permute_singledim(new_perm, tmp_indices, i+1, res)
+        else:
+            @library.for_range(self.sizes[i])
+            def _(j):
+                tmp_indices = indices[:] + (j,)
+                self.permute_singledim(new_perm, tmp_indices, i+1, res)            
 
     def permute(self, new_perm):
         assert len(new_perm) == len(self.sizes)

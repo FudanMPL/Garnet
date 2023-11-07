@@ -19,7 +19,7 @@ def test_mul():
     y[0][0]=6
     y.print_reveal_nested()
     input1 = Tensor(x, req_grad = True)
-    input2 = Tensor(y, req_grad = True)
+    input2 = Tensor(y, req_grad = False)
 
     input3 = input1 * input2
 
@@ -33,7 +33,7 @@ def test_mul():
 
     print_ln('test_mul_backward: ')
     input1.grad.print_reveal_nested()
-    input2.grad.print_reveal_nested()
+    #input2.grad.print_reveal_nested()
     
 def test_single_operation(func,Value):
     Value.print_reveal_nested()
@@ -523,8 +523,8 @@ def test_f_batchnorm():
     x.print_reveal_nested()
     input1 = Tensor(x, req_grad = True)
 
-    w, b = Array(1, sfix), Array(1, sfix)
-    w[0], b[0] = sfix(1), sfix(0)
+    w, b = Array(2, sfix), Array(2, sfix)
+    w.assign_all(1)
     W = Tensor(w, req_grad = True)
     B = Tensor(b, req_grad = True)
     mean, std = Array(2, sfix), Array(2, sfix)
@@ -773,10 +773,9 @@ def test_getitem():
 #test_neg()
 
 #test_f_droupout(0.5)
-#test_f_batchnorm()
+test_f_batchnorm()
 #test_f_layernorm()
 #test_f_mseloss()
 #test_f_normalize(p=2, dim=[0,1])
 #test_f_cossim()
 #test_f_gelu()
-test_flatten()

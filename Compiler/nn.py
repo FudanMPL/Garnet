@@ -76,9 +76,15 @@ class Parameter(Tensor):
     """
     def __init__(self, data):
         self.value = data.value
-        self.grad = data.grad
-        self.value_type = self.value.value_type
         self.name = data.name
+        if data.req_grad:
+            self.grad = data.grad
+        else:
+            self.grad = self.value.same_shape()
+            self.grad.assign_all(0)
+            TS.dl_d[self.name] = self.grad
+        self.value_type = self.value.value_type
+        
         self.shape = data.shape
         TS.tensors[self.name] = self
         self.set_req_grad(True)
@@ -1251,8 +1257,8 @@ class _NormBase(Module):
         self.affine = affine
         self.track_running_stats = track_running_stats
         if self.affine:
-            self.weight = Parameter(Tensor.zeros(num_features))
-            self.bias = Parameter(Tensor.zeros(num_features))
+            self.weight = Parameter(Tensor.zeros(1,num_features,1,1))
+            self.bias = Parameter(Tensor.zeros(1,num_features,1,1))
         else:
             self.register_parameter("weight", None)
             self.register_parameter("bias", None)
@@ -1261,6 +1267,7 @@ class _NormBase(Module):
             self.register_buffer('running_var', Tensor.ones(num_features))
             self.running_mean: Optional[Tensor]
             self.running_var: Optional[Tensor]
+            self.register_buffer('num_batches_tracked', Tensor.ones(1))
             self.num_batches_tracked: Optional[Tensor]
         else:
             self.register_buffer("running_mean", None)
@@ -1333,7 +1340,7 @@ class _BatchNorm(_NormBase):
         if self.training and self.track_running_stats:
             # TODO: if statement only here to tell the jit to skip emitting this when it is None
             if self.num_batches_tracked is not None:  # type: ignore[has-type]
-                self.num_batches_tracked.add_(1)  # type: ignore[has-type]
+                self.num_batches_tracked += 1  # type: ignore[has-type]
                 if self.momentum is None:  # use cumulative moving average
                     exponential_average_factor = 1.0 / float(self.num_batches_tracked)
                 else:  # use exponential moving average
@@ -1739,6 +1746,93 @@ class MaxPool2d(_MaxPoolNd):
     def forward(self, input: Tensor):
         return F.max_pool2d(input, self.kernel_size, self.stride,
                             self.padding)
+
+class _AvgPoolNd(Module):
+    __constants__ = ['kernel_size', 'stride', 'padding', 'ceil_mode', 'count_include_pad']
+
+    def extra_repr(self) -> str:
+        return 'kernel_size={}, stride={}, padding={}'.format(
+            self.kernel_size, self.stride, self.padding
+        )
+
+class AvgPool2d(_AvgPoolNd):
+    r"""Applies a 2D average pooling over an input signal composed of several input
+    planes.
+
+    In the simplest case, the output value of the layer with input size :math:`(N, C, H, W)`,
+    output :math:`(N, C, H_{out}, W_{out})` and :attr:`kernel_size` :math:`(kH, kW)`
+    can be precisely described as:
+
+    .. math::
+
+        out(N_i, C_j, h, w)  = \frac{1}{kH * kW} \sum_{m=0}^{kH-1} \sum_{n=0}^{kW-1}
+                               input(N_i, C_j, stride[0] \times h + m, stride[1] \times w + n)
+
+    If :attr:`padding` is non-zero, then the input is implicitly zero-padded on both sides
+    for :attr:`padding` number of points.
+
+    Note:
+        When ceil_mode=True, sliding windows are allowed to go off-bounds if they start within the left padding
+        or the input. Sliding windows that would start in the right padded region are ignored.
+
+    The parameters :attr:`kernel_size`, :attr:`stride`, :attr:`padding` can either be:
+
+        - a single ``int`` -- in which case the same value is used for the height and width dimension
+        - a ``tuple`` of two ints -- in which case, the first `int` is used for the height dimension,
+          and the second `int` for the width dimension
+
+    Args:
+        kernel_size: the size of the window
+        stride: the stride of the window. Default value is :attr:`kernel_size`
+        padding: implicit zero padding to be added on both sides
+        ceil_mode: when True, will use `ceil` instead of `floor` to compute the output shape
+        count_include_pad: when True, will include the zero-padding in the averaging calculation
+        divisor_override: if specified, it will be used as divisor, otherwise size of the pooling region will be used.
+
+
+    Shape:
+        - Input: :math:`(N, C, H_{in}, W_{in})` or :math:`(C, H_{in}, W_{in})`.
+        - Output: :math:`(N, C, H_{out}, W_{out})` or :math:`(C, H_{out}, W_{out})`, where
+
+          .. math::
+              H_{out} = \left\lfloor\frac{H_{in}  + 2 \times \text{padding}[0] -
+                \text{kernel\_size}[0]}{\text{stride}[0]} + 1\right\rfloor
+
+          .. math::
+              W_{out} = \left\lfloor\frac{W_{in}  + 2 \times \text{padding}[1] -
+                \text{kernel\_size}[1]}{\text{stride}[1]} + 1\right\rfloor
+
+    Examples::
+
+        >>> # pool of square window of size=3, stride=2
+        >>> m = nn.AvgPool2d(3, stride=2)
+        >>> # pool of non-square window
+        >>> m = nn.AvgPool2d((3, 2), stride=(2, 1))
+        >>> input = torch.randn(20, 16, 50, 32)
+        >>> output = m(input)
+    """
+    __constants__ = ['kernel_size', 'stride', 'padding', 'ceil_mode', 'count_include_pad', 'divisor_override']
+
+    kernel_size: int
+    stride: int
+    padding: int
+    ceil_mode: bool
+    count_include_pad: bool
+
+    def __init__(self, kernel_size: int, stride: Optional[int] = None, padding: int = 0,
+                 ceil_mode: bool = False, count_include_pad: bool = True, divisor_override: Optional[int] = None) -> None:
+        super().__init__()
+        self.kernel_size = kernel_size
+        self.stride = stride if (stride is not None) else kernel_size
+        self.padding = padding
+        self.ceil_mode = ceil_mode
+        self.count_include_pad = count_include_pad
+        self.divisor_override = divisor_override
+
+    def forward(self, input: Tensor) -> Tensor:
+        return F.avg_pool2d(input, self.kernel_size, self.stride,
+                            self.padding)
+
 
 class ReLU(Module):
     r"""Applies the rectified linear unit function element-wise:

@@ -12,6 +12,7 @@ from Compiler.instructions import *
 from Compiler.instructions_base import *
 from Compiler.util import is_zero, tree_reduce
 from Compiler.comparison import CarryOutRawLE
+from Compiler import graph_visualization
 # from Compiler.GC.types import sbitintis_train
 from functools import reduce
 from typing import List, NamedTuple, Callable, Dict, Optional, Union, Tuple, Any
@@ -149,26 +150,32 @@ def element_wise_add(self, other):
         dl_dx, = dl_doutputs
         inputs = operation.inputs
         temp1, temp2 = operation.intermediate
-        dl_dself = dl_d[inputs[0]]  # partial derivate of r = 1
-        dl_dother = dl_d[inputs[1]]  # partial derivate of r = 1
+        dl_dself, dl_dother = (None, None)
+        if self.req_grad:
+            dl_dself = dl_d[inputs[0]]  # partial derivate of r = 1
+        if other.req_grad:
+            dl_dother = dl_d[inputs[1]]  # partial derivate of r = 1
         
         # swap to ensure v1 size is bigger than v2 size  
         v1, v2 = dl_dself, dl_dother
         req_grad1, req_grad2 = self.req_grad, other.req_grad
-        if dl_dself.total_size()<dl_dother.total_size():
+        input1=tensors[operation.inputs[0]].value
+        input2=tensors[operation.inputs[1]].value
+        if input1.total_size()<input2.total_size():
             v1, v2 = v2, v1
             req_grad1, req_grad2 = req_grad2, req_grad1
+            input1, input2 = input2, input1
         # v1 back directly 
         if req_grad1:
             v1[:] += dl_dx[:]
         # broadcasted v2 back with reduce
         if req_grad2:
-            dims, v1, v2 = reconst_dims(v1, v2)
-            dl_dx.permute_without_malloc(temp2, get_permute_d2front(len(v1.sizes), dims))
+            dims, input1, input2 = reconst_dims(input1, input2)
+            dl_dx.permute_without_malloc(temp2, get_permute_d2front(len(input1.sizes), dims))
             dl_dx_pmt = temp2
             
-            stride = v1.total_size()//v2.total_size()
-            @for_range(v2.total_size())
+            stride = input1.total_size()//input2.total_size()
+            @for_range(input2.total_size())
             def _(i):
                 vsum = sum(dl_dx_pmt.get_vector(i*stride, stride))
                 v2.assign_vector(v2.get_vector(i, 1)+vsum, i) 
@@ -189,7 +196,6 @@ def element_wise_add(self, other):
             else:
                 new_value = Array(other.value.sizes[0], self.value.value_type)
         output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
-        
         dim, v1, v2 = reconst_dims(self.value, other.value)
         target_size = v1.tuple_permute(v1.sizes, get_permute(len(v1.sizes), dim))
         temp1 = MultiArray(target_size, v1.value_type)
@@ -380,8 +386,11 @@ def element_wise_mul(self, other):
         dl_dx, = dl_doutputs
         inputs = operation.inputs
         temp1, temp2, temp3, temp4, temp5 = operation.intermediate
-        dl_dself = dl_d[inputs[0]]  # partial derivate of r = 1
-        dl_dother = dl_d[inputs[1]]  # partial derivate of r = 1
+        dl_dself, dl_dother = (None, None)
+        if self.req_grad:
+            dl_dself = dl_d[inputs[0]]  # partial derivate of r = 1
+        if other.req_grad:
+            dl_dother = dl_d[inputs[1]]  # partial derivate of r = 1
         
         # swap to ensure v1 size is bigger than v2 size  
         v1, v2 = dl_dself, dl_dother
@@ -389,33 +398,33 @@ def element_wise_mul(self, other):
         input1=tensors[operation.inputs[0]].value
         input2=tensors[operation.inputs[1]].value
         
-        if dl_dself.total_size()<dl_dother.total_size():
+        if input1.total_size()<input2.total_size():
             v1, v2 = v2, v1
             req_grad1, req_grad2 = req_grad2, req_grad1
             input1, input2 = input2, input1
             
-        dims, v1, v2 = reconst_dims(v1, v2)
+        dims, input1, input2 = reconst_dims(input1, input2)
         # v1 back directly 
         if req_grad1:
             dl_dx.permute_without_malloc(temp1, get_permute(len(dl_dx.sizes), dims))
             dl_dx_pmt = temp1
-            stride = v2.total_size()
+            stride = input2.total_size()
             # temp3 = permute(dl_dx) * permute(input2.value)
-            @for_range_opt(v1.total_size()//v2.total_size())
+            @for_range_opt(input1.total_size()//input2.total_size())
             def _(i):
                 v3 = dl_dx_pmt.get_vector(i*stride, stride) * input2.get_vector(0, stride)
                 temp2.assign_vector(v3, i*stride)
             break_point()   
             # v1 = permute_back(temp3)
-            temp2.permute_without_malloc(temp5, get_permute_back(len(v1.sizes), dims))
+            temp2.permute_without_malloc(temp5, get_permute_back(len(input1.sizes), dims))
             v1[:] += temp5[:]
         # broadcasted v2 back with reduce
         if req_grad2:
             dl_dx.permute_without_malloc(temp3, get_permute_d2front(len(dl_dx.sizes), dims))
             input1.permute_without_malloc(temp4, get_permute_d2front(len(input1.sizes), dims))
             dl_dx_pmt, input1_pmt = temp3, temp4
-            stride = v1.total_size()//v2.total_size()
-            @for_range_opt(v2.total_size())
+            stride = input1.total_size()//input2.total_size()
+            @for_range_opt(input2.total_size())
             def _(i):
                 v3 = dl_dx.value_type.dot_product(dl_dx_pmt.get_vector(i*stride, stride), input1_pmt.get_vector(i*stride, stride))
                 v2.assign_vector(v2.get_vector(i, 1)+v3, i)    
@@ -497,8 +506,11 @@ def element_wise_div(self, other):
         inputs = operation.inputs
         output_value = tensors[operation.outputs[0]].value
         temp1, temp2, temp3, temp4, temp5, temp6, temp7 = operation.intermediate
-        dl_dself = dl_d[inputs[0]]  # partial derivate of r = 1
-        dl_dother = dl_d[inputs[1]]  # partial derivate of r = 1
+        dl_dself, dl_dother = (None, None)
+        if self.req_grad:
+            dl_dself = dl_d[inputs[0]]  # partial derivate of r = 1
+        if other.req_grad:
+            dl_dother = dl_d[inputs[1]]  # partial derivate of r = 1
         
         # convert "input" as convert div to mul 
         v1, v2 = dl_dself, dl_dother
@@ -510,19 +522,19 @@ def element_wise_div(self, other):
         input2, input1 = temp5, temp6
         
         # swap to ensure v1 size is bigger than v2 size  
-        if dl_dself.total_size()<dl_dother.total_size():
+        if input1.total_size()<input2.total_size():
             v1, v2 = v2, v1
             req_grad1, req_grad2 = req_grad2, req_grad1
             input1, input2 = input2, input1
             
-        dims, v1, v2 = reconst_dims(v1, v2)
+        dims, input1, input2 = reconst_dims(input1, input2)
         # v1 back directly 
         if req_grad1:
             dl_dx.permute_without_malloc(temp1, get_permute(len(dl_dx.sizes), dims))
             dl_dx_pmt = temp1
-            stride = v2.total_size()
+            stride = input2.total_size()
             # temp3 = permute(dl_dx) * permute(input2.value)
-            @for_range_opt(v1.total_size()//v2.total_size())
+            @for_range_opt(input1.total_size()//input2.total_size())
             def _(i):
                 v3 = dl_dx_pmt.get_vector(i*stride, stride) * input2.get_vector(0, stride)
                 temp2.assign_vector(v3, i*stride)
@@ -535,8 +547,8 @@ def element_wise_div(self, other):
             dl_dx.permute_without_malloc(temp3, get_permute_d2front(len(dl_dx.sizes), dims))
             input1.permute_without_malloc(temp4, get_permute_d2front(len(input1.sizes), dims))
             dl_dx_pmt, input1_pmt = temp3, temp4
-            stride = v1.total_size()//v2.total_size()
-            @for_range_opt(v2.total_size())
+            stride = input1.total_size()//input2.total_size()
+            @for_range_opt(input2.total_size())
             def _(i):
                 v3 = dl_dx.value_type.dot_product(dl_dx_pmt.get_vector(i*stride, stride), input1_pmt.get_vector(i*stride, stride))
                 v2.assign_vector(v2.get_vector(i,1)+v3, i)    
@@ -945,6 +957,7 @@ def mean_of_multiarray(self, dim, keepdim=False):
             @for_range(stride)
             def _(j):
                 input_perm.assign_vector(dl_dx.get_vector(i, 1), i*stride+j)
+        break_point()
         input_perm[:] *= 1 / stride
         # permute back
         new_perm = get_permute_back(len(self.value.sizes), dim)
@@ -995,7 +1008,11 @@ def mean_of_multiarray(self, dim, keepdim=False):
         def _(i):
             summary = sum(input_perm.get_vector(i*stride, stride))
             output.value.assign_vector(summary, i)
-        output.value[:] *= 1 / stride
+        tmp = 1 / stride
+        @multithread(1, output.value.total_size())
+        def _(base, size):
+            output.value.assign_vector(output.value.get_vector(base, size)* tmp, base)
+
         # output.value.reshape([(1 if i in dim else self.value.sizes[i]) for i in range(len(self.value.sizes))])
         op_id += 1
     # record the input and output of the op
@@ -1091,9 +1108,17 @@ def var_of_multiarray(self, dim, keepdim=False, unbiased=False):
             output.value.assign_vector(summary, i)
         break_point()
         if unbiased:
-            output.value[:] *= 1 / stride
+            tmp = 1 / stride
+            @multithread(1, output.value.total_size())
+            def _(base, size):
+                output.value.assign_vector(output.value.get_vector(base, size)* tmp , base)
+
         else:
-            output.value[:] *= 1 / (stride - 1)
+            tmp = 1 / (stride-1)
+            @multithread(1, output.value.total_size())
+            def _(base, size):
+                output.value.assign_vector(output.value.get_vector(base, size)* tmp , base)
+
         op_id += 1
     # record the input and output of the op
     return output
@@ -1227,9 +1252,12 @@ class Tensor():
             self.grad = grad
             dl_d[name] = self.grad
         else:
-            if is_train:
+            if is_train and req_grad:
                 self.grad = self.value.same_shape()
                 self.grad.assign_all(0)
+                dl_d[self.name] = self.grad
+            else:
+                self.grad = None
                 dl_d[self.name] = self.grad
         tensors[self.name] = self
 
@@ -1303,6 +1331,33 @@ class Tensor():
                 continue
             for it in op.inputs:
                 searchset[it] = True
+        
+        # show tensor graph
+        nodes_op = []
+        nodes_tensor = []
+        edges = []
+        
+        for i in range(0, index):
+            op = gradient_operation[index-i-1]
+            
+            o = 'op' + str(index-i-1)
+            if index-i-1 not in nodes_op:
+                nodes_op.append(o)
+            
+            for u in op.inputs:
+                if u not in nodes_tensor:
+                    nodes_tensor.append(u)
+                edges.append((u, o))
+            for v in op.outputs:    
+                if v not in nodes_tensor:
+                    nodes_tensor.append(v)
+                edges.append((o, v))
+        
+        # print(nodes_op)
+        # print(nodes_tensor)
+        # print(edges)
+        # graph_visualization.draw_computingGraph(nodes_op, nodes_tensor, edges)
+        
         
         # do backward propagate          
         for i in range(0, index):
@@ -1388,8 +1443,11 @@ class Tensor():
         
 
     @staticmethod
-    def ones(sizes: list, value_type = sfix, req_grad = False):
-        assert isinstance(sizes, list)
+    def ones(*sizes, value_type = sfix, req_grad = False):
+        if len(sizes) == 1 and isinstance(sizes[0], list):
+            sizes = sizes[0]
+        else:
+            sizes = list(sizes)
         if len(sizes) == 0 or value_type is None:
             raise CompilerError("the shape of a tensor must be a not-null list and value type must be determined")
         if len(sizes) == 1:
@@ -1401,8 +1459,12 @@ class Tensor():
         return res
 
     @staticmethod
-    def zeros(sizes: list, value_type = sfix, req_grad = False):
-        assert isinstance(sizes, list)
+    def zeros(*sizes, value_type = sfix, req_grad = False):
+ 
+        if len(sizes) == 1 and isinstance(sizes[0], list):
+            sizes = sizes[0]
+        else:
+            sizes = list(sizes)        
         if len(sizes) == 0 or value_type is None:
             raise CompilerError("the shape of a tensor must be a not-null list and value type must be determined")
         if len(sizes) == 1:
@@ -1945,13 +2007,13 @@ class Tensor():
         return output
 
     @buildingblock("concat-forward")
-    def concate(self, other, axis=0):  # 按照axis指定维度进行拼接
+    def concat(self, other, dim=0):  # 按照dim指定维度进行拼接
         @buildingblock(get_program().globalbuildingblock)
         def propagate(dl_doutputs,operation):
             input1=tensors[operation.inputs[0]]
             input2=tensors[operation.inputs[1]]
-            size_pre=reduce(lambda x,y:x*y,input1.shape[axis:])
-            size_next=reduce(lambda x,y:x*y,input2.shape[axis:]) 
+            size_pre=reduce(lambda x,y:x*y,input1.shape[dim:])
+            size_next=reduce(lambda x,y:x*y,input2.shape[dim:]) 
             if input1.req_grad and input2.req_grad:
                 @for_range(input1.value.length//size_pre)
                 def _(i):    
@@ -1974,10 +2036,10 @@ class Tensor():
             else:
                 assert len(self.shape)==len(other.shape),"Inequal Dimension"
                 for i in range(len(self.shape)):
-                    if i != axis and self.shape[i] != other.shape[i]:
+                    if i != dim and self.shape[i] != other.shape[i]:
                         raise ValueError("Invalid Dimension")
                 target_size = other.value.shape
-                target_size[axis] += self.value.shape[axis]
+                target_size[dim] += self.value.shape[dim]
                 new_value = MultiArray(target_size, self.value.value_type)
             output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
             if self.req_grad or other.req_grad:
@@ -1990,8 +2052,8 @@ class Tensor():
             op_id += 1
         else:
             operation=gradient_operation[op_id_store[op_id]]
-            size_pre=reduce(lambda x,y:x*y,self.shape[axis:])
-            size_next=reduce(lambda x,y:x*y,other.shape[axis:])
+            size_pre=reduce(lambda x,y:x*y,self.shape[dim:])
+            size_next=reduce(lambda x,y:x*y,other.shape[dim:])
             input1=tensors[operation.inputs[0]]
             input2=tensors[operation.inputs[1]]
             output=tensors[operation.outputs[0]]
@@ -2218,7 +2280,10 @@ class Tensor():
             input = tensors[inputs[0]]
             output = tensors[outputs[0]]
 
-            output.value[:] = mpc_math.InvertSqrt(input.value[:] + eps)
+            # output.value[:] = mpc_math.InvertSqrt(input.value[:] + eps)
+            @multithread(1, output.value.total_size())
+            def _(base, size):
+                output.value.assign_vector(mpc_math.InvertSqrt(input.value.get_vector(base, size)+eps) , base)
 
             op_id += 1
         # record the input and output of the op
@@ -2507,11 +2572,14 @@ class Tensor():
         # record the input and output of the op
         return output
     
-    def size(self):
-        return self.value.sizes
+    def size(self, dim = None):
+        if dim == None:
+            return self.value.sizes
+        else:
+            return self.value.sizes[dim]
 
     def zero_grad(self):
-        if self.grad != None:
+        if self.req_grad:
             self.grad.assign_all(0)
         
     def assign_all(self, value):
@@ -2645,7 +2713,7 @@ def softmax_last_dim(x, dim=-1, res=None, inter=None):
         n, m = reduce(operator.mul, batch) if len(batch) >= 2 else batch[0], per_x.sizes[-1]
         per_x.view(-1, per_x.sizes[-1]), per_res.view(-1, per_res.sizes[-1])
         index = regint(0)
-        @for_range_opt(n, n)
+        @for_range_opt(n)
         def _(i):
             per_res.assign_vector(vec_softmax(per_x.get_vector(i*m, m)), index)
             index.update(index+m)
