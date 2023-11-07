@@ -2,7 +2,7 @@
  * @Author: SkyTu 1336923451@qq.com
  * @Date: 2023-10-24 16:24:02
  * @LastEditors: SkyTu 1336923451@qq.com
- * @LastEditTime: 2023-11-07 00:12:20
+ * @LastEditTime: 2023-11-07 10:06:58
  * @FilePath: /txy/Garnet/GPU/test.cpp
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -34,7 +34,7 @@ void _printBytes(uint8_t b[], int begin, int len) {
 
 int main(){
     int lambda = 127;
-    int parallel = 1024;
+    int parallel = 1024000;
     int input_length = 64;
     int input_byte = ceil(input_length / 8);
     clock_t begin, end;
@@ -108,6 +108,6 @@ int main(){
         bytesFromBigint(&cpu_values.r[i * input_byte], r, input_byte);
     }
 
-    fss_dpf_generate_traverse(cpu_values, cpu_aes_gen_block_array, input_length, 8, parallel);
+    // fss_dpf_generate_traverse(cpu_values, cpu_aes_gen_block_array, input_length, 8, parallel);
 
 }   

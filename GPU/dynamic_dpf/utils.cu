@@ -14,6 +14,15 @@
 #ifndef UTILS_CU_
 #define UTILS_CU_
 
+#define gpuErrorCheck(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true)
+{
+	if (code != cudaSuccess) {
+		fprintf(stderr, "GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+		//if (abort) exit(code);
+	}
+}
+
 __global__ void _mod2_t(uint8_t * org, bool dst, int fidx){
   dst = org[fidx] % 2;
 }

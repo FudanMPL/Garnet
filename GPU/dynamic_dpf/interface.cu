@@ -6,14 +6,14 @@
 #include <thrust/device_vector.h>
 #include <cmath>
 
-void fss_dpf_generate(InputByteRelatedValuesGen cpu_values, aes_gen_block * cpu_aes_block_array, int input_length, int parallel){
-    int lambda = 127;  
-    int input_byte = ceil(input_length/8);  
+
+
+void fss_dpf_generate(InputByteRelatedValuesGen cpu_values, aes_gen_block * cpu_aes_block_array, int input_length, int parallel){ 
     BYTE key[240];
     int keyLen = 16;
-    int blockLen = 16;
+    int input_byte = ceil(input_length / 8);
     KeyBlock * cuda_key_block;
-    cudaMalloc(&cuda_key_block, 2 * sizeof(class KeyBlock));
+    gpuErrorCheck(cudaMalloc(&cuda_key_block, 2 * sizeof(class KeyBlock)));
     prepare_key(cuda_key_block, key, keyLen);
 
     // printGpuBytes<<<1,1>>>(cuda_key_block->cuda_key[0], 0, 240);
@@ -31,22 +31,22 @@ void fss_dpf_generate(InputByteRelatedValuesGen cpu_values, aes_gen_block * cpu_
     // input length related values
     // random values, shape = [parallel, input_byte]
     uint8_t * cuda_r;
-    cudaMalloc(&cuda_r, parallel * input_byte * sizeof(uint8_t));
-    cudaMemcpy(cuda_r, cpu_values.r, parallel * input_byte * sizeof(uint8_t), cudaMemcpyHostToDevice);
+    gpuErrorCheck(cudaMalloc(&cuda_r, parallel * input_byte * sizeof(uint8_t)));
+    gpuErrorCheck(cudaMemcpy(cuda_r, cpu_values.r, parallel * input_byte * sizeof(uint8_t), cudaMemcpyHostToDevice));
     // correction words, scw.shape = [parallel, input_length, input_byte]
     uint8_t * cuda_scw;
-    cudaMalloc(&cuda_scw, parallel * input_length * LAMBDA_BYTE * sizeof(uint8_t));
+    gpuErrorCheck(cudaMalloc(&cuda_scw, parallel * input_length * LAMBDA_BYTE * sizeof(uint8_t)));
     // tcw.shape = [parallel, input_length]
     bool * cuda_tcw_0;
     bool * cuda_tcw_1;
-    cudaMalloc(&cuda_tcw_0, parallel * input_length * sizeof(bool));
-    cudaMalloc(&cuda_tcw_1, parallel * input_length * sizeof(bool));
+    gpuErrorCheck(cudaMalloc(&cuda_tcw_0, parallel * input_length * sizeof(bool)));
+    gpuErrorCheck(cudaMalloc(&cuda_tcw_1, parallel * input_length * sizeof(bool)));
     // output.shape = [parallel, input_byte]
     uint8_t * cuda_output;
-    cudaMalloc(&cuda_output, parallel * input_byte * sizeof(uint8_t));
-    cudaMalloc(&cuda_dpf_gen, parallel*sizeof(class FssDpfGen));
-    cudaMalloc(&cuda_aes_block_array, parallel*sizeof(class aes_gen_block));
-    cudaMemcpy(cuda_aes_block_array, cpu_aes_block_array, parallel*sizeof(class aes_gen_block), cudaMemcpyHostToDevice);
+    gpuErrorCheck(cudaMalloc(&cuda_output, parallel * input_byte * sizeof(uint8_t)));
+    gpuErrorCheck(cudaMalloc(&cuda_dpf_gen, parallel*sizeof(class FssDpfGen)));
+    gpuErrorCheck(cudaMalloc(&cuda_aes_block_array, parallel*sizeof(class aes_gen_block)));
+    gpuErrorCheck(cudaMemcpy(cuda_aes_block_array, cpu_aes_block_array, parallel*sizeof(class aes_gen_block), cudaMemcpyHostToDevice));
     
     cudaDeviceSynchronize();
     cudaEvent_t start1;
@@ -68,10 +68,10 @@ void fss_dpf_generate(InputByteRelatedValuesGen cpu_values, aes_gen_block * cpu_
     }
     final_cw_update_gen<<<BlockperGrid, ThreadperBlock>>>(cuda_aes_block_array, cuda_output, cuda_dpf_gen, input_byte, parallel);
 
-    cudaMemcpy(cpu_values.scw, cuda_scw, parallel * input_length * LAMBDA_BYTE * sizeof(uint8_t), cudaMemcpyDeviceToHost);
-    cudaMemcpy(cpu_values.tcw[0], cuda_tcw_0, parallel * input_length * sizeof(bool), cudaMemcpyDeviceToHost);
-    cudaMemcpy(cpu_values.tcw[1], cuda_tcw_1, parallel * input_length * sizeof(bool), cudaMemcpyDeviceToHost);
-    cudaMemcpy(cpu_values.output, cuda_output, parallel * input_byte * sizeof(uint8_t), cudaMemcpyDeviceToHost);
+    gpuErrorCheck(cudaMemcpy(cpu_values.scw, cuda_scw, parallel * input_length * LAMBDA_BYTE * sizeof(uint8_t), cudaMemcpyDeviceToHost));
+    gpuErrorCheck(cudaMemcpy(cpu_values.tcw[0], cuda_tcw_0, parallel * input_length * sizeof(bool), cudaMemcpyDeviceToHost));
+    gpuErrorCheck(cudaMemcpy(cpu_values.tcw[1], cuda_tcw_1, parallel * input_length * sizeof(bool), cudaMemcpyDeviceToHost));
+    gpuErrorCheck(cudaMemcpy(cpu_values.output, cuda_output, parallel * input_byte * sizeof(uint8_t), cudaMemcpyDeviceToHost));
 
     cudaEventRecord(stop1);
     cudaEventSynchronize(stop1);
@@ -79,22 +79,19 @@ void fss_dpf_generate(InputByteRelatedValuesGen cpu_values, aes_gen_block * cpu_
     cudaEventElapsedTime(&msecTotal1, start1, stop1);
     total=msecTotal1/1000;
     printf("eval time:%f\n",total);
-    cudaFree(cuda_dpf_gen);
-    cudaFree(cuda_aes_block_array);
-    cudaFree(cuda_r);
-    cudaFree(cuda_output);
-    cudaFree(cuda_scw);
-    cudaFree(cuda_tcw_0);
-    cudaFree(cuda_tcw_1);
+    gpuErrorCheck(cudaFree(cuda_dpf_gen));
+    gpuErrorCheck(cudaFree(cuda_aes_block_array));
+    gpuErrorCheck(cudaFree(cuda_r));
+    gpuErrorCheck(cudaFree(cuda_output));
+    gpuErrorCheck(cudaFree(cuda_scw));
+    gpuErrorCheck(cudaFree(cuda_tcw_0));
+    gpuErrorCheck(cudaFree(cuda_tcw_1));
 }
 
 void fss_dpf_evaluate(InputByteRelatedValuesEval cpu_eval_values, InputByteRelatedValuesGen cpu_values, aes_eval_block * cpu_aes_block_array, bool party, int input_length, int parallel){
-    int lambda = 127;
     int input_byte = ceil(input_length/8);  
-    
     BYTE key[240];
     int keyLen = 16;
-    int blockLen = 16;
     KeyBlock * cuda_key_block;
     cudaMalloc(&cuda_key_block, 2 * sizeof(class KeyBlock));
     prepare_key(cuda_key_block, key, keyLen); 
@@ -119,23 +116,23 @@ void fss_dpf_evaluate(InputByteRelatedValuesEval cpu_eval_values, InputByteRelat
     // input length related values
     // random values, shape = [parallel, input_byte]
     
-    cudaMalloc(&cuda_reveal, parallel * input_byte * sizeof(uint8_t));
-    cudaMemcpy(cuda_reveal, cpu_values.r, parallel * input_byte * sizeof(uint8_t), cudaMemcpyHostToDevice);
+    gpuErrorCheck(cudaMalloc(&cuda_reveal, parallel * input_byte * sizeof(uint8_t)));
+    gpuErrorCheck(cudaMemcpy(cuda_reveal, cpu_values.r, parallel * input_byte * sizeof(uint8_t), cudaMemcpyHostToDevice));
     // correction words, scw.shape = [parallel, input_length, LAMBDA_BYTE]
-    cudaMalloc(&cuda_scw, parallel * input_length * LAMBDA_BYTE * sizeof(uint8_t));
-    cudaMemcpy(cuda_scw, cpu_values.scw, parallel * input_length * LAMBDA_BYTE * sizeof(uint8_t), cudaMemcpyHostToDevice);
+    gpuErrorCheck(cudaMalloc(&cuda_scw, parallel * input_length * LAMBDA_BYTE * sizeof(uint8_t)));
+    gpuErrorCheck(cudaMemcpy(cuda_scw, cpu_values.scw, parallel * input_length * LAMBDA_BYTE * sizeof(uint8_t), cudaMemcpyHostToDevice));
     // tcw.shape = [parallel, input_length]
-    cudaMalloc(&cuda_tcw_0, parallel * input_length * sizeof(bool));
-    cudaMemcpy(cuda_tcw_0, cpu_values.tcw[0], parallel * input_length * sizeof(bool), cudaMemcpyHostToDevice);
-    cudaMalloc(&cuda_tcw_1, parallel * input_length * sizeof(bool));
-    cudaMemcpy(cuda_tcw_1, cpu_values.tcw[1], parallel * input_length * sizeof(bool), cudaMemcpyHostToDevice);
+    gpuErrorCheck(cudaMalloc(&cuda_tcw_0, parallel * input_length * sizeof(bool)));
+    gpuErrorCheck(cudaMemcpy(cuda_tcw_0, cpu_values.tcw[0], parallel * input_length * sizeof(bool), cudaMemcpyHostToDevice));
+    gpuErrorCheck(cudaMalloc(&cuda_tcw_1, parallel * input_length * sizeof(bool)));
+    gpuErrorCheck(cudaMemcpy(cuda_tcw_1, cpu_values.tcw[1], parallel * input_length * sizeof(bool), cudaMemcpyHostToDevice));
     // output.shape = [parallel, input_byte]
-    cudaMalloc(&cuda_output, parallel * input_byte * sizeof(uint8_t));
-    cudaMemcpy(cuda_output, cpu_values.output, parallel * input_byte * sizeof(uint8_t), cudaMemcpyHostToDevice);
-    cudaMalloc(&cuda_result, parallel * input_byte * sizeof(uint8_t));
-    cudaMalloc(&cuda_dpf_eval, parallel*sizeof(class FssDpfEval));
-    cudaMalloc(&cuda_aes_block_array, parallel*sizeof(class aes_eval_block));
-    cudaMemcpy(cuda_aes_block_array, cpu_aes_block_array, parallel*sizeof(class aes_eval_block), cudaMemcpyHostToDevice);
+    gpuErrorCheck(cudaMalloc(&cuda_output, parallel * input_byte * sizeof(uint8_t)));
+    gpuErrorCheck(cudaMemcpy(cuda_output, cpu_values.output, parallel * input_byte * sizeof(uint8_t), cudaMemcpyHostToDevice));
+    gpuErrorCheck(cudaMalloc(&cuda_result, parallel * input_byte * sizeof(uint8_t)));
+    gpuErrorCheck(cudaMalloc(&cuda_dpf_eval, parallel*sizeof(class FssDpfEval)));
+    gpuErrorCheck(cudaMalloc(&cuda_aes_block_array, parallel*sizeof(class aes_eval_block)));
+    gpuErrorCheck(cudaMemcpy(cuda_aes_block_array, cpu_aes_block_array, parallel*sizeof(class aes_eval_block), cudaMemcpyHostToDevice));
 
     cudaDeviceSynchronize();
     cudaEvent_t start1;
@@ -150,32 +147,29 @@ void fss_dpf_evaluate(InputByteRelatedValuesEval cpu_eval_values, InputByteRelat
         st_update_eval<<<BlockperGrid, ThreadperBlock>>>(cuda_aes_block_array, cuda_reveal, cuda_scw, cuda_tcw_0, cuda_tcw_1, cuda_dpf_eval, i, input_byte, input_length, parallel);  
     }
     result_update_eval<<<BlockperGrid, ThreadperBlock>>>(cuda_result, cuda_aes_block_array, cuda_output, cuda_dpf_eval, input_byte, parallel);
-    cudaMemcpy(cpu_eval_values.result, cuda_result, parallel*input_byte*sizeof(uint8_t), cudaMemcpyDeviceToHost);
+    gpuErrorCheck(cudaMemcpy(cpu_eval_values.result, cuda_result, parallel*input_byte*sizeof(uint8_t), cudaMemcpyDeviceToHost));
     cudaEventRecord(stop1);
     cudaEventSynchronize(stop1);
     float msecTotal1,total;
     cudaEventElapsedTime(&msecTotal1, start1, stop1);
     total=msecTotal1/1000;
     printf("eval time:%f\n",total);
-    cudaFree(cuda_dpf_eval);
-    cudaFree(cuda_key_block);
-    cudaFree(cuda_reveal);
-    cudaFree(cuda_result);
-    cudaFree(cuda_scw);
-    cudaFree(cuda_tcw_0);
-    cudaFree(cuda_tcw_1);
-    cudaFree(cuda_output);
-    cudaFree(cuda_aes_block_array);
+    gpuErrorCheck(cudaFree(cuda_dpf_eval));
+    gpuErrorCheck(cudaFree(cuda_key_block));
+    gpuErrorCheck(cudaFree(cuda_reveal));
+    gpuErrorCheck(cudaFree(cuda_result));
+    gpuErrorCheck(cudaFree(cuda_scw));
+    gpuErrorCheck(cudaFree(cuda_tcw_0));
+    gpuErrorCheck(cudaFree(cuda_tcw_1));
+    gpuErrorCheck(cudaFree(cuda_output));
+    gpuErrorCheck(cudaFree(cuda_aes_block_array));
 }
 
 void fss_dpf_generate_traverse(InputByteRelatedValuesGen cpu_values, aes_gen_block * cpu_aes_block_array, int input_length, int compress, int parallel){
-    int lambda = 127;  
     int input_byte = ceil(input_length/8);  
     input_length = input_length - compress;
-
     BYTE key[240];
     int keyLen = 16;
-    int blockLen = 16;
     KeyBlock * cuda_key_block;
     cudaMalloc(&cuda_key_block, 2 * sizeof(class KeyBlock));
     prepare_key(cuda_key_block, key, keyLen);
@@ -195,25 +189,25 @@ void fss_dpf_generate_traverse(InputByteRelatedValuesGen cpu_values, aes_gen_blo
     // input length related values
     // random values, shape = [parallel, input_byte]
     uint8_t * cuda_r;
-    cudaMalloc(&cuda_r, parallel * input_byte * sizeof(uint8_t));
-    cudaMemcpy(cuda_r, cpu_values.r, parallel * input_byte * sizeof(uint8_t), cudaMemcpyHostToDevice);
+    gpuErrorCheck(cudaMalloc(&cuda_r, parallel * input_byte * sizeof(uint8_t)));
+    gpuErrorCheck(cudaMemcpy(cuda_r, cpu_values.r, parallel * input_byte * sizeof(uint8_t), cudaMemcpyHostToDevice));
     // correction words, scw.shape = [parallel, input_length, input_byte]
     uint8_t * cuda_scw;
-    cudaMalloc(&cuda_scw, parallel * input_length * LAMBDA_BYTE * sizeof(uint8_t));
+    gpuErrorCheck(cudaMalloc(&cuda_scw, parallel * input_length * LAMBDA_BYTE * sizeof(uint8_t)));
     // tcw.shape = [parallel, input_length]
     bool * cuda_tcw_0;
     bool * cuda_tcw_1;
-    cudaMalloc(&cuda_tcw_0, parallel * input_length * sizeof(bool));
-    cudaMalloc(&cuda_tcw_1, parallel * input_length * sizeof(bool));
+    gpuErrorCheck(cudaMalloc(&cuda_tcw_0, parallel * input_length * sizeof(bool)));
+    gpuErrorCheck(cudaMalloc(&cuda_tcw_1, parallel * input_length * sizeof(bool)));
     // output.shape = [parallel, input_byte]
     uint8_t * cuda_output;
-    cudaMalloc(&cuda_output, parallel * input_byte * sizeof(uint8_t));
-    cudaMemset(cuda_output, 0, parallel * input_byte * sizeof(uint8_t));
+    gpuErrorCheck(cudaMalloc(&cuda_output, parallel * input_byte * sizeof(uint8_t)));
+    gpuErrorCheck(cudaMemset(cuda_output, 0, parallel * input_byte * sizeof(uint8_t)));
     // beta.shape = [parallel, input_byte]
 
-    cudaMalloc(&cuda_dpf_gen, parallel*sizeof(class FssDpfGen));
-    cudaMalloc(&cuda_aes_block_array, parallel*sizeof(class aes_gen_block));
-    cudaMemcpy(cuda_aes_block_array, cpu_aes_block_array, parallel*sizeof(class aes_gen_block), cudaMemcpyHostToDevice);
+    gpuErrorCheck(cudaMalloc(&cuda_dpf_gen, parallel*sizeof(class FssDpfGen)));
+    gpuErrorCheck(cudaMalloc(&cuda_aes_block_array, parallel*sizeof(class aes_gen_block)));
+    gpuErrorCheck(cudaMemcpy(cuda_aes_block_array, cpu_aes_block_array, parallel*sizeof(class aes_gen_block), cudaMemcpyHostToDevice));
     
     cudaDeviceSynchronize();
     cudaEvent_t start1;
@@ -222,6 +216,7 @@ void fss_dpf_generate_traverse(InputByteRelatedValuesGen cpu_values, aes_gen_blo
     cudaEventCreate(&stop1);
     cudaEventRecord(start1);
 
+    
     gen_init<<<BlockperGrid, ThreadperBlock>>>(cuda_dpf_gen, parallel);
     for(int i = 0; i < input_length; i++){        
         for(int j = 0; j < 2; j++){
@@ -235,10 +230,10 @@ void fss_dpf_generate_traverse(InputByteRelatedValuesGen cpu_values, aes_gen_blo
     }
     final_cw_update_gen_compress<<<BlockperGrid, ThreadperBlock>>>(cuda_r, cuda_aes_block_array, cuda_output, cuda_dpf_gen, input_byte, compress, parallel);
     printGpuBytes<<<1,1>>>(cuda_output, 0, input_byte);
-    cudaMemcpy(cpu_values.scw, cuda_scw, parallel * input_length * LAMBDA_BYTE * sizeof(uint8_t), cudaMemcpyDeviceToHost);
-    cudaMemcpy(cpu_values.tcw[0], cuda_tcw_0, parallel * input_length * sizeof(bool), cudaMemcpyDeviceToHost);
-    cudaMemcpy(cpu_values.tcw[1], cuda_tcw_1, parallel * input_length * sizeof(bool), cudaMemcpyDeviceToHost);
-    cudaMemcpy(cpu_values.output, cuda_output, parallel * input_byte * sizeof(uint8_t), cudaMemcpyDeviceToHost);
+    gpuErrorCheck(cudaMemcpy(cpu_values.scw, cuda_scw, parallel * input_length * LAMBDA_BYTE * sizeof(uint8_t), cudaMemcpyDeviceToHost));
+    gpuErrorCheck(cudaMemcpy(cpu_values.tcw[0], cuda_tcw_0, parallel * input_length * sizeof(bool), cudaMemcpyDeviceToHost));
+    gpuErrorCheck(cudaMemcpy(cpu_values.tcw[1], cuda_tcw_1, parallel * input_length * sizeof(bool), cudaMemcpyDeviceToHost));
+    gpuErrorCheck(cudaMemcpy(cpu_values.output, cuda_output, parallel * input_byte * sizeof(uint8_t), cudaMemcpyDeviceToHost));
 
     cudaEventRecord(stop1);
     cudaEventSynchronize(stop1);
@@ -246,12 +241,12 @@ void fss_dpf_generate_traverse(InputByteRelatedValuesGen cpu_values, aes_gen_blo
     cudaEventElapsedTime(&msecTotal1, start1, stop1);
     total=msecTotal1/1000;
     printf("eval time:%f\n",total);
-    cudaFree(cuda_dpf_gen);
-    cudaFree(cuda_aes_block_array);
-    cudaFree(cuda_r);
-    cudaFree(cuda_output);
-    cudaFree(cuda_scw);
-    cudaFree(cuda_tcw_0);
-    cudaFree(cuda_tcw_1);
+    gpuErrorCheck(cudaFree(cuda_dpf_gen));
+    gpuErrorCheck(cudaFree(cuda_aes_block_array));
+    gpuErrorCheck(cudaFree(cuda_r));
+    gpuErrorCheck(cudaFree(cuda_output));
+    gpuErrorCheck(cudaFree(cuda_scw));
+    gpuErrorCheck(cudaFree(cuda_tcw_0));
+    gpuErrorCheck(cudaFree(cuda_tcw_1));
 }
 
