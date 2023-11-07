@@ -289,94 +289,98 @@ def vec_softmax(x):
     return e_x / sum(e_x)
 
 
-
 def log_softmax(input, dim=-1):  # todo
-    op_id = get_opid()
-    @backwardbuildingblock(get_program().globalbuildingblock[:-13]+"-tanh-backward")
-    def propagate(dl_doutputs, operation):
-        dl_dy, = dl_doutputs
-        output = tensors[operation.outputs[0]]
-        softmax_value=operation.intermediate[0]
-        # softmax_value.print_reveal_nested()
-        if isinstance(input.value, MultiArray):
-            # dl_dx = ( dl_dy  -  dl_dy*softmax(x)).sum( dim=-1 ) )
-            inter_sum=operation.intermediate[4]
-            inter_inital0=operation.intermediate[5]
-            inter_broadcast_sub=operation.intermediate[6]
-            
-            # inter_inital0[:]=1-mpc_math.exp_fx(output.value[:])
-            # dl_dy.element_wise_mul(inter_inital0,inter_inital0 )
-            dl_dy.sum(dim,res=inter_sum,keepdims=True)
-            # boardcasted_multiarray_sub(dl_dy, inter_sum,inter_broadcast_sub,inter_inital0)
-            # softmax_value.element_wise_mul(inter_inital0, inter_inital0)
-            # print_ln('log_softmax backward:end:')
-            # inter_inital0.print_reveal_nested()
-            dl_d[operation.inputs[0]][:] += inter_inital0[:]
-        else:
-            n=input.shape[0]
-            res = dl_dy[:]-(sum(dl_dy)*n*softmax_value[:])
-            dl_d[operation.inputs[0]][:] += res     
+    tmp=softmax(input=input,dim=dim)
+    return tmp.log()
 
-    prepare = get_prepare()
-    if prepare:
-        assert isinstance(input, Tensor),"Invalid Input"
-        assert isinstance(dim, int) , "dim is not int"
-        if isinstance(input.value,Array):
-            new_value=Array(input.shape[0],input.value.value_type)
-            inter=[Array(input.shape[0],input.value.value_type)]
-        else:
-            new_value=MultiArray(list(input.shape) ,input.value.value_type)
-            changed_size=list(input.shape)
-            changed_size=input.value.tuple_permute(input.shape,get_permute(len(input.sizes), [dim])) #dim=2,input:[4,3,2,5]-->[4,3,5,2]
-            inter=[MultiArray(list(input.shape) ,input.value.value_type),MultiArray(changed_size,input.value.value_type),
-                   MultiArray(changed_size,input.value.value_type),MultiArray(changed_size,input.value.value_type)] 
-            #softmax,changed_0,changed_output_0,changed_output_2
-        output = Tensor(new_value, req_grad=input.req_grad)
-        if input.req_grad:
-            if isinstance(input.value,MultiArray):
-                reduced_dim=list(input.shape)
-                reduced_dim[dim]=1
-                inter_sum=MultiArray(reduced_dim,input.value.value_type)  
-                dims, v1, _ = reconst_dims(output.value, inter_sum)
-                target_size = v1.tuple_permute(output.value.sizes, get_permute(len(output.sizes), dims))      
-                inter+=[inter_sum,MultiArray(list(input.shape) ,input.value.value_type)
-                        ,MultiArray(target_size ,input.value.value_type)]       
-            operation = Operation(inputs=[input.name], outputs=[output.name], propagate=propagate,intermediate=inter)
-        else:
-            operation = Operation(inputs=[input.name], outputs=[output.name], propagate=fake_propagate,intermediate=inter)
-        gradient_operation.append(operation)
-        operation_id = len(gradient_operation) - 1
-        op_id_store[op_id] = operation_id
-        set_opid(op_id+1)
-    else:
-        operation = gradient_operation[op_id_store[op_id]]
-        input = tensors[operation.inputs[0]]
-        output = tensors[operation.outputs[0]]
-        softmax_value=operation.intermediate[0]
-        
-        if isinstance(input.value,Array):
-            logsoftmax_sfix,softmax_sfix=vec_logsoftmax_softmax(input.value.get_vector())
-            output.value.assign_vector(logsoftmax_sfix,0)
-            softmax_value.assign_vector(softmax_sfix)
-        else:
-            changed_0= operation.intermediate[1]  #store permuted input value
-            changed_output_1=operation.intermediate[2] #store permuted logsoftmax
-            changed_output_2=operation.intermediate[3] #store permuted softmax
-   
-            input.value.permute_without_malloc( changed_0 ,get_permute(len(output.sizes), [dim]))      
-            times, num_per_time = reduce(operator.mul, changed_0.shape[:-1]) if len(changed_0.shape[:-1]) >= 1 else 1, changed_0.shape[-1]
-            @for_range_opt(times)
-            def _(i):
-                logsoftmax_sfix,softmax_sfix=vec_logsoftmax_softmax(changed_0.get_vector(i*num_per_time, num_per_time))
-                changed_output_1.assign_vector(logsoftmax_sfix, i*num_per_time)
-                changed_output_2.assign_vector(softmax_sfix, i*num_per_time)
-            break_point()
+
+# def log_softmax(input, dim=-1):  # todo
+#     op_id = get_opid()
+#     @backwardbuildingblock(get_program().globalbuildingblock[:-13]+"-tanh-backward")
+#     def propagate(dl_doutputs, operation):
+#         dl_dy, = dl_doutputs
+#         output = tensors[operation.outputs[0]]
+#         softmax_value=operation.intermediate[0]
+#         # softmax_value.print_reveal_nested()
+#         if isinstance(input.value, MultiArray):
+#             # dl_dx = ( dl_dy  -  dl_dy*softmax(x)).sum( dim=-1 ) )
+#             inter_sum=operation.intermediate[4]
+#             inter_inital0=operation.intermediate[5]
+#             inter_broadcast_sub=operation.intermediate[6]
             
-            changed_output_1.permute_without_malloc(output.value,get_permute(len(output.sizes), [dim]))
-            changed_output_2.permute_without_malloc(operation.intermediate[0],get_permute(len(output.sizes), [dim]))
+#             # inter_inital0[:]=1-mpc_math.exp_fx(output.value[:])
+#             # dl_dy.element_wise_mul(inter_inital0,inter_inital0 )
+#             dl_dy.sum(dim,res=inter_sum,keepdims=True)
+#             # boardcasted_multiarray_sub(dl_dy, inter_sum,inter_broadcast_sub,inter_inital0)
+#             # softmax_value.element_wise_mul(inter_inital0, inter_inital0)
+#             # print_ln('log_softmax backward:end:')
+#             # inter_inital0.print_reveal_nested()
+#             dl_d[operation.inputs[0]][:] += inter_inital0[:]
+#         else:
+#             n=input.shape[0]
+#             res = dl_dy[:]-(sum(dl_dy)*n*softmax_value[:])
+#             dl_d[operation.inputs[0]][:] += res     
+
+#     prepare = get_prepare()
+#     if prepare:
+#         assert isinstance(input, Tensor),"Invalid Input"
+#         assert isinstance(dim, int) , "dim is not int"
+#         if isinstance(input.value,Array):
+#             new_value=Array(input.shape[0],input.value.value_type)
+#             inter=[Array(input.shape[0],input.value.value_type)]
+#         else:
+#             new_value=MultiArray(list(input.shape) ,input.value.value_type)
+#             changed_size=list(input.shape)
+#             changed_size=input.value.tuple_permute(input.shape,get_permute(len(input.sizes), [dim])) #dim=2,input:[4,3,2,5]-->[4,3,5,2]
+#             inter=[MultiArray(list(input.shape) ,input.value.value_type),MultiArray(changed_size,input.value.value_type),
+#                    MultiArray(changed_size,input.value.value_type),MultiArray(changed_size,input.value.value_type)] 
+#             #softmax,changed_0,changed_output_0,changed_output_2
+#         output = Tensor(new_value, req_grad=input.req_grad)
+#         if input.req_grad:
+#             if isinstance(input.value,MultiArray):
+#                 reduced_dim=list(input.shape)
+#                 reduced_dim[dim]=1
+#                 inter_sum=MultiArray(reduced_dim,input.value.value_type)  
+#                 dims, v1, _ = reconst_dims(output.value, inter_sum)
+#                 target_size = v1.tuple_permute(output.value.sizes, get_permute(len(output.sizes), dims))      
+#                 inter+=[inter_sum,MultiArray(list(input.shape) ,input.value.value_type)
+#                         ,MultiArray(target_size ,input.value.value_type)]       
+#             operation = Operation(inputs=[input.name], outputs=[output.name], propagate=propagate,intermediate=inter)
+#         else:
+#             operation = Operation(inputs=[input.name], outputs=[output.name], propagate=fake_propagate,intermediate=inter)
+#         gradient_operation.append(operation)
+#         operation_id = len(gradient_operation) - 1
+#         op_id_store[op_id] = operation_id
+#         set_opid(op_id+1)
+#     else:
+#         operation = gradient_operation[op_id_store[op_id]]
+#         input = tensors[operation.inputs[0]]
+#         output = tensors[operation.outputs[0]]
+#         softmax_value=operation.intermediate[0]
         
-        set_opid(op_id+1)  # record the input and output of the op
-    return output
+#         if isinstance(input.value,Array):
+#             logsoftmax_sfix,softmax_sfix=vec_logsoftmax_softmax(input.value.get_vector())
+#             output.value.assign_vector(logsoftmax_sfix,0)
+#             softmax_value.assign_vector(softmax_sfix)
+#         else:
+#             changed_0= operation.intermediate[1]  #store permuted input value
+#             changed_output_1=operation.intermediate[2] #store permuted logsoftmax
+#             changed_output_2=operation.intermediate[3] #store permuted softmax
+   
+#             input.value.permute_without_malloc( changed_0 ,get_permute(len(output.sizes), [dim]))      
+#             times, num_per_time = reduce(operator.mul, changed_0.shape[:-1]) if len(changed_0.shape[:-1]) >= 1 else 1, changed_0.shape[-1]
+#             @for_range_opt(times)
+#             def _(i):
+#                 logsoftmax_sfix,softmax_sfix=vec_logsoftmax_softmax(changed_0.get_vector(i*num_per_time, num_per_time))
+#                 changed_output_1.assign_vector(logsoftmax_sfix, i*num_per_time)
+#                 changed_output_2.assign_vector(softmax_sfix, i*num_per_time)
+#             break_point()
+            
+#             changed_output_1.permute_without_malloc(output.value,get_permute(len(output.sizes), [dim]))
+#             changed_output_2.permute_without_malloc(operation.intermediate[0],get_permute(len(output.sizes), [dim]))
+        
+#         set_opid(op_id+1)  # record the input and output of the op
+#     return output
  
 def vec_logsoftmax_softmax(x):
     x_minus_max=x - util.max(x)
@@ -430,14 +434,14 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0]):
 
         stride_h, stride_w = stride
         padding_h, padding_w = padding
+        print("padding:",padding)
         
         n_threads=8 if input.numel() > 2**20 else 1
         batch=Array.create_from(regint.inc(N))
         input_size = inputs_h * inputs_w * N #why have no channel_in? 128*36
         batch_repeat = regint.Matrix(N, inputs_h * inputs_w) # 128,6*6
-        batch_repeat.assign_vector(batch.get(
-            regint.inc(input_size, 0, 1, 1, N)) *
-                                   reduce(operator.mul, input_value.sizes[1:]))
+        batch_repeat.assign_vector( batch.get(
+            regint.inc(input_size, 0, 1, 1, N)) * reduce(operator.mul, input_value.sizes[1:]) )
         @for_range_opt_multithread(n_threads, [n_channels_in, n_channels_out])
         def _(i, j):
             a = regint.inc(input_size, input_value.address + i, n_channels_in, N,
@@ -452,12 +456,12 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0]):
                     inputs_w, output_h, output_w, -stride_h, -stride_w, N,
                     padding_h, padding_w, 1) 
             reduced = unreduced_sfix._new(res).reduce_after_mul()
-            weight.grad.assign_vector_by_indices(reduced, j, i,None, None)
+            weight.grad.assign_vector_by_indices(reduced, j, i,None, None)  
         
+        print("\nbackward for X start:\n")
+        print(weights_h,weights_w,inputs_h, inputs_w,output_h, output_w)
         
         nabla_X=input.grad.permute([0,2,3,1])
-        
-        
         reverse_weights = MultiArray(
                 [n_channels_in, weights_h, weights_w, n_channels_out], sfix)
         @for_range_opt_multithread(n_threads, n_channels_in)
@@ -487,8 +491,9 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0]):
                     padded_h, padded_w, output_h, output_w,
                     weights_h, weights_w, 1, 1, n_channels_out,
                     weights_h - 1, weights_w - 1, 1)
-            input.grad.assign_vector_by_indices(
-                unreduced_sfix._new(res).reduce_after_mul(),i, j,None, None)
+            output.assign_vector_by_indices(
+                unreduced_sfix._new(res).reduce_after_mul(),i, None, None, j)
+            
         if padding_h or padding_w:
             @for_range_opt_multithread(n_threads, N)
             def _(i):
@@ -498,8 +503,9 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0]):
                     def _(k):
                         jj = j + padding_w
                         kk = k + padding_w
-                        nabla_X[i][j][k].assign_vector(output[i][jj][kk].get_vector())
-            # nable_X.print_reveal_nested()
+                        nabla_X[i][j][k].assign_vector(
+                                output[i][jj][kk].get_vector())
+        nabla_X.permute_without_malloc(input.grad,[0,3,1,2])
         
         
     prepare = get_prepare()

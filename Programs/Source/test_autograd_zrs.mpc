@@ -513,7 +513,7 @@ def test_conv2d():
     weight.grad.print_reveal_nested()
     input.grad.print_reveal_nested()
 
-#test_conv2d()
+
 
 
 
@@ -848,11 +848,13 @@ def test_logsoftmax_F_Array():
     output.backward()
     input1.grad.print_reveal_nested()
 
+
+#test_conv2d()
 test_logsoftmax_F_Array()
 
 #test_softmax_0()
 
-#test_log_softmax_0()
+test_log_softmax_0()
 
 
 
