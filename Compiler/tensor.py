@@ -2411,7 +2411,7 @@ class Tensor():
             else:
                 new_value=MultiArray(list(self.shape) ,self.value.value_type)
                 changed_size=list(self.shape)
-                changed_size=self.value.tuple_permute(self.shape,get_permute(len(self.sizes), [dim])) #dim=2,input:[4,3,2,5]-->[4,3,5,2]
+                changed_size=self.value.tuple_permute(self.shape,get_permute(len(self.sizes), [(dim)%len(output.sizes)])) #dim=2,input:[4,3,2,5]-->[4,3,5,2]
                 inter=[MultiArray(changed_size,self.value.value_type),MultiArray(changed_size,self.value.value_type)]
             output = Tensor(new_value, req_grad=self.req_grad)
             if self.req_grad:
@@ -2439,7 +2439,7 @@ class Tensor():
             else:
                 changed_0= operation.intermediate[0]  
                 changed_output_1=operation.intermediate[1]
-                input.value.permute_without_malloc( changed_0 ,get_permute(len(output.sizes), [dim]))      
+                input.value.permute_without_malloc( changed_0 ,get_permute(len(output.sizes), [(dim)%len(output.sizes)]))      
                 times, num_per_time = reduce(operator.mul, changed_0.shape[:-1]) if len(changed_0.shape[:-1]) >= 1 else 1, changed_0.shape[-1]
                 index = regint(0)
                 @for_range_opt(times)
@@ -2448,7 +2448,7 @@ class Tensor():
                     index.update(index+num_per_time)
                 break_point()
                 
-                changed_output_1.permute_without_malloc(output.value,get_permute(len(output.sizes), [dim]))
+                changed_output_1.permute_without_malloc(output.value,get_permute(len(output.sizes), [(dim)%len(output.sizes)]))
             
             set_opid(op_id+1)  # record the input and output of the op
         return output
