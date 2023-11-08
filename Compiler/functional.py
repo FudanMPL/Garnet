@@ -244,7 +244,7 @@ def softmax(input,dim=-1):
         else:
             new_value=MultiArray(list(input.shape) ,input.value.value_type)
             changed_size=list(input.shape)
-            changed_size=input.value.tuple_permute(input.shape,get_permute(len(input.sizes), [dim])) #dim=2,input:[4,3,2,5]-->[4,3,5,2]
+            changed_size=input.value.tuple_permute(input.shape,get_permute(len(input.sizes), [dim%len(input.sizes)])) #dim=2,input:[4,3,2,5]-->[4,3,5,2]
             inter=[MultiArray(changed_size,input.value.value_type),MultiArray(changed_size,input.value.value_type)]
         output = Tensor(new_value, req_grad=input.req_grad)
         if input.req_grad:
@@ -272,14 +272,14 @@ def softmax(input,dim=-1):
         else:
             changed_0= operation.intermediate[0]  
             changed_output_1=operation.intermediate[1]
-            input.value.permute_without_malloc( changed_0 ,get_permute(len(output.sizes), [dim]))      
+            input.value.permute_without_malloc( changed_0 ,get_permute(len(output.sizes), [(dim)%len(output.sizes)]))      
             times, num_per_time = reduce(operator.mul, changed_0.shape[:-1]) if len(changed_0.shape[:-1]) >= 1 else 1, changed_0.shape[-1]
             @for_range_opt(times)
             def _(i):
                 changed_output_1.assign_vector(vec_softmax(changed_0.get_vector(i*num_per_time, num_per_time)), i*num_per_time)
             break_point()
             
-            changed_output_1.permute_without_malloc(output.value,get_permute(len(output.sizes), [dim]))
+            changed_output_1.permute_without_malloc(output.value,get_permute(len(output.sizes), [ dim%len(output.sizes) ]))
         
         set_opid(op_id+1)  # record the input and output of the op
     return output
