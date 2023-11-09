@@ -53,15 +53,15 @@ for i in params:
     i.assign_all(0.1)
 model.train(crossloss, dataload)
 
-@for_range(10)
+@for_range(1)
 def _(i):
     input, label = dataload.get_data(0)
     output = model(input)
-    loss = crossloss(output, label)
-    optimizer.zero_grad()
-    loss.backward()
-    output.print_reveal_nested()
-    loss.print_reveal_nested()
-    output.grad.print_reveal_nested()
-    optimizer.step()
+   # loss = crossloss(output, label)
+   # optimizer.zero_grad()
+ #   loss.backward()
+  #  output.print_reveal_nested()
+  #  loss.print_reveal_nested()
+   # output.grad.print_reveal_nested()
+   # optimizer.step()
    
