@@ -46,20 +46,20 @@ RingMachine<U, V, W>::RingMachine(int argc, const char** argv,
     int R = opts.ring_size_from_opts_or_schedule(online_opts.progname);
     switch (R)
     {
-#define X(L) \
-    case L: \
-        machine.template run<U<L>, V<gf2n>>(); \
-        break;
-    X(64)
-#ifndef FEWER_RINGS
-    X(72) X(128) X(192)
-#endif
-#ifdef RING_SIZE
-    X(RING_SIZE)
-#endif
-#undef X
-    default:
-        ring_domain_error(R);
+        #define X(L) \
+            case L: \
+                machine.template run<U<L>, V<gf2n>>(); \
+                break;
+            X(64)
+        #ifndef FEWER_RINGS
+            X(72) X(128) X(192)
+        #endif
+        #ifdef RING_SIZE
+            X(RING_SIZE)
+        #endif
+        #undef X
+            default:
+                ring_domain_error(R);
     }
 }
 
