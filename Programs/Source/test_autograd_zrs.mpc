@@ -860,29 +860,6 @@ def test_logsoftmax_F_Array():
 
 
 
-
-
-'''
-x = Array(10, sfix)
-for i in range(0,10):
-    x[i] = sfix(i)
-x.print_reveal_nested()
-
-y=x
-tmp=x+y
-print_ln('%s',tmp.reveal())
-y.print_reveal_nested()
-y[i]=1000
-y.print_reveal_nested()
-x.print_reveal_nested()
-print_ln('%s',tmp.reveal())
-'''
-
-
-
-
-
-
 #test_softmax_F_Array()
 
 #test_cross_entropy()
