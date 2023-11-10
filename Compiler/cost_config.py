@@ -123,7 +123,18 @@ class ABY(Cost):
         "bit_share":lambda bit_length, kapaa, precision, n_parties: (2, 1, 0, 0),
         "ands":lambda bit_length, kapaa, precision, n_parties: (2, 1, 0, 0)
    }
-
+    
+class CryptoFlow2(Cost):
+    cost_dict_func = {
+        "share": lambda bit_length, kapaa, precision, n_parties: (0, 0, 0, 0),
+        "open" : lambda bit_length, kapaa, precision, n_parties: (bit_length*2, 1, 0, 0),
+        "muls" : lambda bit_length, kapaa, precision, n_parties: (bit_length*2, 1, 0, 0),
+        "matmuls": lambda bit_length, kapaa, precision, n_parties, p ,q, r: (p*q*r*bit_length*2, 1, 0, 0),
+        "trunc": lambda bit_length, kapaa, precision, n_parties: (0, 0, 0, 0),
+        "bit_share":lambda bit_length, kapaa, precision, n_parties: (2, 1, 0, 0),
+        "LTZ": lambda bit_length, kapaa, precision, n_parties: (bit_length*kapaa+18*bit_length, math.log2(bit_length)+2, 0, 0),
+        "ands":lambda bit_length, kapaa, precision, n_parties: (2, 1, 0, 0)
+   }
 # class SPDZ(Cost):
 #     cost_dict_func = {
 #         "share": lambda bit_length, kapaa, precision, n_parties: (bit_length*3, 1, 0, 0),
@@ -166,7 +177,8 @@ protocol_store = {
     "ABY": ABY(),
     # "ABY2.0": ABY2(),
     # "Falcon": Falcon(),
-    "BGW": BGW()
+    "BGW": BGW(),
+    "CryptFlow2": CryptoFlow2()
     # "SPDZ": SPDZ()
 }
 
