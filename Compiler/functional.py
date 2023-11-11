@@ -322,7 +322,7 @@ def log_softmax(input, dim=-1):  # todo
         else:
             new_value=MultiArray(list(input.shape) ,input.value.value_type)
             changed_size=list(input.shape)
-            changed_size=input.value.tuple_permute(input.shape,get_permute(len(input.sizes), [dim])) #dim=2,input:[4,3,2,5]-->[4,3,5,2]
+            changed_size=input.value.tuple_permute(input.shape,get_permute(len(input.sizes), [dim%len(input.sizes)])) #dim=2,input:[4,3,2,5]-->[4,3,5,2]
             inter=[MultiArray(list(input.shape) ,input.value.value_type),MultiArray(changed_size,input.value.value_type),
                    MultiArray(changed_size,input.value.value_type),MultiArray(changed_size,input.value.value_type)] 
             #softmax,changed_0,changed_output_0,changed_output_2
