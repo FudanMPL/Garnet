@@ -211,10 +211,10 @@ def tanh(input):  # todo
     # return output
     
 
-
+@buildingblock("softmax-forward")
 def softmax(input,dim=-1):
     op_id = get_opid()
-    @backwardbuildingblock(get_program().globalbuildingblock[:-13]+"-tanh-backward")
+    @backwardbuildingblock(get_program().globalbuildingblock[:-16]+"-softmax-backward")
     def propagate(dl_doutputs, operation):
         dl_dy, = dl_doutputs
         output = tensors[operation.outputs[0]]
@@ -358,7 +358,7 @@ def log_softmax(input, dim=-1):  # todo
             changed_output_1=operation.intermediate[2] #store permuted logsoftmax
             changed_output_2=operation.intermediate[3] #store permuted softmax
    
-            input.value.permute_without_malloc( changed_0 ,get_permute(len(output.sizes), [dim]))      
+            input.value.permute_without_malloc( changed_0 ,get_permute(len(output.sizes), [dim%len(output.sizes)]))      
             times, num_per_time = reduce(operator.mul, changed_0.shape[:-1]) if len(changed_0.shape[:-1]) >= 1 else 1, changed_0.shape[-1]
             @for_range_opt(times)
             def _(i):
@@ -367,8 +367,8 @@ def log_softmax(input, dim=-1):  # todo
                 changed_output_2.assign_vector(softmax_sfix, i*num_per_time)
             break_point()
             
-            changed_output_1.permute_without_malloc(output.value,get_permute(len(output.sizes), [dim]))
-            changed_output_2.permute_without_malloc(operation.intermediate[0],get_permute(len(output.sizes), [dim]))
+            changed_output_1.permute_without_malloc(output.value,get_permute(len(output.sizes), [dim%len(output.sizes)]))
+            changed_output_2.permute_without_malloc(operation.intermediate[0],get_permute(len(output.sizes), [dim%len(output.sizes)]))
         
         set_opid(op_id+1)  # record the input and output of the op
     return output
@@ -640,7 +640,9 @@ def max_pool2d(input, kernel_size=2, stride=2, padding=0):
         assert isinstance(input, Tensor)  ,"Invalid Input and weight"
         assert len(input.shape)==4,"Invalid Dimension input"
         if padding == 'SAME':
-            output_shape = [int(math.ceil(shape[i] / strides[i])) for i in range(4)]
+            # if isinstance(stride, int):
+            strides = (1, 1, stride[0], stride[0])
+            output_shape = [int(math.ceil(input.shape[i] / strides[i])) for i in range(4)]
         else:
             output_shape = [input.shape[0],input.shape[1],(input.shape[2]-kernel_size[0])//stride[0]+1,
                             (input.shape[3]-kernel_size[1])//stride[1]+1 ]
@@ -992,6 +994,7 @@ def batch_norm(input, running_mean, running_var, weight=None, bias=None, trainin
     
     if training:
         x_mean = input.mean(dim=[0,2,3], keepdim=True)
+        # x_var = input.std(dim=[0,2,3], keepdim=True) 
         x_var = input.var(dim=[0,2,3], keepdim=True, unbiased=True) #5s
         running_mean.value[:] = x_mean.value[:] * momentum + running_mean.value[:] * (1-momentum)
         running_var.value[:] = x_var.value[:] * momentum + running_var.value[:] * (1-momentum)
@@ -1000,6 +1003,7 @@ def batch_norm(input, running_mean, running_var, weight=None, bias=None, trainin
         x_var = running_var
     x_var = x_var + eps # todo
     output = (input - x_mean) * x_var.invsqrt() #9s 5s 4s
+    # output = (input - x_mean) / x_var
     if weight is not None:
         output = output * weight
     if bias is not None:
@@ -1249,8 +1253,6 @@ def mse_loss(input, target, reduction='mean'):
     if reduction == 'mean':
         out /= input.value.total_size()
     return out
-
-
 
 
 
