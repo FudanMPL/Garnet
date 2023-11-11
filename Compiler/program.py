@@ -88,6 +88,7 @@ class Program(object):
         self.name = name
         self.init_names(args)
         self._security = 40
+        self.c_security = 128
         self.prime = None
         self.tapes = []
         self._protect_memory = False
@@ -824,7 +825,7 @@ class Tape:
         def expand_cisc(self):
             new_instructions = []
             if self.parent.program.options.keep_cisc is not None:
-                skip = ["LTZ"]
+                skip = ["LTZ", "Trunc"]
                 skip += self.parent.program.options.keep_cisc.split(",")
             else:
                 skip = []

@@ -358,7 +358,7 @@ def log_softmax(input, dim=-1):  # todo
             changed_output_1=operation.intermediate[2] #store permuted logsoftmax
             changed_output_2=operation.intermediate[3] #store permuted softmax
    
-            input.value.permute_without_malloc( changed_0 ,get_permute(len(output.sizes), [dim]))      
+            input.value.permute_without_malloc( changed_0 ,get_permute(len(output.sizes), [dim%len(output.sizes)]))      
             times, num_per_time = reduce(operator.mul, changed_0.shape[:-1]) if len(changed_0.shape[:-1]) >= 1 else 1, changed_0.shape[-1]
             @for_range_opt(times)
             def _(i):
@@ -367,8 +367,8 @@ def log_softmax(input, dim=-1):  # todo
                 changed_output_2.assign_vector(softmax_sfix, i*num_per_time)
             break_point()
             
-            changed_output_1.permute_without_malloc(output.value,get_permute(len(output.sizes), [dim]))
-            changed_output_2.permute_without_malloc(operation.intermediate[0],get_permute(len(output.sizes), [dim]))
+            changed_output_1.permute_without_malloc(output.value,get_permute(len(output.sizes), [dim%len(output.sizes)]))
+            changed_output_2.permute_without_malloc(operation.intermediate[0],get_permute(len(output.sizes), [dim%len(output.sizes)]))
         
         set_opid(op_id+1)  # record the input and output of the op
     return output

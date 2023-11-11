@@ -1898,6 +1898,28 @@ class Sigmoid(Module):
     def forward(self, input: Tensor) -> Tensor:
         return F.sigmoid(input)
 
+class Relu(Module):
+    r"""Applies the element-wise function:
+
+    .. math::
+        \text{Sigmoid}(x) = \sigma(x) = \frac{1}{1 + \exp(-x)}
+
+
+    Shape:
+        - Input: :math:`(*)`, where :math:`*` means any number of dimensions.
+        - Output: :math:`(*)`, same shape as the input.
+
+    .. image:: ../scripts/activation_images/Sigmoid.png
+
+    Examples::
+
+        >>> m = nn.Sigmoid()
+        >>> input = torch.randn(2)
+        >>> output = m(input)
+    """
+
+    def forward(self, input: Tensor) -> Tensor:
+        return F.relu(input)
 
 class Tanh(Module):
     r"""Applies the Hyperbolic Tangent (Tanh) function element-wise.
@@ -1921,7 +1943,7 @@ class Tanh(Module):
     """
 
     def forward(self, input: Tensor) -> Tensor:
-        return torch.tanh(input)
+        return F.tanh(input)
 
 
 class _Loss(Module):
