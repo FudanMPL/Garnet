@@ -31,7 +31,7 @@ class LeNet(nn.Module):
         output = self.fc1(output)
         return output
 
-model = LeNet()
+
 crossloss = nn.MSELoss()
 
 x = MultiArray([10,1,28,28], sfix)
@@ -45,22 +45,46 @@ y.assign_all(0)
 for i in range(10):
     y[i][i//3] = 1
 
-dataload = dataloader.DataLoader(x, y, batch_size = 3, shuffle=True)
-optimizer = optim.SGD(model.parameters(), lr = 0.01)
-params = list(model.parameters())
-for i in params:
-    i.assign_all(0.1)
-model.train(crossloss, dataload)
+
+
+n_bags = 3
+data_list = []
+models = []
+optimizers = []
+params_list = []
+
+for k in range(n_bags):
+    dataload = dataloader.DataLoader(x, y, batch_size = 2, shuffle=True)
+    data_list.append(dataload)
+
+    model = LeNet()
+    optimizer = optim.SGD(model.parameters(), lr = 0.01)
+
+    models.append(model)
+    optimizers.append(optimizer)
+
+    params = list(model.parameters())
+    for i in params:
+        i.assign_all(0.1)
+    model.train(crossloss, dataload)
+
+    
 
 @for_range(10)
 def _(i):
-    input, label = dataload.get_data(0)
-    output = model(input)
-    loss = crossloss(output, label)
-    optimizer.zero_grad()
-    loss.backward()
-    output.print_reveal_nested()
-    loss.print_reveal_nested()
-    output.grad.print_reveal_nested()
-    optimizer.step()
+    losses = []
+    for k in range(0, n_bags):
+        input, label = data_list[k].get_data(0)
+        output = models[k](input)
+        loss = crossloss(output, label)
+        losses.append(loss)
+
+    loss_agg = (losses[0].value[:] + losses[1].value[:] + losses[2].value[:])/3
+    print_ln("loss: %s", loss_agg.reveal())
+
+    for k in range(0, n_bags):
+        #losses[k].value[:] = 0.7 * losses[k].value[:] + 0.3 * loss_agg
+        optimizers[k].zero_grad()
+        losses[k].backward()
+        optimizers[k].step()
    

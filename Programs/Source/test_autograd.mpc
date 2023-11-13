@@ -168,6 +168,24 @@ def test_abs():
     input1.grad.print_reveal_nested()
 
 @autograd_function
+def test_argmax(dim):
+    print_ln('test_argmax')
+    i, j = 5, 5
+    x = MultiArray([i, j], sfix)
+    for i in range(0,5):
+        for  j in range(0,5):
+            x[i][j] = sfix((i*17+j*11)%5)
+    x.print_reveal_nested()
+    input1 = Tensor(x, req_grad = True)
+
+    input2 = input1.argmax(dim=dim)
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    input2.value.print_reveal_nested()
+
+@autograd_function
 def test_combine():
     print_ln('test_combine')
     i, j = 3, 3
@@ -749,6 +767,7 @@ def test_getitem():
     x[0].print_reveal_nested()
     
 #test_getitem()
+test_argmax(dim=1)
 #test_abs()
 #test_exp()
 #test_log()
@@ -773,7 +792,7 @@ def test_getitem():
 #test_neg()
 
 #test_f_droupout(0.5)
-test_f_batchnorm()
+#test_f_batchnorm()
 #test_f_layernorm()
 #test_f_mseloss()
 #test_f_normalize(p=2, dim=[0,1])
