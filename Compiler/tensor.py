@@ -1507,6 +1507,7 @@ class Tensor():
         def _(i):
             t = temp.get_vector(i*stride, stride)
             output.value.assign_vector(argmax(t), i)
+        temp.delete()
         return output
     
     @buildingblock("mv-forward")
