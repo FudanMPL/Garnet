@@ -142,7 +142,7 @@ class DenseNet(nn.Module):
 #model = DenseNet(channels_in=3, compression=0.5, growth_rate=12, num_classes=10,num_bottleneck=[6, 12, 24, 16],
 #                        num_channels_before_dense=64,
 #                        num_dense_block=4)
-model = DenseNet(channels_in=3, compression=0.5, growth_rate=32, num_classes=10,num_bottleneck=[1, 2, 4,3],
+model = DenseNet(channels_in=3, compression=0.5, growth_rate=32, num_classes=10,num_bottleneck=[2,4, 8,4],
                         num_channels_before_dense=64,
                         num_dense_block=4)
 x = Tensor.ones(4, 3, 224, 224)
@@ -154,8 +154,8 @@ input, label = dataload.get_data(0)
 model.train(crossloss, dataload)
 
 output = model(input)
-loss = crossloss(output, label)
-optimizer.zero_grad()
+#loss = crossloss(output, label)
+#optimizer.zero_grad()
 #loss.backward()
 #output.print_reveal_nested()
 

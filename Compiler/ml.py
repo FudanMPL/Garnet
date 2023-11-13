@@ -1863,6 +1863,7 @@ class FixConv2d(Conv2d, FixBase):
                     [N, padded_h, padded_w, n_channels_in], sfix)
             else:
                 output = self.nabla_X
+            
             @for_range_opt_multithread(self.n_threads,
                                        [N, n_channels_in])
             def _(i, j):
@@ -1884,8 +1885,7 @@ class FixConv2d(Conv2d, FixBase):
                         def _(k):
                             jj = j + padding_w
                             kk = k + padding_w
-                            self.nabla_X[i][j][k].assign_vector(
-                                output[i][jj][kk].get_vector())
+                            self.nabla_X[i][j][k].assign_vector(output[i][jj][kk].get_vector())
 
         if self.debug_output:
             @for_range(len(batch))

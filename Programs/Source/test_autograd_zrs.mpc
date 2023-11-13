@@ -513,7 +513,7 @@ def test_conv2d():
     weight.grad.print_reveal_nested()
     input.grad.print_reveal_nested()
 
-#test_conv2d()
+
 
 
 
@@ -757,15 +757,17 @@ def test_softmax_0():
 
     input1 = Tensor(x, req_grad = True)
     input2 = Tensor(y, req_grad = True)
-    output = F.softmax(input1,dim=1)
+    output = F.softmax(input1,dim=0)
     out = output*input2
     tensor.train()
     tensor.reset_op_id()
-    output = F.softmax(input1,dim=1)
+    output = F.softmax(input1,dim=0)
     out = output*input2
     out.value.print_reveal_nested()
     out.backward()
     input1.grad.print_reveal_nested()
+
+test_softmax_0()
 
 @autograd_function
 def test_softmax_F_Array():
@@ -848,34 +850,13 @@ def test_logsoftmax_F_Array():
     output.backward()
     input1.grad.print_reveal_nested()
 
-test_logsoftmax_F_Array()
+
+#test_conv2d()
+#test_logsoftmax_F_Array()
 
 #test_softmax_0()
 
 #test_log_softmax_0()
-
-
-
-
-
-'''
-x = Array(10, sfix)
-for i in range(0,10):
-    x[i] = sfix(i)
-x.print_reveal_nested()
-
-y=x
-tmp=x+y
-print_ln('%s',tmp.reveal())
-y.print_reveal_nested()
-y[i]=1000
-y.print_reveal_nested()
-x.print_reveal_nested()
-print_ln('%s',tmp.reveal())
-'''
-
-
-
 
 
 

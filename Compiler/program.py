@@ -51,7 +51,7 @@ class defaults:
     garbled = False
     prime = None
     galois = 40
-    budget = 10000
+    budget = 100
     mixed = False
     edabit = False
     invperm = False
@@ -88,6 +88,7 @@ class Program(object):
         self.name = name
         self.init_names(args)
         self._security = 40
+        self.c_security = 128
         self.prime = None
         self.tapes = []
         self._protect_memory = False
@@ -195,7 +196,6 @@ class Program(object):
         types.program = self
         comparison.program = self
         comparison.set_variant(options)
-        print(self.get_cost("share"))
         
     def get_cost(self, name):
         if self.cost_config is None:
@@ -504,7 +504,7 @@ class Program(object):
         
         if self.tapes:
             self.update_req(self.curr_tape)
-
+        # self.req_num = self.curr_tape.req_node.aggregate()
         # finalize the memory
         self.finalize_memory()
 
@@ -825,7 +825,7 @@ class Tape:
         def expand_cisc(self):
             new_instructions = []
             if self.parent.program.options.keep_cisc is not None:
-                skip = ["LTZ"]
+                skip = ["LTZ", "Trunc"]
                 skip += self.parent.program.options.keep_cisc.split(",")
             else:
                 skip = []
@@ -1291,13 +1291,21 @@ class Tape:
             return res
 
         def aggregate_profiling(self, *args):
-            if not self.profiled:
-                for block in self.blocks:
-                    self.key = block.label
-                    if  self.buildingblock_cost_store[self.key] == -1:
-                        self.buildingblock_cost_store[self.key] = Tape.ReqNum()
-                    block.add_usage(self)    
-                self.profiled = True
+            # if self.profiled:
+            #     return self.buildingblock_cost_store
+            # if not self.profiled:
+            #     for block in self.blocks:
+            #         self.key = block.label
+            #         if  self.buildingblock_cost_store[self.key] == -1:
+            #             self.buildingblock_cost_store[self.key] = Tape.ReqNum()
+            #         block.add_usage(self)    
+            #     self.profiled = True
+            self.buildingblock_cost_store = defaultdict(lambda: -1)
+            for block in self.blocks:
+                self.key = block.label
+                if  self.buildingblock_cost_store[self.key] == -1:
+                    self.buildingblock_cost_store[self.key] = Tape.ReqNum()
+                block.add_usage(self)    
             def cost_store_add(x, y):
                 tmpRes = y.aggregate_profiling(self.name)    
                 for key, value in tmpRes.items():
@@ -1321,12 +1329,13 @@ class Tape:
             self.blocks.append(block)
 
     class ReqChild(object):
-        __slots__ = ["aggregator", "nodes", "parent"]
+        __slots__ = ["aggregator", "nodes", "parent", "profiled"]
 
         def __init__(self, aggregator, parent):
             self.aggregator = aggregator
             self.nodes = []
             self.parent = parent
+            self.profiled = False
 
         def aggregate(self, name):
             res = self.aggregator([node.aggregate() for node in self.nodes])

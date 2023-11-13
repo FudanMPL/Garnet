@@ -15,10 +15,10 @@ os.system('pwd')
 modellist=['./Compiler/DL/checkpoint/ckpt_ferplus_lenet.pth']
 namelist=['0.weight', '0.bias', '3.weight', '3.bias', '8.weight', '8.bias', '10.weight', '10.bias']
 
-training_samples = MultiArray([882, 32, 32, 3], sfix)
-training_labels = MultiArray([882, 7], sint)
-test_samples = MultiArray([99, 32, 32, 3], sfix)
-test_labels = MultiArray([99, 7], sint)
+training_samples = MultiArray([256, 28, 28, 1], sfix)
+training_labels = MultiArray([256, 10], sint)
+test_samples = MultiArray([256, 28, 28, 1], sfix)
+test_labels = MultiArray([256, 10], sint)
 #
 training_labels.input_from(0)
 training_samples.input_from(0)
@@ -31,36 +31,21 @@ test_samples.input_from(0)
 net=[]
 
 for i in range(len(modellist)):
-    tmpnet=torch.load(modellist[i],map_location='cpu')
     mynet = nn.Sequential(
-        nn.Conv2d(3, 20, 5),
-        nn.ReLU(),
-        nn.MaxPool2d(2),
-        nn.Conv2d(20, 50, 5),
-        nn.ReLU(),
-        nn.MaxPool2d(2),
+        nn.Conv2d(1, 1, 5 ,2,1),
+        nn.Conv2d(1, 1, 1 ,1,1),
         nn.Flatten(),
-        nn.ReLU(),
-        nn.Linear(1250, 500),
-        nn.ReLU(),
-        nn.Linear(500, 7)
+        nn.Linear(225, 10)
     )
-    mydict = mynet.state_dict()
-    tmpdict=tmpnet.state_dict()
-    for j in range(len(namelist)):
-        name = namelist[j]
-        if ('10.' not in name):
-            mydict[name] = tmpdict[name]
-    mynet.load_state_dict(mydict)
+    mynet(torch.randn([1,28,28]))
     flag=sfix.from_sint(1)
     net=ml.layers_from_torch_select(mynet,net,str(i),flag,training_samples.shape, 256, input_via=2)
 
-print_ln("%s",net[0].bias.reveal())
 optimizer = ml.SGD(net)
 optimizer.fit(
     training_samples,
     training_labels,
-    epochs=9,
+    epochs=1,
     batch_size=256,
     validation_data=(test_samples, test_labels),
     program=program,

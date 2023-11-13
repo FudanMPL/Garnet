@@ -39,6 +39,8 @@ public:
             ez::ezOptionParser& opt);
 };
 
+
+// template <int K>class Semi2kShare
 template<template<int K> class T, template<class V> class U>
 class DishonestMajorityRingMachine
 {
