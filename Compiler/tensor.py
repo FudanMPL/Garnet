@@ -16,7 +16,7 @@ from Compiler import graph_visualization
 # from Compiler.GC.types import sbitintis_train
 from functools import reduce
 from typing import List, NamedTuple, Callable, Dict, Optional, Union, Tuple, Any
-from ml import approx_sigmoid
+from ml import approx_sigmoid, argmax
 _name = 1
 
 
@@ -1484,6 +1484,31 @@ class Tensor():
             res_value[i][i] = 1
         res = Tensor(res_value)    
         return res
+    
+    def argmax(self, dim, keepdim=False):
+        dim = [dim]
+        if not keepdim:
+            new_sizes = [self.value.sizes[i] for i in list(filter(lambda x: x not in dim, range(len(self.value.sizes))))]
+        else:
+            new_sizes = [(1 if i in dim else self.value.sizes[i]) for i in range(len(self.value.sizes))]
+        if len(new_sizes) <= 1:
+            new_value = Array(new_sizes[0], self.value.value_type)
+        else:
+            new_value = MultiArray(new_sizes, self.value.value_type)
+        output = Tensor(new_value, req_grad=self.req_grad)
+
+        new_perm = get_permute(len(self.value.sizes), dim)
+        target_size = self.value.tuple_permute(self.value.sizes, new_perm)
+        temp = MultiArray(target_size, self.value.value_type)
+        self.value.permute_without_malloc(temp, new_perm)
+        
+        stride = self.value.sizes[dim[0]]
+        @for_range_opt(self.value.total_size()//stride)
+        def _(i):
+            t = temp.get_vector(i*stride, stride)
+            output.value.assign_vector(argmax(t), i)
+        temp.delete()
+        return output
     
     @buildingblock("mv-forward")
     def mv(self, other,out=None):

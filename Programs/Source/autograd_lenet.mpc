@@ -32,20 +32,20 @@ class LeNet(nn.Module):
         return output
 
 model = LeNet()
-crossloss = nn.CrossEntropyLoss()
+crossloss = nn.MSELoss()
 
-x = MultiArray([3,1,28,28], sfix)
-y = MultiArray([3,10], sfix)
+x = MultiArray([10,1,28,28], sfix)
+y = MultiArray([10,10], sfix)
 
 @for_range(x.total_size())
 def _(i):
     x.assign_vector(sfix(i/10), i)
 
 y.assign_all(0)
-for i in range(3):
-    y[i][i] = 1
+for i in range(10):
+    y[i][i//3] = 1
 
-dataload = dataloader.DataLoader(x, y, batch_size = 2, shuffle=False)
+dataload = dataloader.DataLoader(x, y, batch_size = 3, shuffle=True)
 optimizer = optim.SGD(model.parameters(), lr = 0.01)
 params = list(model.parameters())
 for i in params:
