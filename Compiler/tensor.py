@@ -1439,8 +1439,12 @@ class Tensor():
         if isinstance(other, Tensor):
             self.value[index] = other.value
         else:
-            self.value[index] = other        
-        
+            self.value[index] = other
+                    
+    @buildingblock("masked_fill_")
+    def masked_fill_(self, mask, value):
+        b = mask * value
+        return self + b
 
     @staticmethod
     def ones(*sizes, value_type = sfix, req_grad = False):
@@ -2669,7 +2673,8 @@ def reset_gloabal_store():
         item.value.delete()
     tensors.clear()
     for key, item in dl_d.items():
-        item.delete()
+        if item is not None:
+            item.delete()
     dl_d.clear()
     op_id_store.clear()
 
