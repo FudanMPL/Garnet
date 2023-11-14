@@ -28,7 +28,6 @@ class LeNet(nn.Module):
         feature = self.conv(img)
         feature = feature.view(img.shape[0], -1)
         output = self.fc(feature)
-        output.print_reveal_nested()
         output = self.fc1(output)
         return output
 
@@ -51,17 +50,17 @@ optimizer = optim.SGD(model.parameters(), lr = 0.01)
 params = list(model.parameters())
 for i in params:
     i.assign_all(0.1)
-model.train(crossloss, dataload)
+model.train()
 
 @for_range(1)
 def _(i):
     input, label = dataload.get_data(0)
     output = model(input)
-   # loss = crossloss(output, label)
-   # optimizer.zero_grad()
- #   loss.backward()
-  #  output.print_reveal_nested()
-  #  loss.print_reveal_nested()
-   # output.grad.print_reveal_nested()
-   # optimizer.step()
+    loss = crossloss(output, label)
+    optimizer.zero_grad()
+    loss.backward()
+    output.print_reveal_nested()
+    loss.print_reveal_nested()
+    output.grad.print_reveal_nested()
+    optimizer.step()
    

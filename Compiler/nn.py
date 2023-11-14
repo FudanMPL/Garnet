@@ -34,7 +34,7 @@ def _reverse_repeat_tuple(t, n):
     to the ones used by `F.pad`.
     """
     return tuple(x for x in reversed(t) for _ in range(n))
-
+first_forward = False
 def _addindent(s_, numSpaces):
     s = s_.split('\n')
     # don't do anything for single-line stuff
@@ -113,6 +113,7 @@ class Module():
         self.xxxx : 234
         self._non_persistent_buffers_set: Set[str] = set()
         self.main = False
+        self.prepare = False
 
     def register_buffer(self, name: str, tensor: Optional[Tensor], persistent: bool = True) -> None:
         r"""Adds a buffer to the module.
@@ -667,14 +668,22 @@ class Module():
             module.set_up(mode)
         return self
 
-    def train(self, loss, dataload, *args, **kwargs):
+    def set_prepare(self, prepare):
+        self.prepare = prepare
+        for module in self.children():
+            module.set_prepare(prepare)
+        return self
+    
+    def train(self, *args, **kwargs):
         # todo, setup tensor space of the model, call it before training or evaluation
         self.set_up()
-        self.output = self.forward(dataload.get_size(), *args, **kwargs)
-        self.loss = loss.forward(self.output, dataload.get_labelsize(), *args, **kwargs)
-        self.main = True
-        TS.reset_op_id()
-        TS.train()
+        # self.set_prepare(True)
+        # self.output = self.forward(dataload.get_size(), *args, **kwargs)
+        # self.loss = loss.forward(self.output, dataload.get_labelsize(), *args, **kwargs)
+        # self.main = True
+        
+        # TS.reset_op_id()
+        # TS.train()
 
         return self
 
@@ -782,6 +791,28 @@ class Module():
         return sorted(keys)
 
     def _call_impl(self, *args, **kwargs):
+        if not self.prepare:
+            self.set_prepare(True)
+            global first_forward
+            if not first_forward:
+                self.main = True
+                first_forward = True
+            if self.main:
+                TS.untrain()
+                forward_call = self.forward
+                forward_call(*args, **kwargs)
+                TS.train()
+                TS.reset_op_id()
+                result = forward_call(*args, **kwargs)
+            else:
+                curr_op_id = TS.op_id
+                TS.untrain()
+                forward_call = self.forward
+                forward_call(*args, **kwargs)
+                TS.train()
+                TS.set_opid(curr_op_id)
+                result = forward_call(*args, **kwargs)
+            return result
         if self.main:
             TS.reset_op_id()
         forward_call = self.forward
@@ -1954,13 +1985,6 @@ class _Loss(Module):
         self.reduction = reduction
         self.training = True
         
-    def __call__(self, *args, **kwargs):
-        forward_call = self.forward
-        break_point()
-        result = forward_call(*args, **kwargs)
-        break_point()
-
-        return result
     
 
 class MSELoss(_Loss):
