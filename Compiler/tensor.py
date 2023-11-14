@@ -1443,7 +1443,7 @@ class Tensor():
                     
     @buildingblock("masked_fill_")
     def masked_fill_(self, mask, value):
-        b = mask * value
+        b = value * mask 
         return self + b
 
     @staticmethod

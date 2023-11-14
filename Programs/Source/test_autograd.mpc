@@ -758,10 +758,10 @@ def test_masked_fill_():
     x.print_reveal_nested()
     input1 = Tensor(x, req_grad = True)
 
-    mask = MultiArray([3, 3], sfix)
+    mask = MultiArray([3, 3], cint)
     for i in range(0,3):
         for  j in range(0,3):
-            mask[i][j] = sfix((i-j)%2)
+            mask[i][j] = cint((i-j)%2)
     mask.print_reveal_nested()
     M = Tensor(mask, req_grad = False)
 
