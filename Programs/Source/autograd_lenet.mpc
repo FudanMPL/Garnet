@@ -59,7 +59,7 @@ def _(i):
     output = model(input)
    # loss = crossloss(output, label)
    # optimizer.zero_grad()
- #   loss.backward()
+  #  loss.backward()
   #  output.print_reveal_nested()
   #  loss.print_reveal_nested()
    # output.grad.print_reveal_nested()

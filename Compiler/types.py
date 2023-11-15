@@ -2223,6 +2223,19 @@ class _secret(_arithmetic_register, _secret_structure):
     def raw_mod2m(self, m):
         return self - (self.raw_right_shift(m) << m)
 
+class schr(_secret, _int):
+    @vectorized_classmethod
+    def get_input_from(cls, player):
+        """ Secret input.
+
+        :param player: public (regint/cint/int)
+        :param size: vector size (int, default 1)
+        """
+        res = cls()
+        inputmixedstring('int', res, player)
+        return res
+    
+
 
 class sint(_secret, _int):
     """
