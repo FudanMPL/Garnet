@@ -748,6 +748,39 @@ def test_flatten():
     input2.value.print_reveal_nested()
     input1.grad.print_reveal_nested()
 
+@autograd_function
+def test_masked_fill_():
+    print_ln('test_masked_fill_')
+    x = MultiArray([3, 3], sfix)
+    for i in range(0,3):
+        for  j in range(0,3):
+            x[i][j] = sfix(i-j)
+    x.print_reveal_nested()
+    input1 = Tensor(x, req_grad = True)
+
+    mask = MultiArray([3, 3], sfix)
+    for i in range(0,3):
+        for  j in range(0,3):
+            mask[i][j] = sfix((i-j)%2)
+    mask.print_reveal_nested()
+    M = Tensor(mask, req_grad = False)
+
+    value = MultiArray([3, 3], sfix)
+    for i in range(0,3):
+        for  j in range(0,3):
+            value[i][j] = i+j
+    value.print_reveal_nested()
+    V = Tensor(value, req_grad = False)
+
+    input2 = input1.masked_fill_(M, V)
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    input2 = input1.masked_fill_(M, V)
+    #input2.backward()
+    input2.value.print_reveal_nested()
+    #input1.grad.print_reveal_nested()
 
 #test_mul()
 #test_add()
@@ -767,7 +800,7 @@ def test_getitem():
     x[0].print_reveal_nested()
     
 #test_getitem()
-test_argmax(dim=1)
+#test_argmax(dim=1)
 #test_abs()
 #test_exp()
 #test_log()
@@ -798,3 +831,5 @@ test_argmax(dim=1)
 #test_f_normalize(p=2, dim=[0,1])
 #test_f_cossim()
 #test_f_gelu()
+
+test_masked_fill_()
