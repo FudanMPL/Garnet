@@ -714,6 +714,7 @@ class Tape:
         self.init_registers()
         self.req_tree = self.ReqNode(name)
         self.req_node = self.req_tree
+        self.req_num = None
         self.basicblocks = []
         self.purged = False
         self.block_counter = 0

@@ -6859,20 +6859,66 @@ class MultiArray(SubMultiArray):
                 tmp_indices = indices[:] + (j,)
                 self.permute_singledim(new_perm, tmp_indices, i+1, res)            
 
+    # def permute(self, new_perm):
+    #     assert len(new_perm) == len(self.sizes)
+    #     i = 0
+    #     indices = ()
+    #     new_sizes = self.tuple_permute(self.sizes, new_perm)
+    #     res = MultiArray(new_sizes, self.value_type)
+    #     self.permute_singledim(new_perm, indices, i, res)
+    #     return res
+    
     def permute(self, new_perm):
         assert len(new_perm) == len(self.sizes)
         i = 0
         indices = ()
         new_sizes = self.tuple_permute(self.sizes, new_perm)
         res = MultiArray(new_sizes, self.value_type)
-        self.permute_singledim(new_perm, indices, i, res)
+        @library.for_range(self.total_size())
+        def _(i):
+            index_store = []
+            new_index = []
+            def mul(x, y):
+                return x*y
+            tmp_i = i
+            for j in range(len(self.sizes)-1):
+                left_size = (reduce(mul, self.sizes[j+1:]))
+                tmp_index = tmp_i// left_size
+                index_store.append(tmp_index)
+                new_index.append(tmp_index)
+                tmp_i = tmp_i%left_size
+            index_store.append(tmp_i)
+            new_index.append(tmp_i)   
+            new_index = self.tuple_permute(new_index, new_perm)   
+            tmp_val = self.get_vector_by_indices(*index_store)
+            res.assign_vector_by_indices(tmp_val, *new_index)
         return res
     
+        
     def permute_without_malloc(self, res , new_perm):
         assert len(new_perm) == len(self.sizes)
         i = 0
         indices = ()
-        self.permute_singledim(new_perm, indices, i, res)
+        # self.permute_singledim(new_perm, indices, i, res)
+        @library.for_range(self.total_size())
+        def _(i):
+            index_store = []
+            new_index = []
+            def mul(x, y):
+                return x*y
+            tmp_i = i
+            for j in range(len(self.sizes)-1):
+                left_size = (reduce(mul, self.sizes[j+1:]))
+                tmp_index = tmp_i// left_size
+                index_store.append(tmp_index)
+                new_index.append(tmp_index)
+                tmp_i = tmp_i%left_size
+            index_store.append(tmp_i)
+            new_index.append(tmp_i)   
+            new_index = self.tuple_permute(new_index, new_perm)   
+            tmp_val = self.get_vector_by_indices(*index_store)
+            res.assign_vector_by_indices(tmp_val, *new_index)
+        return res
         
     def reshape(self, sizes):
         res=MultiArray(self.sizes,self.value_type)

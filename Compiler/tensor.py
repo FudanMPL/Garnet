@@ -1915,9 +1915,77 @@ class Tensor():
             op_id += 1
         return output
 
-    def gather(self):
+    @buildingblock("gather-forward")
+    def gather(self, dim, index):
         # todo
-        return self
+        @backwardbuildingblock(get_program().globalbuildingblock[:-15]+"-gather-backward")
+        def propagate(dl_doutputs, operation):
+            dl_dy, = dl_doutputs
+            dl_dself = dl_d[operation.inputs[0]]
+            @for_range(dl_dy.total_size())
+            def _(i):
+                index_store = []
+                new_index = []
+                def mul(x, y):
+                    return x*y
+                tmp_i = i
+                for j in range(len(dl_dy.sizes)-1):
+                    left_size = (reduce(mul, dl_dy.sizes[j+1:]))
+                    tmp_index = tmp_i// left_size
+                    index_store.append(tmp_index)
+                    new_index.append(tmp_index)
+                    tmp_i = tmp_i%left_size
+                index_store.append(tmp_i)
+                new_index.append(tmp_i)
+                new_index[dim] = index.value.get_vector_by_indices(*index_store)
+                tmp_val = dl_dy.get_vector_by_indices(*index_store)
+                dl_dself.assign_vector_by_indices(dl_dself.get_vector_by_indices(*new_index)+tmp_val, *new_index)            
+               
+        global op_id
+        if prepare:
+            assert len(self.sizes) == len(index.sizes)
+            assert index.value.value_type == cint or index.value.value_type == regint
+            for i in range(len(self.sizes)):
+                if i!=dim and index.sizes[i] > self.sizes[i]:
+                    raise CompilerError("wrong dimension of index in gather function")
+            if len(index.sizes) == 0:
+                new_value = Array(index.sizes, self.value.value_type)
+            else:
+                new_value = MultiArray(index.sizes, self.value.value_type)
+            output = Tensor(new_value, req_grad=self.req_grad)
+            if self.req_grad:
+                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
+            else:
+                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate)
+            gradient_operation.append(operation)
+            operation_id = len(gradient_operation)-1
+            op_id_store[op_id] = operation_id
+            op_id += 1
+        else:
+            operation = gradient_operation[op_id_store[op_id]]
+            outputs = operation.outputs
+            output = tensors[outputs[0]]
+            @for_range(output.value.total_size())
+            def _(i):
+                index_store = []
+                new_index = []
+                def mul(x, y):
+                    return x*y
+                tmp_i = i
+                for j in range(len(output.sizes)-1):
+                    left_size = (reduce(mul, output.sizes[j+1:]))
+                    tmp_index = tmp_i// left_size
+                    index_store.append(tmp_index)
+                    new_index.append(tmp_index)
+                    tmp_i = tmp_i%left_size
+                index_store.append(tmp_i)
+                new_index.append(tmp_i)
+                new_index[dim] = index.value.get_vector_by_indices(*index_store)
+                print_ln("%s, %s", new_index[0], new_index[1])
+                tmp_val = self.value.get_vector_by_indices(*new_index)
+                output.value.assign_vector_by_indices(tmp_val, *index_store)
+            op_id += 1
+        return output
 
     @buildingblock("reshape-forward")
     def reshape(self, *sizes):
