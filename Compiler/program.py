@@ -51,7 +51,7 @@ class defaults:
     garbled = False
     prime = None
     galois = 40
-    budget = 100
+    budget = 100000
     mixed = False
     edabit = False
     invperm = False
@@ -714,6 +714,7 @@ class Tape:
         self.init_registers()
         self.req_tree = self.ReqNode(name)
         self.req_node = self.req_tree
+        self.req_num = None
         self.basicblocks = []
         self.purged = False
         self.block_counter = 0
