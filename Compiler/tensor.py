@@ -2200,15 +2200,26 @@ class Tensor():
         return output
     
     @buildingblock("expand")
-    def expand(self, sizes):  
+    def expand(self, sizes):
+        for i in len(sizes):
+            if sizes[i] == -1:
+                sizes[i] = self.value.sizes[i]
         temp_value = MultiArray(sizes, cint)
         temp = Tensor(temp_value, req_grad=False)
         return self + temp
     
-    @buildingblock("expand as")
+    @buildingblock("expand_as")
     def expand_as(self, other):
         return self.expand(self, list(other.value.sizes))
 
+    @buildingblock("repeat")
+    def repeat(self, *sizes):
+        sizes = list(sizes)
+        new_sizes = self.value.sizes
+        for i in len(sizes):
+            new_sizes[i] = new_sizes[i] * sizes[i]
+        return self.expand(self, new_sizes)
+    
     @buildingblock("abs-forward")
     def abs(self):
         # backward
