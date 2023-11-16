@@ -14,7 +14,7 @@ def test_mul():
     for i in range(x.total_size()):
         x.assign_vector(sfix(i), i)
     x.print_reveal_nested()
-    y = MultiArray([2, 1], sfix)
+    y = MultiArray([2, 1], cint)
     y.assign_all(5)
     y[0][0]=6
     y.print_reveal_nested()
@@ -776,6 +776,26 @@ def test_gather():
     input1.grad.print_reveal_nested()
 
 @autograd_function
+def test_expand():
+    print_ln('test_expand')
+    x = MultiArray([1, 3], sfix)
+    for i in range(0,1):
+        for  j in range(0,3):
+            x[i][j] = sfix(i-j)
+    x.print_reveal_nested()
+    input1 = Tensor(x, req_grad = True)
+
+    input2 = input1.expand([3,3])
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    input2 = input1.expand([3,3])
+    input2.backward()
+    input2.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+
+@autograd_function
 def test_masked_fill_():
     print_ln('test_masked_fill_')
     x = MultiArray([3, 3], sfix)
@@ -809,7 +829,7 @@ def test_masked_fill_():
     input2.value.print_reveal_nested()
     #input1.grad.print_reveal_nested()
 
-#test_mul()
+test_mul()
 #test_add()
 #test_sub()
 #test_div()
@@ -860,4 +880,5 @@ def test_getitem():
 #test_f_gelu()
 
 #test_masked_fill_()
-test_gather()
+#test_gather()
+test_expand()

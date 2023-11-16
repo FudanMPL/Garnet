@@ -187,20 +187,20 @@ def element_wise_add(self, other):
     if prepare:
         if isinstance(self.value, MultiArray) or isinstance(other.value, MultiArray):
             if self.value.total_size()>other.value.total_size():
-                new_value = MultiArray(self.value.sizes, self.value.value_type)
+                new_value = MultiArray(self.value.sizes, predict_value_type(self.value, other.value))
             else:
-                new_value = MultiArray(other.value.sizes, self.value.value_type)
+                new_value = MultiArray(other.value.sizes, predict_value_type(self.value, other.value))
         else:
             if self.value.total_size()>other.value.total_size():
-                new_value = Array(self.value.sizes[0], self.value.value_type)
+                new_value = Array(self.value.sizes[0], predict_value_type(self.value, other.value))
             else:
-                new_value = Array(other.value.sizes[0], self.value.value_type)
+                new_value = Array(other.value.sizes[0], predict_value_type(self.value, other.value))
         output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
         dim, v1, v2 = reconst_dims(self.value, other.value)
         target_size = v1.tuple_permute(v1.sizes, get_permute(len(v1.sizes), dim))
         temp1 = MultiArray(target_size, v1.value_type)
         target_size = v1.tuple_permute(v1.sizes, get_permute_d2front(len(v1.sizes), dim))
-        temp2 = MultiArray(target_size, v1.value_type)
+        temp2 = MultiArray(target_size, predict_value_type(self.value, other.value))
         # check whether require grad
         if self.req_grad or other.req_grad:
             operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate, intermediate=[temp1, temp2])
@@ -217,23 +217,23 @@ def element_wise_add(self, other):
         input1 = tensors[inputs[0]]
         input2 = tensors[inputs[1]]
         output = tensors[outputs[0]]
-        inter = operation.intermediate[0]
+        temp1, temp2 = operation.intermediate
 
         # permute input for boardcasted
         dims, v1, v2 = reconst_dims(input1.value, input2.value)
-        v1.permute_without_malloc(inter, get_permute(len(v1.sizes), dims))
-        v1 = inter
+        v1.permute_without_malloc(temp1, get_permute(len(v1.sizes), dims))
+        v1 = temp1
         
         # element_wise_add
         len1, len2 = v1.total_size(), v2.total_size()
         @for_range(len1//len2)
         def _(i):
             v3 = v1.get_vector(i*len2, len2) + v2.get_vector(0, len2)
-            v1.assign_vector(v3, i*len2)
+            temp2.assign_vector(v3, i*len2)
         break_point()
         
         # permute back
-        v1.permute_without_malloc(output.value, get_permute_back(len(v1.sizes), dims))
+        temp2.permute_without_malloc(output.value, get_permute_back(len(v1.sizes), dims))
     
         op_id += 1# record the input and output of the op
     return output
@@ -333,26 +333,28 @@ def element_wise_sub(self, other):
     return output
 
 
-def boardcasted_multiarray_mul(v1, v2, inter, output):
+def boardcasted_multiarray_mul(v1, v2, output):
+    # predict size and type for result
+    dims, v1, v2 = reconst_dims(v1, v2)
+    target_size = v1.tuple_permute(v1.sizes, get_permute(len(v1.sizes), dims))  
+    temp1 = MultiArray(target_size, v1.value_type)
+    temp2 = MultiArray(target_size, predict_value_type(v1, v2))
     # permute input for boardcasted
-    dims, v1, v2 = reconst_dims(v1, v2)  
-    v1.permute_without_malloc(inter, get_permute(len(v1.sizes), dims))
-    v1 = inter
-
+    v1.permute_without_malloc(temp1, get_permute(len(v1.sizes), dims))
+    v1 = temp1
+    # vectorize mul
     len1, len2 = v1.total_size(), v2.total_size()
     assert len1 % len2==0, "Invalid Dimension"
-    # for i in range(0, len1//len2):
-    #     v3 = v1.get_vector(i*len2, len2) + v2.get_vector(0, len2)
-    #     output.value.assign_vector(v3, i*len2)
-    break_point()
     @for_range_opt(len1//len2)
     def _(i):
         v3 = v1.get_vector(i*len2, len2) * v2.get_vector(0, len2)
-        v1.assign_vector(v3, i*len2)
+        temp2.assign_vector(v3, i*len2)
     break_point()
-    
     # permute back
-    v1.permute_without_malloc(output, get_permute_back(len(v1.sizes), dims))
+    temp2.permute_without_malloc(output, get_permute_back(len(v1.sizes), dims))
+    # release mem
+    temp1.delete()
+    temp2.delete()
     
 def boardcasted_multiarray_sub(v1, v2, inter, output):
     # permute input for boardcasted
@@ -378,6 +380,36 @@ def boardcasted_multiarray_sub(v1, v2, inter, output):
 
     v1.permute_without_malloc(output, get_permute_back(len(v1.sizes), dims))
 
+def predict_value_type(self, other):
+    stype = self.value_type
+    otype = other.value_type
+    sflag = 0
+    fflag = 0
+    output_store = {
+        (0, 0): cint,
+        (0, 1): cfix,
+        (1, 0): sint,
+        (1, 1): sfix
+    }
+    if stype == sfix or otype == sfix or stype == cfix or otype == cfix:
+        fflag = 1
+    if stype == sint or otype == sint or stype == sfix or otype == sfix:
+        sflag = 1
+    return output_store[(sflag, fflag)]
+
+def mixed_dot_product(v1, v2):
+    assert len(v1) == len(v2)
+    temp1 = MultiArray([1, len(v1)], type(v1))
+    temp2 = MultiArray([len(v2), 1], type(v2))
+    temp1.assign_vector(v1)
+    temp2.assign_vector(v2)
+    res = temp1 * temp2
+    res_value = res[:]
+    temp1.delete()
+    temp2.delete()
+    res.delete()
+    return res_value
+    
 @buildingblock("mul-forward")
 def element_wise_mul(self, other):
     # backward
@@ -385,7 +417,7 @@ def element_wise_mul(self, other):
     def propagate(dl_doutputs, operation):
         dl_dx, = dl_doutputs
         inputs = operation.inputs
-        temp1, temp2, temp3, temp4, temp5 = operation.intermediate
+        temp3, temp4, temp5 = operation.intermediate
         dl_dself, dl_dother = (None, None)
         if self.req_grad:
             dl_dself = dl_d[inputs[0]]  # partial derivate of r = 1
@@ -406,17 +438,19 @@ def element_wise_mul(self, other):
         dims, input1, input2 = reconst_dims(input1, input2)
         # v1 back directly 
         if req_grad1:
-            dl_dx.permute_without_malloc(temp1, get_permute(len(dl_dx.sizes), dims))
-            dl_dx_pmt = temp1
-            stride = input2.total_size()
-            # temp3 = permute(dl_dx) * permute(input2.value)
-            @for_range_opt(input1.total_size()//input2.total_size())
-            def _(i):
-                v3 = dl_dx_pmt.get_vector(i*stride, stride) * input2.get_vector(0, stride)
-                temp2.assign_vector(v3, i*stride)
-            break_point()   
-            # v1 = permute_back(temp3)
-            temp2.permute_without_malloc(temp5, get_permute_back(len(input1.sizes), dims))
+            # dl_dx.permute_without_malloc(temp1, get_permute(len(dl_dx.sizes), dims))
+            # dl_dx_pmt = temp1
+            # stride = input2.total_size()
+            # # temp3 = permute(dl_dx) * permute(input2.value)
+            # @for_range_opt(input1.total_size()//input2.total_size())
+            # def _(i):
+            #     v3 = dl_dx_pmt.get_vector(i*stride, stride) * input2.get_vector(0, stride)
+            #     temp2.assign_vector(v3, i*stride)
+            # break_point()   
+            # # v1 = permute_back(temp3)
+            # temp2.permute_without_malloc(temp5, get_permute_back(len(input1.sizes), dims))
+            # v1[:] += temp5[:]
+            boardcasted_multiarray_mul(dl_dx, input2, temp5)
             v1[:] += temp5[:]
         # broadcasted v2 back with reduce
         if req_grad2:
@@ -426,7 +460,7 @@ def element_wise_mul(self, other):
             stride = input1.total_size()//input2.total_size()
             @for_range_opt(input2.total_size())
             def _(i):
-                v3 = dl_dx.value_type.dot_product(dl_dx_pmt.get_vector(i*stride, stride), input1_pmt.get_vector(i*stride, stride))
+                v3 = mixed_dot_product(dl_dx_pmt.get_vector(i*stride, stride), input1_pmt.get_vector(i*stride, stride))
                 v2.assign_vector(v2.get_vector(i, 1)+v3, i)    
             break_point()
         dl_dinputs = [dl_dself, dl_dother]
@@ -438,29 +472,29 @@ def element_wise_mul(self, other):
         # assert check_boardcast_size(self.value.sizes, other.value.sizes), "Invalid Dimension"
         if isinstance(self.value, MultiArray) or isinstance(other.value, MultiArray):
             if self.value.total_size()>other.value.total_size():
-                new_value = MultiArray(self.value.sizes, self.value.value_type)
+                new_value = MultiArray(self.value.sizes, predict_value_type(self.value, other.value))
             else:
-                new_value = MultiArray(other.value.sizes, self.value.value_type)
+                new_value = MultiArray(other.value.sizes, predict_value_type(self.value, other.value))
         else:
             if self.value.total_size()>other.value.total_size():
-                new_value = Array(self.value.sizes[0], self.value.value_type)
+                new_value = Array(self.value.sizes[0], predict_value_type(self.value, other.value))
             else:
-                new_value = Array(other.value.sizes[0], self.value.value_type)
+                new_value = Array(other.value.sizes[0], predict_value_type(self.value, other.value))
         output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
         
         dims, v1, v2 = reconst_dims(self.value, other.value)
-        target_size = v1.tuple_permute(v1.sizes, get_permute(len(v1.sizes), dims))
-        temp1 = MultiArray(target_size, v1.value_type)
-        temp2 = MultiArray(target_size, v1.value_type)
+        # target_size = v1.tuple_permute(v1.sizes, get_permute(len(v1.sizes), dims))
+        # temp1 = MultiArray(target_size, v1.value_type)
+        # temp2 = MultiArray(target_size, predict_value_type(self.value, other.value))
         target_size = v1.tuple_permute(v1.sizes, get_permute_d2front(len(v1.sizes), dims))
-        temp3 = MultiArray(target_size, v1.value_type)
+        temp3 = MultiArray(target_size, predict_value_type(self.value, other.value))
         temp4 = MultiArray(target_size, v1.value_type)
         temp5 = MultiArray(v1.sizes, v1.value_type)
         # check whether require grad
         if self.req_grad or other.req_grad:
-            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate, intermediate=[temp1, temp2, temp3, temp4, temp5])
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate, intermediate=[temp3, temp4, temp5])
         else:
-            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate, intermediate=[temp1, temp2, temp3, temp4, temp5])
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate, intermediate=[temp3, temp4, temp5])
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
@@ -491,8 +525,8 @@ def element_wise_mul(self, other):
         
         # # permute back
         # v1.permute_without_malloc(output.value, get_permute_back(len(v1.sizes), dims))
-        
-        boardcasted_multiarray_mul(input1.value, input2.value, operation.intermediate[0], output.value)
+
+        boardcasted_multiarray_mul(input1.value, input2.value, output.value)
         
         op_id += 1# record the input and output of the op
     return output
@@ -550,7 +584,7 @@ def element_wise_div(self, other):
             stride = input1.total_size()//input2.total_size()
             @for_range_opt(input2.total_size())
             def _(i):
-                v3 = dl_dx.value_type.dot_product(dl_dx_pmt.get_vector(i*stride, stride), input1_pmt.get_vector(i*stride, stride))
+                v3 = mixed_dot_product(dl_dx_pmt.get_vector(i*stride, stride), input1_pmt.get_vector(i*stride, stride))
                 v2.assign_vector(v2.get_vector(i,1)+v3, i)    
             break_point()
         dl_dinputs = [dl_dself, dl_dother]
@@ -2164,6 +2198,16 @@ class Tensor():
                 index.update(index+size_next)
             op_id+=1
         return output
+    
+    @buildingblock("expand")
+    def expand(self, sizes):  
+        temp_value = MultiArray(sizes, cint)
+        temp = Tensor(temp_value, req_grad=False)
+        return self + temp
+    
+    @buildingblock("expand as")
+    def expand_as(self, other):
+        return self.expand(self, list(other.value.sizes))
 
     @buildingblock("abs-forward")
     def abs(self):
