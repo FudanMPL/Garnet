@@ -551,7 +551,7 @@ def element_wise_div(self, other):
         req_grad1, req_grad2 = self.req_grad, other.req_grad
         # temp5.assign_vector(1 / tensors[operation.inputs[1]].value[:])
         # temp6.assign_vector(tensors[operation.inputs[0]].value[:] / tensors[operation.inputs[1]].value[:] / tensors[operation.inputs[1]].value[:])
-        boardcasted_multiarray_mul(output_value, temp5, temp1, temp6)
+        boardcasted_multiarray_mul(output_value, temp5, temp6)
         temp6.assign_vector(-1 * temp6[:])
         input2, input1 = temp5, temp6
         
@@ -637,7 +637,7 @@ def element_wise_div(self, other):
         # get inverse of input2
         temp5.assign_vector(1/input2.value[:])
         
-        boardcasted_multiarray_mul(input1.value, temp5, operation.intermediate[0], output.value)
+        boardcasted_multiarray_mul(input1.value, temp5, output.value)
         
         op_id += 1# record the input and output of the op
     return output
