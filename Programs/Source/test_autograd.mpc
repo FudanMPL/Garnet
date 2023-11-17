@@ -831,6 +831,33 @@ def test_masked_fill_():
     #input1.grad.print_reveal_nested()
     
 @autograd_function
+def test_gt():
+    print_ln('testgt')
+    x = MultiArray([3, 3], sfix)
+    for i in range(0,3):
+        for  j in range(0,3):
+            x[i][j] = sfix(i+j)
+    x.print_reveal_nested()
+    input1 = Tensor(x, req_grad = True)
+
+    y = MultiArray([1, 3], sfix)
+    for i in range(0,1):
+        for  j in range(0,3):
+            y[i][j] = sfix(i*j)
+    y.print_reveal_nested()
+    input2 = Tensor(y, req_grad = True)
+
+    input3 = input1.gt(input2)
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    input3 = input1.gt(input2)
+    #input2.backward()
+    input3.value.print_reveal_nested()
+    #input1.grad.print_reveal_nested()
+    
+@autograd_function
 def test_triu():
     print_ln('test_triu')
     x = MultiArray([ 3,5], sfix)
@@ -901,4 +928,5 @@ def test_arange():
 #test_masked_fill_()
 #test_gather()
 # test_expand()
+#test_gt()
 test_triu()
