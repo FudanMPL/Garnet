@@ -356,29 +356,28 @@ def boardcasted_multiarray_mul(v1, v2, output):
     temp1.delete()
     temp2.delete()
     
-def boardcasted_multiarray_sub(v1, v2, inter, output):
+def boardcasted_multiarray_sub(v1, v2, output):
+    # predict size and type for result
+    dims, v1, v2 = reconst_dims(v1, v2)
+    target_size = v1.tuple_permute(v1.sizes, get_permute(len(v1.sizes), dims))  
+    temp1 = MultiArray(target_size, v1.value_type)
+    temp2 = MultiArray(target_size, predict_value_type(v1, v2))
     # permute input for boardcasted
-    dims, v1, v2 = reconst_dims(v1, v2)  
-
-    v1.permute_without_malloc(inter, get_permute(len(v1.sizes), dims))
-    v1 = inter
-
+    v1.permute_without_malloc(temp1, get_permute(len(v1.sizes), dims))
+    v1 = temp1
+    # vectorize sub
     len1, len2 = v1.total_size(), v2.total_size()
     assert len1 % len2==0, "Invalid Dimension"
-    # for i in range(0, len1//len2):
-    #     v3 = v1.get_vector(i*len2, len2) + v2.get_vector(0, len2)
-    #     output.value.assign_vector(v3, i*len2)
-    break_point()
     @for_range_opt(len1//len2)
     def _(i):
         v3 = v1.get_vector(i*len2, len2) - v2.get_vector(0, len2)
-        v1.assign_vector(v3, i*len2)
+        temp2.assign_vector(v3, i*len2)
     break_point()
-    
- 
     # permute back
-
-    v1.permute_without_malloc(output, get_permute_back(len(v1.sizes), dims))
+    temp2.permute_without_malloc(output, get_permute_back(len(v1.sizes), dims))
+    # release mem
+    temp1.delete()
+    temp2.delete()
 
 def predict_value_type(self, other):
     stype = self.value_type
@@ -2220,6 +2219,25 @@ class Tensor():
             new_sizes[i] = new_sizes[i] * sizes[i]
         return self.expand(self, new_sizes)
     
+    @buildingblock("gt")
+    def gt(input, other):
+        if isinstance(input.value, MultiArray) or isinstance(other.value, MultiArray):
+            if input.value.total_size()>other.value.total_size():
+                new_value = MultiArray(input.value.sizes, predict_value_type(input.value, other.value))
+            else:
+                new_value = MultiArray(other.value.sizes, predict_value_type(input.value, other.value))
+        else:
+            if input.value.total_size()>other.value.total_size():
+                new_value = Array(input.value.sizes[0], predict_value_type(input.value, other.value))
+            else:
+                new_value = Array(other.value.sizes[0], predict_value_type(input.value, other.value))
+        output = Tensor(new_value, req_grad=input.req_grad or other.req_grad)
+        
+        boardcasted_multiarray_sub(input.value, other.value, output.value)
+        
+        output.value[:] = output.value[:] >0
+        return output
+        
     @buildingblock("abs-forward")
     def abs(self):
         # backward
