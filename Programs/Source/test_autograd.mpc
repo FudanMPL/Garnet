@@ -2,6 +2,7 @@ from tensor import Tensor,autograd_function
 import tensor
 import functional as F
 from Compiler.types import *
+import copy
 program.options_from_args()
 
 sfix.set_precision(30, 60)
@@ -828,8 +829,19 @@ def test_masked_fill_():
     #input2.backward()
     input2.value.print_reveal_nested()
     #input1.grad.print_reveal_nested()
+    
+@autograd_function
+def test_triu():
+    print_ln('test_triu')
+    x = MultiArray([ 3,5], sfix)
+    for i in range(x.total_size()):
+         x.assign_vector(sfix(i), i)
+    x.print_reveal_nested()
+    input1 = Tensor(x, req_grad = True)
 
-test_mul()
+    y = Tensor.triu(input1, k=2)
+    y.print_reveal_nested()
+# test_mul()
 #test_add()
 #test_sub()
 #test_div()
@@ -845,7 +857,14 @@ def test_getitem():
 
     x.print_reveal_nested()
     x[0].print_reveal_nested()
-    
+
+@autograd_function
+def test_arange():
+    x = Tensor.arange(0, 20, 2)
+
+    x.print_reveal_nested()
+    # x[0].print_reveal_nested()    
+# test_arange()
 #test_getitem()
 #test_argmax(dim=1)
 #test_abs()
@@ -881,4 +900,5 @@ def test_getitem():
 
 #test_masked_fill_()
 #test_gather()
-test_expand()
+# test_expand()
+test_triu()

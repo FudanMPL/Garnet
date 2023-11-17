@@ -1514,14 +1514,91 @@ class Tensor():
         return res
 
     @staticmethod
-    def eye(m, n =None, value_type = sfix):
+    def eye(m, n =None, value_type = sfix, req_grad = False):
         assert n is None or m == n
         res_value = MultiArray([m, m], value_type)
         @for_range(m)
         def _(i):
             res_value[i][i] = 1
-        res = Tensor(res_value)    
+        res = Tensor(res_value, req_grad=req_grad)    
         return res
+    
+    @staticmethod
+    def arange(start , end, step =1, value_type = sfix, req_grad = False):
+        size = math.ceil((end-start)/step)
+        res_value = Array(size, value_type)
+        @for_range(start, end, step)
+        def _(i):
+            res_value.assign_vector(value_type(i), i/step)
+        res = Tensor(res_value, req_grad=req_grad)  
+        return res
+    
+    @staticmethod
+    def triu(input, k = 0, inplace = False):
+        assert len(input.sizes) >= 2
+        if inplace:
+            res = input
+        else:
+            res_value = input.value.same_shape()
+            res_value[:] = input.value[:]
+            res = Tensor(res_value, req_grad=input.req_grad)
+        mask_value = MultiArray([input.sizes[-2],input.sizes[-1]], value_type=cint)
+        mask_value.assign_all(1)
+        length = min(input.sizes[-2],input.sizes[-1])
+        if k<= 0:
+            length = length + k -1
+            if length <= 0:
+                return res
+            @for_range(length)
+            def _(i):
+                @for_range(length - i)
+                def _(j):
+                    mask_value.assign_vector_by_indices(cint(0), input.sizes[-2] - i -1, j)
+        else:
+            if k >= input.sizes[-1]:
+                res.value.assign_all(0)
+                return res
+            @for_range(length)
+            def _(i):
+                @for_range(i+k)
+                def _(j):
+                    mask_value.assign_vector_by_indices(cint(0), i, j)             
+        boardcasted_multiarray_mul(res.value, mask_value, res.value)       
+        return res
+    
+    
+    @staticmethod
+    def tril(input, k = 0, inplace = False):
+        assert len(input.sizes) >= 2
+        if inplace:
+            res = input
+        else:
+            res_value = input.value.same_shape()
+            res_value[:] = input.value[:]
+            res = Tensor(res_value, req_grad=input.req_grad)
+        mask_value = MultiArray([input.sizes[-2],input.sizes[-1]], value_type=cint)
+        mask_value.assign_all(1)
+        length = min(input.sizes[-2],input.sizes[-1])
+        if k >= 0:
+            length = length - k -1
+            if length <= 0:
+                return res
+            @for_range(length)
+            def _(i):
+                @for_range(i-k)
+                def _(j):
+                    mask_value.assign_vector_by_indices(cint(0), i, input.sizes[-1] - j-1)
+        else:
+            if -k >= input.sizes[-2]:
+                res.value.assign_all(0)
+                return res
+            @for_range(length)
+            def _(i):
+                @for_range(i-k)
+                def _(j):
+                    mask_value.assign_vector_by_indices(cint(0), j, i)
+            boardcasted_multiarray_mul(res.value, mask_value, res.value)       
+        return res    
     
     def argmax(self, dim, keepdim=False):
         dim = [dim]
@@ -2015,7 +2092,6 @@ class Tensor():
                 index_store.append(tmp_i)
                 new_index.append(tmp_i)
                 new_index[dim] = index.value.get_vector_by_indices(*index_store)
-                print_ln("%s, %s", new_index[0], new_index[1])
                 tmp_val = self.value.get_vector_by_indices(*new_index)
                 output.value.assign_vector_by_indices(tmp_val, *index_store)
             op_id += 1
