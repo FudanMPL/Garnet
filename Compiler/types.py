@@ -6900,6 +6900,7 @@ class MultiArray(SubMultiArray):
         i = 0
         indices = ()
         # self.permute_singledim(new_perm, indices, i, res)
+        library.break_point()
         @library.for_range(self.total_size())
         def _(i):
             index_store = []

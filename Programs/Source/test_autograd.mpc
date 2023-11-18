@@ -852,11 +852,15 @@ def test_triu():
 
 @autograd_function
 def test_getitem():
-    i, j = 3, 3
+    # i, j = 3, 3
     x = Tensor.eye(10)
-
+    tmp_value = MultiArray([10,1], sfix)
+    for i in range(tmp_value.total_size()):
+        tmp_value.assign_vector(sfix(i+1), i)
+    y =Tensor(tmp_value)
+    x[:, 0::2] = y
     x.print_reveal_nested()
-    x[0].print_reveal_nested()
+    # x[0].print_reveal_nested()
 
 @autograd_function
 def test_arange():
@@ -901,4 +905,5 @@ def test_arange():
 #test_masked_fill_()
 #test_gather()
 # test_expand()
-test_triu()
+# test_triu()
+test_getitem()

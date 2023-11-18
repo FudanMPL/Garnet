@@ -18,13 +18,13 @@ idx2word = {i: w for i, w in enumerate(tgt_vocab)}
 tgt_vocab_size = len(tgt_vocab)
 src_len = 8  # （源句子的长度）enc_input max sequence length
 tgt_len = 7  # dec_input(=dec_output) max sequence length
-
+batch_size = 2
 # Transformer Parameters
 d_model = 512  # Embedding Size（token embedding和position编码的维度）
 # FeedForward dimension (两次线性层中的隐藏层 512->2048->512，线性层是用来做特征提取的），当然最后会再接一个projection层
 d_ff = 2048
 d_k = d_v = 64  # dimension of K(=Q), V（Q和K的维度需要相同，这里为了方便让K=V）
-n_layers = 6  # number of Encoder of Decoder Layer（Block的个数）
+n_layers = 1 # number of Encoder of Decoder Layer（Block的个数）
 n_heads = 8  # number of heads in Multi-Head Attention（有几套头）
 class PositionalEncoding(nn.Module):
     def __init__(self, d_model, dropout=0.1, max_len=5000):
@@ -35,8 +35,11 @@ class PositionalEncoding(nn.Module):
         position = Tensor.arange(0, max_len, value_type = cfix).unsqueeze(1)
         div_term = (Tensor.arange(
             0, d_model, 2, value_type = cfix)* (-math.log(10000.0) / d_model)).exp()
-        pe[:, 0::2] = (position * div_term).sin()
-        pe[:, 1::2] = (position * div_term).cos()
+        print(position.sizes)
+        print(div_term.sizes)
+        tmp = (position * div_term)
+        pe[:, 0::2] = tmp.sin()
+        pe[:, 1::2] = tmp.cos()
         pe = pe.unsqueeze(0).transpose(0, 1)
         self.register_buffer('pe', pe)
 
@@ -56,14 +59,15 @@ def get_attn_pad_mask(seq_q, seq_k):
     seq_len could be src_len or it could be tgt_len
     seq_len in seq_q and seq_len in seq_k maybe not equal
     """
-    batch_size, len_q = seq_q.sizes()  # 这个seq_q只是用来expand维度的
-    batch_size, len_k = seq_k.sizes()
+    batch_size, len_q = seq_q.sizes[0], seq_q.sizes[1]  # 这个seq_q只是用来expand维度的
+    batch_size, len_k = seq_q.sizes[0], seq_k.sizes[1]
     # eq(zero) is PAD token
     # 例如:seq_k = [[1,2,3,4,0], [1,2,3,5,0]]
     # [batch_size, 1, len_k], True is masked
-    pad_attn_mask = seq_k.data.eq(0).unsqueeze(1)
+    # pad_attn_mask = seq_k.data.eq(0).unsqueeze(1)
     # [batch_size, len_q, len_k] 构成一个立方体(batch_size个这样的矩阵)
-    return pad_attn_mask.expand(batch_size, len_q, len_k)
+    # return pad_attn_mask.expand(batch_size, len_q, len_k)
+    return Tensor.ones(batch_size, len_q, len_k)
 
 
 def get_attn_subsequence_mask(seq):
@@ -72,8 +76,7 @@ def get_attn_subsequence_mask(seq):
     """
     attn_shape = [seq.size(0), seq.size(1), seq.size(1)]
     # attn_shape: [batch_size, tgt_len, tgt_len]
-    subsequence_mask = np.triu(np.ones(attn_shape), k=1)  # 生成一个上三角矩阵
-    subsequence_mask = torch.from_numpy(subsequence_mask).byte()
+    subsequence_mask = Tensor.triu(Tensor.ones(attn_shape), k=1)  # 生成一个上三角矩阵
     return subsequence_mask  # [batch_size, tgt_len, tgt_len]
 
 class ScaledDotProductAttention(nn.Module):
@@ -224,19 +227,17 @@ class DecoderLayer(nn.Module):
 class Encoder(nn.Module):
     def __init__(self):
         super(Encoder, self).__init__()
-        self.src_emb = nn.Embedding(src_vocab_size, d_model)  # token Embedding
-        self.pos_emb = PositionalEncoding(
-            d_model)  # Transformer中位置编码时固定的，不需要学习
+        # self.src_emb = nn.Embedding(src_vocab_size, d_model)  # token Embedding
+        # self.pos_emb = PositionalEncoding(d_model)  # Transformer中位置编码时固定的，不需要学习
         self.layers = nn.ModuleList([EncoderLayer() for _ in range(n_layers)])
 
     def forward(self, enc_inputs):
         """
         enc_inputs: [batch_size, src_len]
         """
-        enc_outputs = self.src_emb(
-            enc_inputs)  # [batch_size, src_len, d_model]
-        enc_outputs = self.pos_emb(enc_outputs.transpose(0, 1)).transpose(
-            0, 1)  # [batch_size, src_len, d_model]
+        enc_outputs = enc_inputs
+        # self.src_emb(enc_inputs)  # [batch_size, src_len, d_model]
+        # enc_outputs = self.pos_emb(enc_outputs.transpose(0, 1)).transpose(0, 1)  # [batch_size, src_len, d_model]
         # Encoder输入序列的pad mask矩阵
         enc_self_attn_mask = get_attn_pad_mask(
             enc_inputs, enc_inputs)  # [batch_size, src_len, src_len]
@@ -252,9 +253,9 @@ class Encoder(nn.Module):
 class Decoder(nn.Module):
     def __init__(self):
         super(Decoder, self).__init__()
-        self.tgt_emb = nn.Embedding(
-            tgt_vocab_size, d_model)  # Decoder输入的embed词表
-        self.pos_emb = PositionalEncoding(d_model)
+        # self.tgt_emb = nn.Embedding(
+        #     tgt_vocab_size, d_model)  # Decoder输入的embed词表
+        # self.pos_emb = PositionalEncoding(d_model)
         self.layers = nn.ModuleList([DecoderLayer()
                                     for _ in range(n_layers)])  # Decoder的blocks
 
@@ -264,16 +265,16 @@ class Decoder(nn.Module):
         enc_inputs: [batch_size, src_len]
         enc_outputs: [batch_size, src_len, d_model]   # 用在Encoder-Decoder Attention层
         """
-        dec_outputs = self.tgt_emb(
-            dec_inputs)  # [batch_size, tgt_len, d_model]
-        dec_outputs = self.pos_emb(dec_outputs.transpose(0, 1)).transpose(0, 1)  # [batch_size, tgt_len, d_model]
+        dec_outputs = dec_inputs
+        # self.tgt_emb(dec_inputs)  # [batch_size, tgt_len, d_model]
+        # dec_outputs = self.pos_emb(dec_outputs.transpose(0, 1)).transpose(0, 1)  # [batch_size, tgt_len, d_model]
         # Decoder输入序列的pad mask矩阵（这个例子中decoder是没有加pad的，实际应用中都是有pad填充的）
         dec_self_attn_pad_mask = get_attn_pad_mask(dec_inputs, dec_inputs)  # [batch_size, tgt_len, tgt_len]
         # Masked Self_Attention：当前时刻是看不到未来的信息的
         dec_self_attn_subsequence_mask = get_attn_subsequence_mask(dec_inputs) # [batch_size, tgt_len, tgt_len]
 
         # Decoder中把两种mask矩阵相加（既屏蔽了pad的信息，也屏蔽了未来时刻的信息）
-        dec_self_attn_mask = torch.gt((dec_self_attn_pad_mask + dec_self_attn_subsequence_mask),
+        dec_self_attn_mask = Tensor.gt((dec_self_attn_pad_mask + dec_self_attn_subsequence_mask),
                                       0)  # [batch_size, tgt_len, tgt_len]; torch.gt比较两个矩阵的元素，大于则返回1，否则返回0
 
         # 这个mask主要用于encoder-decoder attention层
@@ -292,3 +293,41 @@ class Decoder(nn.Module):
             dec_enc_attns.append(dec_enc_attn)
         # dec_outputs: [batch_size, tgt_len, d_model]
         return dec_outputs, dec_self_attns, dec_enc_attns
+    
+class Transformer(nn.Module):
+    def __init__(self):
+        super(Transformer, self).__init__()
+        self.encoder = Encoder()
+        self.decoder = Decoder()
+        self.projection = nn.Linear(
+            d_model, tgt_vocab_size, bias=False)
+
+    def forward(self, enc_inputs, dec_inputs):
+        """Transformers的输入：两个序列
+        enc_inputs: [batch_size, src_len]
+        dec_inputs: [batch_size, tgt_len]
+        """
+        # tensor to store decoder outputs
+        # outputs = torch.zeros(batch_size, tgt_len, tgt_vocab_size).to(self.device)
+
+        # enc_outputs: [batch_size, src_len, d_model], enc_self_attns: [n_layers, batch_size, n_heads, src_len, src_len]
+        # 经过Encoder网络后，得到的输出还是[batch_size, src_len, d_model]
+        enc_outputs, enc_self_attns = self.encoder(enc_inputs)
+        # dec_outputs: [batch_size, tgt_len, d_model], dec_self_attns: [n_layers, batch_size, n_heads, tgt_len, tgt_len], dec_enc_attn: [n_layers, batch_size, tgt_len, src_len]
+        dec_outputs, dec_self_attns, dec_enc_attns = self.decoder(
+            dec_inputs, enc_inputs, enc_outputs)
+        # dec_outputs: [batch_size, tgt_len, d_model] -> dec_logits: [batch_size, tgt_len, tgt_vocab_size]
+        dec_logits = self.projection(dec_outputs)
+        return dec_logits.view(-1, dec_logits.size(-1)), enc_self_attns, dec_self_attns, dec_enc_attns
+
+
+model = Transformer()
+# 这里的损失函数里面设置了一个参数 ignore_index=0，因为 "pad" 这个单词的索引为 0，这样设置以后，就不会计算 "pad" 的损失（因为本来 "pad" 也没有意义，不需要计算）
+criterion = nn.CrossEntropyLoss(ignore_index=0)
+optimizer = optim.SGD(model.parameters(), lr=1e-3,
+                      momentum=0.99)  # 用adam的话效果不好
+x = Tensor.ones(4, src_len, d_model)
+y = Tensor.ones(4, tgt_len, d_model)
+dataload = dataloader.DataLoader(x, y, batch_size = 2, shuffle=False)
+input, label = dataload.get_data(0)
+output = model(input, label)
