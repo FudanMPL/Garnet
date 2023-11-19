@@ -647,7 +647,6 @@ def max_pool2d(input, kernel_size=2, stride=2, padding=0):
             output_shape = [input.shape[0],input.shape[1],(input.shape[2]-kernel_size[0])//stride[0]+1,
                             (input.shape[3]-kernel_size[1])//stride[1]+1 ]
              #out_shape.size:[Batch_size,out_channel,H_out,W_out]
-        print_ln("%s",output_shape)
         new_value=MultiArray(output_shape,input.value.value_type)
         output = Tensor(new_value, req_grad=input.req_grad)
         comparisons = MultiArray([input.shape[0],input.shape[1],
@@ -1027,28 +1026,20 @@ def layer_norm(input, normalized_shape, weight=None, bias=None, eps=1e-05):
         assert normalized_shape[len(normalized_shape)-1-i] == input.sizes[len(input.sizes)-1-i] ,"Invalid normalized_shape"
         dim.append(len(input.sizes)-1-i)
     dim.reverse()
-    print_ln("1")
     x_mean = input.mean(dim=dim, keepdim=True)
-    print_ln("2")
 
     
     x_var = input.var(dim=dim, keepdim=True, unbiased=True) 
-    print_ln("3")
     
     x_var = x_var + eps
-    print_ln("4")
     output = (input - x_mean) * x_var.invsqrt() 
-    print_ln("5")
     
     if weight is not None:
         output = output * weight
-        print_ln("6")
 
     if bias is not None:
-        print_ln("7")
         output = output + bias
         
-    print_ln("==================")
     
     return output
 
