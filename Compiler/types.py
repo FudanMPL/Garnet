@@ -6318,9 +6318,9 @@ class SubMultiArray(_vectorizable):
 
         max_size = _register.maximum_size // out_col
         
-        @library.multithread(n_threads, row, max_size)
-        def _(base, size):
-            res.assign_part_vector(self.direct_mul(other,indices=(regint.inc(size,base=base),regint.inc(inter), regint.inc(inter),regint.inc(out_col))),base)
+        # @library.multithread(n_threads, row, max_size)
+        # def _(base, size):
+        res.assign_vector(self.direct_mul(other))
             # res.assign_part_vector(self.get_part(base,size).direct_mul(other),base) # it uses address not create new. These two are the same in time and online or offline round.
         return res
     
@@ -6917,8 +6917,14 @@ class MultiArray(SubMultiArray):
             index_store.append(tmp_i)
             new_index.append(tmp_i)   
             new_index = self.tuple_permute(new_index, new_perm)   
+            # library.print_ln("%s, %s, %s", index_store[0], index_store[1], index_store[2])              
+            # library.print_ln("%s, %s, %s", new_index[0], new_index[1], new_index[2]) 
+            # library.print_ln("%s, %s, %s", new_perm[0], new_perm[1], new_perm[2]) 
+            # library.print_ln("%s, %s, %s", res.sizes[0], res.sizes[1], res.sizes[2]) 
+        
             tmp_val = self.get_vector_by_indices(*index_store)
             res.assign_vector_by_indices(tmp_val, *new_index)
+        library.break_point()
         return res
         
     def reshape(self, sizes):
@@ -7192,14 +7198,17 @@ class MultiArray(SubMultiArray):
             assert res.sizes == (*batch, n, p), "Invalid Output Dimension"
 
         self.view(b, n, m)
-        n_threads = os.cpu_count()
+        n_threads = 1
         if not is_reduce:
             other.view(b, m, p), res.view(b, n, p)
+            library.break_point()
             @library.for_range_opt_multithread(n_threads, b)
             def _(i):
                 # self[i] is SubMultiArray
-                self[i].matmul(other[i], res[i])
-                # res.assign_part_vector(self[i].direct_mul(other[i]),i)
+                # self[i].matmul(other[i], res[i])
+                res.assign_part_vector(self[i].direct_mul(other[i]),i)
+            library.break_point()
+                
             res.view(*batch, n, p)
         else:
             other.view(b*m, p)

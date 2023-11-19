@@ -1738,49 +1738,7 @@ class LayerNorm(Module):
 
     def extra_repr(self) -> str:
         return '{normalized_shape}, eps={eps}, ' \
-            'elementwise_affine={elementwise_affine}'.format(**self.__dict__)
-
-class ReLU(Module):
-    r"""Applies the rectified linear unit function element-wise:
-
-    :math:`\text{ReLU}(x) = (x)^+ = \max(0, x)`
-
-    Args:
-        inplace: can optionally do the operation in-place. Default: ``False``
-
-    Shape:
-        - Input: :math:`(*)`, where :math:`*` means any number of dimensions.
-        - Output: :math:`(*)`, same shape as the input.
-
-    .. image:: ../scripts/activation_images/ReLU.png
-
-    Examples::
-
-        >>> m = nn.ReLU()
-        >>> input = torch.randn(2)
-        >>> output = m(input)
-
-
-      An implementation of CReLU - https://arxiv.org/abs/1603.05201
-
-        >>> m = nn.ReLU()
-        >>> input = torch.randn(2).unsqueeze(0)
-        >>> output = torch.cat((m(input), m(-input)))
-    """
-    __constants__ = ['inplace']
-    inplace: bool
-
-    def __init__(self, inplace: bool = False):
-        super().__init__()
-        self.inplace = inplace
-
-    def forward(self, input: Tensor) -> Tensor:
-        return F.relu(input, inplace=self.inplace)
-
-    def extra_repr(self) -> str:
-        inplace_str = 'inplace=True' if self.inplace else ''
-        return inplace_str
-        
+            'elementwise_affine={elementwise_affine}'.format(**self.__dict__)       
 class _DropoutNd(Module):
     __constants__ = ['p', 'inplace']
     p: float
@@ -2124,7 +2082,61 @@ class Tanh(Module):
 
     def forward(self, input: Tensor) -> Tensor:
         return F.tanh(input)
+class Softmax(Module):
+    r"""Applies the Softmax function to an n-dimensional input Tensor
+    rescaling them so that the elements of the n-dimensional output Tensor
+    lie in the range [0,1] and sum to 1.
 
+    Softmax is defined as:
+
+    .. math::
+        \text{Softmax}(x_{i}) = \frac{\exp(x_i)}{\sum_j \exp(x_j)}
+
+    When the input Tensor is a sparse tensor then the unspecified
+    values are treated as ``-inf``.
+
+    Shape:
+        - Input: :math:`(*)` where `*` means, any number of additional
+          dimensions
+        - Output: :math:`(*)`, same shape as the input
+
+    Returns:
+        a Tensor of the same dimension and shape as the input with
+        values in the range [0, 1]
+
+    Args:
+        dim (int): A dimension along which Softmax will be computed (so every slice
+            along dim will sum to 1).
+
+    .. note::
+        This module doesn't work directly with NLLLoss,
+        which expects the Log to be computed between the Softmax and itself.
+        Use `LogSoftmax` instead (it's faster and has better numerical properties).
+
+    Examples::
+
+        >>> m = nn.Softmax(dim=1)
+        >>> input = torch.randn(2, 3)
+        >>> output = m(input)
+
+    """
+    __constants__ = ['dim']
+    dim: Optional[int]
+
+    def __init__(self, dim: Optional[int] = None) -> None:
+        super().__init__()
+        self.dim = dim
+
+    def __setstate__(self, state):
+        super().__setstate__(state)
+        if not hasattr(self, 'dim'):
+            self.dim = None
+
+    def forward(self, input: Tensor) -> Tensor:
+        return F.softmax(input, self.dim)
+
+    def extra_repr(self) -> str:
+        return 'dim={dim}'.format(dim=self.dim)
 
 class _Loss(Module):
     reduction: str

@@ -151,11 +151,11 @@ def test_bmm():
     print_ln('test_bmm:')
     x = MultiArray([2, 4, 2, 4], sfix)
     x.assign_all(1)
-    x.print_reveal_nested()
+    # x.print_reveal_nested()
 
     y = MultiArray([2, 4, 4, 3], sfix)
     y.assign_all(2)
-    y.print_reveal_nested()
+    # y.print_reveal_nested()
 
     input1 = Tensor(x, req_grad=True)
     input2 = Tensor(y, req_grad=True)
@@ -166,14 +166,15 @@ def test_bmm():
 
     output = input1.bmm(input2)
     output.backward()
-    output.value.print_reveal_nested()
-    input1.grad.print_reveal_nested()
-    input2.grad.print_reveal_nested()
+    # output.value.print_reveal_nested()
+    # input1.grad.print_reveal_nested()
+    # input2.grad.print_reveal_nested()
 
-test_regint()
+# test_regint()
 # test_concate()
 # test_forward_single_bmm()
 # test_forward_bmm()
 # test_basic_function()
 # test_single_bmm()
 # test_bmm()
+test_bmm()

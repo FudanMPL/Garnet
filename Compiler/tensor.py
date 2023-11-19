@@ -201,6 +201,7 @@ def element_wise_add(self, other):
         temp1 = MultiArray(target_size, v1.value_type)
         target_size = v1.tuple_permute(v1.sizes, get_permute_d2front(len(v1.sizes), dim))
         temp2 = MultiArray(target_size, predict_value_type(self.value, other.value))
+        print(temp2.sizes)
         # check whether require grad
         if self.req_grad or other.req_grad:
             operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate, intermediate=[temp1, temp2])
@@ -218,7 +219,7 @@ def element_wise_add(self, other):
         input2 = tensors[inputs[1]]
         output = tensors[outputs[0]]
         temp1, temp2 = operation.intermediate
-
+        print(temp2.sizes)
         # permute input for boardcasted
         dims, v1, v2 = reconst_dims(input1.value, input2.value)
         v1.permute_without_malloc(temp1, get_permute(len(v1.sizes), dims))
@@ -234,7 +235,7 @@ def element_wise_add(self, other):
         
         # permute back
         temp2.permute_without_malloc(output.value, get_permute_back(len(v1.sizes), dims))
-    
+        
         op_id += 1# record the input and output of the op
     return output
 
@@ -1434,7 +1435,6 @@ class Tensor():
                         continue
                     if isinstance(index[i], slice):
                             index_i = index[i]
-                            print(index_i)
                             start =  0  if index_i.start == None else index_i.start
                             end = self.sizes[i]  if index_i.stop == None else index_i.stop
                             step = 1  if index_i.step == None else index_i.step
@@ -1549,7 +1549,6 @@ class Tensor():
                         continue
                     if isinstance(index[i], slice):
                             index_i = index[i]
-                            print(index_i)
                             start =  0  if index_i.start == None else index_i.start
                             end = self.sizes[i]  if index_i.stop == None else index_i.stop
                             step = 1  if index_i.step == None else index_i.step
@@ -1606,7 +1605,7 @@ class Tensor():
                     
     @buildingblock("masked_fill_")
     def masked_fill_(self, mask, value):
-        b = value * mask 
+        b =  mask *value 
         return self + b
 
     @staticmethod
@@ -2086,7 +2085,6 @@ class Tensor():
                 new_sizes.append(int(new_len))
                 continue
             new_len *= sizes[i]
-        print(new_sizes)
         return self.view(new_sizes)
                     
     @buildingblock("squeeze-forward")
@@ -2245,12 +2243,12 @@ class Tensor():
                     sizes = sizes[0]
                 else:
                     sizes = list(sizes)
-                assert all(isinstance(x, int) and x > 0 for x in sizes), "Invalid Dimensiopn"
+                assert all(isinstance(x, int) for x in sizes), "Invalid Dimensiopn"
                 if -1 in sizes:
                     assert sizes.count(-1) == 1, "-1 Occurs More than Once "
                     tmp = reduce(lambda x, y: x*y, sizes)
                     assert product % (-tmp) == 0, "Invalid Dimension"
-                    sizes[sizes.index(-1)] = product/(-tmp)
+                    sizes[sizes.index(-1)] = int(product/(-tmp))
                 new_value = MultiArray(sizes, self.value.value_type)
             output = Tensor(new_value, req_grad=self.req_grad)
             if self.req_grad:
@@ -2306,8 +2304,19 @@ class Tensor():
         return output
 
     @buildingblock("transpose-forward")
-    def transpose(self, *sizes):
-        
+    def transpose(self, *indexs):
+        if indexs!=None:
+            indexs = list(indexs)
+            new_index = []
+            for i in range(len(self.sizes)):
+                if i == indexs[0]%len(self.sizes):
+                    new_index.append(indexs[1]%len(self.sizes))
+                    continue
+                if i == indexs[1]%len(self.sizes):
+                    new_index.append(indexs[0]%len(self.sizes))
+                    continue
+                new_index.append(i)
+            return self.permute(*new_index)
         @backwardbuildingblock(get_program().globalbuildingblock[:-18]+ "-transpose-backward")
         def propagate(dl_doutputs, operation):
             if isinstance(dl_doutputs[0], Array):
@@ -2406,7 +2415,7 @@ class Tensor():
     
     @buildingblock("expand")
     def expand(self, sizes):
-        for i in len(sizes):
+        for i in range(len(sizes)):
             if sizes[i] == -1:
                 sizes[i] = self.value.sizes[i]
         temp_value = MultiArray(sizes, cint)
@@ -2420,13 +2429,18 @@ class Tensor():
     @buildingblock("repeat")
     def repeat(self, *sizes):
         sizes = list(sizes)
-        new_sizes = self.value.sizes
-        for i in len(sizes):
-            new_sizes[i] = new_sizes[i] * sizes[i]
-        return self.expand(self, new_sizes)
+        new_sizes = []
+        for i in range(len(sizes)):
+            new_sizes.append(self.value.sizes[i] * sizes[i])
+        return self.expand(new_sizes)
     
     @buildingblock("gt")
     def gt(input, other):
+        if isinstance(other, int) or isinstance(other, float):
+            new_value = input.value.same_shape()
+            output = Tensor(new_value, req_grad=input.req_grad)
+            output.value[:] = output.value[:] > other
+            return output
         if isinstance(input.value, MultiArray) or isinstance(other.value, MultiArray):
             if input.value.total_size()>other.value.total_size():
                 new_value = MultiArray(input.value.sizes, predict_value_type(input.value, other.value))

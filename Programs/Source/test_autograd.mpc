@@ -79,10 +79,10 @@ def test_add():
 @autograd_function
 def test_sub():
     print_ln('test_sub_input: ')
-    x = MultiArray([3, 3, 2], sfix)
+    x = MultiArray([2, 7, 1], sfix)
     x.assign_all(1)
     x.print_reveal_nested()
-    y = MultiArray([1, 2], sfix)
+    y = MultiArray([2, 7, 20], sfix)
     y.assign_all(5)
     y[0][0]=6
     y.print_reveal_nested()
@@ -906,4 +906,5 @@ def test_arange():
 #test_gather()
 # test_expand()
 # test_triu()
-test_getitem()
+# test_getitem()
+test_sub()
