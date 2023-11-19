@@ -1443,8 +1443,75 @@ class Tensor():
 
         :param index: public (regint/cint/int)
         :return: :py:class:`Array` if one-dimensional, :py:class:`SubMultiArray` otherwise"""
+        
         if isinstance(index, slice) and index == slice(None):
             return self
+        if isinstance(index, tuple):
+            new_sizes = []
+            tmp_new_sizes = []
+            index_tuples = []
+            for i in range(len(self.sizes)):
+                if i < len(index):
+                    if isinstance(index[i], int):
+                        tmp_new_sizes.append(1)
+                        index_tuples.append((index[i], 0))
+                        continue
+                    if isinstance(index[i], slice):
+                            index_i = index[i]
+                            print(index_i)
+                            start =  0  if index_i.start == None else index_i.start
+                            end = self.sizes[i]  if index_i.stop == None else index_i.stop
+                            step = 1  if index_i.step == None else index_i.step
+                            size = math.ceil((end-start)/step)
+                            new_sizes.append(size)
+                            tmp_new_sizes.append(size)
+                            index_tuples.append((start, step))
+                else:
+                    new_sizes.append(self.sizes[i])
+                    tmp_new_sizes.append(self.sizes[i])
+                    index_tuples.append(0, 1)
+            new_grad = None
+            if len(tmp_new_sizes) > 1: 
+                res_value = MultiArray(tmp_new_sizes, self.value.value_type)
+            else:
+                res_value = Array(tmp_new_sizes[0], self.value.value_type)
+            if self.req_grad:
+                new_grad = res_value.same_shape()
+            @for_range(res_value.total_size())
+            def _(i):
+                index_store = []
+                new_index = []
+                def mul(x, y):
+                    return x*y
+                tmp_i = i
+                for j in range(len(res_value.sizes)-1):
+                    left_size = (reduce(mul, res_value.sizes[j+1:]))
+                    tmp_index = tmp_i// left_size
+                    index_store.append(tmp_index)
+                    new_index.append(index_tuples[j][0] + tmp_index * index_tuples[j][1])
+                    tmp_i = tmp_i%left_size
+                index_store.append(tmp_i)
+                new_index.append(index_tuples[len(res_value.sizes)-1][0] + tmp_i* index_tuples[len(res_value.sizes)-1][1])
+                tmp_val = self.value.get_vector_by_indices(*new_index)
+                res_value.assign_vector_by_indices(tmp_val, *index_store)
+                if self.req_grad:
+                    tmp_val = self.grad.get_vector_by_indices(*new_index)
+                    new_grad.assign_vector_by_indices(tmp_val, *index_store)
+            
+            if len(new_sizes) == 1:
+                res_value = Array(new_sizes[0], res_value.value_type, res_value.address)
+                if self.req_grad:
+                    new_grad = Array(new_sizes[0], new_grad.value_type, new_grad.address)
+            elif len(new_sizes) == 0:
+                res_value = Array(1, res_value.value_type, res_value.address)
+                if self.req_grad:
+                    new_grad = Array(1, new_grad.value_type, new_grad.address)                    
+            else:
+                res_value.view(*new_sizes)
+                if self.req_grad:
+                    new_grad.view(*new_sizes)
+            res = Tensor(res_value, req_grad=self.req_grad, grad=new_grad)
+            return res
         if isinstance(index, int) and index < 0:
             index += self.sizes[0]
         key = program.curr_block, str(index)
@@ -1493,10 +1560,73 @@ class Tensor():
 
     #     :param index: public (regint/cint/int)
     #     :param other: container of matching size and type """
+       
+        if isinstance(index, tuple):
+            new_sizes = []
+            tmp_new_sizes = []
+            index_tuples = []
+            for i in range(len(self.sizes)):
+                if i < len(index):
+                    if isinstance(index[i], int):
+                        tmp_new_sizes.append(1)
+                        index_tuples.append((index[i], 0))
+                        continue
+                    if isinstance(index[i], slice):
+                            index_i = index[i]
+                            print(index_i)
+                            start =  0  if index_i.start == None else index_i.start
+                            end = self.sizes[i]  if index_i.stop == None else index_i.stop
+                            step = 1  if index_i.step == None else index_i.step
+                            size = math.ceil((end-start)/step)
+                            new_sizes.append(size)
+                            tmp_new_sizes.append(size)
+                            index_tuples.append((start, step))
+                else:
+                    new_sizes.append(self.sizes[i])
+                    tmp_new_sizes.append(self.sizes[i])
+                    index_tuples.append(0, 1)
+            if isinstance(other, Tensor):
+                other_value = other.value
+            elif isinstance(other, MultiArray) or isinstance(other, Array):
+                other_value = other
+            else:
+                raise CompilerError("when index is tuple, the type of other should be Tensor, MultiArray or Array")
+            
+            if len(tmp_new_sizes) > 1: 
+                tmp_value = MultiArray(tmp_new_sizes, cint)
+                tmp_res_value = MultiArray(tmp_new_sizes, predict_value_type(tmp_value, other_value))
+            else:
+                tmp_value = Array(tmp_new_sizes[0], cint)
+                tmp_res_value = Array(tmp_new_sizes[0], predict_value_type(tmp_value, other_value))
+                
+            tmp_value.assign_all(1)
+            boardcasted_multiarray_mul(tmp_value, other_value, tmp_res_value)
+            tmp_value.print_reveal_nested()
+            @for_range(tmp_value.total_size())
+            def _(i):
+                index_store = []
+                new_index = []
+                def mul(x, y):
+                    return x*y
+                tmp_i = i
+                for j in range(len(tmp_value.sizes)-1):
+                    left_size = (reduce(mul, tmp_value.sizes[j+1:]))
+                    tmp_index = tmp_i// left_size
+                    index_store.append(tmp_index)
+                    new_index.append(index_tuples[j][0] + tmp_index * index_tuples[j][1])
+                    tmp_i = tmp_i%left_size
+                index_store.append(tmp_i)
+                new_index.append(index_tuples[len(tmp_value.sizes)-1][0] + tmp_i* index_tuples[len(tmp_value.sizes)-1][1])
+                tmp_val = tmp_res_value.get_vector_by_indices(*index_store)
+                self.value.assign_vector_by_indices(tmp_val, *new_index)
+            tmp_value.delete()
+            tmp_res_value.delete()
+            return
         if isinstance(other, Tensor):
             self.value[index] = other.value
         else:
             self.value[index] = other
+
                     
     @buildingblock("masked_fill_")
     def masked_fill_(self, mask, value):
@@ -2029,7 +2159,7 @@ class Tensor():
         global op_id
         if prepare:
             new_sizes = list(self.shape)
-            assert isinstance(dim, int) and dim < len(self.shape) and dim >= -len(self.shape), "Invalid Dimension"
+            assert isinstance(dim, int) and dim <= len(self.shape) and dim >= -len(self.shape), "Invalid Dimension"
             new_sizes.insert(dim, 1)
             new_value = MultiArray(new_sizes, self.value.value_type)
             output = Tensor(new_value, req_grad=self.req_grad)
@@ -2200,7 +2330,7 @@ class Tensor():
         return output
 
     @buildingblock("transpose-forward")
-    def transpose(self):
+    def transpose(self, *sizes):
         
         @backwardbuildingblock(get_program().globalbuildingblock[:-18]+ "-transpose-backward")
         def propagate(dl_doutputs, operation):
