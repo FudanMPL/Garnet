@@ -52,11 +52,11 @@ def test_single_operation(func,Value):
 @autograd_function
 def test_add():
     print_ln('test_add_input: ')
-    x = MultiArray([3, 2, 3], sfix)
+    x = MultiArray([2, 7, 1], sfix)
     for i in range(x.total_size()):
         x.assign_vector(sfix(i), i)
     x.print_reveal_nested()
-    y = MultiArray([2, 1], sfix)
+    y = MultiArray([2, 7, 512], sfix)
     y.assign_all(5)
     y[0][0]=6
     y.print_reveal_nested()
@@ -869,7 +869,7 @@ def test_triu():
     y = Tensor.triu(input1, k=2)
     y.print_reveal_nested()
 # test_mul()
-#test_add()
+test_add()
 #test_sub()
 #test_div()
 #test_abs()
@@ -929,4 +929,4 @@ def test_arange():
 #test_gather()
 # test_expand()
 #test_gt()
-test_triu()
+#test_triu()
