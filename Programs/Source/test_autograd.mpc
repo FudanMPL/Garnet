@@ -52,11 +52,11 @@ def test_single_operation(func,Value):
 @autograd_function
 def test_add():
     print_ln('test_add_input: ')
-    x = MultiArray([3, 2, 3], sfix)
+    x = MultiArray([2, 7, 1], sfix)
     for i in range(x.total_size()):
         x.assign_vector(sfix(i), i)
     x.print_reveal_nested()
-    y = MultiArray([2, 1], sfix)
+    y = MultiArray([2, 7, 512], sfix)
     y.assign_all(5)
     y[0][0]=6
     y.print_reveal_nested()
@@ -831,6 +831,33 @@ def test_masked_fill_():
     #input1.grad.print_reveal_nested()
     
 @autograd_function
+def test_gt():
+    print_ln('testgt')
+    x = MultiArray([3, 3], sfix)
+    for i in range(0,3):
+        for  j in range(0,3):
+            x[i][j] = sfix(i+j)
+    x.print_reveal_nested()
+    input1 = Tensor(x, req_grad = True)
+
+    y = MultiArray([1, 3], sfix)
+    for i in range(0,1):
+        for  j in range(0,3):
+            y[i][j] = sfix(i*j)
+    y.print_reveal_nested()
+    input2 = Tensor(y, req_grad = True)
+
+    input3 = input1.gt(input2)
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    input3 = input1.gt(input2)
+    #input2.backward()
+    input3.value.print_reveal_nested()
+    #input1.grad.print_reveal_nested()
+    
+@autograd_function
 def test_triu():
     print_ln('test_triu')
     x = MultiArray([ 3,5], sfix)
@@ -842,7 +869,7 @@ def test_triu():
     y = Tensor.triu(input1, k=2)
     y.print_reveal_nested()
 # test_mul()
-#test_add()
+test_add()
 #test_sub()
 #test_div()
 #test_abs()

@@ -219,22 +219,24 @@ def element_wise_add(self, other):
         input2 = tensors[inputs[1]]
         output = tensors[outputs[0]]
         temp1, temp2 = operation.intermediate
-        print(temp2.sizes)
-        # permute input for boardcasted
-        dims, v1, v2 = reconst_dims(input1.value, input2.value)
-        v1.permute_without_malloc(temp1, get_permute(len(v1.sizes), dims))
-        v1 = temp1
+
+        # # permute input for boardcasted
+        # dims, v1, v2 = reconst_dims(input1.value, input2.value)
+        # v1.permute_without_malloc(temp1, get_permute(len(v1.sizes), dims))
+        # v1 = temp1
         
-        # element_wise_add
-        len1, len2 = v1.total_size(), v2.total_size()
-        @for_range(len1//len2)
-        def _(i):
-            v3 = v1.get_vector(i*len2, len2) + v2.get_vector(0, len2)
-            temp2.assign_vector(v3, i*len2)
-        break_point()
+        # # element_wise_add
+        # len1, len2 = v1.total_size(), v2.total_size()
+        # @for_range(len1//len2)
+        # def _(i):
+        #     v3 = v1.get_vector(i*len2, len2) + v2.get_vector(0, len2)
+        #     temp2.assign_vector(v3, i*len2)
+        # break_point()
         
-        # permute back
-        temp2.permute_without_malloc(output.value, get_permute_back(len(v1.sizes), dims))
+        # # permute back
+        # temp2.permute_without_malloc(output.value, get_permute_back(len(v1.sizes), dims))
+
+        boardcasted_multiarray_add(input1.value, input2.value, output.value)
         
         op_id += 1# record the input and output of the op
     return output
@@ -333,6 +335,28 @@ def element_wise_sub(self, other):
         op_id += 1# record the input and output of the op
     return output
 
+def boardcasted_multiarray_add(v1, v2, output):
+    # predict size and type for result
+    dims, v1, v2 = reconst_dims(v1, v2)
+    target_size = v1.tuple_permute(v1.sizes, get_permute(len(v1.sizes), dims))  
+    temp1 = MultiArray(target_size, v1.value_type)
+    temp2 = MultiArray(target_size, predict_value_type(v1, v2))
+    # permute input for boardcasted
+    v1.permute_without_malloc(temp1, get_permute(len(v1.sizes), dims))
+    v1 = temp1
+    # vectorize add
+    len1, len2 = v1.total_size(), v2.total_size()
+    assert len1 % len2==0, "Invalid Dimension"
+    @for_range_opt(len1//len2)
+    def _(i):
+        v3 = v1.get_vector(i*len2, len2) + v2.get_vector(0, len2)
+        temp2.assign_vector(v3, i*len2)
+    break_point()
+    # permute back
+    temp2.permute_without_malloc(output, get_permute_back(len(v1.sizes), dims))
+    # release mem
+    temp1.delete()
+    temp2.delete()
 
 def boardcasted_multiarray_mul(v1, v2, output):
     # predict size and type for result
