@@ -797,6 +797,7 @@ class Module():
             if not first_forward:
                 self.main = True
                 first_forward = True
+                TS.forward = True
             if self.main:
                 TS.untrain()
                 forward_call = self.forward

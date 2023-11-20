@@ -35,7 +35,7 @@ class PositionalEncoding(nn.Module):
         position = Tensor.arange(0, max_len, value_type = cfix).unsqueeze(1)
         div_term = (Tensor.arange(
             0, d_model, 2, value_type = cfix)* (-math.log(10000.0) / d_model)).exp()
-        tmp = (position * div_term.unsqueeze(0).expand([max_len, d_model]))
+        tmp = (position * div_term.unsqueeze(0).expand([max_len, d_model/2]))
         pe[:, 0::2] = tmp.sin()
         pe[:, 1::2] = tmp.cos()
         pe = pe.unsqueeze(0).transpose(0, 1)

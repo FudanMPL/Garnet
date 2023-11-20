@@ -28,6 +28,8 @@ def relu(input, inplace=False):
         dl_dy, = dl_doutputs
         dl_d[input.name]+=operation.intermediate[0][:]*dl_dy[:]        
     prepare = get_prepare()
+    init_op_id = get_init_op_id()
+    forward = get_forward()
     if prepare:
         assert isinstance(input, Tensor),"Invalid Input"
         if isinstance(input.value,Array):
@@ -44,14 +46,16 @@ def relu(input, inplace=False):
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
-        set_opid(op_id+1)
-    else:
+        # set_opid(op_id+1)
+    if not prepare or not forward:
         operation = gradient_operation[op_id_store[op_id]]
         output = tensors[operation.outputs[0]]
         larger=0 < input.value[:]
         operation.intermediate[0].assign_vector(larger)
+        if not forward:
+            set_init_op_id(init_op_id+1)
         output.value[:] = (larger).if_else(input.value[:], 0) 
-        set_opid(op_id+1)  # record the input and output of the op
+    set_opid(op_id+1)  # record the input and output of the op
     return output
 
 @vectorize
@@ -111,6 +115,8 @@ def sigmoid(input,approx=False): # added approx parameter to speed up the comput
         dl_d[input_.name]+=output.value[:]*(1-output.value[:])*dl_dy[:]
             
     prepare = get_prepare()
+    init_op_id = get_init_op_id()
+    forward = get_forward()
     if prepare:
         assert isinstance(input, Tensor),"Invalid Input"
         if isinstance(input.value,Array):
@@ -125,16 +131,18 @@ def sigmoid(input,approx=False): # added approx parameter to speed up the comput
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
-        set_opid(op_id+1)
-    else:
+        # set_opid(op_id+1)
+    if not prepare or not forward:
         operation = gradient_operation[op_id_store[op_id]]
         input = tensors[operation.inputs[0]]
         output = tensors[operation.outputs[0]]
+        if not forward:
+            set_init_op_id(init_op_id+1)
         if approx:
             output.value[:]=approx_sigmoid(input.value[:])
         else:
             output.value[:] =  sigmoid_from_e_x(input.value[:],exp(-input.value[:]))
-        set_opid(op_id+1)  # record the input and output of the op
+    set_opid(op_id+1)  # record the input and output of the op
     return output
 
 @buildingblock("logsigmoid-forward")
@@ -149,6 +157,8 @@ def logsigmoid(input):  # todo
             dl_d[input_.name]+=1/(1+exp(output.value[:]))*dl_dy[:]
             
     prepare = get_prepare()
+    init_op_id = get_init_op_id()
+    forward = get_forward()
     if prepare:
         assert isinstance(input, Tensor),"Invalid Input"
         if isinstance(input.value,Array):
@@ -163,13 +173,15 @@ def logsigmoid(input):  # todo
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
-        set_opid(op_id+1)
-    else:
+        # set_opid(op_id+1)
+    if not prepare or not forward:
         operation = gradient_operation[op_id_store[op_id]]
         input = tensors[operation.inputs[0]]
         output = tensors[operation.outputs[0]]
+        if not forward:
+            set_init_op_id(init_op_id+1)
         output.value[:] = -log_e(1+exp(-input.value[:]))
-        set_opid(op_id+1)  # record the input and output of the op
+    set_opid(op_id+1)  # record the input and output of the op
     return output
 
 @buildingblock("tanh-forward")
@@ -226,7 +238,7 @@ def softmax(input,dim=-1):
             inter_broadcast_sub=operation.intermediate[4]
             dl_dy.element_wise_mul(output.value,inter_inital0 )
             inter_inital0.sum(dim,res=inter_sum,keepdims=True)
-            boardcasted_multiarray_sub(dl_dy, inter_sum,inter_broadcast_sub,inter_inital0)
+            boardcasted_multiarray_sub(dl_dy, inter_sum,inter_inital0)
             output.value.element_wise_mul(inter_inital0, inter_inital0)
             # print_ln('softmax backward:end:')
             # inter_inital0.print_reveal_nested()
@@ -236,6 +248,8 @@ def softmax(input,dim=-1):
             dl_d[operation.inputs[0]][:] += res
             
     prepare = get_prepare()
+    init_op_id = get_init_op_id()
+    forward = get_forward()
     if prepare:
         assert isinstance(input, Tensor),"Invalid Input"
         if isinstance(input.value,Array):
@@ -262,11 +276,13 @@ def softmax(input,dim=-1):
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
-        set_opid(op_id+1)
-    else:
+        # set_opid(op_id+1)
+    if not prepare or not forward:
         operation = gradient_operation[op_id_store[op_id]]
         input = tensors[operation.inputs[0]]
         output = tensors[operation.outputs[0]]
+        if not forward:
+            set_init_op_id(init_op_id+1)
         if isinstance(input.value,Array):
             output.value.assign_vector(vec_softmax(input.value.get_vector()),0)
         else:
@@ -281,7 +297,7 @@ def softmax(input,dim=-1):
             
             changed_output_1.permute_without_malloc(output.value,get_permute(len(output.sizes), [ dim%len(output.sizes) ]))
         
-        set_opid(op_id+1)  # record the input and output of the op
+    set_opid(op_id+1)  # record the input and output of the op
     return output
     
 def vec_softmax(x):
@@ -306,13 +322,15 @@ def log_softmax(input, dim=-1):  # todo
             inter_inital0=operation.intermediate[5]
             inter_broadcast_sub=operation.intermediate[6]
             dl_dy.sum(dim,res=inter_sum,keepdims=True)
-            boardcasted_multiarray_mul(softmax_value,inter_sum,inter_broadcast_sub,inter_inital0)
+            boardcasted_multiarray_mul(softmax_value,inter_sum,inter_inital0)
             dl_d[operation.inputs[0]][:] +=  (dl_dy[:]-inter_inital0[:])
         else:
             res = dl_dy[:]-(sum(dl_dy)*softmax_value[:])
             dl_d[operation.inputs[0]][:] += res     
 
     prepare = get_prepare()
+    init_op_id = get_init_op_id()
+    forward = get_forward()
     if prepare:
         assert isinstance(input, Tensor),"Invalid Input"
         assert isinstance(dim, int) , "dim is not int"
@@ -342,13 +360,14 @@ def log_softmax(input, dim=-1):  # todo
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
-        set_opid(op_id+1)
-    else:
+        # set_opid(op_id+1)
+    if not prepare or not forward:
         operation = gradient_operation[op_id_store[op_id]]
         input = tensors[operation.inputs[0]]
         output = tensors[operation.outputs[0]]
         softmax_value=operation.intermediate[0]
-        
+        if not forward:
+            set_init_op_id(init_op_id+1)        
         if isinstance(input.value,Array):
             logsoftmax_sfix,softmax_sfix=vec_logsoftmax_softmax(input.value.get_vector())
             output.value.assign_vector(logsoftmax_sfix,0)
@@ -370,7 +389,7 @@ def log_softmax(input, dim=-1):  # todo
             changed_output_1.permute_without_malloc(output.value,get_permute(len(output.sizes), [dim%len(output.sizes)]))
             changed_output_2.permute_without_malloc(operation.intermediate[0],get_permute(len(output.sizes), [dim%len(output.sizes)]))
         
-        set_opid(op_id+1)  # record the input and output of the op
+    set_opid(op_id+1)  # record the input and output of the op
     return output
  
 def vec_logsoftmax_softmax(x):
@@ -500,6 +519,8 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0]):
         
         
     prepare = get_prepare()
+    init_op_id = get_init_op_id()
+    forward = get_forward()
     if prepare:
         assert isinstance(input, Tensor) and isinstance(weight, Tensor) ,"Invalid Input and weight"
         assert len(input.shape)==4 and len(weight.shape)==4,"Invalid Dimension input and weight"
@@ -514,8 +535,8 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0]):
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
-        set_opid(op_id+1)
-    else:
+        # set_opid(op_id+1)
+    if not prepare or not forward:
         stride_h, stride_w = stride
         padding_h, padding_w = padding
         operation = gradient_operation[op_id_store[op_id]]
@@ -528,7 +549,8 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0]):
         output_value=output.value.permute([0,2,3,1])
         
         n_threads=8 if input.numel() > 2**20 else 1
-        
+        if not forward:
+            set_init_op_id(init_op_id+1)   
         n_parts = max(1, round((n_threads or 1) / n_channels_out))
         while N % n_parts != 0:
             n_parts -= 1
@@ -559,7 +581,7 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0]):
                               size=n_per_thread),sfix).reduce_after_mul()
             res.store_in_mem(output.value.address + base)
         
-        set_opid(op_id+1)  # record the input and output of the op
+    set_opid(op_id+1)  # record the input and output of the op
     return output
 
 
@@ -628,6 +650,8 @@ def max_pool2d(input, kernel_size=2, stride=2, padding=0):
 
             
     prepare = get_prepare()
+    init_op_id = get_init_op_id()
+    forward = get_forward()
     if prepare:
         if isinstance(kernel_size, int):
             kernel_size = (kernel_size, kernel_size)
@@ -661,8 +685,8 @@ def max_pool2d(input, kernel_size=2, stride=2, padding=0):
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
-        set_opid(op_id+1)
-    else:
+        # set_opid(op_id+1)
+    if not prepare or not forward:
         operation = gradient_operation[op_id_store[op_id]]
         input = tensors[operation.inputs[0]]
         output = tensors[operation.outputs[0]]
@@ -673,6 +697,8 @@ def max_pool2d(input, kernel_size=2, stride=2, padding=0):
         _,  n_channels_out,output_h, output_w = output.shape
         training=input.req_grad
         batch=Array.create_from(regint.inc(N))
+        if not forward:
+            set_init_op_id(init_op_id+1)
         def process(pool, bi, k, i, j,comparisons,Y,training):
             def m(a, b):
                 c = a[0] > b[0]
@@ -718,7 +744,7 @@ def max_pool2d(input, kernel_size=2, stride=2, padding=0):
                                 pool.append([h_in * w_in * input.value[bi][k][h_in * h]
                                              [w_in * w], h_in, w_in, h, w])
                     process(pool, bi, k, i, j,operation.intermediate[3],output.value,training)
-        set_opid(op_id+1)  # record the input and output of the op
+    set_opid(op_id+1)  # record the input and output of the op
     return output
 
     
@@ -786,6 +812,8 @@ def avg_pool2d(input, kernel_size, stride=None, padding=0,):
                                              h_in, w_in, h, w])
                     process(pool, bi, k, i, j, output.grad,input.grad,pool_size) 
     prepare = get_prepare()
+    init_op_id = get_init_op_id()
+    forward = get_forward()
     if prepare:
         if isinstance(kernel_size, int):
             kernel_size = (1,kernel_size, kernel_size,1)
@@ -822,8 +850,8 @@ def avg_pool2d(input, kernel_size, stride=None, padding=0,):
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
-        set_opid(op_id+1)
-    else:
+        # set_opid(op_id+1)
+    if not prepare or not forward:
         operation = gradient_operation[op_id_store[op_id]]
         input = tensors[operation.inputs[0]]
         output = tensors[operation.outputs[0]]
@@ -840,7 +868,8 @@ def avg_pool2d(input, kernel_size, stride=None, padding=0,):
         _,filter_h, filter_w,_ = operation.intermediate[1]
         
         pool_size=reduce(operator.mul,operation.intermediate[1])
-        
+        if not forward:
+            set_init_op_id(init_op_id+1)        
         batch=Array.create_from(regint.inc(N))
         def process(pool, bi, k, i, j,pool_size,Y):
             Y[bi][k][i][j] = sum(x[0] for x in pool) * (1 / pool_size)
@@ -879,7 +908,7 @@ def avg_pool2d(input, kernel_size, stride=None, padding=0,):
                                 pool.append([h_in * w_in * input.value[bi][k][h_in*h][w_in * w],
                                              h_in, w_in, h, w])
                     process(pool, bi, k, i, j,pool_size,output.value)
-        set_opid(op_id+1)
+    set_opid(op_id+1)
     return output  
 
 @buildingblock("dropout-forward")
@@ -893,6 +922,8 @@ def dropout(input, p=0.5, training=False, inplace=False):  # todo
         dl_dself[:] += 1 / (1 - p) * bin_value[:] * dl_dx[:]
             
     prepare = get_prepare()
+    init_op_id = get_init_op_id()
+    forward = get_forward()
     if prepare:
         assert isinstance(input, Tensor), "Invalid Input"
         if isinstance(input.value,Array):
@@ -909,12 +940,14 @@ def dropout(input, p=0.5, training=False, inplace=False):  # todo
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
-        set_opid(op_id+1)
-    else:
+        # set_opid(op_id+1)
+    if not prepare or not forward:
         operation = gradient_operation[op_id_store[op_id]]
         input = tensors[operation.inputs[0]]
         output = tensors[operation.outputs[0]]
         bin_value, = operation.intermediate
+        if not forward:
+            set_init_op_id(init_op_id+1)
         if training:
             n_bits = -math.log(p, 2)
             assert n_bits == int(n_bits)
@@ -929,7 +962,7 @@ def dropout(input, p=0.5, training=False, inplace=False):  # todo
                 input.value.get_vector() * B.get_vector())
         else:
             output.value[:] = input.value[:]
-        set_opid(op_id+1)  # record the input and output of the op
+    set_opid(op_id+1)  # record the input and output of the op
     return output
 
 #wqruan: seems useless
@@ -1027,8 +1060,6 @@ def layer_norm(input, normalized_shape, weight=None, bias=None, eps=1e-05):
         dim.append(len(input.sizes)-1-i)
     dim.reverse()
     x_mean = input.mean(dim=dim, keepdim=True)
-
-    
     x_var = input.var(dim=dim, keepdim=True, unbiased=True) 
     
     x_var = x_var + eps
@@ -1039,8 +1070,6 @@ def layer_norm(input, normalized_shape, weight=None, bias=None, eps=1e-05):
 
     if bias is not None:
         output = output + bias
-        
-    
     return output
 
 
@@ -1066,6 +1095,8 @@ def kl_div(input, target, log_target=False,reduction='mean'):
             dl_d[input.name][:]-=inter[0][:]
         
     prepare = get_prepare()
+    init_op_id = get_init_op_id()
+    forward = get_forward()
     if prepare:
         assert isinstance(input, Tensor) and isinstance(target, Tensor), "Invalid Input"
         assert len(input.sizes)==len(target.sizes),"Inequal dimension"
@@ -1083,13 +1114,15 @@ def kl_div(input, target, log_target=False,reduction='mean'):
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
-        set_opid(op_id+1)
-    else:
+        # set_opid(op_id+1)
+    if not prepare or not forward:
         operation = gradient_operation[op_id_store[op_id]]
         input = tensors[operation.inputs[0]]
         target= tensors[operation.inputs[1]]
         output = tensors[operation.outputs[0]]
         res=0
+        if not forward:
+            set_init_op_id(init_op_id+1)
         if log_target:
             t=mpc_math.pow_fx(math.e,target.value[:])
             operation.intermediate[0].assign_vector(t)
@@ -1105,7 +1138,7 @@ def kl_div(input, target, log_target=False,reduction='mean'):
             output.value[0]=res/input.sizes[0]
         else:
             output.value[0]=res
-        set_opid(op_id+1)  # record the input and output of the op
+    set_opid(op_id+1)  # record the input and output of the op
     return output
 
 
@@ -1121,6 +1154,8 @@ def l1_loss(input, target,reduction='mean'):
         else:
             dl_d[operation.inputs[0]][:]+= operation.intermediate[0][:]
     prepare = get_prepare()
+    init_op_id = get_init_op_id()
+    forward = get_forward()
     if prepare:
         assert isinstance(input, Tensor) and isinstance(target, Tensor), "Invalid Input"
         assert len(input.sizes)==len(target.sizes),"Inequal dimension"
@@ -1138,13 +1173,14 @@ def l1_loss(input, target,reduction='mean'):
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
-        set_opid(op_id+1)
-    else:
+        # set_opid(op_id+1)
+    if not prepare or not forward:
         operation = gradient_operation[op_id_store[op_id]]
         input = tensors[operation.inputs[0]]
         target= tensors[operation.inputs[1]]
         output = tensors[operation.outputs[0]]
-        
+        if not forward:
+            set_init_op_id(init_op_id+1)
         larger = input.value[:]>target.value[:]
         less=input.value[:]<target.value[:]
         final=larger-less
@@ -1155,7 +1191,7 @@ def l1_loss(input, target,reduction='mean'):
             output.value[0]=Sum
         elif reduction=='mean' : #mean
             output.value[0]=Sum/total
-        set_opid(op_id+1)  # record the input and output of the op
+    set_opid(op_id+1)  # record the input and output of the op
     return output
 
 
@@ -1171,6 +1207,8 @@ def nll_loss(input, target, weight=None,reduction='mean'):
             dl_d[input.name].assign_vector(inter[:] )
     # forward
     prepare = get_prepare()
+    init_op_id = get_init_op_id()
+    forward = get_forward()
     if prepare:
         assert target.sizes==input.sizes,"Dimension invalid"
         new_value = Array(1, input.value.value_type)
@@ -1187,8 +1225,8 @@ def nll_loss(input, target, weight=None,reduction='mean'):
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
-        set_opid(op_id+1)  # record the input and output of the op
-    else:
+        # set_opid(op_id+1)
+    if not prepare or not forward:
         operation = gradient_operation[op_id_store[op_id]]
         input = tensors[operation.inputs[0]]
         output = tensors[operation.outputs[0]]
@@ -1196,12 +1234,13 @@ def nll_loss(input, target, weight=None,reduction='mean'):
         tmp=(2*leq-1)*target.value[:]
         output.value[:]=sum( input.value[:]*tmp)
         operation.intermediate[0].assign_vector(tmp)
-        
+        if not forward:
+            set_init_op_id(init_op_id+1)
         if reduction == 'mean':
             output.value[:] *= 1 / input.sizes[0]
         else:
             assert reduction == 'sum' , 'reduction should be mean or sum'
-        set_opid(op_id+1)  # record the input and output of the op
+    set_opid(op_id+1)  # record the input and output of the op
     return output
 
     

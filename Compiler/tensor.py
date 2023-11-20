@@ -45,7 +45,10 @@ prepare = True
 op_id = 0
 # op_id_store stores the correlation among op_ids and operation ids.
 op_id_store = {}
-
+# init_op_id is the index of the first operation of model forward
+init_op_id = 0
+#forward indicates whether starting model forward
+forward = False
 def fake_propagate(dl_doutputs, operation):
     pass
 
@@ -147,6 +150,8 @@ def element_wise_add(self, other):
     # backward
     @backwardbuildingblock(get_program().globalbuildingblock[:-12]+"-add-backward")
     def propagate(dl_doutputs, operation):
+        print_ln("start add")
+        
         dl_dx, = dl_doutputs
         inputs = operation.inputs
         temp1, temp2 = operation.intermediate
@@ -181,9 +186,11 @@ def element_wise_add(self, other):
                 v2.assign_vector(v2.get_vector(i, 1)+vsum, i) 
             break_point()
         dl_dinputs = [dl_dself, dl_dother]
+        print_ln("end add")
         return dl_dinputs
     # forward
     global op_id
+    global init_op_id
     if prepare:
         if isinstance(self.value, MultiArray) or isinstance(other.value, MultiArray):
             if self.value.total_size()>other.value.total_size():
@@ -210,8 +217,8 @@ def element_wise_add(self, other):
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
-        op_id += 1
-    else:
+        
+    if not prepare or not forward:
         operation = gradient_operation[op_id_store[op_id]]
         inputs = operation.inputs
         outputs = operation.outputs
@@ -219,7 +226,8 @@ def element_wise_add(self, other):
         input2 = tensors[inputs[1]]
         output = tensors[outputs[0]]
         temp1, temp2 = operation.intermediate
-
+        if not forward:
+            init_op_id += 1
         # # permute input for boardcasted
         # dims, v1, v2 = reconst_dims(input1.value, input2.value)
         # v1.permute_without_malloc(temp1, get_permute(len(v1.sizes), dims))
@@ -238,7 +246,7 @@ def element_wise_add(self, other):
 
         boardcasted_multiarray_add(input1.value, input2.value, output.value)
         
-        op_id += 1# record the input and output of the op
+    op_id += 1# record the input and output of the op
     return output
 
 @buildingblock("sub-forward")
@@ -280,6 +288,7 @@ def element_wise_sub(self, other):
         return dl_dinputs
     # forward
     global op_id
+    global init_op_id
     if prepare:
         # check shape
         assert check_boardcast_size(self.value.sizes, other.value.sizes), "Invalid Dimension"
@@ -303,15 +312,16 @@ def element_wise_sub(self, other):
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
-        op_id += 1
-    else:
+        # op_id += 1
+    if not prepare or not forward:
         operation = gradient_operation[op_id_store[op_id]]
         inputs = operation.inputs
         outputs = operation.outputs
         input1 = tensors[inputs[0]]
         input2 = tensors[inputs[1]]
         output = tensors[outputs[0]]
-
+        if not forward:
+            init_op_id += 1
         # swap to ensure v1 size is bigger than v2 size  
         v1, v2= input1.value, input2.value
         # if input1.value.total_size() < input2.value.total_size():
@@ -332,7 +342,7 @@ def element_wise_sub(self, other):
             def _(i):
                 v3 = v1.get_vector(0, len1) - v2.get_vector(i*len1, len1)
                 output.value.assign_vector(v3, i*len1)  
-        op_id += 1# record the input and output of the op
+    op_id += 1# record the input and output of the op
     return output
 
 def boardcasted_multiarray_add(v1, v2, output):
@@ -491,6 +501,7 @@ def element_wise_mul(self, other):
         return dl_dinputs
     # forward
     global op_id
+    global init_op_id
     if prepare:
         # check shape
         # assert check_boardcast_size(self.value.sizes, other.value.sizes), "Invalid Dimension"
@@ -522,15 +533,16 @@ def element_wise_mul(self, other):
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
-        op_id += 1
-    else:
+        # op_id += 1
+    if not prepare or not forward:
         operation = gradient_operation[op_id_store[op_id]]
         inputs = operation.inputs
         outputs = operation.outputs
         input1 = tensors[inputs[0]]
         input2 = tensors[inputs[1]]
         output = tensors[outputs[0]]
-        
+        if not forward:
+            init_op_id += 1        
         # # permute input for boardcasted
         # dims, v1, v2 = reconst_dims(input1.value, input2.value)
         # v1.permute_without_malloc(inter, get_permute(len(v1.sizes), dims))
@@ -552,7 +564,7 @@ def element_wise_mul(self, other):
 
         boardcasted_multiarray_mul(input1.value, input2.value, output.value)
         
-        op_id += 1# record the input and output of the op
+    op_id += 1# record the input and output of the op
     return output
 
 @buildingblock("div-forward")
@@ -615,6 +627,7 @@ def element_wise_div(self, other):
         return dl_dinputs
     # forward
     global op_id
+    global init_op_id
     if prepare:
         # check shape
         # assert check_boardcast_size(self.value.sizes, other.value.sizes), "Invalid Dimension"
@@ -648,8 +661,8 @@ def element_wise_div(self, other):
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
-        op_id += 1
-    else:
+        # op_id += 1
+    if not prepare or not forward:
         operation = gradient_operation[op_id_store[op_id]]
         inputs = operation.inputs
         outputs = operation.outputs
@@ -657,13 +670,14 @@ def element_wise_div(self, other):
         input2 = tensors[inputs[1]]
         output = tensors[outputs[0]]
         temp5 = operation.intermediate[4]
-        
+        if not forward:
+            init_op_id += 1        
         # get inverse of input2
         temp5.assign_vector(1/input2.value[:])
         
         boardcasted_multiarray_mul(input1.value, temp5, output.value)
         
-        op_id += 1# record the input and output of the op
+    op_id += 1# record the input and output of the op
     return output
 
 @buildingblock("mulconstant-forward")
@@ -679,6 +693,7 @@ def ops_mul_constant(self, c):
         return dl_dinputs
     # forward
     global op_id
+    global init_op_id
     if prepare:
         if isinstance(self.value, Array):
             new_value = Array(self.value.length, self.value.value_type)
@@ -693,17 +708,18 @@ def ops_mul_constant(self, c):
         operation_id = len(gradient_operation) - 1
 
         op_id_store[op_id] = operation_id
-        op_id += 1
-    else:
+        # op_id += 1
+    if not prepare or not forward:
         operation = gradient_operation[op_id_store[op_id]]
         inputs = operation.inputs
         outputs = operation.outputs
         input = tensors[inputs[0]]
         output = tensors[outputs[0]]
-
+        if not forward:
+            init_op_id += 1
         output.value[:] = input.value[:] * c
 
-        op_id += 1
+    op_id += 1
         # record the input and output of the op
     return output
 
@@ -725,6 +741,7 @@ def ops_add_constant(self, c):
         return dl_dinputs
     # forward
     global op_id
+    global init_op_id
     if prepare:
         if isinstance(self.value, Array):
             new_value = Array(self.value.length, self.value.value_type)
@@ -739,17 +756,18 @@ def ops_add_constant(self, c):
         operation_id = len(gradient_operation) - 1
 
         op_id_store[op_id] = operation_id
-        op_id += 1
-    else:
+        # op_id += 1
+    if not prepare or not forward:
         operation = gradient_operation[op_id_store[op_id]]
         inputs = operation.inputs
         outputs = operation.outputs
         input = tensors[inputs[0]]
         output = tensors[outputs[0]]
-
+        if not forward:
+            init_op_id += 1
         output.value[:] = input.value[:] + c
 
-        op_id += 1
+    op_id += 1
         # record the input and output of the op
     return output
 
@@ -766,6 +784,7 @@ def sum_of_array(self):
         return dl_dinputs
     # forward
     global op_id
+    global init_op_id
     if prepare:    
         new_value = Array(1, self.value.value_type)
         output = Tensor(new_value, req_grad=self.req_grad)
@@ -775,17 +794,18 @@ def sum_of_array(self):
         operation_id = len(gradient_operation) - 1
         
         op_id_store[op_id] = operation_id
-        op_id += 1
-    else:
+        # op_id += 1
+    if not prepare or not forward:
         operation = gradient_operation[op_id_store[op_id]]
         inputs = operation.inputs
         outputs = operation.outputs
         input = tensors[inputs[0]]
         output = tensors[outputs[0]]
-        
+        if not forward:
+            init_op_id += 1        
         output.value[:] = sum(input.value[:])
         
-        op_id += 1
+    op_id += 1
     # record the input and output of the op
     return output
 
@@ -803,6 +823,7 @@ def mean_of_array(self):
         return dl_dinputs
     # forward
     global op_id
+    global init_op_id
     if prepare:    
         new_value = Array(1, self.value.value_type)
         output = Tensor(new_value, req_grad=self.req_grad)
@@ -812,17 +833,18 @@ def mean_of_array(self):
         operation_id = len(gradient_operation) - 1
         
         op_id_store[op_id] = operation_id
-        op_id += 1
-    else:
+        # op_id += 1
+    if not prepare or not forward:
         operation = gradient_operation[op_id_store[op_id]]
         inputs = operation.inputs
         outputs = operation.outputs
         input = tensors[inputs[0]]
         output = tensors[outputs[0]]
-
+        if not forward:
+            init_op_id += 1
         output.value[:] = sum(input.value[:]) / self.value.total_size()
         
-        op_id += 1
+    op_id += 1
     # record the input and output of the op
     return output
 
@@ -847,6 +869,7 @@ def var_of_array(self, unbiased=False):
         return dl_dinputs
     # forward
     global op_id
+    global init_op_id
     if prepare:    
         new_value = Array(1, self.value.value_type)
         output = Tensor(new_value, req_grad=self.req_grad)
@@ -861,14 +884,15 @@ def var_of_array(self, unbiased=False):
         operation_id = len(gradient_operation) - 1
         
         op_id_store[op_id] = operation_id
-        op_id += 1
-    else:
+        # op_id += 1
+    if not prepare or not forward:
         operation = gradient_operation[op_id_store[op_id]]
         inputs = operation.inputs
         outputs = operation.outputs
         input = tensors[inputs[0]]
         output = tensors[outputs[0]]
-
+        if not forward:
+            init_op_id += 1
         mean = sum(input.value[:]) / self.value.total_size()
         dmean = input.value[:] - mean
         output.value[:] = sum(dmean ** 2) 
@@ -880,7 +904,7 @@ def var_of_array(self, unbiased=False):
         
         operation.intermediate[0].assign_vector(dmean)
         
-        op_id += 1
+    op_id += 1
     # record the input and output of the op
     return output
 
@@ -900,6 +924,7 @@ def std_of_array(self):
         return dl_dinputs
     # forward
     global op_id
+    global init_op_id
     if prepare:    
         new_value = Array(1, self.value.value_type)
         output = Tensor(new_value, req_grad=self.req_grad)
@@ -914,14 +939,15 @@ def std_of_array(self):
         operation_id = len(gradient_operation) - 1
         
         op_id_store[op_id] = operation_id
-        op_id += 1
-    else:
+        # op_id += 1
+    if not prepare or not forward:
         operation = gradient_operation[op_id_store[op_id]]
         inputs = operation.inputs
         outputs = operation.outputs
         input = tensors[inputs[0]]
         output = tensors[outputs[0]]
-
+        if not forward:
+            init_op_id += 1
         mean = sum(input.value[:]) / self.value.total_size()
         dmean = input.value[:] - mean
         stdvalue = mpc_math.sqrt(sum(dmean ** 2) / (self.value.total_size()-1))
@@ -930,7 +956,7 @@ def std_of_array(self):
         operation.intermediate[1].assign_vector(stdvalue)
         output.value[:] = stdvalue
         
-        op_id += 1
+    op_id += 1
     # record the input and output of the op
     return output
 
@@ -957,6 +983,7 @@ def sum_of_multiarray(self, dim, keepdim=False):
         return dl_dinputs
     # forward
     global op_id
+    global init_op_id
     if prepare:
         if not keepdim:
             new_sizes = [self.value.sizes[i] for i in list(filter(lambda x: x not in dim, range(len(self.value.sizes))))]
@@ -980,8 +1007,8 @@ def sum_of_multiarray(self, dim, keepdim=False):
         operation_id = len(gradient_operation) - 1
 
         op_id_store[op_id] = operation_id
-        op_id += 1
-    else:
+        # op_id += 1
+    if not prepare or not forward:
         operation = gradient_operation[op_id_store[op_id]]
         input = tensors[operation.inputs[0]]
         output = tensors[operation.outputs[0]]
@@ -989,14 +1016,15 @@ def sum_of_multiarray(self, dim, keepdim=False):
 
         new_perm = get_permute(len(input.value.sizes), dim)
         input.value.permute_without_malloc(input_perm, new_perm)
-        
+        if not forward:
+            init_op_id += 1        
         stride = reduce(lambda x, y: x * self.value.sizes[y], dim, 1)
         @for_range_opt(input.value.total_size()//stride)
         def _(i):
             summary = sum(input_perm.get_vector(i*stride, stride))
             output.value.assign_vector(summary, i)
         break_point()
-        op_id += 1
+    op_id += 1
     # record the input and output of the op
     return output
 
@@ -1026,6 +1054,7 @@ def mean_of_multiarray(self, dim, keepdim=False):
         return dl_dinputs
     # forward
     global op_id
+    global init_op_id
     if prepare:
         if not keepdim:
             new_sizes = [self.value.sizes[i] for i in list(filter(lambda x: x not in dim, range(len(self.value.sizes))))]
@@ -1051,8 +1080,8 @@ def mean_of_multiarray(self, dim, keepdim=False):
         operation_id = len(gradient_operation) - 1
 
         op_id_store[op_id] = operation_id
-        op_id += 1
-    else:
+        # op_id += 1
+    if not prepare or not forward:
         operation = gradient_operation[op_id_store[op_id]]
         input = tensors[operation.inputs[0]]
         output = tensors[operation.outputs[0]]
@@ -1060,7 +1089,8 @@ def mean_of_multiarray(self, dim, keepdim=False):
 
         new_perm = get_permute(len(input.value.sizes), dim)
         input.value.permute_without_malloc(input_perm, new_perm)
-        
+        if not forward:
+            init_op_id += 1        
         stride = reduce(lambda x, y: x * self.value.sizes[y], dim, 1)
         @for_range(input.value.total_size()//stride)
         def _(i):
@@ -1072,7 +1102,7 @@ def mean_of_multiarray(self, dim, keepdim=False):
             output.value.assign_vector(output.value.get_vector(base, size)* tmp, base)
 
         # output.value.reshape([(1 if i in dim else self.value.sizes[i]) for i in range(len(self.value.sizes))])
-        op_id += 1
+    op_id += 1
     # record the input and output of the op
     return output
 
@@ -1107,6 +1137,7 @@ def var_of_multiarray(self, dim, keepdim=False, unbiased=False):
         return dl_dinputs
     # forward
     global op_id
+    global init_op_id
     if prepare:
         if not keepdim:
             new_sizes = [self.value.sizes[i] for i in list(filter(lambda x: x not in dim, range(len(self.value.sizes))))]
@@ -1135,13 +1166,15 @@ def var_of_multiarray(self, dim, keepdim=False, unbiased=False):
         operation_id = len(gradient_operation) - 1
 
         op_id_store[op_id] = operation_id
-        op_id += 1
-    else:
+        # op_id += 1
+    if not prepare or not forward:
         operation = gradient_operation[op_id_store[op_id]]
         input = tensors[operation.inputs[0]]
         output = tensors[operation.outputs[0]]
         input_perm, mean, dmean, dmean_sqr = operation.intermediate
         # pre-perm
+        if not forward:
+            init_op_id += 1        
         new_perm = get_permute(len(input.value.sizes), dim)
         input.value.permute_without_malloc(input_perm, new_perm)
         # mean
@@ -1177,7 +1210,7 @@ def var_of_multiarray(self, dim, keepdim=False, unbiased=False):
             def _(base, size):
                 output.value.assign_vector(output.value.get_vector(base, size)* tmp , base)
 
-        op_id += 1
+    op_id += 1
     # record the input and output of the op
     return output
 
@@ -1218,6 +1251,7 @@ def std_of_multiarray(self, dim, keepdim=False):
         return dl_dinputs
     # forward
     global op_id
+    global init_op_id
     if prepare:
         if not keepdim:
             new_sizes = [self.value.sizes[i] for i in list(filter(lambda x: x not in dim, range(len(self.value.sizes))))]
@@ -1248,12 +1282,14 @@ def std_of_multiarray(self, dim, keepdim=False):
         operation_id = len(gradient_operation) - 1
 
         op_id_store[op_id] = operation_id
-        op_id += 1
-    else:
+        # op_id += 1
+    if not prepare or not forward:
         operation = gradient_operation[op_id_store[op_id]]
         input = tensors[operation.inputs[0]]
         output = tensors[operation.outputs[0]]
         input_perm, mean, dmean, dmean_sqr, std = operation.intermediate
+        if not forward:
+            init_op_id += 1
         # pre-perm
         new_perm = get_permute(len(input.value.sizes), dim)
         input.value.permute_without_malloc(input_perm, new_perm)
@@ -1282,7 +1318,7 @@ def std_of_multiarray(self, dim, keepdim=False):
         # std
         std[:] = mpc_math.sqrt(std[:])
         output.value[:] = std[:]
-        op_id += 1
+    op_id += 1
     # record the input and output of the op
     return output
 
@@ -1361,9 +1397,9 @@ class Tensor():
         return var
 
     def backward(self):
-        global prepare
-        if prepare:
-            return 0
+        # global prepare
+        # if prepare:
+        #     return 0
         if not self.req_grad:
             return 0
         length = len(gradient_operation)
@@ -1425,6 +1461,7 @@ class Tensor():
             for it in op.outputs:
                 flag = flag | searchset.get(it, False)
             if flag:
+                print_ln("%s", index)
                 op.propagate(dl_doutputs, op)
         break_point()
         return 0
@@ -1808,6 +1845,7 @@ class Tensor():
             input1.value.view(*list(save1_sizes))
             
         global op_id
+        global init_op_id
         if prepare:
             assert self.value.value_type==other.value.value_type,"Invalid Data Type"
             assert isinstance(self.value,MultiArray) and isinstance(other.value,Array),"The first parameter is Not MultiArray or the second parameter is not Array"
@@ -1826,8 +1864,8 @@ class Tensor():
             gradient_operation.append(operation)
             operation_id = len(gradient_operation)-1
             op_id_store[op_id] = operation_id
-            op_id += 1
-        else:
+            # op_id += 1
+        if not prepare or not forward:
             operation = gradient_operation[op_id_store[op_id]]
             inputs = operation.inputs
             outputs = operation.outputs
@@ -1835,11 +1873,13 @@ class Tensor():
             input2 = tensors[inputs[1]]
             output = tensors[outputs[0]]
             input1.value.mv(input2.value,output.value)
+            if not forward:
+                init_op_id += 1
             # n_threads=10 if input1.shape[0]>=1000 else 1
             # @multithread(n_threads,input1.shape[0])
             # def _(base, size):
             #     output.value.assign_part_vector(input1.value.direct_mul(input2.value,indices=(regint.inc(size,base=base),regint.inc(input1.shape[1]), regint.inc(input2.shape[0]),regint.inc(1))),base)
-            op_id += 1# record the input and output of the op
+        op_id += 1# record the input and output of the op
         return output
     
     @buildingblock("mm-forward")
@@ -1857,6 +1897,7 @@ class Tensor():
                 input1.value.trans_mul_add_to(dl_dy,dl_d[operation.inputs[1]],n_threads=10 if input1.shape[0]>=1000 else 1)
                 # C=AB partial derivate of dB=A^T*dC+dB
         global op_id
+        global init_op_id
         if prepare:
             assert self.value.value_type==other.value.value_type,"Invalid Data Type"
             assert len(self.shape)==len(other.shape)==2 and self.shape[1]==other.shape[0],"Invalid Dimension"
@@ -1869,16 +1910,18 @@ class Tensor():
             gradient_operation.append(operation)
             operation_id = len(gradient_operation) - 1
             op_id_store[op_id] = operation_id
-            op_id += 1
-        else:
+            # op_id += 1
+        if not prepare or not forward:
             operation = gradient_operation[op_id_store[op_id]]
             inputs = operation.inputs
             outputs = operation.outputs
             input1 = tensors[inputs[0]]
             input2 = tensors[inputs[1]]
             output = tensors[outputs[0]]
+            if not forward:
+                init_op_id += 1
             input1.value.mm(input2.value, output.value)
-            op_id += 1  # record the input and output of the op
+        op_id += 1  # record the input and output of the op
         return output
     
     @buildingblock("singlebmm-forward")
@@ -1906,6 +1949,7 @@ class Tensor():
                 cur_dinput2.delete()
         # forward
         global op_id
+        global init_op_id
         if prepare:
             assert len(self.sizes) >= 3 and self.sizes[-1] == other.sizes[0], "Invalid Dimension"
             batch, n, p = self.sizes[:-2], self.sizes[-2], other.sizes[-1]
@@ -1917,13 +1961,15 @@ class Tensor():
             gradient_operation.append(operation)
             operation_id = len(gradient_operation) - 1
             op_id_store[op_id] = operation_id
-            op_id += 1
-        else:
+            # op_id += 1
+        if not prepare or not forward:
             operation = gradient_operation[op_id_store[op_id]]
             inputs, outputs = operation.inputs, operation.outputs
             input1, input2, output = tensors[inputs[0]], tensors[inputs[1]], tensors[outputs[0]]
             input1.value.single_bmm(input2.value, output.value)
-            op_id += 1
+            if not forward:
+                init_op_id += 1
+        op_id += 1
         return output
     
     
@@ -1951,6 +1997,7 @@ class Tensor():
                 cur_dinput2.delete()
         # forward
         global op_id
+        global init_op_id
         if prepare:
             assert len(self.sizes) == len(other.sizes) >= 3 and self.sizes[-1] == other.sizes[-2], "Invalid Dimension"
             batch, n, p = self.sizes[:-2], self.sizes[-2], other.sizes[-1]
@@ -1962,13 +2009,15 @@ class Tensor():
             gradient_operation.append(operation)
             operation_id = len(gradient_operation) - 1
             op_id_store[op_id] = operation_id
-            op_id += 1
-        else:
+            # op_id += 1
+        if not prepare or not forward:
             operation = gradient_operation[op_id_store[op_id]]
             inputs, outputs = operation.inputs, operation.outputs
             input1, input2, output = tensors[inputs[0]], tensors[inputs[1]], tensors[outputs[0]]
             input1.value.bmm(input2.value, output.value)
-            op_id += 1
+            if not forward:
+                init_op_id += 1
+        op_id += 1
         return output
 
     @buildingblock("dot-forward")
@@ -1980,6 +2029,7 @@ class Tensor():
             dl_d[operation.inputs[0]][:]+= tensors[operation.inputs[1]].value[:]*dl_dy #dA=dC*B+dA
             dl_d[operation.inputs[1]][:]+= tensors[operation.inputs[0]].value[:]*dl_dy #dB=dC*A+dB
         global op_id
+        global init_op_id
         if prepare:
             assert self.value.value_type==other.value.value_type,"Invalid Data Type"
             assert isinstance(self.value,Array) and isinstance(other.value,Array),"Not Array error"
@@ -1993,16 +2043,18 @@ class Tensor():
             gradient_operation.append(operation)
             operation_id = len(gradient_operation) - 1
             op_id_store[op_id] = operation_id
-            op_id += 1
-        else:
+            # op_id += 1
+        if not prepare or not forward:
             operation=gradient_operation[op_id_store[op_id]]
             input1=tensors[operation.inputs[0]]
             input2=tensors[operation.inputs[1]]
             output=tensors[operation.outputs[0]]
+            if not forward:
+                init_op_id += 1
             @for_range(self.shape[0])
             def _(i):
                 output.value[0]+=(input1.value[i]*input2.value[i])
-            op_id+=1
+        op_id+=1
         return output
     
     def matmul(self, other):
@@ -2053,6 +2105,7 @@ class Tensor():
             dl_dy, = dl_doutputs
             dl_d[operation.inputs[0]].assign(dl_dy)
         global op_id
+        global init_op_id
         if prepare:
             product = reduce(lambda x, y: x*y, self.shape)
             if len(sizes) == 1 and isinstance(sizes[0], int):
@@ -2079,13 +2132,15 @@ class Tensor():
             gradient_operation.append(operation)
             operation_id = len(gradient_operation)-1
             op_id_store[op_id] = operation_id
-            op_id += 1
-        else:
+            # op_id += 1
+        if not prepare or not forward:
             operation = gradient_operation[op_id_store[op_id]]
             outputs = operation.outputs
             output = tensors[outputs[0]]
+            if not forward:
+                init_op_id += 1
             output.value.assign(self.value)
-            op_id += 1
+        op_id += 1
         return output
 
     def flatten(self, start_dim, end_dim):
@@ -2119,6 +2174,7 @@ class Tensor():
             dl_dy, = dl_doutputs
             dl_d[operation.inputs[0]].assign(dl_dy)
         global op_id
+        global init_op_id
         if prepare:
             if dim:
                 new_sizes = list(self.shape)
@@ -2139,13 +2195,15 @@ class Tensor():
             gradient_operation.append(operation)
             operation_id = len(gradient_operation)-1
             op_id_store[op_id] = operation_id
-            op_id += 1
-        else:
+            # op_id += 1
+        if not prepare or not forward:
             operation = gradient_operation[op_id_store[op_id]]
             outputs = operation.outputs
             output = tensors[outputs[0]]
             output.value.assign(self.value)
-            op_id += 1
+            if not forward:
+                init_op_id += 1
+        op_id += 1
         return output
 
     @buildingblock("unsqueeze-forward")
@@ -2155,6 +2213,7 @@ class Tensor():
         def propagate(dl_doutputs, operation):
             dl_d[operation.inputs[0]].assign(dl_doutputs[0])
         global op_id
+        global init_op_id
         if prepare:
             new_sizes = list(self.shape)
             assert isinstance(dim, int) and dim <= len(self.shape) and dim >= -len(self.shape), "Invalid Dimension"
@@ -2168,13 +2227,15 @@ class Tensor():
             gradient_operation.append(operation)
             operation_id = len(gradient_operation)-1
             op_id_store[op_id] = operation_id
-            op_id += 1
-        else:
+            # op_id += 1
+        if not prepare or not forward:
             operation = gradient_operation[op_id_store[op_id]]
             outputs = operation.outputs
             output = tensors[outputs[0]]
+            if not forward:
+                init_op_id += 1
             output.value.assign(self.value)
-            op_id += 1
+        op_id += 1
         return output
 
     @buildingblock("gather-forward")
@@ -2204,6 +2265,7 @@ class Tensor():
                 dl_dself.assign_vector_by_indices(dl_dself.get_vector_by_indices(*new_index)+tmp_val, *new_index)            
                
         global op_id
+        global init_op_id
         if prepare:
             assert len(self.sizes) == len(index.sizes)
             assert index.value.value_type == cint or index.value.value_type == regint
@@ -2222,11 +2284,13 @@ class Tensor():
             gradient_operation.append(operation)
             operation_id = len(gradient_operation)-1
             op_id_store[op_id] = operation_id
-            op_id += 1
-        else:
+            # op_id += 1
+        if not prepare or not forward:
             operation = gradient_operation[op_id_store[op_id]]
             outputs = operation.outputs
             output = tensors[outputs[0]]
+            if not forward:
+                init_op_id += 1
             @for_range(output.value.total_size())
             def _(i):
                 index_store = []
@@ -2245,7 +2309,7 @@ class Tensor():
                 new_index[dim] = index.value.get_vector_by_indices(*index_store)
                 tmp_val = self.value.get_vector_by_indices(*new_index)
                 output.value.assign_vector_by_indices(tmp_val, *index_store)
-            op_id += 1
+        op_id += 1
         return output
 
     @buildingblock("reshape-forward")
@@ -2256,6 +2320,7 @@ class Tensor():
             dl_dy, = dl_doutputs
             dl_d[operation.inputs[0]].assign(dl_dy)
         global op_id
+        global init_op_id
         if prepare:
             product = reduce(lambda x, y: x*y, self.shape)
             if len(sizes) == 1 and isinstance(sizes[0], int):
@@ -2282,13 +2347,15 @@ class Tensor():
             gradient_operation.append(operation)
             operation_id = len(gradient_operation)-1
             op_id_store[op_id] = operation_id
-            op_id += 1
-        else:
+            # op_id += 1
+        if not prepare or not forward:
             operation = gradient_operation[op_id_store[op_id]]
             outputs = operation.outputs
             output = tensors[outputs[0]]
+            if not forward:
+                init_op_id += 1
             output.value.assign(self.value)
-            op_id += 1
+        op_id += 1
         return output
 
     @buildingblock("permute-forward")
@@ -2306,6 +2373,7 @@ class Tensor():
                 inv_new_perm[new_perm[i]]=i #s2[s1[i]]=i
             dl_dy.permute_without_malloc(dl_d[operation.inputs[0]],inv_new_perm)
         global op_id
+        global init_op_id
         if prepare:
             assert isinstance(self.value, MultiArray), "Error,Permute operation must be MultiArray"  # 置换维度，那么肯定是MultiArray吧
             target_size = self.value.tuple_permute(self.shape, new_perm)  # just for calling of tuple_permute function
@@ -2318,18 +2386,20 @@ class Tensor():
             gradient_operation.append(operation)
             operation_id = len(gradient_operation)-1
             op_id_store[op_id] = operation_id
-            op_id += 1
-        else:
+            # op_id += 1
+        if not prepare or not forward:
             operation = gradient_operation[op_id_store[op_id]]
             outputs = operation.outputs
             output = tensors[outputs[0]]
+            if not forward:
+                init_op_id += 1
             self.value.permute_without_malloc(output.value, new_perm)  # output的值在参数中传入后被修改
-            op_id += 1
+        op_id += 1
         return output
 
     @buildingblock("transpose-forward")
     def transpose(self, *indexs):
-        if indexs!=None:
+        if len(indexs)>0:
             indexs = list(indexs)
             new_index = []
             for i in range(len(self.sizes)):
@@ -2348,6 +2418,7 @@ class Tensor():
             else:
                 dl_d[operation.inputs[0]][:] += dl_doutputs[0].transpose()[:]
         global op_id
+        global init_op_id
         if prepare:
             if isinstance(self.value, Array):
                 new_value = Array(self.shape[0], self.value.value_type)
@@ -2363,16 +2434,18 @@ class Tensor():
             gradient_operation.append(operation)
             operation_id = len(gradient_operation)-1
             op_id_store[op_id] = operation_id
-            op_id += 1
-        else:
+            # op_id += 1
+        if not prepare or not forward:
             operation = gradient_operation[op_id_store[op_id]]
             input = tensors[operation.inputs[0]]
             output = tensors[operation.outputs[0]]
+            if not forward:
+                init_op_id += 1
             if len(self.shape) == 1:  # in this case:Array
                 output.value[:] = input.value[:]
             else:
                 output.value = input.value.transpose()
-            op_id += 1
+        op_id += 1
         return output
 
     @buildingblock("concat-forward")
@@ -2397,6 +2470,7 @@ class Tensor():
                 def _(i):
                     input2.grad.assign_vector(dl_doutputs[0].get_vector(i*size_next,size_next),i*size_next)                
         global op_id
+        global init_op_id
         if prepare:
             assert self.value.value_type is other.value.value_type, "Invalid value_type"
             if isinstance(self.value, Array) and isinstance(other.value, Array):
@@ -2418,8 +2492,8 @@ class Tensor():
             gradient_operation.append(operation)
             operation_id = len(gradient_operation)-1
             op_id_store[op_id] = operation_id
-            op_id += 1
-        else:
+            # op_id += 1
+        if not prepare or not forward:
             operation=gradient_operation[op_id_store[op_id]]
             size_pre=reduce(lambda x,y:x*y,self.shape[dim:])
             size_next=reduce(lambda x,y:x*y,other.shape[dim:])
@@ -2427,6 +2501,8 @@ class Tensor():
             input2=tensors[operation.inputs[1]]
             output=tensors[operation.outputs[0]]
             index=regint(0)    
+            if not forward:
+                init_op_id += 1
             @for_range(input1.value.length//size_pre)
             def _(i):  
                 #can not convert this to @for_range for the error info of "local variable 'index' referenced before assignment"
@@ -2434,7 +2510,7 @@ class Tensor():
                 index.update(index+size_pre)
                 output.value.assign_vector(input2.value.get_vector(i*size_next,size_next),index)
                 index.update(index+size_next)
-            op_id+=1
+        op_id+=1
         return output
     
     @buildingblock("expand")
@@ -2496,6 +2572,7 @@ class Tensor():
             return dl_dinputs
         # forward
         global op_id
+        global init_op_id
         if prepare:
             if isinstance(self.value, Array):
                 new_value = Array(self.value.length, self.value.value_type)
@@ -2511,8 +2588,8 @@ class Tensor():
             gradient_operation.append(operation)
             operation_id = len(gradient_operation) - 1
             op_id_store[op_id] = operation_id
-            op_id += 1
-        else:
+            # op_id += 1
+        if not prepare or not forward:
             operation = gradient_operation[op_id_store[op_id]]
             inputs = operation.inputs
             outputs = operation.outputs
@@ -2522,9 +2599,10 @@ class Tensor():
             less = input.value[:]<0
             final=larger-less
             operation.intermediate[0].assign_vector(final)  # write to mem
-
+            if not forward:
+                init_op_id += 1
             output.value[:] = final * input.value[:]
-            op_id += 1
+        op_id += 1
         # record the input and output of the op
         return output
 
@@ -2542,6 +2620,7 @@ class Tensor():
             return dl_dinputs
         # forward
         global op_id
+        global init_op_id
         if prepare:
             if isinstance(self.value, Array):
                 new_value = Array(self.value.length, self.value.value_type)
@@ -2557,19 +2636,20 @@ class Tensor():
             gradient_operation.append(operation)
             operation_id = len(gradient_operation) - 1
             op_id_store[op_id] = operation_id
-            op_id += 1
-        else:
+            # op_id += 1
+        if not prepare or not forward:
             operation = gradient_operation[op_id_store[op_id]]
             inputs = operation.inputs
             outputs = operation.outputs
             input = tensors[inputs[0]]
             output = tensors[outputs[0]]
-
+            if not forward:
+                init_op_id += 1
             ex = mpc_math.pow_fx(math.e, input.value[:])
             operation.intermediate[0].assign_vector(ex)
 
             output.value[:] = ex
-            op_id += 1
+        op_id += 1
         # record the input and output of the op
         return output
 
@@ -2586,6 +2666,7 @@ class Tensor():
             return dl_dinputs
         # forward
         global op_id
+        global init_op_id
         if prepare:
             if isinstance(self.value, Array):
                 new_value = Array(self.value.length, self.value.value_type)
@@ -2600,17 +2681,18 @@ class Tensor():
             operation_id = len(gradient_operation) - 1
 
             op_id_store[op_id] = operation_id
-            op_id += 1
-        else:
+            # op_id += 1
+        if not prepare or not forward:
             operation = gradient_operation[op_id_store[op_id]]
             inputs = operation.inputs
             outputs = operation.outputs
             input = tensors[inputs[0]]
             output = tensors[outputs[0]]
-
+            if not forward:
+                init_op_id += 1
             output.value[:] = mpc_math.log_fx(input.value[:], base)
 
-            op_id += 1
+        op_id += 1
         # record the input and output of the op
         return output
 
@@ -2627,6 +2709,7 @@ class Tensor():
             return dl_dinputs
         # forward
         global op_id
+        global init_op_id
         if prepare:
             if isinstance(self.value, Array):
                 new_value = Array(self.value.length, self.value.value_type)
@@ -2641,17 +2724,18 @@ class Tensor():
             operation_id = len(gradient_operation) - 1
 
             op_id_store[op_id] = operation_id
-            op_id += 1
-        else:
+            # op_id += 1
+        if not prepare or not forward:
             operation = gradient_operation[op_id_store[op_id]]
             inputs = operation.inputs
             outputs = operation.outputs
             input = tensors[inputs[0]]
             output = tensors[outputs[0]]
-
+            if not forward:
+                init_op_id += 1
             output.value[:] = mpc_math.pow_fx(input.value[:], pow)
 
-            op_id += 1
+        op_id += 1
         # record the input and output of the op
         return output
 
@@ -2672,6 +2756,7 @@ class Tensor():
             return dl_dinputs
         # forward
         global op_id
+        global init_op_id
         if prepare:
             if isinstance(self.value, Array):
                 new_value = Array(self.value.length, self.value.value_type)
@@ -2686,20 +2771,21 @@ class Tensor():
             operation_id = len(gradient_operation) - 1
 
             op_id_store[op_id] = operation_id
-            op_id += 1
-        else:
+            # op_id += 1
+        if not prepare or not forward:
             operation = gradient_operation[op_id_store[op_id]]
             inputs = operation.inputs
             outputs = operation.outputs
             input = tensors[inputs[0]]
             output = tensors[outputs[0]]
-
+            if not forward:
+                init_op_id += 1
             # output.value[:] = mpc_math.InvertSqrt(input.value[:] + eps)
             @multithread(1, output.value.total_size())
             def _(base, size):
                 output.value.assign_vector(mpc_math.InvertSqrt(input.value.get_vector(base, size)+eps) , base)
 
-            op_id += 1
+        op_id += 1
         # record the input and output of the op
         return output
     
@@ -2712,6 +2798,7 @@ class Tensor():
             dl_dself = dl_d[operation.inputs[0]]
             dl_dself[:] += dl_dx[:]*(-mpc_math.sin(self.value[:]))
         global op_id
+        global init_op_id
         if prepare:
             if isinstance(self.value, Array):  # Array is instance of tensor?
                 new_value = Array(self.value.length, self.value.value_type)
@@ -2725,15 +2812,17 @@ class Tensor():
             gradient_operation.append(operation)
             operation_id = len(gradient_operation)-1
             op_id_store[op_id] = operation_id
-            op_id += 1
-        else:
+            # op_id += 1
+        if not prepare or not forward:
             operation = gradient_operation[op_id_store[op_id]]
             inputs = operation.inputs
             outputs = operation.outputs
             input = tensors[inputs[0]]  # input is Tensor
             output = tensors[outputs[0]]
+            if not forward:
+                init_op_id += 1
             output.value[:] = mpc_math.cos(input.value[:])
-            op_id += 1
+        op_id += 1
         return output
 
     @buildingblock("sin-forward")
@@ -2744,6 +2833,7 @@ class Tensor():
             dl_dself = dl_d[operation.inputs[0]]
             dl_dself[:] += dl_dx[:]*mpc_math.cos(self.value[:])
         global op_id
+        global init_op_id
         if prepare:
             if isinstance(self.value, Array):  # Array is instance of tensor?
                 new_value = Array(self.value.length, self.value.value_type)
@@ -2757,15 +2847,17 @@ class Tensor():
             gradient_operation.append(operation)
             operation_id = len(gradient_operation)-1
             op_id_store[op_id] = operation_id
-            op_id += 1
-        else:
+            # op_id += 1
+        if not prepare or not forward:
             operation = gradient_operation[op_id_store[op_id]]
             inputs = operation.inputs
             outputs = operation.outputs
             input = tensors[inputs[0]]  # input is Tensor
             output = tensors[outputs[0]]
+            if not forward:
+                init_op_id += 1
             output.value[:] = mpc_math.sin(input.value[:])
-            op_id += 1
+        op_id += 1
         return output
 
     def mean(self, dim=None, keepdim=False):
@@ -2809,7 +2901,7 @@ class Tensor():
                 inter_broadcast_sub=operation.intermediate[4]
                 dl_dy.element_wise_mul(output.value,inter_inital0 )
                 inter_inital0.sum(dim,res=inter_sum,keepdims=True)
-                boardcasted_multiarray_sub(dl_dy, inter_sum,inter_broadcast_sub,inter_inital0)
+                boardcasted_multiarray_sub(dl_dy, inter_sum,inter_inital0)
                 output.value.element_wise_mul(inter_inital0, inter_inital0)
                 dl_d[operation.inputs[0]][:] += inter_inital0[:]
             else:
@@ -2817,6 +2909,7 @@ class Tensor():
                 dl_d[operation.inputs[0]][:] += res
                 
         prepare = get_prepare()
+        global init_op_id
         if prepare:
             assert isinstance(self, Tensor),"Invalid Input"
             if isinstance(self.value,Array):
@@ -2825,7 +2918,7 @@ class Tensor():
             else:
                 new_value=MultiArray(list(self.shape) ,self.value.value_type)
                 changed_size=list(self.shape)
-                changed_size=self.value.tuple_permute(self.shape,get_permute(len(self.sizes), [(dim)%len(output.sizes)])) #dim=2,input:[4,3,2,5]-->[4,3,5,2]
+                changed_size=self.value.tuple_permute(self.shape,get_permute(len(self.sizes), [(dim)%len(self.sizes)])) #dim=2,input:[4,3,2,5]-->[4,3,5,2]
                 inter=[MultiArray(changed_size,self.value.value_type),MultiArray(changed_size,self.value.value_type)]
             output = Tensor(new_value, req_grad=self.req_grad)
             if self.req_grad:
@@ -2843,11 +2936,13 @@ class Tensor():
             gradient_operation.append(operation)
             operation_id = len(gradient_operation) - 1
             op_id_store[op_id] = operation_id
-            set_opid(op_id+1)
-        else:
+            # set_opid(op_id+1)
+        if not prepare or not forward:
             operation = gradient_operation[op_id_store[op_id]]
             input = tensors[operation.inputs[0]]
             output = tensors[operation.outputs[0]]
+            if not forward:
+                init_op_id += 1
             if isinstance(input.value,Array):
                 output.value.assign_vector(vec_softmax(input.value.get_vector()),0)
             else:
@@ -2864,7 +2959,7 @@ class Tensor():
                 
                 changed_output_1.permute_without_malloc(output.value,get_permute(len(output.sizes), [(dim)%len(output.sizes)]))
             
-            set_opid(op_id+1)  # record the input and output of the op
+        set_opid(op_id+1)  # record the input and output of the op
         return output
     
     @buildingblock("relu-forward")
@@ -2877,6 +2972,7 @@ class Tensor():
             dl_dy, = dl_doutputs
             dl_d[self.name]+=operation.intermediate[0][:]*dl_dy[:]        
         prepare = get_prepare()
+        global init_op_id
         if prepare:
             assert isinstance(self, Tensor),"Invalid Input"
             if isinstance(self.value,Array):
@@ -2893,14 +2989,16 @@ class Tensor():
             gradient_operation.append(operation)
             operation_id = len(gradient_operation) - 1
             op_id_store[op_id] = operation_id
-            set_opid(op_id+1)
-        else:
+            # set_opid(op_id+1)
+        if not prepare or not forward:
             operation = gradient_operation[op_id_store[op_id]]
             output = tensors[operation.outputs[0]]
             larger=0 < self.value[:]
             operation.intermediate[0].assign_vector(larger)
+            if not forward:
+                init_op_id += 1
             output.value[:] = (larger).if_else(self.value[:], 0) 
-            set_opid(op_id+1)  # record the input and output of the op
+        set_opid(op_id+1)  # record the input and output of the op
         return output
         
     @buildingblock("sigmoid-forward")
@@ -2915,6 +3013,7 @@ class Tensor():
             dl_d[input_.name]+=output.value[:]*(1-output.value[:])*dl_dy[:]
                 
         prepare = get_prepare()
+        global init_op_id
         if prepare:
             assert isinstance(self, Tensor),"Invalid Input"
             if isinstance(self.value,Array):
@@ -2929,15 +3028,17 @@ class Tensor():
             gradient_operation.append(operation)
             operation_id = len(gradient_operation) - 1
             op_id_store[op_id] = operation_id
-            set_opid(op_id+1)
-        else:
+            # set_opid(op_id+1)
+        if not prepare or not forward:
             operation = gradient_operation[op_id_store[op_id]]
             output = tensors[operation.outputs[0]]
+            if not forward:
+                init_op_id += 1
             if approx:
                 output.value[:]= approx_sigmoid(self.value[:])
             else:
                 output.value[:] =  sigmoid_from_e_x(self.value[:],exp(-self.value[:]))
-            set_opid(op_id+1)  # record the input and output of the op
+        set_opid(op_id+1)  # record the input and output of the op
         return output
 
     @buildingblock("tanh-forward")
@@ -2955,6 +3056,7 @@ class Tensor():
             return dl_dinputs
         # forward
         global op_id
+        global init_op_id
         if prepare:
             if isinstance(self.value, Array):
                 new_value = Array(self.value.length, self.value.value_type)
@@ -2970,19 +3072,20 @@ class Tensor():
             gradient_operation.append(operation)
             operation_id = len(gradient_operation) - 1
             op_id_store[op_id] = operation_id
-            op_id += 1
-        else:
+            # op_id += 1
+        if not prepare or not forward:
             operation = gradient_operation[op_id_store[op_id]]
             inputs = operation.inputs
             outputs = operation.outputs
             input = tensors[inputs[0]]
             output = tensors[outputs[0]]
-
+            if not forward:
+                init_op_id += 1
             ex = mpc_math.pow_fx(math.e, 2 * input.value[:])
             operation.intermediate[0].assign_vector(ex)
             
             output.value[:] = (ex-1) / (ex+1)
-            op_id += 1
+        op_id += 1
         # record the input and output of the op
         return output
     
@@ -3066,7 +3169,8 @@ def reset_gloabal_store():
 # call this function after each iteration
 def reset_op_id():
     global op_id
-    op_id = 0
+    global init_op_id
+    op_id = init_op_id
 
 
 def get_opid():
@@ -3099,14 +3203,28 @@ def get_prepare():
     global prepare
     return prepare
 
+def get_forward():
+    global forward
+    return forward
+
+def get_init_op_id():
+    global init_op_id
+    return init_op_id
+
+def set_init_op_id(new_id):
+    global init_op_id
+    init_op_id = new_id
+
 def untrain():
     global prepare
     prepare = True
 
 def autograd_function(func):
+    global init_op_id
     def wrapper(*args, **kw):
         func(*args, **kw)
         untrain()
+        init_op_id = 0
         reset_op_id()
         reset_gloabal_store()
     copy_doc(wrapper, func)
