@@ -1014,18 +1014,22 @@ def batch_norm(input, running_mean, running_var, weight=None, bias=None, trainin
 def layer_norm(input, normalized_shape, weight=None, bias=None, eps=1e-05):
     
     assert isinstance(input,Tensor) ,"Invalid input"
-    new_sizes = [(input.value.sizes[i] if i == 1 else 1) for i in range(len(input.value.sizes))]
-    if isinstance(weight.value, Array):
-        weight.value = weight.value.reshape(new_sizes)
-        weight.grad = weight.grad.reshape(new_sizes)
-    if isinstance(bias.value, Array):
-        bias.value = bias.value.reshape(new_sizes)
-        bias.grad = bias.grad.reshape(new_sizes)    
+    
+    print('bias'+str(bias.value.shape))    
     dim = []
     for i in range(len(normalized_shape)):
         assert normalized_shape[len(normalized_shape)-1-i] == input.sizes[len(input.sizes)-1-i] ,"Invalid normalized_shape"
         dim.append(len(input.sizes)-1-i)
     dim.reverse()
+    
+    new_sizes = [(input.value.sizes[i] if i in dim else 1) for i in range(len(input.value.sizes))]
+    if isinstance(weight.value, Array):
+        weight.value = weight.value.reshape(new_sizes)
+        weight.grad = weight.grad.reshape(new_sizes)
+    if isinstance(bias.value, Array):
+        bias.value = bias.value.reshape(new_sizes)
+        bias.grad = bias.grad.reshape(new_sizes)
+    
     x_mean = input.mean(dim=dim, keepdim=True)
 
     
@@ -1033,7 +1037,7 @@ def layer_norm(input, normalized_shape, weight=None, bias=None, eps=1e-05):
     
     x_var = x_var + eps
     output = (input - x_mean) * x_var.invsqrt() 
-    
+
     if weight is not None:
         output = output * weight
 

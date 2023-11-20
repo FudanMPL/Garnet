@@ -592,8 +592,9 @@ def test_f_layernorm():
     x.print_reveal_nested()
     input1 = Tensor(x, req_grad = True)
 
-    w, b = Array(1, sfix), Array(1, sfix)
-    w[0], b[0] = sfix(1), sfix(0)
+    w = MultiArray([2,2], sfix)
+    b = MultiArray([2,2], sfix)
+    w.assign_all(1)
     W = Tensor(w, req_grad = True)
     B = Tensor(b, req_grad = True)
     
@@ -869,7 +870,7 @@ def test_triu():
     y = Tensor.triu(input1, k=2)
     y.print_reveal_nested()
 # test_mul()
-test_add()
+#test_add()
 #test_sub()
 #test_div()
 #test_abs()
@@ -923,7 +924,7 @@ def test_arange():
 
 #test_f_droupout(0.5)
 #test_f_batchnorm()
-#test_f_layernorm()
+test_f_layernorm()
 #test_f_mseloss()
 #test_f_normalize(p=2, dim=[0,1])
 #test_f_cossim()
@@ -934,4 +935,3 @@ def test_arange():
 # test_expand()
 # test_triu()
 # test_getitem()
-test_sub()
