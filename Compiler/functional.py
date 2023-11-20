@@ -1047,24 +1047,28 @@ def batch_norm(input, running_mean, running_var, weight=None, bias=None, trainin
 def layer_norm(input, normalized_shape, weight=None, bias=None, eps=1e-05):
     
     assert isinstance(input,Tensor) ,"Invalid input"
-    new_sizes = [(input.value.sizes[i] if i == 1 else 1) for i in range(len(input.value.sizes))]
-    if isinstance(weight.value, Array):
-        weight.value = weight.value.reshape(new_sizes)
-        weight.grad = weight.grad.reshape(new_sizes)
-    if isinstance(bias.value, Array):
-        bias.value = bias.value.reshape(new_sizes)
-        bias.grad = bias.grad.reshape(new_sizes)    
+    
+    print('bias'+str(bias.value.shape))    
     dim = []
     for i in range(len(normalized_shape)):
         assert normalized_shape[len(normalized_shape)-1-i] == input.sizes[len(input.sizes)-1-i] ,"Invalid normalized_shape"
         dim.append(len(input.sizes)-1-i)
     dim.reverse()
+    
+    new_sizes = [(input.value.sizes[i] if i in dim else 1) for i in range(len(input.value.sizes))]
+    if isinstance(weight.value, Array):
+        weight.value = weight.value.reshape(new_sizes)
+        weight.grad = weight.grad.reshape(new_sizes)
+    if isinstance(bias.value, Array):
+        bias.value = bias.value.reshape(new_sizes)
+        bias.grad = bias.grad.reshape(new_sizes)
+    
     x_mean = input.mean(dim=dim, keepdim=True)
     x_var = input.var(dim=dim, keepdim=True, unbiased=True) 
     
     x_var = x_var + eps
     output = (input - x_mean) * x_var.invsqrt() 
-    
+
     if weight is not None:
         output = output * weight
 
@@ -1074,7 +1078,13 @@ def layer_norm(input, normalized_shape, weight=None, bias=None, eps=1e-05):
 
 
 def cosine_similarity(x1, x2, dim=1, eps=1e-8):
-    pass
+    assert isinstance(dim, int)
+    dim = [dim]
+
+    x1_ = normalize(x1, 2, dim, eps)
+    x2_ = normalize(x2, 2, dim, eps)
+    xx = x1_ * x2_
+    return xx.sum(dim=dim, keepdim=False)
 
 
 def pdist(input, p=2):  # todo
