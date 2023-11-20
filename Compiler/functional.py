@@ -1045,7 +1045,13 @@ def layer_norm(input, normalized_shape, weight=None, bias=None, eps=1e-05):
 
 
 def cosine_similarity(x1, x2, dim=1, eps=1e-8):
-    pass
+    assert isinstance(dim, int)
+    dim = [dim]
+
+    x1_ = normalize(x1, 2, dim, eps)
+    x2_ = normalize(x2, 2, dim, eps)
+    xx = x1_ * x2_
+    return xx.sum(dim=dim, keepdim=False)
 
 
 def pdist(input, p=2):  # todo
