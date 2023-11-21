@@ -100,6 +100,8 @@ def test_permute():
     input2.value.print_reveal_nested()
     input1.grad.print_reveal_nested()
 
+test_permute()
+
 
 @autograd_function
 def test_reshape_MultiArrayToMultiArray():
@@ -767,7 +769,7 @@ def test_softmax_0():
     out.backward()
     input1.grad.print_reveal_nested()
 
-test_softmax_0()
+#test_softmax_0()
 
 @autograd_function
 def test_softmax_F_Array():
@@ -894,7 +896,7 @@ def test_logsoftmax_F_Array():
 
 #test_squeeze()
 #test_unsqueeze()
-#test_permute()
+test_permute()
 #test_transpose_Array() #todo fix the bug
 #test_transpose_MultiArray()
 #test_reshape_MultiArrayToMultiArray()

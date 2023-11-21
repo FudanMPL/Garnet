@@ -168,6 +168,24 @@ def test_abs():
     input1.grad.print_reveal_nested()
 
 @autograd_function
+def test_argmax(dim):
+    print_ln('test_argmax')
+    i, j = 5, 5
+    x = MultiArray([i, j], sfix)
+    for i in range(0,5):
+        for  j in range(0,5):
+            x[i][j] = sfix((i*17+j*11)%5)
+    x.print_reveal_nested()
+    input1 = Tensor(x, req_grad = True)
+
+    input2 = input1.argmax(dim=dim)
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    input2.value.print_reveal_nested()
+
+@autograd_function
 def test_combine():
     print_ln('test_combine')
     i, j = 3, 3
@@ -730,6 +748,66 @@ def test_flatten():
     input2.value.print_reveal_nested()
     input1.grad.print_reveal_nested()
 
+@autograd_function
+def test_gather():
+    print_ln('test_gather')
+    x = MultiArray([3,3], sfix)
+    for i in range(x.total_size()):
+        x.assign_vector(sfix(i+3), i)
+    x.print_reveal_nested()
+    input1 = Tensor(x, req_grad = True)
+    index = MultiArray([1,3], cint)
+    for i in range(index.total_size()):
+        if i == 2:
+            index.assign_vector(cint(0), i)
+        elif i == 0:
+            index.assign_vector(cint(2), i)
+        else:
+            index.assign_vector(cint(i), i)
+    index = Tensor(index)
+    input2 = input1.gather(0,index)
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    input2 = input1.gather(0,index)
+    input2.backward()
+    input2.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+
+@autograd_function
+def test_masked_fill_():
+    print_ln('test_masked_fill_')
+    x = MultiArray([3, 3], sfix)
+    for i in range(0,3):
+        for  j in range(0,3):
+            x[i][j] = sfix(i-j)
+    x.print_reveal_nested()
+    input1 = Tensor(x, req_grad = True)
+
+    mask = MultiArray([3, 3], sfix)
+    for i in range(0,3):
+        for  j in range(0,3):
+            mask[i][j] = sfix((i-j)%2)
+    mask.print_reveal_nested()
+    M = Tensor(mask, req_grad = False)
+
+    value = MultiArray([3, 3], sfix)
+    for i in range(0,3):
+        for  j in range(0,3):
+            value[i][j] = i+j
+    value.print_reveal_nested()
+    V = Tensor(value, req_grad = False)
+
+    input2 = input1.masked_fill_(M, V)
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    input2 = input1.masked_fill_(M, V)
+    #input2.backward()
+    input2.value.print_reveal_nested()
+    #input1.grad.print_reveal_nested()
 
 #test_mul()
 #test_add()
@@ -749,6 +827,7 @@ def test_getitem():
     x[0].print_reveal_nested()
     
 #test_getitem()
+#test_argmax(dim=1)
 #test_abs()
 #test_exp()
 #test_log()
@@ -773,9 +852,12 @@ def test_getitem():
 #test_neg()
 
 #test_f_droupout(0.5)
-test_f_batchnorm()
+#test_f_batchnorm()
 #test_f_layernorm()
 #test_f_mseloss()
 #test_f_normalize(p=2, dim=[0,1])
 #test_f_cossim()
 #test_f_gelu()
+
+#test_masked_fill_()
+test_gather()

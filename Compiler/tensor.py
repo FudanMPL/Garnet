@@ -16,7 +16,7 @@ from Compiler import graph_visualization
 # from Compiler.GC.types import sbitintis_train
 from functools import reduce
 from typing import List, NamedTuple, Callable, Dict, Optional, Union, Tuple, Any
-from ml import approx_sigmoid
+from ml import approx_sigmoid, argmax
 _name = 1
 
 
@@ -1439,8 +1439,12 @@ class Tensor():
         if isinstance(other, Tensor):
             self.value[index] = other.value
         else:
-            self.value[index] = other        
-        
+            self.value[index] = other
+                    
+    @buildingblock("masked_fill_")
+    def masked_fill_(self, mask, value):
+        b = mask * value
+        return self + b
 
     @staticmethod
     def ones(*sizes, value_type = sfix, req_grad = False):
@@ -1484,6 +1488,31 @@ class Tensor():
             res_value[i][i] = 1
         res = Tensor(res_value)    
         return res
+    
+    def argmax(self, dim, keepdim=False):
+        dim = [dim]
+        if not keepdim:
+            new_sizes = [self.value.sizes[i] for i in list(filter(lambda x: x not in dim, range(len(self.value.sizes))))]
+        else:
+            new_sizes = [(1 if i in dim else self.value.sizes[i]) for i in range(len(self.value.sizes))]
+        if len(new_sizes) <= 1:
+            new_value = Array(new_sizes[0], self.value.value_type)
+        else:
+            new_value = MultiArray(new_sizes, self.value.value_type)
+        output = Tensor(new_value, req_grad=self.req_grad)
+
+        new_perm = get_permute(len(self.value.sizes), dim)
+        target_size = self.value.tuple_permute(self.value.sizes, new_perm)
+        temp = MultiArray(target_size, self.value.value_type)
+        self.value.permute_without_malloc(temp, new_perm)
+        
+        stride = self.value.sizes[dim[0]]
+        @for_range_opt(self.value.total_size()//stride)
+        def _(i):
+            t = temp.get_vector(i*stride, stride)
+            output.value.assign_vector(argmax(t), i)
+        temp.delete()
+        return output
     
     @buildingblock("mv-forward")
     def mv(self, other,out=None):
@@ -1886,9 +1915,77 @@ class Tensor():
             op_id += 1
         return output
 
-    def gather(self):
+    @buildingblock("gather-forward")
+    def gather(self, dim, index):
         # todo
-        return self
+        @backwardbuildingblock(get_program().globalbuildingblock[:-15]+"-gather-backward")
+        def propagate(dl_doutputs, operation):
+            dl_dy, = dl_doutputs
+            dl_dself = dl_d[operation.inputs[0]]
+            @for_range(dl_dy.total_size())
+            def _(i):
+                index_store = []
+                new_index = []
+                def mul(x, y):
+                    return x*y
+                tmp_i = i
+                for j in range(len(dl_dy.sizes)-1):
+                    left_size = (reduce(mul, dl_dy.sizes[j+1:]))
+                    tmp_index = tmp_i// left_size
+                    index_store.append(tmp_index)
+                    new_index.append(tmp_index)
+                    tmp_i = tmp_i%left_size
+                index_store.append(tmp_i)
+                new_index.append(tmp_i)
+                new_index[dim] = index.value.get_vector_by_indices(*index_store)
+                tmp_val = dl_dy.get_vector_by_indices(*index_store)
+                dl_dself.assign_vector_by_indices(dl_dself.get_vector_by_indices(*new_index)+tmp_val, *new_index)            
+               
+        global op_id
+        if prepare:
+            assert len(self.sizes) == len(index.sizes)
+            assert index.value.value_type == cint or index.value.value_type == regint
+            for i in range(len(self.sizes)):
+                if i!=dim and index.sizes[i] > self.sizes[i]:
+                    raise CompilerError("wrong dimension of index in gather function")
+            if len(index.sizes) == 0:
+                new_value = Array(index.sizes, self.value.value_type)
+            else:
+                new_value = MultiArray(index.sizes, self.value.value_type)
+            output = Tensor(new_value, req_grad=self.req_grad)
+            if self.req_grad:
+                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
+            else:
+                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate)
+            gradient_operation.append(operation)
+            operation_id = len(gradient_operation)-1
+            op_id_store[op_id] = operation_id
+            op_id += 1
+        else:
+            operation = gradient_operation[op_id_store[op_id]]
+            outputs = operation.outputs
+            output = tensors[outputs[0]]
+            @for_range(output.value.total_size())
+            def _(i):
+                index_store = []
+                new_index = []
+                def mul(x, y):
+                    return x*y
+                tmp_i = i
+                for j in range(len(output.sizes)-1):
+                    left_size = (reduce(mul, output.sizes[j+1:]))
+                    tmp_index = tmp_i// left_size
+                    index_store.append(tmp_index)
+                    new_index.append(tmp_index)
+                    tmp_i = tmp_i%left_size
+                index_store.append(tmp_i)
+                new_index.append(tmp_i)
+                new_index[dim] = index.value.get_vector_by_indices(*index_store)
+                print_ln("%s, %s", new_index[0], new_index[1])
+                tmp_val = self.value.get_vector_by_indices(*new_index)
+                output.value.assign_vector_by_indices(tmp_val, *index_store)
+            op_id += 1
+        return output
 
     @buildingblock("reshape-forward")
     def reshape(self, *sizes):
@@ -2644,7 +2741,8 @@ def reset_gloabal_store():
         item.value.delete()
     tensors.clear()
     for key, item in dl_d.items():
-        item.delete()
+        if item is not None:
+            item.delete()
     dl_d.clear()
     op_id_store.clear()
 

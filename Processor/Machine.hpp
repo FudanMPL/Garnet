@@ -428,7 +428,7 @@ pair<DataPositions, NamedCommStats> Machine<sint, sgf2n>::stop_threads()
 }
 
 template<class sint, class sgf2n>
-void Machine<sint, sgf2n>::run(const string& progname)
+void Machine<sint, sgf2n>:: run(const string& progname)
 {
   prepare(progname);
 

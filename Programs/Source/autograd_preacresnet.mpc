@@ -3,8 +3,10 @@ from tensor import Tensor,autograd_function
 import optimizer as optim
 import dataloader as dataloader
 import functional as F
-program.use_trunc_pr = True
 
+program.use_trunc_pr = True
+sfix.set_precision(12, 37)
+cfix.set_precision(12, 37)
 
 class PreActBlock(nn.Module):
     '''Pre-activation version of the BasicBlock.'''
@@ -121,11 +123,11 @@ model=PreActResNet50()
 x = Tensor.ones(4, 3, 224, 224)
 labels = Tensor.ones(4, 1000)
 crossloss = nn.CrossEntropyLoss()
-dataload = dataloader.DataLoader(x, labels, batch_size = 2, shuffle=False)
+dataload = dataloader.DataLoader(x, labels, batch_size = 1, shuffle=False)
 optimizer = optim.SGD(model.parameters(), lr = 0.01)
 input, label = dataload.get_data(0)
 model.train(crossloss, dataload)
 
 output = model(input)
-loss = crossloss(output, label)
-optimizer.zero_grad()
+#loss = crossloss(output, label)
+#optimizer.zero_grad()

@@ -10,17 +10,17 @@ class LeNet(nn.Module):
         super(LeNet, self).__init__()
         self.conv = nn.Sequential(
             nn.Conv2d(1, 6, 5), # in_channels, out_channels, kernel_size
-            nn.Sigmoid(),
-            nn.MaxPool2d(2, 2), # kernel_size, stride
+            nn.Relu(),
+            nn.AvgPool2d(2, 2), # kernel_size, stride
             nn.Conv2d(6, 16, 5),
-            nn.Sigmoid(),
-            nn.MaxPool2d(2, 2)
+            nn.Relu(),
+            nn.AvgPool2d(2, 2)
         )
         self.fc = nn.Sequential(
             nn.Linear(16*4*4, 120),
-            nn.Sigmoid(),
+            nn.Relu(),
             nn.Linear(120, 84),
-            nn.Sigmoid()
+            nn.Relu()
         )
         self.fc1 = nn.Linear(84, 10)
 
@@ -28,35 +28,35 @@ class LeNet(nn.Module):
         feature = self.conv(img)
         feature = feature.view(img.shape[0], -1)
         output = self.fc(feature)
-        output.print_reveal_nested()
         output = self.fc1(output)
         return output
 
 model = LeNet()
-crossloss = nn.CrossEntropyLoss()
+crossloss = nn.MSELoss()
 
-x = MultiArray([3,1,28,28], sfix)
-y = MultiArray([3,10], sfix)
+x = MultiArray([10,1,28,28], sfix)
+y = MultiArray([10,10], sfix)
 
 @for_range(x.total_size())
 def _(i):
     x.assign_vector(sfix(i/10), i)
 
 y.assign_all(0)
-for i in range(3):
-    y[i][i] = 1
+for i in range(10):
+    y[i][i//3] = 1
 
-dataload = dataloader.DataLoader(x, y, batch_size = 2, shuffle=False)
+dataload = dataloader.DataLoader(x, y, batch_size = 3, shuffle=True)
 optimizer = optim.SGD(model.parameters(), lr = 0.01)
 params = list(model.parameters())
 for i in params:
     i.assign_all(0.1)
-model.train(crossloss, dataload)
+model.train()
 
 @for_range(1)
 def _(i):
     input, label = dataload.get_data(0)
     output = model(input)
+<<<<<<< HEAD
    # loss = crossloss(output, label)
    # optimizer.zero_grad()
   #  loss.backward()
@@ -64,4 +64,13 @@ def _(i):
   #  loss.print_reveal_nested()
    # output.grad.print_reveal_nested()
    # optimizer.step()
+=======
+    loss = crossloss(output, label)
+    optimizer.zero_grad()
+    loss.backward()
+    output.print_reveal_nested()
+    loss.print_reveal_nested()
+    output.grad.print_reveal_nested()
+    optimizer.step()
+>>>>>>> b7353e015f5930ccd8a30c10a3184849a9f4816f
    

@@ -51,7 +51,7 @@ class defaults:
     garbled = False
     prime = None
     galois = 40
-    budget = 100
+    budget = 100000
     mixed = False
     edabit = False
     invperm = False
@@ -88,6 +88,7 @@ class Program(object):
         self.name = name
         self.init_names(args)
         self._security = 40
+        self.c_security = 128
         self.prime = None
         self.tapes = []
         self._protect_memory = False
@@ -713,6 +714,7 @@ class Tape:
         self.init_registers()
         self.req_tree = self.ReqNode(name)
         self.req_node = self.req_tree
+        self.req_num = None
         self.basicblocks = []
         self.purged = False
         self.block_counter = 0
@@ -824,7 +826,7 @@ class Tape:
         def expand_cisc(self):
             new_instructions = []
             if self.parent.program.options.keep_cisc is not None:
-                skip = ["LTZ"]
+                skip = ["LTZ", "Trunc"]
                 skip += self.parent.program.options.keep_cisc.split(",")
             else:
                 skip = []
