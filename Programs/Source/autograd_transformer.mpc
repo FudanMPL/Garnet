@@ -16,16 +16,18 @@ tgt_vocab = {'P': 0, 'I': 1, 'have': 2, 'a': 3, 'good': 4,
              'friend': 5, 'zero': 6, 'girl': 7,  'boy': 8, 'S': 9, 'E': 10, '.': 11}
 idx2word = {i: w for i, w in enumerate(tgt_vocab)}
 tgt_vocab_size = len(tgt_vocab)
-src_len = 8  # （源句子的长度）enc_input max sequence length
-tgt_len = 7  # dec_input(=dec_output) max sequence length
-batch_size = 2
+src_len = 512  # （源句子的长度）enc_input max sequence length
+tgt_len = 512  # dec_input(=dec_output) max sequence length
+batch_size = 1
 # Transformer Parameters
-d_model = 512  # Embedding Size（token embedding和position编码的维度）
+d_model = 768  # Embedding Size（token embedding和position编码的维度）
 # FeedForward dimension (两次线性层中的隐藏层 512->2048->512，线性层是用来做特征提取的），当然最后会再接一个projection层
-d_ff = 2048
+d_ff = 3072
 d_k = d_v = 64  # dimension of K(=Q), V（Q和K的维度需要相同，这里为了方便让K=V）
 n_layers = 1 # number of Encoder of Decoder Layer（Block的个数）
-n_heads = 8  # number of heads in Multi-Head Attention（有几套头）
+n_heads = 12  # number of heads in Multi-Head Attention（有几套头）
+program.use_trunc_pr = True
+
 class PositionalEncoding(nn.Module):
     def __init__(self, d_model, dropout=0.1, max_len=50):
         super(PositionalEncoding, self).__init__()
@@ -165,7 +167,7 @@ class PoswiseFeedForwardNet(nn.Module):
         super(PoswiseFeedForwardNet, self).__init__()
         self.fc = nn.Sequential(
             nn.Linear(d_model, d_ff, bias=False),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Linear(d_ff, d_model, bias=False)
         )
         self.layernorm = nn.LayerNorm(d_model)
@@ -187,6 +189,7 @@ class EncoderLayer(nn.Module):
         self.enc_self_attn = MultiHeadAttention()
         self.pos_ffn = PoswiseFeedForwardNet()
 
+    @buildingblock("encoder")
     def forward(self, enc_inputs, enc_self_attn_mask):
         """E
         enc_inputs: [batch_size, src_len, d_model]

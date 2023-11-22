@@ -1047,8 +1047,7 @@ def batch_norm(input, running_mean, running_var, weight=None, bias=None, trainin
 def layer_norm(input, normalized_shape, weight=None, bias=None, eps=1e-05):
     
     assert isinstance(input,Tensor) ,"Invalid input"
-    
-    print('bias'+str(bias.value.shape))    
+      
     dim = []
     for i in range(len(normalized_shape)):
         assert normalized_shape[len(normalized_shape)-1-i] == input.sizes[len(input.sizes)-1-i] ,"Invalid normalized_shape"

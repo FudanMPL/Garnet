@@ -2508,7 +2508,7 @@ class GELU(Module):
     __constants__ = ['approximate']
     approximate: str
 
-    def __init__(self, approximate: str = 'none') -> None:
+    def __init__(self, approximate: str = 'tanh') -> None:
         super().__init__()
         self.approximate = approximate
 

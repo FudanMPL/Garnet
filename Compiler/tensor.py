@@ -3081,10 +3081,12 @@ class Tensor():
             output = tensors[outputs[0]]
             if not forward:
                 init_op_id += 1
-            ex = mpc_math.pow_fx(math.e, 2 * input.value[:])
+            ex = mpc_math.exp_fx(2 * input.value[:])
             operation.intermediate[0].assign_vector(ex)
-            
+            sfix.div_iters = 3
             output.value[:] = (ex-1) / (ex+1)
+            sfix.div_iters = 10
+            
         op_id += 1
         # record the input and output of the op
         return output
@@ -3103,10 +3105,18 @@ class Tensor():
         assert isinstance(value, int) or isinstance(value, float)
         self.value.assign_all(value)
 
+def exp_for_softmax(x):
+    m = util.max(x) - get_limit(x[0]) + math.log(len(x))
+    mv = m.expand_to_vector(len(x))
+    try:
+        x = x.get_vector()
+    except AttributeError:
+        x = sfix(x)
+    if use_mux:
+        return exp(x - mv), m
+    else:
+        return (x - mv > -get_limit(x)).if_else(exp(x - mv), 0)
 
-def vec_softmax(x):
-    e_x = mpc_math.exp_fx(x - util.max(x))
-    return e_x / sum(e_x)
 
 # @vectorize
 # def approx_sigmoid(x, n=5):
@@ -3256,6 +3266,7 @@ def softmax_last_dim(x, dim=-1, res=None, inter=None):
         return res
 
 def vec_softmax(x):
+    # e_x = exp_for_softmax(x)
     e_x = mpc_math.exp_fx(x - util.max(x))
     return e_x / sum(e_x)
 

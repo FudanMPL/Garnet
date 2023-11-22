@@ -3982,22 +3982,30 @@ class cfix(_number, _structure):
         op.__doc__ = __eq__.__doc__
     del op
 
+    def newton_div(self, x, y):
+        n = 2 ** (sfix.f / 2)
+        z = sfix(1 / n, size=y.size)
+        for i in range(10):
+            z = 2 * z - y * z * z
+        return x * z
     @vectorize
     def __truediv__(self, other):
         """ Clear fixed-point division.
 
         :param other: cfix/cint/regint/int """
         other = parse_type(other, self.k, self.f)
+
         if isinstance(other, cfix):
             return cfix._new(library.cint_cint_division(
                 self.v, other.v, self.k, self.f), k=self.k, f=self.f)
         elif isinstance(other, sfix):
             assert self.k == other.k
             assert self.f == other.f
-            return sfix._new(library.FPDiv(self.v, other.v, self.k, self.f,
-                                           other.kappa,
-                                           nearest=sfix.round_nearest),
-                             k=self.k, f=self.f)
+            return self.newton_div(self, other)
+            # return sfix._new(library.FPDiv(self.v, other.v, self.k, self.f,
+            #                                other.kappa,
+            #                                nearest=sfix.round_nearest),
+            #                  k=self.k, f=self.f)
         else:
             raise TypeError('Incompatible fixed point types in division')
 
@@ -4439,7 +4447,20 @@ class _fix(_single):
     def __neg__(self):
         """ Secret fixed-point negation. """
         return self._new(-self.v, k=self.k, f=self.f)
-
+    @classmethod
+    def exp_fx(cls, x,iter=9):
+        n=1<<iter
+        a=1+x/n
+        for i in range(0,iter):
+            a=a*a
+        return a
+    @classmethod
+    def newton_div(cls, x, y):
+        n = 2 ** (sfix.f / 2)
+        z = 3 * cls.exp_fx(1 - 2 * x)+ 0.003 # sfix(1 / n, size=y.size)
+        for i in range(cls.div_iters):
+            z = 2 * z - y * z * z
+        return x * z
     @vectorize
     def __truediv__(self, other):
         """ Secret fixed-point division.
@@ -4460,8 +4481,9 @@ class _fix(_single):
         assert self.k == other.k
         assert self.f == other.f
         if isinstance(other, _fix):
-            v = library.FPDiv(self.v, other.v, self.k, self.f, self.kappa,
-                              nearest=self.round_nearest)
+            return sfix.newton_div(self, other)
+            # v = library.FPDiv(self.v, other.v, self.k, self.f, self.kappa,
+                            #   nearest=self.round_nearest)
         elif isinstance(other, cfix):
             v = library.sint_cint_division(self.v, other.v, self.k, self.f,
                                            self.kappa)
@@ -4530,7 +4552,7 @@ class sfix(_fix):
     clear_type = cfix
     get_type = staticmethod(lambda n: sint)
     default_type = sint
-
+    div_iters = 10
     def change_domain_from_to(self, k1, k2, bit_length=None):
         temp = self.v.change_domain_from_to(k1, k2, bit_length)
         res = sfix(size=temp.size)
@@ -7065,10 +7087,10 @@ class MultiArray(SubMultiArray):
         if res is None:
             res = MultiArray([self.shape[0], output_col], self.value_type)
 
-        @library.for_range_multithread(n_threads, N, N)
-        def _(i):
-            res[i] = self.direct_mul(other, indices=(regint(i), regint.inc(self.sizes[1]), regint.inc(self.sizes[1]), regint.inc(output_col)))
-        
+        # @library.for_range_multithread(n_threads, N, N)
+        # def _(i):
+        #     res[i] = self.direct_mul(other, indices=(regint(i), regint.inc(self.sizes[1]), regint.inc(self.sizes[1]), regint.inc(output_col)))
+        res.assign_vector(self.direct_mul(other))
         return res
 
     def single_bmm(self, other, res=None):  # i think single_bmm is a part of mm
