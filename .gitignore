@@ -26,6 +26,7 @@ callgrind.out.*
 HOSTS*
 *.csv
 *.txt
+*.png
 # Vim
 .*.swp
 tags

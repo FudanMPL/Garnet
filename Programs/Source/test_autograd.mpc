@@ -714,9 +714,9 @@ def test_f_gelu():
     # tensor.reset_op_id()
 
     input2 = F.gelu(input1, approximate='tanh')
-    #input2.backward()
+    input2.backward()
     input2.value.print_reveal_nested()
-    #input1.grad.print_reveal_nested()
+    input1.grad.print_reveal_nested()
 
 @autograd_function
 def test_flatten():
@@ -910,15 +910,15 @@ def test_arange():
 # test_neg()
 
 #test_f_droupout(0.5)
-#test_f_batchnorm()
-test_f_layernorm()
-#test_f_mseloss()
+test_f_batchnorm()
+#test_f_layernorm()
+# test_f_mseloss()
 #test_f_normalize(p=2, dim=[0,1])
 #test_f_cossim()
-#test_f_gelu()
+# test_f_gelu()
 
-#test_masked_fill_()
-#test_gather()
+# test_masked_fill_()
+# test_gather()
 # test_expand()
 # test_triu()
 # test_getitem()
