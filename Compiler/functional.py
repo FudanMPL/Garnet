@@ -301,8 +301,11 @@ def softmax(input,dim=-1):
     return output
     
 def vec_softmax(x):
-    e_x = mpc_math.exp_fx(x - util.max(x))
-    return e_x / sum(e_x)
+    e_x = mpc_math.exp_fx(x - util.max(x),  8)
+    sfix.all_pos = True
+    res = e_x  / sum(e_x)
+    sfix.all_pos = False
+    return res
 
 
 # def log_softmax(input, dim=-1):  # todo
@@ -1323,6 +1326,7 @@ def cross_entropy(input, target, weight=None, reduction = 'mean'):
     tmp=log_softmax(input)
     return nll_loss(tmp,target,weight)
 
+@buildingblock("gelu")
 def gelu(input, approximate='none'):
     assert approximate == 'tanh', 'approximate of gelu must be tanh'
     factor = input + input * input * input * 0.044715

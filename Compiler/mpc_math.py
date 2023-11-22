@@ -973,7 +973,40 @@ def logsum(x):
         acc=acc+temp[i]
     return log_fx(acc,math.e)+maximum
     
+def argmax(x):
+    len=x.size
+    print(len)
+    len2=(int)(len*(len-1)/2)
+    temp_input=type(x[0]).Array(len)
+    temp=type(x[0]).Array(len2)
+    @library.for_range(len-1)
+    def _(i):
+        @library.for_range(i+1, len)
+        def _(j):
+            count = (2*len - 2 - i) * i /2
+            temp[count]=temp_input[i]-temp_input[j]
+            count=count+1
+    temp[:]= temp[:] < 0
+    acc=type(x[0]).Array(len)
+    @library.for_range(len-1)
+    def _(i):
+        @library.for_range(i+1, len)
+        def _(j):
+            count = (2*len - 2 - i) * i /2
+            acc[i]=acc[i]+temp[count]
+            acc[j]=acc[j]+1-temp[count]
+            count=count+1
+        acc[i]=acc[i]-1
+    acc[len-1]=acc[len-1]-1
+    temp.delete()
+    res = acc[:] < 0
+    acc.delete()
+    temp_input.delete()
+    return res
 
+def slow_max(x):
+    arg=argmax(x)
+    return type(x[0]).dot_product(x,arg)
 
 
 

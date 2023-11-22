@@ -150,7 +150,6 @@ def element_wise_add(self, other):
     # backward
     @backwardbuildingblock(get_program().globalbuildingblock[:-12]+"-add-backward")
     def propagate(dl_doutputs, operation):
-        print_ln("start add")
         
         dl_dx, = dl_doutputs
         inputs = operation.inputs
@@ -186,7 +185,6 @@ def element_wise_add(self, other):
                 v2.assign_vector(v2.get_vector(i, 1)+vsum, i) 
             break_point()
         dl_dinputs = [dl_dself, dl_dother]
-        print_ln("end add")
         return dl_dinputs
     # forward
     global op_id
@@ -208,7 +206,6 @@ def element_wise_add(self, other):
         temp1 = MultiArray(target_size, v1.value_type)
         target_size = v1.tuple_permute(v1.sizes, get_permute_d2front(len(v1.sizes), dim))
         temp2 = MultiArray(target_size, predict_value_type(self.value, other.value))
-        print(temp2.sizes)
         # check whether require grad
         if self.req_grad or other.req_grad:
             operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate, intermediate=[temp1, temp2])
@@ -1637,7 +1634,6 @@ class Tensor():
                 
             tmp_value.assign_all(1)
             boardcasted_multiarray_mul(tmp_value, other_value, tmp_res_value)
-            tmp_value.print_reveal_nested()
             @for_range(tmp_value.total_size())
             def _(i):
                 index_store = []
@@ -3050,8 +3046,9 @@ class Tensor():
             inputs = operation.inputs
             inter = operation.intermediate[0]  # reuse the intervalue in mem
             dl_dself = dl_d[inputs[0]]
-            denominator = inter[:] * inter[:] + 2 * inter[:] + 1
-            dl_dself[:] += 4 * inter[:] / denominator * dl_dx[:]
+            # denominator = inter[:] * inter[:] + 2 * inter[:] + 1
+            # dl_dself[:] += 4 * inter[:] / denominator * dl_dx[:]
+            dl_dself[:] += (1 - inter[:] * inter[:])* dl_dx[:]
             dl_dinputs = [dl_dself]
             return dl_dinputs
         # forward
@@ -3081,12 +3078,24 @@ class Tensor():
             output = tensors[outputs[0]]
             if not forward:
                 init_op_id += 1
-            ex = mpc_math.exp_fx(2 * input.value[:])
-            operation.intermediate[0].assign_vector(ex)
-            sfix.div_iters = 3
-            output.value[:] = (ex-1) / (ex+1)
-            sfix.div_iters = 10
+            tmp_input = 2 * input.value[:]
+            ltz = tmp_input < 0
+            sign = 1- 2 *  ltz
+            tmp_input = tmp_input *sign
             
+            ex = mpc_math.exp_fx(-tmp_input, 8)
+
+            tmp_input = ex+1
+            cfix.div_iters = 3
+            cfix.all_pos = True
+            cfix.div_initial = 0.75
+            tmp_input = 1 / tmp_input
+            cfix.div_iters = 10
+            cfix.all_pos = False
+            cfix.div_initial = None
+            tmp_input = tmp_input + ltz - 2 * tmp_input *ltz
+            output.value[:] =  tmp_input *2 -1
+            operation.intermediate[0].assign_vector(output.value[:])
         op_id += 1
         # record the input and output of the op
         return output
@@ -3267,8 +3276,14 @@ def softmax_last_dim(x, dim=-1, res=None, inter=None):
 
 def vec_softmax(x):
     # e_x = exp_for_softmax(x)
-    e_x = mpc_math.exp_fx(x - util.max(x))
-    return e_x / sum(e_x)
+    max = util.max(x)
+    index = x == max
+    e_x = mpc_math.exp_fx(x - max.expand_to_vector(len(x)), 8)
+    sfix.all_pos = True
+    res = e_x  / sum(e_x)
+    sfix.all_pos = False
+    return res
+    
 
 # def broadcast(*args: Tensor) -> List[Tensor]:
 #     """

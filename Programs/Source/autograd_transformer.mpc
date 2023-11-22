@@ -96,7 +96,7 @@ class ScaledDotProductAttention(nn.Module):
         # mask矩阵填充scores（用-1e9填充scores中与attn_mask中值为1位置相对应的元素）
         # Fills elements of self tensor with value where mask is True.
         scores.masked_fill_(attn_mask, -1e3)
-
+        print(scores.sizes)
         attn = self.softmax(scores)  # 对最后一个维度(v)做softmax
         # scores : [batch_size, n_heads, len_q, len_k] * V: [batch_size, n_heads, len_v(=len_k), d_v]
         # context: [batch_size, n_heads, len_q, d_v]
@@ -177,6 +177,8 @@ class PoswiseFeedForwardNet(nn.Module):
         """
         print_ln("start postion forward")
         residual = inputs
+        print(inputs.sizes)
+        
         output = self.fc(inputs)
         # [batch_size, seq_len, d_model]
         output = self.layernorm(output + residual)
@@ -189,7 +191,7 @@ class EncoderLayer(nn.Module):
         self.enc_self_attn = MultiHeadAttention()
         self.pos_ffn = PoswiseFeedForwardNet()
 
-    @buildingblock("encoder")
+    
     def forward(self, enc_inputs, enc_self_attn_mask):
         """E
         enc_inputs: [batch_size, src_len, d_model]
@@ -237,7 +239,8 @@ class Encoder(nn.Module):
         # self.src_emb = nn.Embedding(src_vocab_size, d_model)  # token Embedding
         # self.pos_emb = PositionalEncoding(d_model)  # Transformer中位置编码时固定的，不需要学习
         self.layers = nn.ModuleList([EncoderLayer() for _ in range(n_layers)])
-
+        
+    @buildingblock("encoder")
     def forward(self, enc_inputs):
         """
         enc_inputs: [batch_size, src_len]
@@ -308,9 +311,9 @@ class Transformer(nn.Module):
     def __init__(self):
         super(Transformer, self).__init__()
         self.encoder = Encoder()
-        self.decoder = Decoder()
-        self.projection = nn.Linear(
-            d_model, tgt_vocab_size, bias=False)
+        # self.decoder = Decoder()
+        # self.projection = nn.Linear(
+        #     d_model, tgt_vocab_size, bias=False)
 
     def forward(self, enc_inputs, dec_inputs):
         """Transformers的输入：两个序列
@@ -325,14 +328,14 @@ class Transformer(nn.Module):
         enc_outputs, enc_self_attns = self.encoder(enc_inputs)
         print_ln("finish encode")
         # dec_outputs: [batch_size, tgt_len, d_model], dec_self_attns: [n_layers, batch_size, n_heads, tgt_len, tgt_len], dec_enc_attn: [n_layers, batch_size, tgt_len, src_len]
-        dec_outputs, dec_self_attns, dec_enc_attns = self.decoder(
-            dec_inputs, enc_inputs, enc_outputs)
-        print_ln("finish decode")
-        # dec_outputs: [batch_size, tgt_len, d_model] -> dec_logits: [batch_size, tgt_len, tgt_vocab_size]
-        dec_logits = self.projection(dec_outputs)
-        print_ln("finish prepare")
-        return dec_logits.view(-1, dec_logits.size(-1)), enc_self_attns, dec_self_attns, dec_enc_attns
-
+        # dec_outputs, dec_self_attns, dec_enc_attns = self.decoder(
+        #     dec_inputs, enc_inputs, enc_outputs)
+        # print_ln("finish decode")
+        # # dec_outputs: [batch_size, tgt_len, d_model] -> dec_logits: [batch_size, tgt_len, tgt_vocab_size]
+        # dec_logits = self.projection(dec_outputs)
+        # print_ln("finish prepare")
+        # return dec_logits.view(-1, dec_logits.size(-1)), enc_self_attns, dec_self_attns, dec_enc_attns
+        return enc_outputs, enc_self_attns
 
 model = Transformer()
 # 这里的损失函数里面设置了一个参数 ignore_index=0，因为 "pad" 这个单词的索引为 0，这样设置以后，就不会计算 "pad" 的损失（因为本来 "pad" 也没有意义，不需要计算）
@@ -341,7 +344,7 @@ optimizer = optim.SGD(model.parameters(), lr=1e-3,
                       momentum=0.99)  # 用adam的话效果不好
 x = Tensor.ones(4, src_len, d_model)
 y = Tensor.ones(4, tgt_len, d_model)
-dataload = dataloader.DataLoader(x, y, batch_size = 2, shuffle=False)
+dataload = dataloader.DataLoader(x, y, batch_size = 1, shuffle=False)
 input, label = dataload.get_data(0)
-output1, output2, output3, output4 = model(input, label)
-output1.print_reveal_nested()
+model(input, label)
+# output1.print_reveal_nested()

@@ -3692,6 +3692,9 @@ class cfix(_number, _structure):
     __slots__ = ['value', 'f', 'k']
     reg_type = 'c'
     scalars = (int, float, regint, cint)
+    div_iters = 10
+    all_pos = False
+    div_initial = None
     @classmethod
     def set_precision(cls, f, k = None):
         """ Set the precision of the integer representation. Note that some
@@ -3981,13 +3984,25 @@ class cfix(_number, _structure):
     for op in __le__, __lt__, __ge__, __gt__, __ne__:
         op.__doc__ = __eq__.__doc__
     del op
-
-    def newton_div(self, x, y):
+    @classmethod
+    def exp_fx(cls, x,iter=9):
+        n=1<<iter
+        a=1+x/n
+        for i in range(0,iter):
+            a=a*a
+        return a
+    @classmethod
+    def newton_div(cls, x, y):
+        sign = 1
+        if not cls.all_pos:
+            sign = y > 0
+            sign = 2 *  sign - 1
+            y = y * sign
         n = 2 ** (sfix.f / 2)
-        z = sfix(1 / n, size=y.size)
-        for i in range(10):
+        z = 3 * cls.exp_fx(1 - 2 * y)+ 0.003  if cls.div_initial == None  else cls.div_initial # sfix(1 / n, size=y.size)
+        for i in range(cls.div_iters):
             z = 2 * z - y * z * z
-        return x * z
+        return x * z *sign
     @vectorize
     def __truediv__(self, other):
         """ Clear fixed-point division.
@@ -4001,7 +4016,7 @@ class cfix(_number, _structure):
         elif isinstance(other, sfix):
             assert self.k == other.k
             assert self.f == other.f
-            return self.newton_div(self, other)
+            return cfix.newton_div(self, other)
             # return sfix._new(library.FPDiv(self.v, other.v, self.k, self.f,
             #                                other.kappa,
             #                                nearest=sfix.round_nearest),
@@ -4456,11 +4471,15 @@ class _fix(_single):
         return a
     @classmethod
     def newton_div(cls, x, y):
-        n = 2 ** (sfix.f / 2)
-        z = 3 * cls.exp_fx(1 - 2 * x)+ 0.003 # sfix(1 / n, size=y.size)
-        for i in range(cls.div_iters):
-            z = 2 * z - y * z * z
-        return x * z
+        sign = 1
+        if not cls.all_pos:
+            sign = y > 0
+            sign = 2 *  sign - 1
+            y = y * sign
+        z = 3 * cls.exp_fx(1 - 2 * y)+ 0.003  if cls.div_initial == None  else cls.div_initial # sfix(1 / n, size=y.size)
+        for i in range(cls.div_iters):    
+            z = 2 * z  - y * z * z
+        return x * z * sign
     @vectorize
     def __truediv__(self, other):
         """ Secret fixed-point division.
@@ -4553,6 +4572,8 @@ class sfix(_fix):
     get_type = staticmethod(lambda n: sint)
     default_type = sint
     div_iters = 10
+    all_pos = False
+    div_initial = None
     def change_domain_from_to(self, k1, k2, bit_length=None):
         temp = self.v.change_domain_from_to(k1, k2, bit_length)
         res = sfix(size=temp.size)

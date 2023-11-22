@@ -4,6 +4,7 @@ import optimizer as optim
 import dataloader as dataloader
 import functional as F
 import tensor as TS
+program.use_trunc_pr = True
 class LinearRegression(nn.Module):
     """
     Linear Regressoin Module, the input features and output 

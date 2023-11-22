@@ -543,13 +543,16 @@ def cisc(function):
             return block.instructions, self.n_rounds - 1
 
         def add_usage(self, req_node):
+            repeat = 0
+            for call in self.calls:
+                repeat += 1
             res = program.get_cost(self.__class__.__name__)
             if res == -1:
                 print("The profiling results could be biased")
                 print("Please config the cost of " + self.__class__.__name__ + " in cost_config.py")
                 return
-            req_node.increment(('online communication', 'bits'), res[0]*self.get_size() )
-            req_node.increment(('offline communication', 'bits'), res[2]*self.get_size() )
+            req_node.increment(('online communication', 'bits'), res[0]*self.get_size() * repeat )
+            req_node.increment(('offline communication', 'bits'), res[2]*self.get_size() * repeat )
             req_node.increment(('online', 'round'), res[1])
             req_node.increment(('offline', 'round'), res[3])
 
