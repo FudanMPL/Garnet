@@ -5,8 +5,8 @@ from Compiler.types import *
 import copy
 program.options_from_args()
 
-sfix.set_precision(30, 60)
-cfix.set_precision(30, 60)
+# sfix.set_precision(20, 40)
+# cfix.set_precision(20, 40)
 
 @autograd_function
 def test_mul():
@@ -701,11 +701,11 @@ def test_f_cossim():
 def test_f_gelu():
     print_ln('test_gelu')
     i, j = 3, 3
-    x = MultiArray([1, 512, 3072], sfix)
-    # for i in range(0,3):
-    #     for  j in range(0,3):
-    #         x[i][j] = sfix(i-j)
-    # x.print_reveal_nested()
+    x = MultiArray([3,3], sfix)
+    for i in range(0,3):
+        for  j in range(0,3):
+            x[i][j] = sfix(i-j)
+    x.print_reveal_nested()
     input1 = Tensor(x, req_grad = True)
 
     # input2 = F.gelu(input1, approximate='tanh')
@@ -715,7 +715,7 @@ def test_f_gelu():
 
     input2 = F.gelu(input1, approximate='tanh')
     #input2.backward()
-    # input2.value.print_reveal_nested()
+    input2.value.print_reveal_nested()
     #input1.grad.print_reveal_nested()
 
 @autograd_function
@@ -908,7 +908,7 @@ def test_arange():
 # test_divc()
 # test_combine()
 # test_neg()
-program.use_trunc_pr = True
+# program.use_trunc_pr = True
 
 #test_f_droupout(0.5)
 #test_f_batchnorm()
@@ -918,8 +918,8 @@ program.use_trunc_pr = True
 #test_f_cossim()
 test_f_gelu()
 
-#test_masked_fill_()
-#test_gather()
+# test_masked_fill_()
+# test_gather()
 # test_expand()
 # test_triu()
 # test_getitem()

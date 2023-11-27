@@ -2,6 +2,11 @@ import matplotlib.pyplot as plt
 import networkx as nx
 
 def draw_computingGraph(nodes_op, nodes_tensor, edges):
+    print(nodes_op)
+    print(nodes_tensor)
+    print(edges)
+        
+    plt.figure(figsize=(6, 6))
     # 创建一个图形对象
     G = nx.DiGraph()
 
@@ -18,10 +23,11 @@ def draw_computingGraph(nodes_op, nodes_tensor, edges):
     # pos = nx.spring_layout(G)  # 弹簧布局
     # pos = nx.shell_layout(G)  # 壳布局
     pos = nx.spectral_layout(G)  # 谱布局
+    # pos = nx.fruchterman_reingold_layout(G, scale = 20000, k=0.3) 
     
     # 绘制图形
-    nx.draw_networkx_nodes(G, pos=pos, nodelist=nodes_op, node_color='lightgreen', node_shape='s')
-    nx.draw_networkx_nodes(G, pos=pos, nodelist=nodes_tensor, node_color='lightblue', node_shape='o')
+    nx.draw_networkx_nodes(G, pos=pos, nodelist=nodes_op, node_color='lightgreen', node_shape='o')
+    nx.draw_networkx_nodes(G, pos=pos, nodelist=nodes_tensor, node_color='lightblue', node_shape='s')
     nx.draw_networkx_edges(G, pos=pos, edge_color='gray')  # 绘制边
     
     # 绘制节点标签

@@ -28,6 +28,7 @@ class Operation(NamedTuple):
     propagate: 'Callable[List[Tensor], List[Tensor]]'
     # forward : 'Callable[List[Tensor], List[Tensor]]'
     intermediate: List = []
+    name: str = 'op'
 
 
 # sotre of tensors involved in computation process
@@ -150,7 +151,6 @@ def element_wise_add(self, other):
     # backward
     @backwardbuildingblock(get_program().globalbuildingblock[:-12]+"-add-backward")
     def propagate(dl_doutputs, operation):
-        
         dl_dx, = dl_doutputs
         inputs = operation.inputs
         temp1, temp2 = operation.intermediate
@@ -207,10 +207,9 @@ def element_wise_add(self, other):
         target_size = v1.tuple_permute(v1.sizes, get_permute_d2front(len(v1.sizes), dim))
         temp2 = MultiArray(target_size, predict_value_type(self.value, other.value))
         # check whether require grad
-        if self.req_grad or other.req_grad:
-            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate, intermediate=[temp1, temp2])
-        else:
-            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate, intermediate=[temp1, temp2])
+        operation = Operation(inputs=[self.name, other.name], outputs=[output.name],
+                              propagate=propagate if self.req_grad else fake_propagate,
+                              intermediate=[temp1, temp2], name='add')
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
@@ -302,10 +301,9 @@ def element_wise_sub(self, other):
                 new_value = Array(other.value.sizes[0], self.value.value_type)
         output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
         # check whether require grad
-        if self.req_grad or other.req_grad:
-            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate, intermediate=[temp_matrix])
-        else:
-            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate, intermediate=[temp_matrix])
+        operation = Operation(inputs=[self.name, other.name], outputs=[output.name],
+                              propagate=propagate if self.req_grad else fake_propagate, 
+                              intermediate=[temp_matrix], name='sub')
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
@@ -523,10 +521,9 @@ def element_wise_mul(self, other):
         temp4 = MultiArray(target_size, v1.value_type)
         temp5 = MultiArray(v1.sizes, v1.value_type)
         # check whether require grad
-        if self.req_grad or other.req_grad:
-            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate, intermediate=[temp3, temp4, temp5])
-        else:
-            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate, intermediate=[temp3, temp4, temp5])
+        operation = Operation(inputs=[self.name, other.name], outputs=[output.name],
+                              propagate=propagate if self.req_grad else fake_propagate, 
+                              intermediate=[temp3, temp4, temp5], name='mul')
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
@@ -651,10 +648,10 @@ def element_wise_div(self, other):
         temp6 = MultiArray(v1.sizes, v1.value_type)
         temp7 = MultiArray(v1.sizes, v1.value_type)
         # check whether require grad
-        if self.req_grad or other.req_grad:
-            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate, intermediate=[temp1, temp2, temp3, temp4, temp5, temp6, temp7])
-        else:
-            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate, intermediate=[temp1, temp2, temp3, temp4, temp5, temp6, temp7])
+        operation = Operation(inputs=[self.name, other.name], outputs=[output.name],
+                              propagate=propagate if self.req_grad else fake_propagate, 
+                              intermediate=[temp1, temp2, temp3, temp4, temp5, temp6, temp7],
+                              name='div')
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
@@ -697,10 +694,9 @@ def ops_mul_constant(self, c):
         else:
             new_value = MultiArray(self.value.sizes, self.value.value_type)
         output = Tensor(new_value, req_grad=self.req_grad)
-        if self.req_grad:
-            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
-        else:
-            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate)
+        operation = Operation(inputs=[self.name], outputs=[output.name],
+                              propagate=propagate if self.req_grad else fake_propagate, 
+                              name='mul')
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
 
@@ -745,10 +741,9 @@ def ops_add_constant(self, c):
         else:
             new_value = MultiArray(self.value.sizes, self.value.value_type)
         output = Tensor(new_value, req_grad=self.req_grad)
-        if self.req_grad:
-            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
-        else:
-            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate)
+        operation = Operation(inputs=[self.name], outputs=[output.name],
+                              propagate=propagate if self.req_grad else fake_propagate, 
+                              name='addc')
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
 
@@ -786,7 +781,8 @@ def sum_of_array(self):
         new_value = Array(1, self.value.value_type)
         output = Tensor(new_value, req_grad=self.req_grad)
         
-        operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
+        operation = Operation(inputs=[self.name], outputs=[output.name], 
+                              propagate=propagate, name='sum')
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         
@@ -825,7 +821,8 @@ def mean_of_array(self):
         new_value = Array(1, self.value.value_type)
         output = Tensor(new_value, req_grad=self.req_grad)
         
-        operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
+        operation = Operation(inputs=[self.name], outputs=[output.name],
+                              propagate=propagate, name='mean')
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         
@@ -996,10 +993,9 @@ def sum_of_multiarray(self, dim, keepdim=False):
         target_size = self.value.tuple_permute(self.shape, new_perm)
         input_perm = MultiArray(target_size, self.value.value_type)
         
-        if self.req_grad:
-            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=[input_perm])
-        else:
-            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate, intermediate=[input_perm])
+        operation = Operation(inputs=[self.name], outputs=[output.name],
+                              propagate=propagate if self.req_grad else fake_propagate,
+                              intermediate=[input_perm], name='sum')
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
 
@@ -1069,10 +1065,9 @@ def mean_of_multiarray(self, dim, keepdim=False):
         
         temp1 = MultiArray(self.value.sizes, self.value.value_type)
         
-        if self.req_grad:
-            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=[input_perm, temp1])
-        else:
-            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate, intermediate=[input_perm, temp1])
+        operation = Operation(inputs=[self.name], outputs=[output.name],
+                              propagate=propagate if self.req_grad else fake_propagate, 
+                              intermediate=[input_perm, temp1], name='mean')
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
 
@@ -1155,10 +1150,10 @@ def var_of_multiarray(self, dim, keepdim=False, unbiased=False):
         target_size = self.value.tuple_permute(self.shape, new_perm)
         input_perm = MultiArray(target_size, self.value.value_type)
         
-        if self.req_grad:
-            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=[input_perm, mean, dmean, dmean_sqr])
-        else:
-            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate, intermediate=[input_perm, mean, dmean, dmean_sqr])
+        operation = Operation(inputs=[self.name], outputs=[output.name], 
+                              propagate=propagate if self.req_grad else fake_propagate, 
+                              intermediate=[input_perm, mean, dmean, dmean_sqr],
+                              name='var')
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
 
@@ -1271,10 +1266,10 @@ def std_of_multiarray(self, dim, keepdim=False):
         target_size = self.value.tuple_permute(self.shape, new_perm)
         input_perm = MultiArray(target_size, self.value.value_type)
         
-        if self.req_grad:
-            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=[input_perm, mean, dmean, dmean_sqr, std])
-        else:
-            operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate, intermediate=[input_perm, mean, dmean, dmean_sqr, std])
+        operation = Operation(inputs=[self.name], outputs=[output.name],
+                              propagate=propagate if self.req_grad else fake_propagate, 
+                              intermediate=[input_perm, mean, dmean, dmean_sqr, std], 
+                              name='std')
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
 
@@ -1431,22 +1426,22 @@ class Tensor():
         for i in range(0, index):
             op = gradient_operation[index-i-1]
             
-            o = 'op' + str(index-i-1)
+            o = op.name + str(i)
+                
             if index-i-1 not in nodes_op:
                 nodes_op.append(o)
             
             for u in op.inputs:
+                # u = u + '-' + str(tensors[u].value.value_type)[-6:-2]
                 if u not in nodes_tensor:
                     nodes_tensor.append(u)
                 edges.append((u, o))
-            for v in op.outputs:    
+            for v in op.outputs:
+                # v = v + '-' + str(tensors[v].value.value_type)[-6:-2]
                 if v not in nodes_tensor:
                     nodes_tensor.append(v)
                 edges.append((o, v))
         
-        # print(nodes_op)
-        # print(nodes_tensor)
-        # print(edges)
         # graph_visualization.draw_computingGraph(nodes_op, nodes_tensor, edges)
         
         
@@ -1853,10 +1848,8 @@ class Tensor():
             else:
                 new_value = MultiArray(list(self.shape[:-1]), self.value.value_type)
             output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
-            if self.req_grad or other.req_grad:
-                operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
-            else:
-                operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate)
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name],
+                                  propagate=propagate if self.req_grad else fake_propagate)
             gradient_operation.append(operation)
             operation_id = len(gradient_operation)-1
             op_id_store[op_id] = operation_id
@@ -1899,10 +1892,8 @@ class Tensor():
             assert len(self.shape)==len(other.shape)==2 and self.shape[1]==other.shape[0],"Invalid Dimension"
             new_value = MultiArray([self.value.sizes[0], other.value.sizes[1]], self.value.value_type)
             output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
-            if self.req_grad or other.req_grad:
-                operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
-            else:
-                operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate)
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name],
+                                  propagate=propagate if self.req_grad or other.req_grad else fake_propagate)
             gradient_operation.append(operation)
             operation_id = len(gradient_operation) - 1
             op_id_store[op_id] = operation_id
@@ -1950,10 +1941,8 @@ class Tensor():
             assert len(self.sizes) >= 3 and self.sizes[-1] == other.sizes[0], "Invalid Dimension"
             batch, n, p = self.sizes[:-2], self.sizes[-2], other.sizes[-1]
             output = Tensor(MultiArray([*batch, n, p], other.value.value_type), req_grad=self.req_grad or other.req_grad)
-            if self.req_grad or other.req_grad:
-                operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
-            else:
-                operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate)
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name],
+                                  propagate=propagate if self.req_grad or other.req_grad else fake_propagate)
             gradient_operation.append(operation)
             operation_id = len(gradient_operation) - 1
             op_id_store[op_id] = operation_id
@@ -1998,10 +1987,8 @@ class Tensor():
             assert len(self.sizes) == len(other.sizes) >= 3 and self.sizes[-1] == other.sizes[-2], "Invalid Dimension"
             batch, n, p = self.sizes[:-2], self.sizes[-2], other.sizes[-1]
             output = Tensor(MultiArray([*batch, n, p], other.value.value_type), req_grad=self.req_grad or other.req_grad)
-            if self.req_grad or other.req_grad:
-                operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
-            else:
-                operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=fake_propagate)
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name], 
+                                  propagate=propagate if self.req_grad or other.req_grad else fake_propagate)
             gradient_operation.append(operation)
             operation_id = len(gradient_operation) - 1
             op_id_store[op_id] = operation_id
@@ -2121,10 +2108,8 @@ class Tensor():
                     sizes[sizes.index(-1)] = int(product/(-tmp))
                 new_value = MultiArray(sizes, self.value.value_type)
             output = Tensor(new_value, req_grad=self.req_grad)
-            if self.req_grad:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
-            else:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate)
+            operation = Operation(inputs=[self.name], outputs=[output.name],
+                                  propagate=propagate if self.req_grad else fake_propagate)
             gradient_operation.append(operation)
             operation_id = len(gradient_operation)-1
             op_id_store[op_id] = operation_id
@@ -2184,10 +2169,8 @@ class Tensor():
                 assert len(new_sizes) == 1 and new_sizes[0] > 0, "Invalid Dimension"
                 new_value = Array(new_sizes[0], value_type=self.value.value_type)
             output = Tensor(new_value, req_grad=self.req_grad)
-            if self.req_grad:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
-            else:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate)
+            operation = Operation(inputs=[self.name], outputs=[output.name],
+                                  propagate=propagate if self.req_grad or other.req_grad else fake_propagate)
             gradient_operation.append(operation)
             operation_id = len(gradient_operation)-1
             op_id_store[op_id] = operation_id
@@ -2216,10 +2199,8 @@ class Tensor():
             new_sizes.insert(dim, 1)
             new_value = MultiArray(new_sizes, self.value.value_type)
             output = Tensor(new_value, req_grad=self.req_grad)
-            if self.req_grad:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
-            else:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate)
+            operation = Operation(inputs=[self.name], outputs=[output.name],
+                                  propagate=propagate if self.req_grad else fake_propagate)
             gradient_operation.append(operation)
             operation_id = len(gradient_operation)-1
             op_id_store[op_id] = operation_id
@@ -2577,10 +2558,9 @@ class Tensor():
                 new_value = MultiArray(self.value.sizes, self.value.value_type)
                 inter = MultiArray(self.value.sizes, self.value.value_type)
             output = Tensor(new_value, req_grad=self.req_grad)
-            if self.req_grad:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=[inter])
-            else:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate, intermediate=[inter])
+            operation = Operation(inputs=[self.name], outputs=[output.name], 
+                                  propagate=propagate if self.req_grad else fake_propagate, 
+                                  intermediate=[inter])
             gradient_operation.append(operation)
             operation_id = len(gradient_operation) - 1
             op_id_store[op_id] = operation_id
@@ -2625,10 +2605,9 @@ class Tensor():
                 new_value = MultiArray(self.value.sizes, self.value.value_type)
                 inter = MultiArray(self.value.sizes, self.value.value_type)
             output = Tensor(new_value, req_grad=self.req_grad)
-            if self.req_grad:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=[inter])
-            else:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate, intermediate=[inter])
+            operation = Operation(inputs=[self.name], outputs=[output.name], 
+                                  propagate=propagate if self.req_grad else fake_propagate, 
+                                  intermediate=[inter])
             gradient_operation.append(operation)
             operation_id = len(gradient_operation) - 1
             op_id_store[op_id] = operation_id
@@ -2669,10 +2648,8 @@ class Tensor():
             else:
                 new_value = MultiArray(self.value.sizes, self.value.value_type)
             output = Tensor(new_value, req_grad=self.req_grad)
-            if self.req_grad:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
-            else:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate)
+            operation = Operation(inputs=[self.name], outputs=[output.name],
+                                  propagate=propagate if self.req_grad else fake_propagate)
             gradient_operation.append(operation)
             operation_id = len(gradient_operation) - 1
 
@@ -2712,10 +2689,8 @@ class Tensor():
             else:
                 new_value = MultiArray(self.value.sizes, self.value.value_type)
             output = Tensor(new_value, req_grad=self.req_grad)
-            if self.req_grad:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
-            else:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate)
+            operation = Operation(inputs=[self.name], outputs=[output.name],
+                                  propagate=propagate if self.req_grad else fake_propagate)
             gradient_operation.append(operation)
             operation_id = len(gradient_operation) - 1
 
@@ -2759,10 +2734,10 @@ class Tensor():
             else:
                 new_value = MultiArray(self.value.sizes, self.value.value_type)
             output = Tensor(new_value, req_grad=self.req_grad)
-            if self.req_grad:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
-            else:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate)
+            
+            operation = Operation(inputs=[self.name], outputs=[output.name],
+                                  propagate=propagate if self.req_grad else fake_propagate,
+                                  name='invsqrt')
             gradient_operation.append(operation)
             operation_id = len(gradient_operation) - 1
 
@@ -2801,10 +2776,8 @@ class Tensor():
             else:
                 new_value = MultiArray(self.value.sizes, self.value.value_type)
             output = Tensor(new_value, req_grad=self.req_grad)
-            if self.req_grad:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
-            else:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate)
+            operation = Operation(inputs=[self.name], outputs=[output.name], 
+                                  propagate=propagate if self.req_grad else fake_propagate)
             gradient_operation.append(operation)
             operation_id = len(gradient_operation)-1
             op_id_store[op_id] = operation_id
@@ -2836,10 +2809,8 @@ class Tensor():
             else:
                 new_value = MultiArray(self.value.sizes, self.value.value_type)
             output = Tensor(new_value, req_grad=self.req_grad)
-            if self.req_grad:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
-            else:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate)
+            operation = Operation(inputs=[self.name], outputs=[output.name],
+                                  propagate=propagate if self.req_grad else fake_propagate)
             gradient_operation.append(operation)
             operation_id = len(gradient_operation)-1
             op_id_store[op_id] = operation_id
@@ -2978,10 +2949,9 @@ class Tensor():
                 new_value=MultiArray(list(self.shape) ,self.value.value_type)
                 inter=MultiArray(list(self.shape) ,sint)
             output = Tensor(new_value, req_grad=self.req_grad)
-            if self.req_grad:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate,intermediate=[inter])
-            else:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate,intermediate=[inter])
+            operation = Operation(inputs=[self.name], outputs=[output.name],
+                                  propagate=propagate if self.req_grad else fake_propagate,
+                                  intermediate=[inter])
             gradient_operation.append(operation)
             operation_id = len(gradient_operation) - 1
             op_id_store[op_id] = operation_id
@@ -3017,10 +2987,9 @@ class Tensor():
             else:
                 new_value=MultiArray(list(self.shape) ,self.value.value_type)
             output = Tensor(new_value, req_grad=self.req_grad)
-            if self.req_grad:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
-            else:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate)
+            
+            operation = Operation(inputs=[self.name], outputs=[output.name], 
+                                  propagate=propagate if self.req_grad else fake_propagate)
             gradient_operation.append(operation)
             operation_id = len(gradient_operation) - 1
             op_id_store[op_id] = operation_id
@@ -3062,10 +3031,10 @@ class Tensor():
                 new_value = MultiArray(self.value.sizes, self.value.value_type)
                 inter = MultiArray(self.value.sizes, self.value.value_type)
             output = Tensor(new_value, req_grad=self.req_grad)
-            if self.req_grad:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate, intermediate=[inter])
-            else:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate, intermediate=[inter])
+            
+            operation = Operation(inputs=[self.name], outputs=[output.name],
+                                  propagate=propagate if self.req_grad else fake_propagate,
+                                  intermediate=[inter])
             gradient_operation.append(operation)
             operation_id = len(gradient_operation) - 1
             op_id_store[op_id] = operation_id

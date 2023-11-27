@@ -51,7 +51,7 @@ class defaults:
     garbled = False
     prime = None
     galois = 40
-    budget = 100
+    budget = 100000
     mixed = False
     edabit = False
     invperm = False
