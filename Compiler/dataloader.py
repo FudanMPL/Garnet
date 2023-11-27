@@ -55,7 +55,7 @@ class DataLoader():
             for i in range(batch_size - self.size%batch_size):
                 self.samples[-1][self.size%batch_size+i]= self.samples.value[0][i].get_vector()
                 self.labels[-1][self.size%batch_size+i] = self.labels.value[0][i].get_vector()
-                
+        self.size = self.samples.sizes[0]
         indices.delete()
 
     def get_size(self):

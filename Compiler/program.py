@@ -826,7 +826,7 @@ class Tape:
         def expand_cisc(self):
             new_instructions = []
             if self.parent.program.options.keep_cisc is not None:
-                skip = [ "Trunc"]
+                skip = [ "Trunc", "LTZ", "FPDiv"]
                 skip += self.parent.program.options.keep_cisc.split(",")
             else:
                 skip = []

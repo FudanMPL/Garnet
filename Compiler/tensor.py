@@ -3047,22 +3047,24 @@ class Tensor():
             output = tensors[outputs[0]]
             if not forward:
                 init_op_id += 1
+            # input.print_reveal_nested()
             tmp_input = 2 * input.value[:]
+            
             ltz = tmp_input < 0
             sign = 1- 2 *  ltz
-            tmp_input = tmp_input *sign
+            exp_input = tmp_input *sign
             
-            ex = mpc_math.exp_fx(-tmp_input, 8)
+            ex =  mpc_math.exp_fx(-exp_input, 8)
 
             tmp_input = ex+1
-            cfix.div_iters = 3
+            cfix.div_iters = 2
             cfix.all_pos = True
             cfix.div_initial = 0.75
             tmp_input = 1 / tmp_input
             cfix.div_iters = 10
             cfix.all_pos = False
             cfix.div_initial = None
-            tmp_input = tmp_input + ltz - 2 * tmp_input *ltz
+            tmp_input = exp_input + ltz 
             output.value[:] =  tmp_input *2 -1
             operation.intermediate[0].assign_vector(output.value[:])
         op_id += 1
@@ -3247,7 +3249,9 @@ def vec_softmax(x):
     # e_x = exp_for_softmax(x)
     max = util.max(x)
     index = x == max
-    e_x = mpc_math.exp_fx(x - max.expand_to_vector(len(x)), 8)
+    tmp = x*x*x
+    tmp = x> tmp
+    e_x = mpc_math.exp_fx(x -max , 8)
     sfix.all_pos = True
     res = e_x  / sum(e_x)
     sfix.all_pos = False

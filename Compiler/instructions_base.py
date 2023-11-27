@@ -588,7 +588,6 @@ def cisc(function):
                 str(x) for x in itertools.chain(call[0] for call in self.calls))
 
     MergeCISC.__name__ = function.__name__
-
     def wrapper(*args, **kwargs):
         same_sizes = True
         for arg in args:
@@ -616,7 +615,7 @@ def ret_cisc(function):
             res_type = type(args[1])
         else:
             res_type = type(args[0])
-        res = res_type(size=args[0].size)
+        res = res_type(size=args[0].size)       
         instruction(res, *args, **kwargs)
         return res
     return wrapper

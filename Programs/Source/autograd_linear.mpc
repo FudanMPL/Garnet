@@ -27,16 +27,12 @@ for i in range(x.total_size()):
 
 for i in range(y.total_size()):
     y.assign_vector(sfix(i), i)
-
+x.input_sfix(0)
 dataload = dataloader.DataLoader(x, y, batch_size = 2, shuffle=False)
 
 model = LinearRegression()
 
 optimizer = optim.Adam(model.parameters(), lr = 0.01)
-params = list(model.parameters())
-params[0].assign_all(0.1)
-for i in params:
-    i.assign_all(0)
 mse = nn.MSELoss()
 model.train(mse, dataload)
 
@@ -47,6 +43,5 @@ def _(i):
     loss = mse(output, label)
     optimizer.zero_grad()
     loss.backward()
-    params[0].print_reveal_nested()
     loss.print_reveal_nested()
     optimizer.step()
