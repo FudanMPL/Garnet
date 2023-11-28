@@ -131,10 +131,10 @@ class MPCFormer(Cost):
     "open" : lambda bit_length, kappa_s , kapaa, precision, n_parties: (bit_length*2, 1, 0, 0),
     "muls" : lambda bit_length, kappa_s , kapaa, precision, n_parties: (bit_length*4, 1, 0, 0),
     "matmuls": lambda bit_length, kappa_s , kapaa, precision, n_parties, p ,q, r: ((p*q + q*r)*bit_length*2, 1, 0, 0),
-    "trunc": lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (bit_length*2, 1, 0, 0),
+    "trunc": lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (0, 0, 0, 0),
     "bit_share":lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (2, 1, 0, 0),
     "ands":lambda bit_length, kappa_s , kapaa, precision, n_parties: (2, 1, 0, 0),
-    "exp_fx":lambda bit_length, kappa_s , kapaa, precision, n_parties: (bit_length*(4*8+2), 16, 0, 0),
+    "exp_fx":lambda bit_length, kappa_s , kapaa, precision, n_parties: (bit_length*16, 8, 0, 0),
     "Trunc" : lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (bit_length*2, 1, 0, 0)
 
 }   
