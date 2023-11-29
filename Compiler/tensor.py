@@ -3073,10 +3073,10 @@ class Tensor():
             tmp_input = tmp_input + ltz  - 2*tmp_input*ltz
             output.value[:] =  tmp_input *2 -1
             
-            limit = math.log(2 ** (input.value[:].k - input.value[:].f - 2)) / 2
-            s = input.value[:] < -limit
-            t = input.value[:] > limit
-            output.value[:] = s.if_else(-1, t.if_else(1, output.value[:]))
+            # limit = math.log(2 ** (input.value[:].k - input.value[:].f - 2)) / 2
+            # s = input.value[:] < -limit
+            # t = input.value[:] > limit
+            # output.value[:] = s.if_else(-1, t.if_else(1, output.value[:]))
             inter.assign_vector(output.value[:])
         op_id += 1
         # record the input and output of the op
