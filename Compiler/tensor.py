@@ -3064,7 +3064,7 @@ class Tensor():
             cfix.div_iters = 10
             cfix.all_pos = False
             cfix.div_initial = None
-            tmp_input = exp_input + ltz 
+            tmp_input = tmp_input + ltz  - 2*tmp_input*ltz
             output.value[:] =  tmp_input *2 -1
             operation.intermediate[0].assign_vector(output.value[:])
         op_id += 1
