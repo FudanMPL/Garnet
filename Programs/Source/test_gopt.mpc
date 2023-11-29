@@ -1,0 +1,22 @@
+from tensor import Tensor,autograd_function
+import functional as F
+from Compiler.types import *
+
+sfix.set_precision(30, 60)
+cfix.set_precision(30, 60)
+
+@for_range_opt(100)
+def _(i):
+    x = MultiArray([1, 1], sfix)
+    # x = Array(1, sfix)
+    x.assign_vector(sfix(i))
+    input = Tensor(x, req_grad = True)
+
+    out1 = F.gelu(input, approximate='tanh')
+    out2 = input.relu()
+    out3 = out1 - out2
+    
+    x.print_reveal_nested()
+    out3.value.print_reveal_nested()
+    
+    

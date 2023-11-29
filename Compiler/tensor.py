@@ -3027,14 +3027,19 @@ class Tensor():
             if isinstance(self.value, Array):
                 new_value = Array(self.value.length, self.value.value_type)
                 inter = Array(self.value.length, self.value.value_type)
+                s = Array(self.value.length, self.value.value_type)
+                t = Array(self.value.length, self.value.value_type)
             else:
                 new_value = MultiArray(self.value.sizes, self.value.value_type)
                 inter = MultiArray(self.value.sizes, self.value.value_type)
+                s = MultiArray(self.value.sizes, self.value.value_type)
+                t = MultiArray(self.value.sizes, self.value.value_type)
+            Tensor(new_value, req_grad=self.req_grad)
             output = Tensor(new_value, req_grad=self.req_grad)
             
             operation = Operation(inputs=[self.name], outputs=[output.name],
                                   propagate=propagate if self.req_grad else fake_propagate,
-                                  intermediate=[inter])
+                                  intermediate=[inter, s, t])
             gradient_operation.append(operation)
             operation_id = len(gradient_operation) - 1
             op_id_store[op_id] = operation_id
@@ -3043,6 +3048,7 @@ class Tensor():
             operation = gradient_operation[op_id_store[op_id]]
             inputs = operation.inputs
             outputs = operation.outputs
+            inter, s, t = operation.intermediate
             input = tensors[inputs[0]]
             output = tensors[outputs[0]]
             if not forward:
@@ -3066,7 +3072,12 @@ class Tensor():
             cfix.div_initial = None
             tmp_input = tmp_input + ltz  - 2*tmp_input*ltz
             output.value[:] =  tmp_input *2 -1
-            operation.intermediate[0].assign_vector(output.value[:])
+            
+            limit = math.log(2 ** (input.value[:].k - input.value[:].f - 2)) / 2
+            s = input.value[:] < -limit
+            t = input.value[:] > limit
+            output.value[:] = s.if_else(-1, t.if_else(1, output.value[:]))
+            inter.assign_vector(output.value[:])
         op_id += 1
         # record the input and output of the op
         return output
