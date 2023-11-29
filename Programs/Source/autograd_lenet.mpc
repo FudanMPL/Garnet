@@ -41,7 +41,6 @@ y = MultiArray([10,10], sfix)
 @for_range(x.total_size())
 def _(i):
     x.assign_vector(sfix(i/10), i)
-
 y.assign_all(0)
 for i in range(10):
     y[i][i//3] = 1

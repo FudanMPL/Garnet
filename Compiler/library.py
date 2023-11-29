@@ -1940,6 +1940,19 @@ def FPDiv(a, b, k, f, kappa, simplex_flag=False, nearest=False):
     y = y.round(l_y, 3 * f - res_f, kappa, nearest, signed=True)
     return y
 
+
+@instructions_base.sfix_cisc
+def Reciprocal(y):
+    sign = 1
+    if not sfix.all_pos:
+        sign = y > 0
+        sign = 2 *  sign - 1
+        y = y * sign
+    z = 3 * sfix.exp_fx(1 - 2 * y)+ 0.003  if sfix.div_initial == None  else sfix.div_initial # sfix(1 / n, size=y.size)
+    for i in range(sfix.div_iters):    
+        z = 2 * z  - y * z * z
+    return  z * sign   
+
 def AppRcr(b, k, f, kappa=None, simplex_flag=False, nearest=False):
     """
         Approximate reciprocal of [b]:

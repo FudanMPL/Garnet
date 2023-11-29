@@ -4017,6 +4017,8 @@ class cfix(_number, _structure):
             assert self.k == other.k
             assert self.f == other.f
             return cfix.newton_div(self, other)
+            # recip = other.compute_reciprocal()
+            # return self*recip
             # return sfix._new(library.FPDiv(self.v, other.v, self.k, self.f,
             #                                other.kappa,
             #                                nearest=sfix.round_nearest),
@@ -4500,9 +4502,11 @@ class _fix(_single):
         assert self.k == other.k
         assert self.f == other.f
         if isinstance(other, _fix):
-            return sfix.newton_div(self, other)
+            # return sfix.newton_div(self, other)
+            recip = other.compute_reciprocal()
+            return self*recip
             # v = library.FPDiv(self.v, other.v, self.k, self.f, self.kappa,
-                            #   nearest=self.round_nearest)
+            #                   nearest=self.round_nearest)
         elif isinstance(other, cfix):
             v = library.sint_cint_division(self.v, other.v, self.k, self.f,
                                            self.kappa)
@@ -4520,7 +4524,7 @@ class _fix(_single):
     @vectorize
     def compute_reciprocal(self):
         """ Secret fixed-point reciprocal. """
-        return type(self)(library.FPDiv(cint(2) ** self.f, self.v, self.k, self.f, self.kappa, True))
+        return library.Reciprocal(self)
 
     def reveal(self):
         """ Reveal secret fixed-point number.
@@ -4571,7 +4575,7 @@ class sfix(_fix):
     clear_type = cfix
     get_type = staticmethod(lambda n: sint)
     default_type = sint
-    div_iters = 10
+    div_iters = 9
     all_pos = False
     div_initial = None
     def change_domain_from_to(self, k1, k2, bit_length=None):

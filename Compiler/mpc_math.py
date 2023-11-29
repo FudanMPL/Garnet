@@ -402,7 +402,7 @@ def exp2_fx(a, zero_output=False, as19=False):
 
 @types.vectorize
 @instructions_base.sfix_cisc
-def exp_fx(x,iter=9):
+def exp_fx(x,iter=8):
     n=1<<iter
     a=1+x/n
     for i in range(0,iter):

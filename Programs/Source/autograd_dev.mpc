@@ -28,5 +28,7 @@ from functools import reduce
 #     print_ln("%s, %s", new_index[0], new_index[1])
 x = sfix(-5)
 y = sfix(6)
-z = x*y
+z = x/y
+# m = z>x
+
 print_ln("adsger:%s", z.reveal())

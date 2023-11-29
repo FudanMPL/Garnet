@@ -301,7 +301,11 @@ def softmax(input,dim=-1):
     return output
     
 def vec_softmax(x):
-    e_x = mpc_math.exp_fx(x - util.max(x),  8)
+    max = util.max(x)
+    index = x == max
+    tmp = x*x*x
+    tmp = x> tmp
+    e_x = mpc_math.exp_fx(x -max , 8)
     sfix.all_pos = True
     res = e_x  / sum(e_x)
     sfix.all_pos = False

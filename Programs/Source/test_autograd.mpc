@@ -701,7 +701,7 @@ def test_f_cossim():
 def test_f_gelu():
     print_ln('test_gelu')
     i, j = 3, 3
-    x = MultiArray([3,3], sfix)
+    x = MultiArray([3, 3], sfix)
     for i in range(0,3):
         for  j in range(0,3):
             x[i][j] = sfix(i-j)
