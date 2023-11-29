@@ -3052,9 +3052,9 @@ class Tensor():
             
             ltz = tmp_input < 0
             sign = 1- 2 *  ltz
-            exp_input = tmp_input *sign
+            tmp_input = tmp_input *sign
             
-            ex =  mpc_math.exp_fx(-exp_input, 8)
+            ex =  mpc_math.exp_fx(-tmp_input, 8)
 
             tmp_input = ex+1
             cfix.div_iters = 2
