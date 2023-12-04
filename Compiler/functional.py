@@ -1338,6 +1338,6 @@ def gelu(input, approximate='tanh'):
     if approximate == 'tanh':
         factor = factor.tanh()
     else:
-        factpr = factor.Hardtanh()
+        factor = factor.Hardtanh()
     factor += 1
     return factor * input * 0.5
