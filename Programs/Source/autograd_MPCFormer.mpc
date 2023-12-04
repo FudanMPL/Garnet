@@ -5,12 +5,14 @@ import dataloader as dataloader
 import functional as F
 import math
 import copy
+from collections import defaultdict
+
 program.use_trunc_pr = True
 
 class config():
        def __init__(self):
         self.batch_size = 1
-        self.num_hidden_layers = 12
+        self.num_hidden_layers = 1
         self.hidden_size = 768
         self.intermediate_size = 3072
         self.sequence_length = 512
@@ -44,7 +46,7 @@ class BertEmbeddings(nn.Module):
     def __init__(self, config, timing):
         super(BertEmbeddings, self).__init__()
         # save memory
-        self.pruneFactor = 250
+        self.pruneFactor = 10
         self.tokenSubDim = config.vocab_size // self.pruneFactor
         self.lastTokenDim = config.vocab_size - (self.pruneFactor - 1) * self.tokenSubDim
         self.moduleList = []
@@ -54,30 +56,16 @@ class BertEmbeddings(nn.Module):
             self.moduleList.append(ll)
 
         self.moduleList.append(nn.Linear(self.lastTokenDim, config.hidden_size))
-
+        self.moduleList = nn.ModuleList(self.moduleList)
         self.position_embeddings = nn.Linear(config.max_position_embeddings, config.hidden_size)
         print(config.hidden_size)
-        self.LayerNorm = nn.BatchNorm2d(config.hidden_size, eps=config.layer_norm_eps)
+        self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.config = config
         self.timing = timing
 
-    def cuda(self, device=None):
-        super(BertEmbeddings, self).cuda(device=device)
-
-        for i in range(len(self.moduleList)):
-            self.moduleList[i].cuda(device=device)
-        return self
-
-    def encrypt(self, mode=True, src=0):
-        super(BertEmbeddings, self).encrypt(mode=mode, src=src)
-
-        for i in range(len(self.moduleList)):
-            self.moduleList[i].encrypt(mode=mode, src=src)
-        return self
-
     def forward(self, input_ids):
-        embeddings = None
+        embeddings = Tensor.zeros(config.batch_size, config.sequence_length, config.hidden_size)
         
         for i, ll in enumerate(self.moduleList):
             #print(ll.weight.shape)
@@ -92,10 +80,10 @@ class BertEmbeddings(nn.Module):
                     ]
                 )
 
-            embeddings = res if embeddings is None else (embeddings + res)
+            embeddings = embeddings + res
 
 
-        position_embeddings = (self.position_embeddings.weight[:,:input_ids.shape[1]]).transpose(0,1)
+        position_embeddings = (self.position_embeddings.weight[:,:input_ids.shape[1]]).transpose(0, 1)
      #   print(position_embeddings.shape, self.position_embeddings.weight.shape)
         position_embeddings = position_embeddings.repeat(input_ids.shape[0],1,1)
      #   print(position_embeddings.shape, embeddings.shape)
@@ -104,6 +92,7 @@ class BertEmbeddings(nn.Module):
     
         orig_size = embeddings.size()
         embeddings = embeddings.view(-1, self.config.hidden_size)
+        print(orig_size)
         embeddings = self.LayerNorm(embeddings).view(orig_size)
 
         embeddings = self.dropout(embeddings)
@@ -170,18 +159,17 @@ class BertSelfAttention(nn.Module):
         key_layer = self.transpose_for_scores(self.key(hidden_states))
         value_layer = self.transpose_for_scores(self.value(hidden_states))
         
-        attention_scores = query_layer.matmul(key_layer.transpose(-1, -2))
+        attention_scores = query_layer.bmm(key_layer.transpose(-1, -2))
         #print(attention_scores.shape)
         attention_scores = attention_scores / math.sqrt(self.attention_head_size)
 
         
-
         attention_probs = self.smax(attention_scores)
 
 
         attention_probs = self.dropout(attention_probs)
       
-        context_layer = attention_probs.matmul(value_layer)
+        context_layer = attention_probs.bmm(value_layer)
 
 
         context_layer = context_layer.permute(0, 2, 1, 3)#.contiguous()
@@ -195,7 +183,7 @@ class BertSelfOutput(nn.Module):
         super(BertSelfOutput, self).__init__()
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
         # using batchnorm here, crypten has not implemented LayerNorm
-        self.LayerNorm = nn.BatchNorm2d(config.hidden_size, eps=config.layer_norm_eps)
+        self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.timing = timing
         self.config = config
@@ -220,7 +208,7 @@ class BertIntermediate(nn.Module):
         if config.hidden_act == "relu":
             self.intermediate_act_fn = nn.ReLU()
         elif config.hidden_act == "quad":
-            self.intermediate_act_fn = nn.GelU()
+            self.intermediate_act_fn = nn.GELU()
         else:
             raise ValueError(f"activation type {config.hidden_act} not implemented")
         self.timing = timing
@@ -238,9 +226,9 @@ class BertOutput(nn.Module):
         super(BertOutput, self).__init__()
         self.dense = nn.Linear(config.intermediate_size, config.hidden_size)
         # using batchnorm here, crypten has not implemented LayerNorm
-        self.LayerNorm = nn.BatchNorm2d(config.hidden_size, eps=config.layer_norm_eps)
+        self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
-
+        self.config = config
     def forward(self, hidden_states, input_tensor):
 
         hidden_states = self.dense(hidden_states)
@@ -252,5 +240,13 @@ class BertOutput(nn.Module):
         hidden_states = hidden_states.view(-1, self.config.hidden_size)
         hidden_states = self.LayerNorm(hidden_states).view(orig_size)
         return hidden_states
-    
-    
+
+timing = defaultdict(float)
+m = Bert(config, timing)
+
+# input_ids = F.one_hot(torch.randint(low=0, high=config.vocab_size, size=(config.batch_size, config.sequence_length)), config.vocab_size)
+x = Tensor.ones(1, config.sequence_length, config.vocab_size)
+y = Tensor.ones(1, config.sequence_length, 1)
+dataload = dataloader.DataLoader(x, y, batch_size = 1, shuffle=False)
+input, label = dataload.get_data(0)
+m(input)

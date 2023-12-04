@@ -411,11 +411,11 @@ def vec_logsoftmax_softmax(x):
 def linear(input, weight, bias=None):
     assert isinstance(input,Tensor),"Invalid input"
     assert isinstance(weight,Tensor),"Invalid weight"
-    assert input.shape[-1]==weight.shape[0],"Invalid Dimension"
+    assert input.shape[-1]==weight.shape[-1],"Invalid Dimension"
     if len(input.sizes) > len(weight.sizes):
-        output=input.single_bmm(weight)
+        output=input.single_bmm(weight.transpose())
     elif len(input.sizes) == len(weight.sizes):
-        output=input.mm(weight)
+        output=input.mm(weight.transpose())
     else:
         raise CompilerError("the dimension of input must not smaller than the dimension of weight")
     if bias is None:

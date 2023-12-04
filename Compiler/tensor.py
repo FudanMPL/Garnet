@@ -213,7 +213,7 @@ def element_wise_add(self, other):
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
-        
+
     if not prepare or not forward:
         operation = gradient_operation[op_id_store[op_id]]
         inputs = operation.inputs
@@ -2098,6 +2098,8 @@ class Tensor():
             else:
                 if len(sizes) == 1 and isinstance(sizes[0], list):
                     sizes = sizes[0]
+                elif len(sizes) == 1 and isinstance(sizes[0], tuple):
+                    sizes = list(sizes[0])
                 else:
                     sizes = list(sizes)
                 assert all(isinstance(x, int) and x > -2 for x in sizes), "Invalid Dimensiopn"
@@ -2307,6 +2309,8 @@ class Tensor():
             else:
                 if len(sizes) == 1 and isinstance(sizes[0], list):
                     sizes = sizes[0]
+                elif len(sizes) == 1 and isinstance(sizes[0], tuple):
+                    sizes = list(sizes[0])
                 else:
                     sizes = list(sizes)
                 assert all(isinstance(x, int) for x in sizes), "Invalid Dimensiopn"
@@ -2506,9 +2510,14 @@ class Tensor():
     @buildingblock("repeat")
     def repeat(self, *sizes):
         sizes = list(sizes)
-        new_sizes = []
-        for i in range(len(sizes)):
-            new_sizes.append(self.value.sizes[i] * sizes[i])
+        start = 0
+        if len(sizes) > len(self.value.sizes):
+            new_sizes = sizes[:len(sizes)-len(self.value.sizes)]
+            start = len(sizes)-len(self.value.sizes)
+        else:
+            new_sizes = []
+        for i in range(len(self.value.sizes)):
+            new_sizes.append(self.value.sizes[i] * sizes[start+i])
         return self.expand(new_sizes)
     
     @buildingblock("gt")

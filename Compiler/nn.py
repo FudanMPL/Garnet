@@ -1185,7 +1185,7 @@ class Linear(Module):
         self.in_features = in_features
         self.out_features = out_features
         super().__init__()
-        self.weight = Parameter(Tensor([in_features, out_features]))
+        self.weight = Parameter(Tensor([out_features, in_features]))
         if bias:
             self.bias = Parameter(Tensor([out_features]))
         else:
