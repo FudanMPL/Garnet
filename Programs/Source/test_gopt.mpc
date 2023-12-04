@@ -5,7 +5,7 @@ from Compiler.types import *
 sfix.set_precision(30, 60)
 cfix.set_precision(30, 60)
 
-@for_range_opt(100)
+@for_range_opt(30)
 def _(i):
     x = MultiArray([1, 1], sfix)
     # x = Array(1, sfix)
@@ -16,7 +16,10 @@ def _(i):
     out2 = input.relu()
     out3 = out1 - out2
     
+    print_ln('======================')
     x.print_reveal_nested()
+    out1.value.print_reveal_nested()
+    out2.value.print_reveal_nested()
     out3.value.print_reveal_nested()
     
     

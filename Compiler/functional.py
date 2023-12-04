@@ -1331,10 +1331,13 @@ def cross_entropy(input, target, weight=None, reduction = 'mean'):
     return nll_loss(tmp,target,weight)
 
 @buildingblock("gelu")
-def gelu(input, approximate='none'):
-    assert approximate == 'tanh', 'approximate of gelu must be tanh'
+def gelu(input, approximate='tanh'):
+    assert approximate == 'tanh' or 'Hardtanh', 'approximate of gelu should be tanh or Hardtanh'
     factor = input + input * input * input * 0.044715
     factor *= np.sqrt(2.0/np.pi)
-    factor = factor.tanh()
+    if approximate == 'tanh':
+        factor = factor.tanh()
+    else:
+        factpr = factor.Hardtanh()
     factor += 1
     return factor * input * 0.5

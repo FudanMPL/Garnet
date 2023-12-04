@@ -3027,6 +3027,7 @@ class Tensor():
             # denominator = inter[:] * inter[:] + 2 * inter[:] + 1
             # dl_dself[:] += 4 * inter[:] / denominator * dl_dx[:]
             dl_dself[:] += (1 - inter[:] * inter[:])* dl_dx[:]
+            # dl_dself[:] += s.if_else(0, t.if_else(0, (1 - inter[:] * inter[:]))) * dl_dx[:]
             dl_dinputs = [dl_dself]
             return dl_dinputs
         # forward
@@ -3043,7 +3044,6 @@ class Tensor():
                 inter = MultiArray(self.value.sizes, self.value.value_type)
                 s = MultiArray(self.value.sizes, self.value.value_type)
                 t = MultiArray(self.value.sizes, self.value.value_type)
-            Tensor(new_value, req_grad=self.req_grad)
             output = Tensor(new_value, req_grad=self.req_grad)
             
             operation = Operation(inputs=[self.name], outputs=[output.name],
@@ -3086,6 +3086,60 @@ class Tensor():
             # s = input.value[:] < -limit
             # t = input.value[:] > limit
             # output.value[:] = s.if_else(-1, t.if_else(1, output.value[:]))
+            inter.assign_vector(output.value[:])
+        op_id += 1
+        # record the input and output of the op
+        return output
+    
+    @buildingblock("Hardtanh-forward")
+    def Hardtanh(self, min_val=-1.0, max_val=1.0):
+        # backward
+        @backwardbuildingblock(get_program().globalbuildingblock[:-17]+"-Hardtanh-backward")
+        def propagate(dl_doutputs, operation):
+            dl_dx, = dl_doutputs
+            inputs = operation.inputs
+            inter = operation.intermediate[0]  # reuse the intervalue in mem
+            dl_dself = dl_d[inputs[0]]
+
+            dl_dself[:] += s.if_else(0, t.if_else(0, 1)) * dl_dx[:]
+            dl_dinputs = [dl_dself]
+            return dl_dinputs
+        # forward
+        global op_id
+        global init_op_id
+        if prepare:
+            if isinstance(self.value, Array):
+                new_value = Array(self.value.length, self.value.value_type)
+                inter = Array(self.value.length, self.value.value_type)
+                s = Array(self.value.length, self.value.value_type)
+                t = Array(self.value.length, self.value.value_type)
+            else:
+                new_value = MultiArray(self.value.sizes, self.value.value_type)
+                inter = MultiArray(self.value.sizes, self.value.value_type)
+                s = MultiArray(self.value.sizes, self.value.value_type)
+                t = MultiArray(self.value.sizes, self.value.value_type)
+            output = Tensor(new_value, req_grad=self.req_grad)
+            
+            operation = Operation(inputs=[self.name], outputs=[output.name],
+                                  propagate=propagate if self.req_grad else fake_propagate,
+                                  intermediate=[inter, s, t])
+            gradient_operation.append(operation)
+            operation_id = len(gradient_operation) - 1
+            op_id_store[op_id] = operation_id
+            # op_id += 1
+        if not prepare or not forward:
+            operation = gradient_operation[op_id_store[op_id]]
+            inputs = operation.inputs
+            outputs = operation.outputs
+            inter, s, t = operation.intermediate
+            input = tensors[inputs[0]]
+            output = tensors[outputs[0]]
+            if not forward:
+                init_op_id += 1 
+            
+            s = input.value[:] < min_val
+            t = input.value[:] > max_val
+            output.value[:] = s.if_else(min_val, t.if_else(max_val, input.value[:]))
             inter.assign_vector(output.value[:])
         op_id += 1
         # record the input and output of the op
