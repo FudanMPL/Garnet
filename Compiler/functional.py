@@ -223,6 +223,12 @@ def tanh(input):  # todo
     # return output
     
 
+def Hardtanh(input):  
+    return input.Hardtanh()
+
+def Relu6(input):  
+    return input.Relu6()
+
 @buildingblock("softmax-forward")
 def softmax(input,dim=-1):
     op_id = get_opid()
