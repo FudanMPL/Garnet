@@ -340,7 +340,7 @@ class Program(object):
         #could rounds of one thread for multithread
         def aggregator(node_list):
             if len(node_list) == 0:
-                return None
+                return self.tapes[0].ReqNum()
             res = node_list[0]
             for i in range(1, len(node_list)):
                 tmp_node = node_list[i]
@@ -349,7 +349,7 @@ class Program(object):
                         continue
                     res[name] += count
             return res
-        child = self.tapes[arg[0]].ReqChild(aggregator, self.curr_tape.req_node)
+        child = self.tapes[0].ReqChild(aggregator, self.curr_tape.req_node)
         for arg in args:
             child.nodes.append(self.tapes[arg[0]].req_tree)
         self.curr_tape.req_node.children.append(child)

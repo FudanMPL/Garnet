@@ -431,7 +431,7 @@ def new_squant():
         return _
 
 @buildingblock("conv2d-forward")
-def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0]):
+def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0], groups = 1):
     #input.shape:(batch_size,channel_in,H,W)
     #weight.shape:(out_channels, in_channels // groups, H,W)
     #bais:(out_channels)
@@ -440,13 +440,13 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0]):
     def propagate(dl_doutputs, operation):
         # dl_dy, = dl_doutputs
         input = tensors[operation.inputs[0]]
-        weight= tensors[operation.inputs[1]]
-        output = tensors[operation.outputs[0]]
+        weight= tensors[operation.inputs[1]] # N C/G H W
+        output = tensors[operation.outputs[0]] 
         _, _,weights_h, weights_w= weight.shape
         N,  n_channels_in,inputs_h, inputs_w = input.shape
         _,  n_channels_out,output_h, output_w = output.shape
         input_value=input.value.permute([0,2,3,1])
-        weight_value=weight.value.permute([0,2,3,1])
+        weight_value=weight.value.permute([0,2,3,1]) 
         nabla_Y=output.grad.permute([0,2,3,1])
 
         stride_h, stride_w = stride
@@ -459,9 +459,9 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0]):
         batch_repeat = regint.Matrix(N, inputs_h * inputs_w) # 128,6*6
         batch_repeat.assign_vector( batch.get(
             regint.inc(input_size, 0, 1, 1, N)) * reduce(operator.mul, input_value.sizes[1:]) )
-        @for_range_opt_multithread(n_threads, [n_channels_in, n_channels_out])
+        @for_range_opt_multithread(n_threads, [int(n_channels_in/groups), n_channels_out])
         def _(i, j):
-            a = regint.inc(input_size, input_value.address + i, n_channels_in, N,
+            a = regint.inc(input_size, input_value.address + i + j//int(n_channels_out/groups)*int(n_channels_out/groups), n_channels_in, N,
                            inputs_h * inputs_w)
             inputs = sfix.load_mem(batch_repeat.get_vector() + a).v
             b = regint.inc(N * output_w * output_h, nabla_Y.address + j, n_channels_out, N)
@@ -473,56 +473,57 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0]):
                     inputs_w, output_h, output_w, -stride_h, -stride_w, N,
                     padding_h, padding_w, 1) 
             reduced = unreduced_sfix._new(res).reduce_after_mul()
-            weight.grad.assign_vector_by_indices(reduced, j, i,None, None)  
+            weight.grad.assign_vector_by_indices(reduced, j, i, None, None)  
         
-        print("\nbackward for X start:\n")
-        print(weights_h,weights_w,inputs_h, inputs_w,output_h, output_w)
+        #TODO : Support groups backward for X
+        # print("\nbackward for X start:\n")
+        # print(weights_h,weights_w,inputs_h, inputs_w,output_h, output_w)
         
-        nabla_X=input.grad.permute([0,2,3,1])
-        reverse_weights = MultiArray(
-                [n_channels_in, weights_h, weights_w, n_channels_out], sfix)
-        @for_range_opt_multithread(n_threads, n_channels_in)
-        def _(l):
-            @for_range(weights_h)
-            def _(j):
-                @for_range(weights_w)
-                def _(k):
-                    addresses = regint.inc(n_channels_out,
-                        weight_value[0][j][weights_w-k-1].get_address(l),
-                        reduce(operator.mul, weight_value.sizes[1:]))
-                    reverse_weights[l][weights_h-j-1][k].assign_vector(
-                        weight_value.value_type.load_mem(addresses))
-        padded_w = inputs_w + 2 * padding_w
-        padded_h = inputs_h + 2 * padding_h
-        if padding_h or padding_w:
-            output = MultiArray(
-                [N, padded_h, padded_w, n_channels_in], sfix)
-        else:
-            output = nabla_X
-        @for_range_opt_multithread(n_threads,
-                                    [N, n_channels_in])
-        def _(i, j):
-            res = sint(size = (padded_w * padded_h))
-            conv2ds(res, nabla_Y[i].get_vector().v,
-                    reverse_weights[j].get_vector().v,
-                    padded_h, padded_w, output_h, output_w,
-                    weights_h, weights_w, 1, 1, n_channels_out,
-                    weights_h - 1, weights_w - 1, 1)
-            output.assign_vector_by_indices(
-                unreduced_sfix._new(res).reduce_after_mul(),i, None, None, j)
+        # nabla_X=input.grad.permute([0,2,3,1])
+        # reverse_weights = MultiArray(
+        #         [n_channels_in, weights_h, weights_w, n_channels_out], sfix)
+        # @for_range_opt_multithread(n_threads, n_channels_in)
+        # def _(l):
+        #     @for_range(weights_h)
+        #     def _(j):
+        #         @for_range(weights_w)
+        #         def _(k):
+        #             addresses = regint.inc(n_channels_out,
+        #                 weight_value[0][j][weights_w-k-1].get_address(l),
+        #                 reduce(operator.mul, weight_value.sizes[1:]))
+        #             reverse_weights[l][weights_h-j-1][k].assign_vector(
+        #                 weight_value.value_type.load_mem(addresses))
+        # padded_w = inputs_w + 2 * padding_w
+        # padded_h = inputs_h + 2 * padding_h
+        # if padding_h or padding_w:
+        #     output = MultiArray(
+        #         [N, padded_h, padded_w, n_channels_in], sfix)
+        # else:
+        #     output = nabla_X
+        # @for_range_opt_multithread(n_threads,
+        #                             [N, n_channels_in])
+        # def _(i, j):
+        #     res = sint(size = (padded_w * padded_h))
+        #     conv2ds(res, nabla_Y[i].get_vector().v,
+        #             reverse_weights[j].get_vector().v,
+        #             padded_h, padded_w, output_h, output_w,
+        #             weights_h, weights_w, 1, 1, n_channels_out,
+        #             weights_h - 1, weights_w - 1, 1)
+        #     output.assign_vector_by_indices(
+        #         unreduced_sfix._new(res).reduce_after_mul(),i, None, None, j)
             
-        if padding_h or padding_w:
-            @for_range_opt_multithread(n_threads, N)
-            def _(i):
-                @for_range(inputs_h)
-                def _(j):
-                    @for_range(inputs_w)
-                    def _(k):
-                        jj = j + padding_w
-                        kk = k + padding_w
-                        nabla_X[i][j][k].assign_vector(
-                                output[i][jj][kk].get_vector())
-        nabla_X.permute_without_malloc(input.grad,[0,3,1,2])
+        # if padding_h or padding_w:
+        #     @for_range_opt_multithread(n_threads, N)
+        #     def _(i):
+        #         @for_range(inputs_h)
+        #         def _(j):
+        #             @for_range(inputs_w)
+        #             def _(k):
+        #                 jj = j + padding_w
+        #                 kk = k + padding_w
+        #                 nabla_X[i][j][k].assign_vector(
+        #                         output[i][jj][kk].get_vector())
+        # nabla_X.permute_without_malloc(input.grad,[0,3,1,2])
         
         
     prepare = get_prepare()
@@ -550,43 +551,54 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0]):
         output= tensors[operation.outputs[0]] 
         _, _,weights_h, weights_w= weight.shape
         N,  n_channels_in,inputs_h, inputs_w = input.shape
-        _,  n_channels_out,output_h, output_w = output.shape
-        input_value=input.value.permute([0,2,3,1])
-        weight_value=weight.value.permute([0,2,3,1])
-        output_value=output.value.permute([0,2,3,1])
-        
+        _,  n_channels_out,output_h, output_w = output.shape #B C H W
+        input.value.view(N, groups, int(n_channels_in/groups), inputs_h, inputs_w) # N G C/G H W
+        input_value = MultiArray([groups, N, inputs_h, inputs_w, int(n_channels_in/groups)], input.value.value_type) # G B H W C/G
+        input.value.permute_without_malloc(input_value, [1,0,3,4,2]) # # G B H W C/G
+        weight_value = MultiArray([weight.sizes[0], weight.sizes[2], weight.sizes[3], weight.sizes[1]], weight.value.value_type)
+        weight.value.permute_without_malloc(weight_value, [0,2,3,1]) # N, H, W, C/G
+        output_value = MultiArray([output.sizes[0], output.sizes[2], output.sizes[3], output.sizes[1]], output.value.value_type)
+        output.value.permute_without_malloc(output_value, [0,2,3,1]) # B, H, W, N
+        n_channels_in_group = int(n_channels_in / groups)
         n_threads=8 if input.numel() > 2**20 else 1
         if not forward:
             set_init_op_id(init_op_id+1)   
-        n_parts = max(1, round((n_threads or 1) / n_channels_out))
+        n_parts = 1
         while N % n_parts != 0:
             n_parts -= 1
         # print('Convolution in %d parts' % n_parts)
         unreduced = MultiArray(output_value.sizes, sint, address=output_value.address)
         part_size =N // n_parts
-        size_=part_size*reduce(operator.mul,input.shape[1:])
-        @for_range_multithread(n_threads, 1, [n_parts, n_channels_out])
+        size_=part_size*reduce(operator.mul,input.value.sizes[2:])
+        @for_range_multithread(n_threads, 1, [groups, int(n_channels_out/groups)]) #N
         def _(i, j):
-            inputs = input_value.get_vector(i*size_,size_).v
-            weights = weight_value.get_part_vector(j).v
-            res = sint(size = output_h * output_w * part_size)
+            inputs = input_value.get_vector(i*size_,size_).v # B H W C/G
+            weights = weight_value.get_part_vector(i*int(n_channels_out/groups)+j).v # N WH WW C/G
+            res = sint(size = output_h * output_w * part_size) # B, OUT_W, OUT_H
             conv2ds(res, inputs, weights, output_h, output_w,
                     inputs_h, inputs_w, weights_h, weights_w,
-                    stride_h, stride_w, n_channels_in, padding_h, padding_w,
+                    stride_h, stride_w, n_channels_in_group, padding_h, padding_w,
                     part_size)
             if bias:
-                res += bias.value.expand_to_vector(j, res.size).v
+                res += bias.value.expand_to_vector(i*int(n_channels_out/groups)+j, res.size).v
             addresses = regint.inc(res.size,
-                                    unreduced[i * part_size].address + j,
+                                    unreduced[0].address + i*int(n_channels_out/groups)+j,
                                     n_channels_out)
             res.store_in_mem(addresses)
+            
         n_outputs = N * reduce(operator.mul, output_value.sizes[1:])
         @multithread(n_threads, n_outputs,
                      1000 if sfix.round_nearest else 10 ** 6)                                                                                
         def _(base, n_per_thread):
             res = sfix().unreduced(sint.load_mem(unreduced.address + base,
                               size=n_per_thread),sfix).reduce_after_mul()
-            res.store_in_mem(output.value.address + base)
+            
+            res.store_in_mem(output_value.address + base) #B H W N
+        output_value.permute_without_malloc(output.value, [0,3,1,2])
+        input.value.view(N, n_channels_in, inputs_h, inputs_w)
+        input_value.delete()
+        output_value.delete()
+        weight_value.delete()
         
     set_opid(op_id+1)  # record the input and output of the op
     return output

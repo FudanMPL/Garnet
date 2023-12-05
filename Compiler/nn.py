@@ -1406,7 +1406,7 @@ class Conv2d(_ConvNd):
                         self.padding)
     
     def forward(self, input: Tensor) -> Tensor:
-        return self._conv_forward(input, self.weight, self.bias)
+        return self._conv_forward(input, self.weight, self.bias, groups = self.groups)
 
 class _NormBase(Module):
     """Common base of _InstanceNorm and _BatchNorm"""
