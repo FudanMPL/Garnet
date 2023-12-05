@@ -1,0 +1,142 @@
+import pandas as pd
+import nn as nn
+from tensor import Tensor,autograd_function
+import torch
+import optimizer as optim
+import dataloader as dataloader
+import functional as F
+from tensor import boardcasted_multiarray_mul 
+import numpy as np
+
+num_users = 6040
+num_movies = 3883
+num_genders = 2
+num_ages = 7
+num_occupations = 21
+num_genres = 18
+
+class DoubleTowerModel(nn.Module):
+    def __init__(self, num_users, num_genders, num_ages, num_occupations, num_movies, num_genres):
+        super(DoubleTowerModel, self).__init__()
+
+        # user 塔
+        self.user_embedding = nn.Linear(1, 100)
+        self.gender_embedding = nn.Linear(1, 2)
+        self.age_embedding = nn.Linear(1, 2)
+        self.occupation_embedding = nn.Linear(1, 2)
+        self.user_dense1 = nn.Sequential(
+            nn.Linear(106, 32),
+            nn.ReLU()
+        )
+        self.user_dense2 = nn.Sequential(
+            nn.Linear(32, 8),
+            nn.ReLU()
+        )
+        # item 塔
+        self.movie_embedding = nn.Linear(1, 100)
+        self.genre_embedding = nn.Linear(1, 2)
+        
+        self.movie_dense1 = nn.Sequential(
+            nn.Linear(102, 32),
+            nn.ReLU()
+        )
+        self.movie_dense2 = nn.Sequential(
+            nn.Linear(32, 8),
+            nn.ReLU()
+        )
+
+        # Output
+        self.output = nn.Sequential(
+            nn.Linear(1, 1),
+            nn.Sigmoid()
+        )
+            
+
+    def forward(self, user_id, gender, age, occupation, movie_id, genre):
+        print_ln("--------------f1----------------")
+        user_embeddings = self.user_embedding(user_id.unsqueeze(1)) 
+        print_ln("--------------f2----------------")
+        gender_embeddings = self.gender_embedding(gender.unsqueeze(1))
+        print_ln("--------------f3----------------")
+        age_embeddings = self.age_embedding(age.unsqueeze(1))
+        print_ln("--------------f4----------------")
+        occupation_embeddings = self.occupation_embedding(occupation.unsqueeze(1))
+        print_ln("--------------f5----------------")
+
+        user_vector1 = user_embeddings.concat(gender_embeddings, dim=1)
+        print_ln("--------------f6----------------")
+        user_vector2 = user_vector1.concat(age_embeddings, dim=1)
+        print_ln("--------------f7----------------")
+        user_vector = user_vector2.concat(occupation_embeddings, dim=1)
+        print_ln("--------------f8----------------")
+
+        user_vector = self.user_dense1(user_vector)
+        print_ln("--------------f9----------------")
+        user_vector = self.user_dense2(user_vector)
+        print_ln("--------------f10----------------")
+
+        movie_embeddings = self.movie_embedding(movie_id.unsqueeze(1))
+        print_ln("--------------f11----------------")
+        genre_embeddings = self.genre_embedding(genre.unsqueeze(1))
+        print_ln("--------------f12----------------")
+
+        movie_vector = movie_embeddings.concat(genre_embeddings, dim=1)
+        print_ln("--------------f13----------------")
+        movie_vector = self.movie_dense1(movie_vector)
+        print_ln("--------------f14----------------")
+        movie_vector = self.movie_dense2(movie_vector)
+        print_ln("--------------f15----------------")
+
+        # (32,8) x (8,32) = (32,32)，只取对角线的结果
+        dot_user_movie = user_vector.matmul(movie_vector.transpose()) / 0.2
+        print_ln("--------------f16----------------")
+  
+        diagonal_elements = Tensor([32,])
+        for i in range(32):
+            diagonal_elements[i] = dot_user_movie.value[i][i]
+
+        dot_user_movie = diagonal_elements.unsqueeze(1)
+        output = self.output(dot_user_movie)
+        print_ln("--------------f17----------------")
+        return output
+
+
+# ['UserID_idx', 'Gender_idx', 'Age_idx', 'Occupation_idx', 'MovieID_idx', 'Genres_idx', 'Rating']
+# dfx = sfix.Tensor([1000209, 7])
+x = MultiArray([1000209,6], sfix)
+y = MultiArray([1000209,1], sfix)
+x.input_from(0)
+y.input_from(1)
+
+# diagonal_elements = Tensor([3,4,5])
+# diagonal_elements[0][0][2]=sfix(5)
+# print(diagonal_elements.value[0][0][2])
+
+model = DoubleTowerModel(num_users, num_genders, num_ages, num_occupations, num_movies, num_genres)
+
+criterion = nn.MSELoss()
+optimizer = optim.SGD(model.parameters(), lr = 0.01)
+
+train_load = dataloader.DataLoader(x, y, batch_size=32, shuffle=True) # 输入的x，y是MultiArray
+
+num_epochs = 5
+@for_range(num_epochs)
+def f(epoch):
+    model.train()
+    @for_range(train_load.size)
+    def f(i):
+        print_ln("------------1-------------%s",i)
+        inputs, label = train_load.get_data(i) # 得到的inputs、label是Tensor类型
+        print_ln("------------2-------------%s",i)
+        # print(inputs.shape)
+        optimizer.zero_grad()
+        print_ln("------------3-------------%s",i)
+        outputs = model(inputs[:,0],inputs[:,1],inputs[:,2],inputs[:,3],inputs[:,4],inputs[:,5]) # 这一步出现了division_by_zero
+        print_ln("------------4-------------%s",i)
+        loss = criterion(outputs, label)
+        print_ln("loss: %s", loss.print_reveal_nested())
+        loss.backward()
+        optimizer.step()
+
+# Evaluate on training data
+# model.eval()

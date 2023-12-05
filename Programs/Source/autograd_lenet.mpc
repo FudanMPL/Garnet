@@ -56,15 +56,6 @@ model.train()
 def _(i):
     input, label = dataload.get_data(0)
     output = model(input)
-<<<<<<< HEAD
-   # loss = crossloss(output, label)
-   # optimizer.zero_grad()
-  #  loss.backward()
-  #  output.print_reveal_nested()
-  #  loss.print_reveal_nested()
-   # output.grad.print_reveal_nested()
-   # optimizer.step()
-=======
     loss = crossloss(output, label)
     optimizer.zero_grad()
     loss.backward()
@@ -72,5 +63,4 @@ def _(i):
     loss.print_reveal_nested()
     output.grad.print_reveal_nested()
     optimizer.step()
->>>>>>> b7353e015f5930ccd8a30c10a3184849a9f4816f
    
