@@ -429,7 +429,6 @@ class Merger:
         self.sources = []
         self.real_depths = [0] * len(block.instructions)
         round_type = {}
-
         def add_edge(i, j):
             if i in (-1, j):
                 return
@@ -489,7 +488,6 @@ class Merger:
                 
         def mem_accesswithaddr(addr, instr, last_access_this_kind, last_access_other_kind):
             reg_type = instr.args[0].reg_type
-            
             if isinstance(addr, int):
                 handle_mem_access(addr, reg_type, last_access_this_kind,
                                     last_access_other_kind)
@@ -552,7 +550,6 @@ class Merger:
 
         for n,instr in enumerate(block.instructions):
             outputs,inputs = instr.get_def(), instr.get_used()
-
             G.add_node(n)
 
             # if options.debug:
@@ -592,11 +589,13 @@ class Merger:
                 if options.preserve_mem_order:
                     strict_mem_access(n, last_mem_read, last_mem_write)
                 else:
-                    for i in range(min(instr.first_size, 100)):
-                            mem_accesswithaddr(instr.first_addr+i, instr, last_mem_read_of, last_mem_write_of)
-
-                    for i in range(min(instr.second_size, 100)):
-                            mem_accesswithaddr(instr.second_addr+i, instr, last_mem_read_of, last_mem_write_of)
+                    
+                    if isinstance(instr.first_addr, int):
+                        for i in range(min(instr.first_size, 10)):
+                                mem_accesswithaddr(instr.first_addr+i, instr, last_mem_read_of, last_mem_write_of)
+                    if isinstance(instr.second_addr, int):
+                        for i in range(min(instr.second_size, 10)):
+                                mem_accesswithaddr(instr.second_addr+i, instr, last_mem_read_of, last_mem_write_of)
                     # for i in last_mem_write_of.values():
                     #     for j in i:
                     #         add_edge(j, n)
@@ -611,7 +610,6 @@ class Merger:
                 keep_order(instr, n, instr.args[0])
             elif isinstance(instr, StackInstruction):
                 keep_order(instr, n, StackInstruction)
-
             if isinstance(instr, merge_classes):
                 open_nodes.add(n)
 

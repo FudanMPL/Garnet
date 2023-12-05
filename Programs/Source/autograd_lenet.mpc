@@ -4,6 +4,7 @@ from tensor import Tensor,autograd_function
 import optimizer as optim
 import dataloader as dataloader
 import functional as F
+program.use_trunc_pr = True
 
 class LeNet(nn.Module):
     def __init__(self):
@@ -17,12 +18,12 @@ class LeNet(nn.Module):
             nn.AvgPool2d(2, 2)
         )
         self.fc = nn.Sequential(
-            nn.Linear(16*4*4, 120),
+            nn.Linear(16*4*4, 1000),
             nn.Relu(),
-            nn.Linear(120, 84),
+            nn.Linear(1000, 840),
             nn.Relu()
         )
-        self.fc1 = nn.Linear(84, 10)
+        self.fc1 = nn.Linear(840, 10)
 
     def forward(self, img):
         feature = self.conv(img)
@@ -40,7 +41,6 @@ y = MultiArray([10,10], sfix)
 @for_range(x.total_size())
 def _(i):
     x.assign_vector(sfix(i/10), i)
-
 y.assign_all(0)
 for i in range(10):
     y[i][i//3] = 1
