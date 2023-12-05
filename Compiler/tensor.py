@@ -2505,7 +2505,7 @@ class Tensor():
     
     @buildingblock("expand_as")
     def expand_as(self, other):
-        return self.expand(self, list(other.value.sizes))
+        return self.expand(list(other.value.sizes))
 
     @buildingblock("repeat")
     def repeat(self, *sizes):

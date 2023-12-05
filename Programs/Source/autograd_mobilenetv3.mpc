@@ -9,11 +9,13 @@ from collections import defaultdict
 
 program.use_trunc_pr = True
 
+@buildingblock("Hswish")
 def Hswish(x,inplace=True):
-    return x * F.relu6(x + 3., inplace=inplace) / 6.
+    return x * F.relu6(x + 3.) / 6.
 
+@buildingblock("Hsigmoid")
 def Hsigmoid(x,inplace=True):
-    return F.relu6(x + 3., inplace=inplace) / 6.
+    return F.relu6(x + 3.) / 6.
 
 class SEModule(nn.Module):
     def __init__(self, channel, reduction=4):
@@ -124,3 +126,10 @@ class MobileNetV3_large(nn.Module):
         a,b=out.size(0),out.size(1)
         out=out.view(a,b)
         return out
+
+net=MobileNetV3_large()
+x = Tensor.ones(4, 3, 224, 224)
+labels = Tensor.ones(4, 1000)
+dataload = dataloader.DataLoader(x, labels, batch_size = 1, shuffle=False)
+input, label = dataload.get_data(0)
+output = net(input)

@@ -226,7 +226,7 @@ def tanh(input):  # todo
 def Hardtanh(input):  
     return input.Hardtanh()
 
-def Relu6(input):  
+def relu6(input):  
     return input.Relu6()
 
 @buildingblock("softmax-forward")

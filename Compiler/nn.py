@@ -1885,6 +1885,59 @@ class MaxPool2d(_MaxPoolNd):
     def forward(self, input: Tensor):
         return F.max_pool2d(input, self.kernel_size, self.stride,
                             self.padding)
+class _AdaptiveAvgPoolNd(Module):
+    __constants__ = ['output_size']
+
+    def __init__(self, output_size: int) -> None:
+        super().__init__()
+        self.output_size = output_size
+
+    def extra_repr(self) -> str:
+        return 'output_size={}'.format(self.output_size)
+
+
+class AdaptiveAvgPool2d(_AdaptiveAvgPoolNd):
+    r"""Applies a 2D adaptive average pooling over an input signal composed of several input planes.
+
+    The output is of size H x W, for any input size.
+    The number of output features is equal to the number of input planes.
+
+    Args:
+        output_size: the target output size of the image of the form H x W.
+                     Can be a tuple (H, W) or a single H for a square image H x H.
+                     H and W can be either a ``int``, or ``None`` which means the size will
+                     be the same as that of the input.
+
+    Shape:
+        - Input: :math:`(N, C, H_{in}, W_{in})` or :math:`(C, H_{in}, W_{in})`.
+        - Output: :math:`(N, C, S_{0}, S_{1})` or :math:`(C, S_{0}, S_{1})`, where
+          :math:`S=\text{output\_size}`.
+
+    Examples:
+        >>> # target output size of 5x7
+        >>> m = nn.AdaptiveAvgPool2d((5, 7))
+        >>> input = torch.randn(1, 64, 8, 9)
+        >>> output = m(input)
+        >>> # target output size of 7x7 (square)
+        >>> m = nn.AdaptiveAvgPool2d(7)
+        >>> input = torch.randn(1, 64, 10, 9)
+        >>> output = m(input)
+        >>> # target output size of 10x7
+        >>> m = nn.AdaptiveAvgPool2d((None, 7))
+        >>> input = torch.randn(1, 64, 10, 9)
+        >>> output = m(input)
+
+    """
+
+    def forward(self, input: Tensor) -> Tensor:
+        if isinstance(self.output_size, int):
+            stride = math.floor(input.sizes[2]/self.output_size)
+            kernel_size = input.sizes[2]-(self.output_size-1)*stride
+            
+            return F.avg_pool2d(input, kernel_size, stride,
+                                0)
+        raise CompilerError("does not support tuple input temporarily in AdaptiveAvgPool2d")
+
 
 class _AvgPoolNd(Module):
     __constants__ = ['kernel_size', 'stride', 'padding', 'ceil_mode', 'count_include_pad']
