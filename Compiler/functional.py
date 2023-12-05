@@ -223,6 +223,12 @@ def tanh(input):  # todo
     # return output
     
 
+def Hardtanh(input):  
+    return input.Hardtanh()
+
+def Relu6(input):  
+    return input.Relu6()
+
 @buildingblock("softmax-forward")
 def softmax(input,dim=-1):
     op_id = get_opid()
@@ -1350,6 +1356,6 @@ def gelu(input, approximate='tanh'):
     if approximate == 'tanh':
         factor = factor.tanh()
     else:
-        factpr = factor.Hardtanh()
+        factor = factor.Hardtanh()
     factor += 1
     return factor * input * 0.5

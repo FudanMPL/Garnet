@@ -734,7 +734,7 @@ def test_f_gelu():
     # tensor.train()
     # tensor.reset_op_id()
 
-    input2 = F.gelu(input1, approximate='tanh')
+    input2 = F.gelu(input1, approximate='Hardtanh')
     #input2.backward()
     input2.value.print_reveal_nested()
     #input1.grad.print_reveal_nested()
