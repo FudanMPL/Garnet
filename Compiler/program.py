@@ -494,8 +494,9 @@ class Program(object):
         #     for i in range(0, len(value)):
         #         print(len(value[i])) 
         profiling_res = self.curr_tape.req_node.aggregate_profiling()
+        
         if self.is_profiling:
-            # plot_cost(profiling_res, self.name)                    
+            plot_cost(profiling_res, self.name)                    
             for key, value in profiling_res.items():
                 print(key)
                 for x in value.pretty():

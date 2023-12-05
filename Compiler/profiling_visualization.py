@@ -82,5 +82,6 @@ def plot_stackedcolumn(data, name):
 
 def plot_cost(profiling_res, name):
     data = parse(profiling_res)
-    plot_histogram(data, name)
-    plot_stackedcolumn(data, name)
+    print(data)
+    # plot_histogram(data, name)
+    # plot_stackedcolumn(data, name)

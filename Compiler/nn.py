@@ -1401,12 +1401,12 @@ class Conv2d(_ConvNd):
         if self.padding_mode != 'zeros':
             return F.conv2d(F.pad(input, self._reversed_padding_repeated_twice, mode=self.padding_mode),
                             weight, bias, self.stride,
-                            _pair(0))
+                            _pair(0), groups = self.groups)
         return F.conv2d(input, weight, bias, self.stride,
-                        self.padding)
+                        self.padding, groups = self.groups)
     
     def forward(self, input: Tensor) -> Tensor:
-        return self._conv_forward(input, self.weight, self.bias, groups = self.groups)
+        return self._conv_forward(input, self.weight, self.bias)
 
 class _NormBase(Module):
     """Common base of _InstanceNorm and _BatchNorm"""
