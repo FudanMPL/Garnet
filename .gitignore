@@ -55,6 +55,7 @@ callgrind.out.*
 Programs/Bytecode/*
 Programs/Schedules/*
 Programs/Public-Input/*
+Programs/Profiling-data/*
 *.com
 *.class
 *.dll
