@@ -2494,6 +2494,24 @@ class Tensor():
         op_id+=1
         return output
     
+    @buildingblock("chunk")
+    def chunk(self, chunks, dim=0):
+        stride = reduce(lambda x,y:x*y,self.shape[dim+1:])
+        num = reduce(lambda x,y:x*y,self.shape[:]) // stride // self.shape[dim]
+        
+        new_dim_size = (self.sizes[dim]+chunks-1) // chunks
+        new_chunks = chunks
+        if new_dim_size * chunks > self.sizes[dim]:
+            new_chunks -= 1
+        
+        new_size = self.sizes[:dim] + (new_dim_size,) + self.sizes[dim+1:]
+        print(new_size)
+        x = [MultiArray(new_size, sfix) for i in range(new_chunks)] 
+        for i in range(new_chunks):
+            x[i].assign_vector(self.value.get_vector(i*stride,stride))
+            x[i].print_reveal_nested()
+        return self
+    
     @buildingblock("expand")
     def expand(self, sizes):
         for i in range(len(sizes)):
