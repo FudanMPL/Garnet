@@ -349,7 +349,7 @@ void InputBase<T>::input_mixed(SubProcessor<T>& Proc, const vector<int>& args,
         case U::TYPE: \
             n_arg_tuple = U::N_DEST + U::N_PARAM + 2; \
             player = get_player(Proc, args[i + n_arg_tuple - 1], player_from_reg); \
-            <U>(Proc, player, &args[i + 1], size); \
+            prepare<U>(Proc, player, &args[i + 1], size); \
             break;
         X(IntInput<typename T::clear>) X(FixInput) X(FloatInput)
 #undef X
