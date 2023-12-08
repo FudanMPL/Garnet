@@ -2496,21 +2496,58 @@ class Tensor():
     
     @buildingblock("chunk")
     def chunk(self, chunks, dim=0):
-        stride = reduce(lambda x,y:x*y,self.shape[dim+1:])
-        num = reduce(lambda x,y:x*y,self.shape[:]) // stride // self.shape[dim]
-        
-        new_dim_size = (self.sizes[dim]+chunks-1) // chunks
-        new_chunks = chunks
-        if new_dim_size * chunks > self.sizes[dim]:
-            new_chunks -= 1
-        
-        new_size = self.sizes[:dim] + (new_dim_size,) + self.sizes[dim+1:]
-        print(new_size)
-        x = [MultiArray(new_size, sfix) for i in range(new_chunks)] 
-        for i in range(new_chunks):
-            x[i].assign_vector(self.value.get_vector(i*stride,stride))
-            x[i].print_reveal_nested()
-        return self
+        @buildingblock(get_program().globalbuildingblock)
+        def propagate(dl_doutputs,operation):
+            input=tensors[operation.inputs[0]]
+            dl_dy = [dld for dld in dl_doutputs]
+            @for_range(prefix_total)
+            def _(i):
+                for j in range(self.sizes[dim]):
+                    dim_size = dl_dy[j//new_dim_size].sizes[dim]
+                    v = dl_dy[j//new_dim_size].get_vector(i*dim_size*stride+(j%dim_size)*stride,stride)
+                    input.grad.assign_vector(v,i*self.sizes[dim]*stride+j*stride)
+            return             
+        global op_id
+        global init_op_id
+        if prepare:
+            stride = reduce(lambda x,y:x*y,self.shape[dim+1:])
+            prefix_total = self.value.total_size() // stride // self.shape[dim]
+            
+            new_dim_size = (self.sizes[dim]+chunks-1) // chunks
+            new_chunks = (self.sizes[dim]-1)// new_dim_size
+            
+            new_size = self.sizes[:dim] + (new_dim_size,) + self.sizes[dim+1:]
+            new_size_last = self.sizes[:dim] + (self.sizes[dim] - (new_chunks) * new_dim_size,) + self.sizes[dim+1:]
+            
+            # print(new_dim_size)
+            # print(new_chunks)
+            # print(new_size)
+            # print(new_size_last)
+            # print(stride)
+            # print(prefix_total)
+            
+            output = [Tensor(MultiArray(new_size, sfix), req_grad=self.req_grad) for i in range(new_chunks)]
+            output.append(Tensor(MultiArray(new_size_last, sfix), req_grad=self.req_grad))
+
+            operation = Operation(
+                inputs=[self.name], outputs=[out.name for out in output], 
+                propagate=propagate if self.req_grad else fake_propagate, )
+            
+            gradient_operation.append(operation)
+            operation_id = len(gradient_operation)-1
+            op_id_store[op_id] = operation_id
+        if not prepare or not forward:
+            operation=gradient_operation[op_id_store[op_id]]
+            input=tensors[operation.inputs[0]]
+            output=[tensors[operation.outputs[i]] for i in range(len(operation.outputs))]
+            @for_range(prefix_total)
+            def _(i):
+                for j in range(self.sizes[dim]):
+                    v = self.value.get_vector(i*self.sizes[dim]*stride+j*stride,stride)
+                    dim_size = output[j//new_dim_size].value.sizes[dim]
+                    output[j//new_dim_size].value.assign_vector(v,i*dim_size*stride+(j%dim_size)*stride)
+        op_id+=1
+        return output
     
     @buildingblock("expand")
     def expand(self, sizes):
