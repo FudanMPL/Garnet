@@ -100,6 +100,8 @@ def test_permute():
     input2.value.print_reveal_nested()
     input1.grad.print_reveal_nested()
 
+#test_permute()
+
 
 @autograd_function
 def test_reshape_MultiArrayToMultiArray():
@@ -465,7 +467,7 @@ def test_tanh():
     print_ln("test_tanh:")
     xMultiArray_2_1 = MultiArray([COL, HEIGHT], sfix)
     for i in range(0,COL):
-        for  j in range(0,HEIGHT):
+        for  j in range(0,HEIGHT): 
             xMultiArray_2_1[i][j] = sfix(i-j)
     input = Tensor(xMultiArray_2_1, req_grad = True)
     # output=F.tanh(input)
@@ -503,15 +505,11 @@ def test_conv2d():
     weight_v.print_reveal_nested()
     input = Tensor(training_samples, req_grad = True)
     weight=Tensor(weight_v,req_grad = True )
-
-    # output=F.conv2d(input,weight,padding=[2,2])
-    # tensor.train()
-    # tensor.reset_op_id()
     output=F.conv2d(input,weight,padding=[2,2], groups = 3)
     output.backward()
     output.value.print_reveal_nested()
     weight.grad.print_reveal_nested()
-    # input.grad.print_reveal_nested()
+    input.grad.print_reveal_nested()
 
 
 

@@ -153,6 +153,7 @@ opcodes = dict(
     ACCEPTCLIENTCONNECTION = 0x6d,
     CLOSECLIENTCONNECTION = 0x6e,
     READCLIENTPUBLICKEY = 0x6f,
+    INPUTMIXEDSTRING=0xF7,
     # Bitwise logic
     ANDC = 0x70,
     XORC = 0x71,

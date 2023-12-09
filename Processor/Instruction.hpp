@@ -1722,6 +1722,7 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
           sint::Input::template input<FloatInput>(Proc.Procp, start, size);
         return;
       case INPUTMIXED:
+          printf("case INPUTMIXED:\n");
           sint::Input::input_mixed(Proc.Procp, start, size, false);
         return;
       case INPUTMIXEDREG:

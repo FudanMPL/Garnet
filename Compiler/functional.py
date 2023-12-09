@@ -481,54 +481,93 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0], 
             weight.grad.assign_vector_by_indices(reduced, j, i, None, None)  
         
         #TODO : Support groups backward for X
-        # print("\nbackward for X start:\n")
+        print("\nbackward for X start:")
         # print(weights_h,weights_w,inputs_h, inputs_w,output_h, output_w)
         
-        # nabla_X=input.grad.permute([0,2,3,1])
-        # reverse_weights = MultiArray(
-        #         [n_channels_in, weights_h, weights_w, n_channels_out], sfix)
-        # @for_range_opt_multithread(n_threads, n_channels_in)
-        # def _(l):
-        #     @for_range(weights_h)
-        #     def _(j):
-        #         @for_range(weights_w)
-        #         def _(k):
-        #             addresses = regint.inc(n_channels_out,
-        #                 weight_value[0][j][weights_w-k-1].get_address(l),
-        #                 reduce(operator.mul, weight_value.sizes[1:]))
-        #             reverse_weights[l][weights_h-j-1][k].assign_vector(
-        #                 weight_value.value_type.load_mem(addresses))
-        # padded_w = inputs_w + 2 * padding_w
-        # padded_h = inputs_h + 2 * padding_h
-        # if padding_h or padding_w:
-        #     output = MultiArray(
-        #         [N, padded_h, padded_w, n_channels_in], sfix)
-        # else:
-        #     output = nabla_X
-        # @for_range_opt_multithread(n_threads,
-        #                             [N, n_channels_in])
-        # def _(i, j):
-        #     res = sint(size = (padded_w * padded_h))
-        #     conv2ds(res, nabla_Y[i].get_vector().v,
-        #             reverse_weights[j].get_vector().v,
-        #             padded_h, padded_w, output_h, output_w,
-        #             weights_h, weights_w, 1, 1, n_channels_out,
-        #             weights_h - 1, weights_w - 1, 1)
-        #     output.assign_vector_by_indices(
-        #         unreduced_sfix._new(res).reduce_after_mul(),i, None, None, j)
-            
-        # if padding_h or padding_w:
-        #     @for_range_opt_multithread(n_threads, N)
-        #     def _(i):
-        #         @for_range(inputs_h)
-        #         def _(j):
-        #             @for_range(inputs_w)
-        #             def _(k):
-        #                 jj = j + padding_w
-        #                 kk = k + padding_w
-        #                 nabla_X[i][j][k].assign_vector(
-        #                         output[i][jj][kk].get_vector())
-        # nabla_X.permute_without_malloc(input.grad,[0,3,1,2])
+        
+        
+        output.grad.view(N,groups,int(n_channels_out/groups),output_h, output_w) #B G Cout/G Oh Ow
+        nable_Y_permuted=MultiArray([groups, N, output_h, output_w, int(n_channels_out/groups)], output.value.value_type) # G B H W Cout/G
+        output.grad.permute_without_malloc(nable_Y_permuted, [1,0,3,4,2]) # # G B H W Cout/G
+        output.grad.view(N,n_channels_out,output_h, output_w)
+        
+        input.grad.view(N,groups,int(n_channels_in/groups), inputs_h, inputs_w) # B, G,C/G,H,W
+        nable_X_permuted=MultiArray([groups, N, inputs_h, inputs_w, int(n_channels_in/groups)], input.value.value_type) # B G H W C/G
+        input.grad.permute_without_malloc(nable_X_permuted, [1,0,3,4,2]) # # G B H W C/G
+        # input.grad.print_reveal_nested()
+        reverse_weights = MultiArray(
+                [int(n_channels_in/groups), weights_h, weights_w, n_channels_out], sfix) #N H W C -->   C H W N
+        @for_range_opt_multithread(n_threads, int(n_channels_in/groups))
+        def _(l):
+            @for_range(weights_h)
+            def _(j):
+                @for_range(weights_w)
+                def _(k):
+                    addresses = regint.inc(n_channels_out,
+                        weight_value[0][j][weights_w-k-1].get_address(l),
+                        reduce(operator.mul, weight_value.sizes[1:]))
+                    reverse_weights[l][weights_h-j-1][k].assign_vector(
+                        weight_value.value_type.load_mem(addresses))
+                    
+        # reverse_weights.print_reveal_nested()
+        reverse_weights.view(int(n_channels_in/groups), weights_h, weights_w, groups,int(n_channels_out/groups))
+        reverse_weights_permuted=MultiArray(
+                [groups,int(n_channels_in/groups), weights_h, weights_w, int(n_channels_out/groups)], sfix) # G Cin/G Wh Ww Cout/G
+        reverse_weights.permute_without_malloc(reverse_weights_permuted,[3,0,1,2,4])
+                   
+        padded_w = inputs_w + 2 * padding_w
+        padded_h = inputs_h + 2 * padding_h
+        B=N
+        if padding_h or padding_w:
+            output = MultiArray(
+                [groups,B, padded_h, padded_w, int(n_channels_in/groups)], sfix)
+        else:
+            output = nable_X_permuted # G,B,H ,W,C/G
+       
+
+        # reverse_weights_permuted.print_reveal_nested()
+        # n_channels_in_group = int(n_channels_in / groups)
+        n_threads=8 if input.numel() > 2**20 else 1
+        n_parts = 1
+        while N % n_parts != 0:
+            n_parts -= 1
+        # print('Convolution in %d parts' % n_parts)
+        # unreduced = MultiArray(output_value.sizes, sint, address=output_value.address)
+        part_size =N // n_parts
+        size_=part_size*reduce(operator.mul,nable_Y_permuted.sizes[2:])
+        # print("pary_size:",part_size,"N:",N,nable_Y_permuted.sizes)
+        @for_range_multithread(n_threads, 1, [groups, int(n_channels_in/groups),n_channels_in]) #N
+        def _(i, j,k):
+            inputs = nable_Y_permuted.get_vector(i*size_,size_).v # B Oh Ow Cout/G
+            weights = reverse_weights_permuted[i][j].get_vector().v #  WH WW Cout/G
+            res = sint(size =padded_h* padded_w * part_size) # B, OUT_W, OUT_H
+            conv2ds(res, inputs, weights,padded_h,padded_w,
+                    output_h,output_w, weights_h, weights_w,
+                    1, 1, int(n_channels_out/groups), weights_h-1, weights_w-1,
+                    part_size)
+            output.assign_vector_by_indices(
+                unreduced_sfix._new(res).reduce_after_mul(),i,None, None, None, j)
+        if padding_h or padding_w:
+            @for_range_opt_multithread(n_threads, B)
+            def _(i):
+                @for_range( groups)
+                def _(g):
+                    @for_range(inputs_h)
+                    def _(j):
+                        @for_range(inputs_w)
+                        def _(k):
+                            jj = j + padding_w
+                            kk = k + padding_w
+                            nable_X_permuted[g][i][j][k].assign_vector(
+                                    output[g][i][jj][kk].get_vector())
+        
+        # nable_X_permuted.print_reveal_nested()
+        nable_X_permuted.permute_without_malloc(input.grad,[1,0,4,2,3])
+        input.grad.view(N,n_channels_in, inputs_h, inputs_w) 
+        nable_X_permuted.delete()
+        nable_Y_permuted.delete()
+        reverse_weights.delete()
+        reverse_weights_permuted.delete()
         
         
     prepare = get_prepare()
