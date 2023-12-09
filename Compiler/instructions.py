@@ -2821,7 +2821,7 @@ class conv2ds(base.DataInstruction, base.VarArgsInstruction, base.Mergeable):
         offline_round = 0
         for i in range(0, len(self.args), 15):
             args = self.args[i:i + 15]
-            res = cost_func(config.bit_length, config._security, config.computation_security, config.f, config.n_parties, 1 , args[7] * args[8] * args[11],  args[14] * args[3] * args[4])
+            res = cost_func(config.bit_length, config._security, config.computation_security, config.f, config.n_parties, args[14] * args[3] * args[4] , args[7] * args[8] * args[11], 1 )
             req_node.increment(('online communication', 'bits'), res[0])
             req_node.increment(('offline communication', 'bits'), res[2])
             online_round = max(online_round, res[1])

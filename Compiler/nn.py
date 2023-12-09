@@ -1426,7 +1426,7 @@ class _NormBase(Module):
         num_features: int,
         eps: float = 1e-5,
         momentum: float = 0.1,
-        affine: bool = True,
+        affine: bool = False,
         track_running_stats: bool = True,
         device=None,
         dtype=None
@@ -1446,8 +1446,11 @@ class _NormBase(Module):
         if self.track_running_stats:
             self.register_buffer('running_mean', Tensor.zeros(num_features))
             self.register_buffer('running_var', Tensor.ones(num_features))
+            self.register_buffer('running_std', Tensor.ones(num_features))
+            
             self.running_mean: Optional[Tensor]
             self.running_var: Optional[Tensor]
+            self.running_std: Optional[Tensor]
             self.register_buffer('num_batches_tracked', Tensor.ones(1))
             self.num_batches_tracked: Optional[Tensor]
         else:
@@ -1497,7 +1500,7 @@ class _BatchNorm(_NormBase):
         num_features: int,
         eps: float = 1e-5,
         momentum: float = 0.1,
-        affine: bool = True,
+        affine: bool = False,
         track_running_stats: bool = True,
         device=None,
         dtype=None
@@ -1548,6 +1551,7 @@ class _BatchNorm(_NormBase):
             if not self.training or self.track_running_stats
             else None,
             self.running_var if not self.training or self.track_running_stats else None,
+            self.running_std if not self.training or self.track_running_stats else None,
             self.weight,
             self.bias,
             bn_training,

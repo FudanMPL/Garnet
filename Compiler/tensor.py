@@ -1176,7 +1176,7 @@ def var_of_multiarray(self, dim, keepdim=False, unbiased=False):
             summary = sum(input_perm.get_vector(i*stride, stride))
             mean.assign_vector(summary, i)
         break_point()
-        mean[:] *= 1 / stride
+        mean[:]= mean[:]  / stride
         # dmean
         @for_range_opt(output.value.total_size())
         def _(i):

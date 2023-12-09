@@ -17,7 +17,6 @@ from functools import reduce
 from typing import List, NamedTuple, Callable, Dict, Optional, Union, Tuple, Any
 approx = False
 
-
 @buildingblock("relu-forward")
 def relu(input, inplace=False):  
     # Considering that the saved memory overhead has very little impact on MPC computing performance, 
@@ -1029,7 +1028,7 @@ def normalize(input, p=2, dim=1, eps=1e-12, out=None):
     
 
 @buildingblock("batch_norm")
-def batch_norm(input, running_mean, running_var, weight=None, bias=None, training=False, eps=1e-05, momentum=0.1):
+def batch_norm(input, running_mean, running_var, running_std = None, weight=None, bias=None, training=False, eps=1e-05, momentum=0.1):
     
     assert isinstance(input,Tensor) ,"Invalid input"
     # assert input.value.sizes[1] == running_mean.value.sizes[1], "Invalid input"
@@ -1042,10 +1041,12 @@ def batch_norm(input, running_mean, running_var, weight=None, bias=None, trainin
         running_mean.value = running_mean.value.reshape(new_sizes)
     if isinstance(running_var.value, Array):
         running_var.value = running_var.value.reshape(new_sizes)
-    if isinstance(weight.value, Array):
+    if running_std is not None and isinstance(running_std.value, Array):
+            running_std.value = running_std.value.reshape(new_sizes)       
+    if weight is not None and isinstance(weight.value, Array):
         weight.value = weight.value.reshape(new_sizes)
         weight.grad = weight.grad.reshape(new_sizes)
-    if isinstance(bias.value, Array):
+    if bias is not None and isinstance(bias.value, Array):
         bias.value = bias.value.reshape(new_sizes)
         bias.grad = bias.grad.reshape(new_sizes)
     
@@ -1059,7 +1060,10 @@ def batch_norm(input, running_mean, running_var, weight=None, bias=None, trainin
         x_mean = running_mean
         x_var = running_var
     x_var = x_var + eps # todo
-    output = (input - x_mean) * x_var.invsqrt() #9s 5s 4s
+    if  training or running_std is None:
+        output = (input - x_mean) * x_var.invsqrt() #9s 5s 4s
+    else:
+        output = (input - x_mean) * running_std #9s 5s 4s
     # output = (input - x_mean) / x_var
     if weight is not None:
         output = output * weight
