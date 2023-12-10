@@ -2029,6 +2029,82 @@ class AvgPool2d(_AvgPoolNd):
         return F.avg_pool2d(input, self.kernel_size, self.stride,
                             self.padding)
 
+class Hardsigmoid(Module):
+    r"""Applies the Hardsigmoid function element-wise.
+
+    Hardsigmoid is defined as:
+
+    .. math::
+        \text{Hardsigmoid}(x) = \begin{cases}
+            0 & \text{if~} x \le -3, \\
+            1 & \text{if~} x \ge +3, \\
+            x / 6 + 1 / 2 & \text{otherwise}
+        \end{cases}
+
+    Args:
+        inplace: can optionally do the operation in-place. Default: ``False``
+
+    Shape:
+        - Input: :math:`(*)`, where :math:`*` means any number of dimensions.
+        - Output: :math:`(*)`, same shape as the input.
+
+    .. image:: ../scripts/activation_images/Hardsigmoid.png
+
+    Examples::
+
+        >>> m = nn.Hardsigmoid()
+        >>> input = torch.randn(2)
+        >>> output = m(input)
+    """
+    __constants__ = ['inplace']
+
+    inplace: bool
+
+    def __init__(self, inplace : bool = False) -> None:
+        super().__init__()
+        self.inplace = inplace
+
+    def forward(self, input: Tensor) -> Tensor:
+        return F.hardsigmoid(input, self.inplace)
+
+class Hardswish(Module):
+    r"""Applies the Hardswish function, element-wise, as described in the paper:
+    `Searching for MobileNetV3 <https://arxiv.org/abs/1905.02244>`_.
+
+    Hardswish is defined as:
+
+    .. math::
+        \text{Hardswish}(x) = \begin{cases}
+            0 & \text{if~} x \le -3, \\
+            x & \text{if~} x \ge +3, \\
+            x \cdot (x + 3) /6 & \text{otherwise}
+        \end{cases}
+
+    Args:
+        inplace: can optionally do the operation in-place. Default: ``False``
+
+    Shape:
+        - Input: :math:`(*)`, where :math:`*` means any number of dimensions.
+        - Output: :math:`(*)`, same shape as the input.
+
+    .. image:: ../scripts/activation_images/Hardswish.png
+
+    Examples::
+
+        >>> m = nn.Hardswish()
+        >>> input = torch.randn(2)
+        >>> output = m(input)
+    """
+    __constants__ = ['inplace']
+
+    inplace: bool
+
+    def __init__(self, inplace : bool = False) -> None:
+        super().__init__()
+        self.inplace = inplace
+
+    def forward(self, input: Tensor) -> Tensor:
+        return F.hardswish(input, self.inplace)
 
 class ReLU(Module):
     r"""Applies the rectified linear unit function element-wise:

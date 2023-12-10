@@ -145,7 +145,7 @@ class CryptoFlow2(Cost):
         "share": lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (0, 0, 0, 0),
         "open" : lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (bit_length*2, 1, 0, 0),
         "muls" : lambda bit_length, kappa_s , kapaa, precision, n_parties: (bit_length*(math.ceil((bit_length+1)/2)+kapaa), 1, 0, 0),
-        "matmuls": lambda bit_length, kappa_s , kapaa, precision, n_parties, p ,q, r: (math.ceil(q*r*bit_length*(p*(bit_length+1)/2+kapaa)), 1, 0, 0),
+        "matmuls": lambda bit_length, kappa_s , kapaa, precision, n_parties, p ,q, r: (q*r*bit_length*(p*math.ceil((bit_length+1))/2+kapaa), 1, 0, 0),
         "trunc": lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (kapaa*(2+precision)+4*bit_length+14*precision, math.ceil(math.log(bit_length))+1, 0, 0),
         "Trunc": lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (kapaa*(2+precision)+4*bit_length+14*precision, math.ceil(math.log(bit_length))+1, 0, 0),
         "bit_share":lambda bit_length, kappa_s , kapaa, precision, n_parties: (2, 1, 0, 0),

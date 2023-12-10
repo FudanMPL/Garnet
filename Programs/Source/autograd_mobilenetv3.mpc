@@ -18,167 +18,200 @@ def Hswish(x,inplace=True):
 def Hsigmoid(x,inplace=True):
     return F.relu6(x + 3.) / 6.
 
-class SEModule(nn.Module):
-    def __init__(self, channel, reduction=4):
-        super(SEModule, self).__init__()
-        self.avg_pool = nn.AdaptiveAvgPool2d(1)
+class SeModule(nn.Module):
+    def __init__(self, in_size, reduction=4):
+        super(SeModule, self).__init__()
+        expand_size =  max(in_size // reduction, 8)
         self.se = nn.Sequential(
-            nn.Linear(channel, channel // reduction, bias=False),
+            nn.AdaptiveAvgPool2d(1),
+            nn.Conv2d(in_size, expand_size, kernel_size=1, bias=False),
+            nn.BatchNorm2d(expand_size),
             nn.ReLU(inplace=True),
-            nn.Linear(channel // reduction, channel, bias=False), 
+            nn.Conv2d(expand_size, in_size, kernel_size=1, bias=False),
+            nn.Hardsigmoid()
         )
 
     def forward(self, x):
-        b, c, _, _ = x.size()
-        y=self.avg_pool(x).view(b, c)
-        y=self.se(y)
-        y = Hsigmoid(y).view(b, c, 1, 1)
-        return x * y.expand_as(x)
-    
-class Bottleneck(nn.Module):
-    def __init__(self,in_channels,out_channels,kernel_size,exp_channels,stride,se='True',nl='HS'):
-        super(Bottleneck, self).__init__()
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        padding = (kernel_size - 1) // 2
-        if nl == 'RE':
-            self.nlin_layer = F.relu
-        elif nl == 'HS':
-            self.nlin_layer = Hswish
-        self.stride=stride
-        if se:
-            self.se=SEModule(exp_channels)
-        else:
-            self.se=None
-        self.conv1=nn.Conv2d(in_channels,exp_channels,kernel_size=1,stride=1,padding=0,bias=False)
-        self.bn1 = nn.BatchNorm2d(exp_channels)
-        self.conv2=nn.Conv2d(exp_channels,exp_channels,kernel_size=kernel_size,stride=stride,
-                             padding=padding,groups=exp_channels,bias=False)
-        self.bn2=nn.BatchNorm2d(exp_channels)
-        self.conv3=nn.Conv2d(exp_channels,out_channels,kernel_size=1,stride=1,padding=0,bias=False)
-        self.bn3=nn.BatchNorm2d(out_channels)
-        # 先初始化一个空序列，之后改造其成为残差链接
-        self.shortcut = nn.Sequential()
-        # 只有步长为1且输入输出通道不相同时才采用跳跃连接(想一下跳跃链接的过程，输入输出通道相同这个跳跃连接就没意义了)
-        if stride == 1 and in_channels == out_channels:
-            self.shortcut = nn.Sequential(
-                # 下面的操作卷积不改变尺寸和通道数
-                nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=0, bias=False),
-                nn.BatchNorm2d(out_channels)
+        return x * self.se(x)
+
+
+class Block(nn.Module):
+    '''expand + depthwise + pointwise'''
+    def __init__(self, kernel_size, in_size, expand_size, out_size, act, se, stride):
+        super(Block, self).__init__()
+        self.stride = stride
+
+        self.conv1 = nn.Conv2d(in_size, expand_size, kernel_size=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(expand_size)
+        self.act1 = act(inplace=True)
+
+        self.conv2 = nn.Conv2d(expand_size, expand_size, kernel_size=kernel_size, stride=stride, padding=kernel_size//2, groups=expand_size, bias=False)
+        self.bn2 = nn.BatchNorm2d(expand_size)
+        self.act2 = act(inplace=True)
+        self.se = SeModule(expand_size) if se else nn.Identity()
+
+        self.conv3 = nn.Conv2d(expand_size, out_size, kernel_size=1, bias=False)
+        self.bn3 = nn.BatchNorm2d(out_size)
+        self.act3 = act(inplace=True)
+
+        self.skip = None
+        if stride == 1 and in_size != out_size:
+            self.skip = nn.Sequential(
+                nn.Conv2d(in_size, out_size, kernel_size=1, bias=False),
+                nn.BatchNorm2d(out_size)
             )
 
-    def forward(self,x):
-        out=self.nlin_layer(self.bn1(self.conv1(x)))
-        if self.se is not None:
-            out=self.bn2(self.conv2(out))
-            out=self.nlin_layer(self.se(out))
-        else:
-            out = self.nlin_layer(self.bn2(self.conv2(out)))
+        if stride == 2 and in_size != out_size:
+            self.skip = nn.Sequential(
+                nn.Conv2d(in_channels=in_size, out_channels=in_size, kernel_size=3, groups=in_size, stride=2, padding=1, bias=False),
+                nn.BatchNorm2d(in_size),
+                nn.Conv2d(in_size, out_size, kernel_size=1, bias=True),
+                nn.BatchNorm2d(out_size)
+            )
+
+        if stride == 2 and in_size == out_size:
+            self.skip = nn.Sequential(
+                nn.Conv2d(in_channels=in_size, out_channels=out_size, kernel_size=3, groups=in_size, stride=2, padding=1, bias=False),
+                nn.BatchNorm2d(out_size)
+            )
+
+    def forward(self, x):
+        skip = x
+
+        out = self.act1(self.bn1(self.conv1(x)))
+        out = self.act2(self.bn2(self.conv2(out)))
+        out = self.se(out)
         out = self.bn3(self.conv3(out))
-        out = out + self.shortcut(x) if self.stride == 1 and self.in_channels == self.out_channels else out
-        return out
+        
+        if self.skip is not None:
+            skip = self.skip(skip)
+        return self.act3(out + skip)
 
-class MobileNetV3_large(nn.Module):
-    # (out_channels,kernel_size,exp_channels,stride,se,nl)
-    cfg=[
-        (16,3,16,1,False,'RE'),
-        (24,3,64,2,False,'RE'),
-        (24,3,72,1,False,'RE'),
-        (40,5,72,2,True,'RE'),
-        (40,5,120,1,True,'RE'),
-        (40,5,120,1,True,'RE'),
-        (80,3,240,2,False,'HS'),
-        (80,3,200,1,False,'HS'),
-        (80,3,184,1,False,'HS'),
-        (80,3,184,1,False,'HS'),
-        (112,3,480,1,True,'HS'),
-        (112,3,672,1,True,'HS'),
-        (160,5,672,2,True,'HS'),
-        (160,5,960,1,True,'HS'),
-        (160,5,960,1,True,'HS')
-    ]
-    def __init__(self,num_classes=17):
-        super(MobileNetV3_large,self).__init__()
-        self.conv1=nn.Conv2d(3,16,3,2,padding=1,bias=False)
-        self.bn1=nn.BatchNorm2d(16)
-        # 根据cfg数组自动生成所有的Bottleneck层
-        self.layers = self._make_layers(in_channels=16)
-        self.conv2=nn.Conv2d(160,960,1,stride=1,bias=False)
-        self.bn2=nn.BatchNorm2d(960)
-        # 卷积后不跟BN，就应该把bias设置为True
-        self.conv3=nn.Conv2d(960,1280,1,1,padding=0,bias=True)
-        self.conv4=nn.Conv2d(1280,num_classes,1,stride=1,padding=0,bias=True)
 
-    def _make_layers(self,in_channels):
-        layers=[]
-        for out_channels,kernel_size,exp_channels,stride,se,nl in self.cfg:
-            layers.append(
-                Bottleneck(in_channels,out_channels,kernel_size,exp_channels,stride,se,nl)
-            )
-            in_channels=out_channels
-        return nn.Sequential(*layers)
 
-    def forward(self,x):
-        out=Hswish(self.bn1(self.conv1(x)))
-        out=self.layers(out)
-        out=Hswish(self.bn2(self.conv2(out)))
-        out=F.avg_pool2d(out,7)
-        out=Hswish(self.conv3(out))
-        out=self.conv4(out)
-        # 因为原论文中最后一层是卷积层来实现全连接的效果，维度是四维的，后两维是1，在计算损失函数的时候要求二维，因此在这里需要做一个resize
-        a,b=out.size(0),out.size(1)
-        out=out.view(a,b)
-        return out
-class MobileNetV3_small(nn.Module):
-    # (out_channels,kernel_size,exp_channels,stride,se,nl)
-    cfg = [
-        (16,3,16,2,True,'RE'),
-        (24,3,72,2,False,'RE'),
-        (24,3,88,1,False,'RE'),
-        (40,5,96,2,True,'HS'),
-        (40,5,240,1,True,'HS'),
-        (40,5,240,1,True,'HS'),
-        (48,5,120,1,True,'HS'),
-        (48,5,144,1,True,'HS'),
-        (96,5,288,2,True,'HS'),
-        (96,5,576,1,True,'HS'),
-        (96,5,576,1,True,'HS')
-    ]
-    def __init__(self,num_classes=17):
-        super(MobileNetV3_small,self).__init__()
-        self.conv1=nn.Conv2d(3,16,3,2,padding=1,bias=False)
-        self.bn1=nn.BatchNorm2d(16)
-        # 根据cfg数组自动生成所有的Bottleneck层
-        self.layers = self._make_layers(in_channels=16)
-        self.conv2=nn.Conv2d(96,576,1,stride=1,bias=False)
-        self.bn2=nn.BatchNorm2d(576)
-        # 卷积后不跟BN，就应该把bias设置为True
-        self.conv3=nn.Conv2d(576,1280,1,1,padding=0,bias=True)
-        self.conv4=nn.Conv2d(1280,num_classes,1,stride=1,padding=0,bias=True)
-        self.se = SEModule(576)
-    def _make_layers(self,in_channels):
-        layers=[]
-        for out_channels,kernel_size,exp_channels,stride,se,nl in self.cfg:
-            layers.append(
-                Bottleneck(in_channels,out_channels,kernel_size,exp_channels,stride,se,nl)
-            )
-            in_channels=out_channels
-        return nn.Sequential(*layers)
+class MobileNetV3_Small(nn.Module):
+    def __init__(self, num_classes=1000, act=nn.Hardswish):
+        super(MobileNetV3_Small, self).__init__()
+        self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=2, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(16)
+        # self.hs1 = act(inplace=True)
 
-    def forward(self,x):
-        out=Hswish(self.bn1(self.conv1(x)))
-        out=self.layers(out)
-        out=self.bn2(self.conv2(out))
-        out=Hswish(self.se(out))
-        out = F.avg_pool2d(out, 7)
-        out = Hswish(self.conv3(out))
-        out = self.conv4(out)
-        # 因为原论文中最后一层是卷积层来实现全连接的效果，维度是四维的，后两维是1，在计算损失函数的时候要求二维，因此在这里需要做一个resize
-        a, b = out.size(0), out.size(1)
-        out = out.view(a, b)
-        return out
+        self.bneck = nn.Sequential(
+            Block(3, 16, 16, 16, nn.ReLU, True, 2),
+            Block(3, 16, 72, 24, nn.ReLU, False, 2),
+            Block(3, 24, 88, 24, nn.ReLU, False, 1),
+            Block(5, 24, 96, 40, act, True, 2),
+            Block(5, 40, 240, 40, act, True, 1),
+            Block(5, 40, 240, 40, act, True, 1),
+            Block(5, 40, 120, 48, act, True, 1),
+            Block(5, 48, 144, 48, act, True, 1),
+            Block(5, 48, 288, 96, act, True, 2),
+            Block(5, 96, 576, 96, act, True, 1),
+            Block(5, 96, 576, 96, act, True, 1),
+        )
 
-net=MobileNetV3_large()
+
+        self.conv2 = nn.Conv2d(96, 576, kernel_size=1, stride=1, padding=0, bias=False)
+        self.bn2 = nn.BatchNorm2d(576)
+        self.hs2 = act(inplace=True)
+        self.gap = nn.AdaptiveAvgPool2d(1)
+
+        self.linear3 = nn.Linear(576, 1280, bias=False)
+        self.bn3 = nn.BatchNorm1d(1280)
+        self.hs3 = act(inplace=True)
+        self.drop = nn.Dropout(0.2)
+        self.linear4 = nn.Linear(1280, num_classes)
+        self.init_params()
+
+    def init_params(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                init.kaiming_normal_(m.weight, mode='fan_out')
+                if m.bias is not None:
+                    init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm2d):
+                init.constant_(m.weight, 1)
+                init.constant_(m.bias, 0)
+            elif isinstance(m, nn.Linear):
+                init.normal_(m.weight, std=0.001)
+                if m.bias is not None:
+                    init.constant_(m.bias, 0)
+
+    def forward(self, x):
+        out = Hswish(self.bn1(self.conv1(x)))
+        out = self.bneck(out)
+
+        out = self.hs2(self.bn2(self.conv2(out)))
+        out = self.gap(out).flatten(1)
+        out = self.drop(self.hs3(self.bn3(self.linear3(out))))
+
+        return self.linear4(out)
+
+
+class MobileNetV3_Large(nn.Module):
+    def __init__(self, num_classes=1000, act=nn.Hardswish):
+        super(MobileNetV3_Large, self).__init__()
+        self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=2, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(16)
+        # self.hs1 = act(inplace=True)
+
+        self.bneck = nn.Sequential(
+            Block(3, 16, 16, 16, nn.ReLU, False, 1),
+            Block(3, 16, 64, 24, nn.ReLU, False, 2),
+            Block(3, 24, 72, 24, nn.ReLU, False, 1),
+            Block(5, 24, 72, 40, nn.ReLU, True, 2),
+            Block(5, 40, 120, 40, nn.ReLU, True, 1),
+            Block(5, 40, 120, 40, nn.ReLU, True, 1),
+            Block(3, 40, 240, 80, act, False, 2),
+            Block(3, 80, 200, 80, act, False, 1),
+            Block(3, 80, 184, 80, act, False, 1),
+            Block(3, 80, 184, 80, act, False, 1),
+            Block(3, 80, 480, 112, act, True, 1),
+            Block(3, 112, 672, 112, act, True, 1),
+            Block(5, 112, 672, 160, act, True, 2),
+            Block(5, 160, 672, 160, act, True, 1),
+            Block(5, 160, 960, 160, act, True, 1),
+        )
+
+
+        self.conv2 = nn.Conv2d(160, 960, kernel_size=1, stride=1, padding=0, bias=False)
+        self.bn2 = nn.BatchNorm2d(960)
+        # self.hs2 = act(inplace=True)
+        self.gap = nn.AdaptiveAvgPool2d(1)
+        
+        self.linear3 = nn.Linear(960, 1280, bias=False)
+        # self.bn3 = nn.BatchNorm1d(1280)
+        # self.hs3 = act(inplace=True)
+        self.drop = nn.Dropout(0.2)
+
+        self.linear4 = nn.Linear(1280, num_classes)
+        # self.init_params()
+
+    def init_params(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                init.kaiming_normal_(m.weight, mode='fan_out')
+                if m.bias is not None:
+                    init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm2d):
+                init.constant_(m.weight, 1)
+                init.constant_(m.bias, 0)
+            elif isinstance(m, nn.Linear):
+                init.normal_(m.weight, std=0.001)
+                if m.bias is not None:
+                    init.constant_(m.bias, 0)
+
+    def forward(self, x):
+        out = Hswish(self.bn1(self.conv1(x)))
+        out = self.bneck(out)
+
+        out = Hswish(self.bn2(self.conv2(out)))
+        out = self.gap(out).flatten(1)
+        out = self.drop(Hswish(self.linear3(out)))
+        
+        return self.linear4(out)
+
+net=MobileNetV3_Large()
 x = Tensor.ones(4, 3, 224, 224)
 labels = Tensor.ones(4, 1000)
 dataload = dataloader.DataLoader(x, labels, batch_size = 1, shuffle=False)

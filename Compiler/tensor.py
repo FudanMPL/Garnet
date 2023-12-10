@@ -2126,7 +2126,7 @@ class Tensor():
         op_id += 1
         return output
 
-    def flatten(self, start_dim, end_dim):
+    def flatten(self, start_dim, end_dim=-1):
         sizes = self.sizes
         length = len(sizes)
         if start_dim < 0:

@@ -496,7 +496,7 @@ def test_conv2d():
 
 
     training_labels = MultiArray([4, 10], sint)
-    weight_v=MultiArray([3,1,3,3],sfix)
+    weight_v=MultiArray([3,3,3,3],sfix)
     for i in range(0,3):
         for j in range(0,3):
             for k in range(0,3):
@@ -505,7 +505,7 @@ def test_conv2d():
     weight_v.print_reveal_nested()
     input = Tensor(training_samples, req_grad = True)
     weight=Tensor(weight_v,req_grad = True )
-    output=F.conv2d(input,weight,padding=[2,2], groups = 3)
+    output=F.conv2d(input,weight,padding=[2,2], groups = 1)
     output.backward()
     output.value.print_reveal_nested()
     weight.grad.print_reveal_nested()
@@ -849,7 +849,7 @@ def test_logsoftmax_F_Array():
     input1.grad.print_reveal_nested()
 
 
-# test_conv2d()
+test_conv2d()
 # test_logsoftmax_F_Array()
 
 # test_softmax_0()
@@ -885,7 +885,7 @@ def test_logsoftmax_F_Array():
 # test_logsigmoid()
 # test_sigmoid(True)
 # test_sigmoid(False)
-test_relu()
+# test_relu()
 # test_mv_3Dim_MultiArray_Array()
 # test_mv_MultiArray_Array()
 # test_dot()

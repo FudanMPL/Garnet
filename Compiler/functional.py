@@ -57,6 +57,13 @@ def relu(input, inplace=False):
     set_opid(op_id+1)  # record the input and output of the op
     return output
 
+@buildingblock("Hsigmoid")
+def hardsigmoid(x,inplace=True):
+    return relu6(x + 3.) / 6.
+
+@buildingblock("Hswish")
+def hardswish(x,inplace=True):
+    return x*relu6(x + 3.) / 6.
 @vectorize
 def approx_sigmoid(x, n=5):
     """ Piece-wise approximate sigmoid as in
@@ -476,7 +483,7 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0], 
             res = sint(size = weights_h * weights_w)
             conv2ds(res, inputs, nabla_outputs, weights_h, weights_w, inputs_h,
                     inputs_w, output_h, output_w, -stride_h, -stride_w, N,
-                    padding_h, padding_w, 1) 
+                    padding_h, padding_w, 1,1) 
             reduced = unreduced_sfix._new(res).reduce_after_mul()
             weight.grad.assign_vector_by_indices(reduced, j, i, None, None)  
         
@@ -544,7 +551,7 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0], 
             conv2ds(res, inputs, weights,padded_h,padded_w,
                     output_h,output_w, weights_h, weights_w,
                     1, 1, int(n_channels_out/groups), weights_h-1, weights_w-1,
-                    part_size)
+                    part_size,1)
             output.assign_vector_by_indices(
                 unreduced_sfix._new(res).reduce_after_mul(),i,None, None, None, j)
         if padding_h or padding_w:
@@ -574,6 +581,7 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0], 
     init_op_id = get_init_op_id()
     forward = get_forward()
     if prepare:
+        print("conv2d prepare")
         assert isinstance(input, Tensor) and isinstance(weight, Tensor) ,"Invalid Input and weight"
         assert len(input.shape)==4 and len(weight.shape)==4,"Invalid Dimension input and weight"
         out_shape=[input.shape[0],weight.shape[0],(input.shape[2]+2*padding[0]-weight.shape[2])//stride[0]+1,
@@ -614,7 +622,7 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0], 
         unreduced = MultiArray(output_value.sizes, sint, address=output_value.address)
         part_size =N // n_parts
         size_=part_size*reduce(operator.mul,input.value.sizes[2:])
-        @for_range_multithread(n_threads, 1, [groups, int(n_channels_out/groups)]) #N
+        @for_range_multithread(n_threads, 1, [groups, 1]) #N
         def _(i, j):
             inputs = input_value.get_vector(i*size_,size_).v # B H W C/G
             weights = weight_value.get_part_vector(i*int(n_channels_out/groups)+j).v # N WH WW C/G
@@ -622,11 +630,26 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0], 
             conv2ds(res, inputs, weights, output_h, output_w,
                     inputs_h, inputs_w, weights_h, weights_w,
                     stride_h, stride_w, n_channels_in_group, padding_h, padding_w,
-                    part_size)
+                    part_size,1)        
             if bias:
                 res += bias.value.expand_to_vector(i*int(n_channels_out/groups)+j, res.size).v
             addresses = regint.inc(res.size,
                                     unreduced[0].address + i*int(n_channels_out/groups)+j,
+                                    n_channels_out)
+            res.store_in_mem(addresses)
+        @for_range_multithread(n_threads, 1, [groups, int(n_channels_out/groups)-1]) #N
+        def _(i, j):
+            inputs = input_value.get_vector(i*size_,size_).v # B H W C/G
+            weights = weight_value.get_part_vector(i*int(n_channels_out/groups)+j+1).v # N WH WW C/G
+            res = sint(size = output_h * output_w * part_size) # B, OUT_W, OUT_H
+            conv2ds(res, inputs, weights, output_h, output_w,
+                    inputs_h, inputs_w, weights_h, weights_w,
+                    stride_h, stride_w, n_channels_in_group, padding_h, padding_w,
+                    part_size,-1)        
+            if bias:
+                res += bias.value.expand_to_vector(i*int(n_channels_out/groups)+j+1, res.size).v
+            addresses = regint.inc(res.size,
+                                    unreduced[0].address + i*int(n_channels_out/groups)+j+1,
                                     n_channels_out)
             res.store_in_mem(addresses)
             
