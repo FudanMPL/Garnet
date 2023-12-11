@@ -374,6 +374,8 @@ class _int(Tape._no_truth):
             f, a, b = a.for_mux(b)
         else:
             f = lambda x: x
+        if program.protocol == "CryptFlow2":
+                return f(self)
         return f(self * (a - b) + b)
 
     def cond_swap(self, a, b):

@@ -2496,6 +2496,9 @@ class Tensor():
     
     @buildingblock("chunk")
     def chunk(self, chunks, dim=0):
+        stride = reduce(lambda x,y:x*y,self.shape[dim+1:])
+        prefix_total = self.value.total_size() // stride // self.shape[dim]
+        new_dim_size = (self.sizes[dim]+chunks-1) // chunks
         @buildingblock(get_program().globalbuildingblock)
         def propagate(dl_doutputs,operation):
             input=tensors[operation.inputs[0]]
@@ -2510,10 +2513,9 @@ class Tensor():
         global op_id
         global init_op_id
         if prepare:
-            stride = reduce(lambda x,y:x*y,self.shape[dim+1:])
-            prefix_total = self.value.total_size() // stride // self.shape[dim]
+
             
-            new_dim_size = (self.sizes[dim]+chunks-1) // chunks
+
             new_chunks = (self.sizes[dim]-1)// new_dim_size
             
             new_size = self.sizes[:dim] + (new_dim_size,) + self.sizes[dim+1:]
