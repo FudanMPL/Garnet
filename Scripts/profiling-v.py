@@ -8,7 +8,7 @@ file_type = '.json'
 fig_type = '.png'
 
 
-def jsonLoader(json_name):
+def jsonLoader(file_name):
     with open(file_name, 'r') as json_file:
         json_data = json.load(json_file)
         return json_data
@@ -25,8 +25,9 @@ def visualizing(single_dict, fig_name):
     sorted_indices = sorted(range(len(online_communicationbits_values)), key=lambda k: online_communicationbits_values[k], reverse=True)
     values = [online_communicationbits_values[i] for i in sorted_indices]
     labels = [online_communicationbits_labels[i] for i in sorted_indices]
-    print(values)
-    print(labels)
+    
+    print('\t'+str(labels))
+    print('\t'+str(values))
 
     # 创建圆盘比例可视化图表
     plt.figure(figsize=(8, 8))
@@ -46,24 +47,10 @@ def visualizing(single_dict, fig_name):
     # 保存图表
     plt.savefig(fig_name)
 
-
-if __name__=='__main__':
-    script_name = sys.argv[0]
-    arguments = sys.argv[1:]
-    
-    level = 2
-    if len(arguments)>1:
-        level = int(arguments[1])
-    
-    file_name = file_path + arguments[0] + file_type
-    fig_name = file_path + arguments[0] + fig_type
-
-    profiling_dict = jsonLoader(file_name)
-    onlineCOMM_dict = profiling_dict['online communicationbits']
-    
+def mergering_at_level(dict, level):
     result_dict = {}
 
-    for item in onlineCOMM_dict:
+    for item in dict:
         keys = item[0].split('-')
         
         key = ''
@@ -75,6 +62,23 @@ if __name__=='__main__':
         else:
             result_dict[key] = item[1]
     result_list = [[key, value] for key, value in result_dict.items()]
-    print(result_list)
+    return result_list
+
+if __name__=='__main__':
+    script_name = sys.argv[0]
+    arguments = sys.argv[1:]
     
-    visualizing(result_list, fig_name)
+    pgname = arguments[0]
+    
+    level = 2
+    if len(arguments)>1:
+        level = int(arguments[1])
+
+    profiling_dicts = jsonLoader(file_path + pgname + file_type)
+    
+    for profiling_name, profiling_list in profiling_dicts.items():
+        print(profiling_name)
+        result_list = mergering_at_level(profiling_list, level)
+        visualizing(result_list, file_path + pgname + '-' + profiling_name + fig_type)
+    
+    print('the result figures have being saved at '+file_path+pgname)
