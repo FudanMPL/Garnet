@@ -2791,10 +2791,11 @@ class conv2ds(base.DataInstruction, base.VarArgsInstruction, base.Mergeable):
     :param: padding height (int)
     :param: padding width (int)
     :param: batch size (int)
+    :param: whether the first conv instruction in a group convolution
     """
     code = base.opcodes['CONV2DS']
     arg_format = itertools.cycle(['sw','s','s','int','int','int','int','int',
-                                  'int','int','int','int','int','int','int'])
+                                  'int','int','int','int','int','int','int','int'])
     data_type = 'triple'
     is_vec = lambda self: True
 
@@ -2807,7 +2808,7 @@ class conv2ds(base.DataInstruction, base.VarArgsInstruction, base.Mergeable):
     def get_repeat(self):
         args = self.args
         return sum(args[i+3] * args[i+4] * args[i+7] * args[i+8] * \
-            args[i+11] * args[i+14] for i in range(0, len(args), 15))
+            args[i+11] * args[i+14] for i in range(0, len(args), 16))
 
     def add_usage(self, req_node):
         cost_func = program.get_cost("matmuls")
@@ -2819,9 +2820,11 @@ class conv2ds(base.DataInstruction, base.VarArgsInstruction, base.Mergeable):
         args = self.args
         online_round = 0
         offline_round = 0
-        for i in range(0, len(self.args), 15):
-            args = self.args[i:i + 15]
-            res = cost_func(config.bit_length, config._security, config.computation_security, config.f, config.n_parties, 1 , args[7] * args[8] * args[11],  args[14] * args[3] * args[4])
+        for i in range(0, len(self.args), 16):
+            args = self.args[i:i + 16]
+            res = cost_func(config.bit_length, config._security, config.computation_security, config.f, config.n_parties, args[14] * args[3] * args[4] , args[7] * args[8] * args[11], 1 )
+            if program.protocol == 'CryptFlow2' and args[15] == 1:
+                req_node.increment(('online communication', 'bits'), args[14] * args[3] * args[4] * args[7] * args[8] * args[11] * config.bit_length * config.computation_security)
             req_node.increment(('online communication', 'bits'), res[0])
             req_node.increment(('offline communication', 'bits'), res[2])
             online_round = max(online_round, res[1])
@@ -2830,7 +2833,7 @@ class conv2ds(base.DataInstruction, base.VarArgsInstruction, base.Mergeable):
         req_node.increment(('offline', 'round'), offline_round)
         super(conv2ds, self).add_usage(req_node)
         args = self.args
-        for i in range(0, len(self.args), 15):
+        for i in range(0, len(self.args), 16):
             args = self.args[i:i + 15]
             req_node.increment(('matmul', (1, args[7] * args[8] * args[11],
                                            args[14] * args[3] * args[4])), 1)

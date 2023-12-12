@@ -17,7 +17,7 @@ class LinearRegression(nn.Module):
     @buildingblock("log-Regressoin")    
     def forward(self,x):
         out = self.linear(x)
-        out = F.sigmoid(out)
+        out = F.relu(out)
         return out
 
 x = MultiArray([3,3], sfix)
@@ -27,7 +27,6 @@ for i in range(x.total_size()):
 
 for i in range(y.total_size()):
     y.assign_vector(sfix(i), i)
-x.input_sfix(0)
 dataload = dataloader.DataLoader(x, y, batch_size = 2, shuffle=False)
 
 model = LinearRegression()

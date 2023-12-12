@@ -749,7 +749,7 @@ unsigned BaseInstruction::get_max_reg(int reg_type) const
   case CONV2DS:
       {
           unsigned res = 0;
-          for (size_t i = 0; i < start.size(); i += 15)
+          for (size_t i = 0; i < start.size(); i += 16)
           {
               unsigned tmp = start[i]
                                   + start[i + 3] * start[i + 4] * start.at(i + 14);

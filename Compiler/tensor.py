@@ -1176,7 +1176,7 @@ def var_of_multiarray(self, dim, keepdim=False, unbiased=False):
             summary = sum(input_perm.get_vector(i*stride, stride))
             mean.assign_vector(summary, i)
         break_point()
-        mean[:] *= 1 / stride
+        mean[:]= mean[:]  / stride
         # dmean
         @for_range_opt(output.value.total_size())
         def _(i):
@@ -2126,7 +2126,7 @@ class Tensor():
         op_id += 1
         return output
 
-    def flatten(self, start_dim, end_dim):
+    def flatten(self, start_dim, end_dim=-1):
         sizes = self.sizes
         length = len(sizes)
         if start_dim < 0:
@@ -2496,6 +2496,9 @@ class Tensor():
     
     @buildingblock("chunk")
     def chunk(self, chunks, dim=0):
+        stride = reduce(lambda x,y:x*y,self.shape[dim+1:])
+        prefix_total = self.value.total_size() // stride // self.shape[dim]
+        new_dim_size = (self.sizes[dim]+chunks-1) // chunks
         @buildingblock(get_program().globalbuildingblock)
         def propagate(dl_doutputs,operation):
             input=tensors[operation.inputs[0]]
@@ -2510,10 +2513,9 @@ class Tensor():
         global op_id
         global init_op_id
         if prepare:
-            stride = reduce(lambda x,y:x*y,self.shape[dim+1:])
-            prefix_total = self.value.total_size() // stride // self.shape[dim]
+
             
-            new_dim_size = (self.sizes[dim]+chunks-1) // chunks
+
             new_chunks = (self.sizes[dim]-1)// new_dim_size
             
             new_size = self.sizes[:dim] + (new_dim_size,) + self.sizes[dim+1:]
@@ -2560,7 +2562,7 @@ class Tensor():
     
     @buildingblock("expand_as")
     def expand_as(self, other):
-        return self.expand(self, list(other.value.sizes))
+        return self.expand(list(other.value.sizes))
 
     @buildingblock("repeat")
     def repeat(self, *sizes):

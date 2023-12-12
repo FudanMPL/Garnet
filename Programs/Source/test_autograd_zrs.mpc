@@ -5,7 +5,7 @@ import functional as F
 import operator
 
 # program.options_from_args()
-ROW=3
+ROW=4
 COL=4
 HEIGHT=4
 LENGTH=10
@@ -438,11 +438,11 @@ def test_relu():
     # tensor.train()
     # tensor.reset_op_id()
     output=F.relu(input,inplace=True)
-    output.backward()
-    input.value.print_reveal_nested()
-    output.value.print_reveal_nested()
-    output.grad.print_reveal_nested()
-    input.grad.print_reveal_nested()
+    # output.backward()
+    # input.value.print_reveal_nested()
+    # output.value.print_reveal_nested()
+    # output.grad.print_reveal_nested()
+    # input.grad.print_reveal_nested()
 
 @autograd_function
 def test_logsigmoid():
@@ -496,7 +496,7 @@ def test_conv2d():
 
 
     training_labels = MultiArray([4, 10], sint)
-    weight_v=MultiArray([3,1,3,3],sfix)
+    weight_v=MultiArray([3,3,3,3],sfix)
     for i in range(0,3):
         for j in range(0,3):
             for k in range(0,3):
@@ -505,7 +505,7 @@ def test_conv2d():
     weight_v.print_reveal_nested()
     input = Tensor(training_samples, req_grad = True)
     weight=Tensor(weight_v,req_grad = True )
-    output=F.conv2d(input,weight,padding=[2,2], groups = 3)
+    output=F.conv2d(input,weight,padding=[2,2], groups = 1)
     output.backward()
     output.value.print_reveal_nested()
     weight.grad.print_reveal_nested()

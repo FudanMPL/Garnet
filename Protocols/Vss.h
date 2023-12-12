@@ -103,7 +103,7 @@ public:
 
             auto& args = instruction.get_start();
             vector<Conv2dTuple> tuples;
-            for (size_t i = 0; i < args.size(); i += 15)
+            for (size_t i = 0; i < args.size(); i += 16)
                 tuples.push_back(Conv2dTuple(args, i));
             for (auto& tuple : tuples)
                 tuple.run_matrix(processor);

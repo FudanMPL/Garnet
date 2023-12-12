@@ -1426,7 +1426,7 @@ class _NormBase(Module):
         num_features: int,
         eps: float = 1e-5,
         momentum: float = 0.1,
-        affine: bool = True,
+        affine: bool = False,
         track_running_stats: bool = True,
         device=None,
         dtype=None
@@ -1446,8 +1446,11 @@ class _NormBase(Module):
         if self.track_running_stats:
             self.register_buffer('running_mean', Tensor.zeros(num_features))
             self.register_buffer('running_var', Tensor.ones(num_features))
+            self.register_buffer('running_std', Tensor.ones(num_features))
+            
             self.running_mean: Optional[Tensor]
             self.running_var: Optional[Tensor]
+            self.running_std: Optional[Tensor]
             self.register_buffer('num_batches_tracked', Tensor.ones(1))
             self.num_batches_tracked: Optional[Tensor]
         else:
@@ -1497,7 +1500,7 @@ class _BatchNorm(_NormBase):
         num_features: int,
         eps: float = 1e-5,
         momentum: float = 0.1,
-        affine: bool = True,
+        affine: bool = False,
         track_running_stats: bool = True,
         device=None,
         dtype=None
@@ -1548,6 +1551,7 @@ class _BatchNorm(_NormBase):
             if not self.training or self.track_running_stats
             else None,
             self.running_var if not self.training or self.track_running_stats else None,
+            self.running_std if not self.training or self.track_running_stats else None,
             self.weight,
             self.bias,
             bn_training,
@@ -1885,6 +1889,59 @@ class MaxPool2d(_MaxPoolNd):
     def forward(self, input: Tensor):
         return F.max_pool2d(input, self.kernel_size, self.stride,
                             self.padding)
+class _AdaptiveAvgPoolNd(Module):
+    __constants__ = ['output_size']
+
+    def __init__(self, output_size: int) -> None:
+        super().__init__()
+        self.output_size = output_size
+
+    def extra_repr(self) -> str:
+        return 'output_size={}'.format(self.output_size)
+
+
+class AdaptiveAvgPool2d(_AdaptiveAvgPoolNd):
+    r"""Applies a 2D adaptive average pooling over an input signal composed of several input planes.
+
+    The output is of size H x W, for any input size.
+    The number of output features is equal to the number of input planes.
+
+    Args:
+        output_size: the target output size of the image of the form H x W.
+                     Can be a tuple (H, W) or a single H for a square image H x H.
+                     H and W can be either a ``int``, or ``None`` which means the size will
+                     be the same as that of the input.
+
+    Shape:
+        - Input: :math:`(N, C, H_{in}, W_{in})` or :math:`(C, H_{in}, W_{in})`.
+        - Output: :math:`(N, C, S_{0}, S_{1})` or :math:`(C, S_{0}, S_{1})`, where
+          :math:`S=\text{output\_size}`.
+
+    Examples:
+        >>> # target output size of 5x7
+        >>> m = nn.AdaptiveAvgPool2d((5, 7))
+        >>> input = torch.randn(1, 64, 8, 9)
+        >>> output = m(input)
+        >>> # target output size of 7x7 (square)
+        >>> m = nn.AdaptiveAvgPool2d(7)
+        >>> input = torch.randn(1, 64, 10, 9)
+        >>> output = m(input)
+        >>> # target output size of 10x7
+        >>> m = nn.AdaptiveAvgPool2d((None, 7))
+        >>> input = torch.randn(1, 64, 10, 9)
+        >>> output = m(input)
+
+    """
+
+    def forward(self, input: Tensor) -> Tensor:
+        if isinstance(self.output_size, int):
+            stride = math.floor(input.sizes[2]/self.output_size)
+            kernel_size = input.sizes[2]-(self.output_size-1)*stride
+            
+            return F.avg_pool2d(input, kernel_size, stride,
+                                0)
+        raise CompilerError("does not support tuple input temporarily in AdaptiveAvgPool2d")
+
 
 class _AvgPoolNd(Module):
     __constants__ = ['kernel_size', 'stride', 'padding', 'ceil_mode', 'count_include_pad']
@@ -1972,6 +2029,82 @@ class AvgPool2d(_AvgPoolNd):
         return F.avg_pool2d(input, self.kernel_size, self.stride,
                             self.padding)
 
+class Hardsigmoid(Module):
+    r"""Applies the Hardsigmoid function element-wise.
+
+    Hardsigmoid is defined as:
+
+    .. math::
+        \text{Hardsigmoid}(x) = \begin{cases}
+            0 & \text{if~} x \le -3, \\
+            1 & \text{if~} x \ge +3, \\
+            x / 6 + 1 / 2 & \text{otherwise}
+        \end{cases}
+
+    Args:
+        inplace: can optionally do the operation in-place. Default: ``False``
+
+    Shape:
+        - Input: :math:`(*)`, where :math:`*` means any number of dimensions.
+        - Output: :math:`(*)`, same shape as the input.
+
+    .. image:: ../scripts/activation_images/Hardsigmoid.png
+
+    Examples::
+
+        >>> m = nn.Hardsigmoid()
+        >>> input = torch.randn(2)
+        >>> output = m(input)
+    """
+    __constants__ = ['inplace']
+
+    inplace: bool
+
+    def __init__(self, inplace : bool = False) -> None:
+        super().__init__()
+        self.inplace = inplace
+
+    def forward(self, input: Tensor) -> Tensor:
+        return F.hardsigmoid(input, self.inplace)
+
+class Hardswish(Module):
+    r"""Applies the Hardswish function, element-wise, as described in the paper:
+    `Searching for MobileNetV3 <https://arxiv.org/abs/1905.02244>`_.
+
+    Hardswish is defined as:
+
+    .. math::
+        \text{Hardswish}(x) = \begin{cases}
+            0 & \text{if~} x \le -3, \\
+            x & \text{if~} x \ge +3, \\
+            x \cdot (x + 3) /6 & \text{otherwise}
+        \end{cases}
+
+    Args:
+        inplace: can optionally do the operation in-place. Default: ``False``
+
+    Shape:
+        - Input: :math:`(*)`, where :math:`*` means any number of dimensions.
+        - Output: :math:`(*)`, same shape as the input.
+
+    .. image:: ../scripts/activation_images/Hardswish.png
+
+    Examples::
+
+        >>> m = nn.Hardswish()
+        >>> input = torch.randn(2)
+        >>> output = m(input)
+    """
+    __constants__ = ['inplace']
+
+    inplace: bool
+
+    def __init__(self, inplace : bool = False) -> None:
+        super().__init__()
+        self.inplace = inplace
+
+    def forward(self, input: Tensor) -> Tensor:
+        return F.hardswish(input, self.inplace)
 
 class ReLU(Module):
     r"""Applies the rectified linear unit function element-wise:

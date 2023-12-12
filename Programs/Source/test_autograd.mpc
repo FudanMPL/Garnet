@@ -539,33 +539,33 @@ def test_f_batchnorm():
     # input2 = F.batch_norm(input1, running_mean = M, running_var = S, 
     #                       weight=W, bias=B, training=True)
 
-    v = MultiArray([2,2,2,2], sfix)
-    for i in range(0,2):
-        for j in range(0,2):
-            for k in range(0, 2):
-                for q in range(0, 2):
-                    v[i][j][k][q] = sfix((i+j+k+q))
-    vec = Tensor(v, req_grad = True)
+    # v = MultiArray([2,2,2,2], sfix)
+    # for i in range(0,2):
+    #     for j in range(0,2):
+    #         for k in range(0, 2):
+    #             for q in range(0, 2):
+    #                 v[i][j][k][q] = sfix((i+j+k+q))
+    # vec = Tensor(v, req_grad = True)
     # input4 = input2 * vec 
 
     # tensor.train()
     # tensor.reset_op_id()
 
     input2 = F.batch_norm(input1, running_mean = M, running_var = S, 
-                          weight=W, bias=B, training=True)
-    input4 = input2 * vec
+                          weight=None, bias=None, training=True)
+    # input4 = input2 * vec
 
-    input4.backward()
+    # input4.backward()
     
     
-    print_ln('xhat_batchnorm_output: ')
-    input2.value.print_reveal_nested()
-    print_ln('xhat_batchnorm_backward: ')
-    input2.grad.print_reveal_nested()
+    # print_ln('xhat_batchnorm_output: ')
+    # input2.value.print_reveal_nested()
+    # print_ln('xhat_batchnorm_backward: ')
+    # input2.grad.print_reveal_nested()
     
     
-    print_ln('x_batchnorm_backward: ')
-    input1.grad.print_reveal_nested()
+    # print_ln('x_batchnorm_backward: ')
+    # input1.grad.print_reveal_nested()
 
 @autograd_function
 def test_f_layernorm():
@@ -956,7 +956,7 @@ def test_arange():
 # test_hardtanh()
 
 # test_f_droupout(0.5)
-#test_f_batchnorm()
+test_f_batchnorm()
 # test_f_layernorm()
 #test_f_mseloss()
 #test_f_normalize(p=2, dim=[0,1])
