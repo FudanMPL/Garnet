@@ -122,7 +122,10 @@ class Program(object):
         print("Default security parameter:", self.security)
         self.galois_length = int(options.galois)
         self.protocol = options.protocol
+
         self.n_parties = options.n_parties
+        self.cost_config = get_cost_config(self.protocol)
+        self.cost_config.init(self)
         self.is_profiling = options.profiling
         if self.verbose:
             print("Galois length:", self.galois_length)
@@ -198,9 +201,6 @@ class Program(object):
         comparison.set_variant(options)
         
     def get_cost(self, name):
-        if self.cost_config is None:
-            self.cost_config = get_cost_config(self.protocol)
-            self.cost_config.init(self)
         return self.cost_config.get_cost(name)
         
     def get_args(self):

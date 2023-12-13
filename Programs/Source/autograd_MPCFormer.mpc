@@ -12,7 +12,7 @@ program.use_trunc_pr = True
 class config():
        def __init__(self):
         self.batch_size = 1
-        self.num_hidden_layers = 1
+        self.num_hidden_layers = 12
         self.hidden_size = 768
         self.intermediate_size = 3072
         self.sequence_length = 512
@@ -208,7 +208,7 @@ class BertIntermediate(nn.Module):
         if config.hidden_act == "relu":
             self.intermediate_act_fn = nn.ReLU()
         elif config.hidden_act == "quad":
-            self.intermediate_act_fn = nn.GELU()
+            self.intermediate_act_fn = nn.GELU(approximate= 'hardtanh')
         else:
             raise ValueError(f"activation type {config.hidden_act} not implemented")
         self.timing = timing
