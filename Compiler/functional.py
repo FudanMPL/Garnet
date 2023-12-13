@@ -674,6 +674,41 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0], 
 def conv_transpose2d(input, weight, bias=None, stride=1, padding=0, outputpadding=0):
      pass
 
+def conv_by_gemm(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0], groups = 1):
+    assert isinstance(input, Tensor) and isinstance(weight, Tensor) ,"Invalid Input and weight"
+    assert len(input.shape)==4 and len(weight.shape)==4,"Invalid Dimension input and weight"
+    N, Cin, Hin, Win = input.shape
+    Cout, Cin, h, w = weight.shape
+    
+    Hout = (Hin+2*padding-h)//stride[0]+1
+    Wout = (Win+2*padding-w)//stride[1]+1
+    out_shape=[N,Cout,Hout,Wout] #out_shape.size:[Batch_size,out_channel,H_out,W_out]
+    new_value=MultiArray(out_shape,input.value.value_type)
+    output = Tensor(new_value, req_grad=input.req_grad)
+
+    stride_h, stride_w = stride
+    padding_h, padding_w = padding
+         
+        # _, _,weights_h, weights_w= weight.shape
+        # N,  n_channels_in,inputs_h, inputs_w = input.shape
+        # _,  n_channels_out,output_h, output_w = output.shape #N C H W
+    
+    weight_value = weight.value[:]
+    weight_value.reshape([Cout*Cin, h*w])
+    
+    input_value = MultiArray([h*w, N*Cin], input.value.value_type) 
+    input.value.permute_without_malloc(input_value, [1,0,2,3]) # C N H W
+    
+    
+    input.value.reshape([C, N*H*W])
+    
+        output_value = MultiArray([output.sizes[0], output.sizes[2], output.sizes[3], output.sizes[1]], output.value.value_type)
+        output.value.permute_without_malloc(output_value, [0,2,3,1]) # N, H, W, C
+        
+        
+        output_value.permute_without_malloc(output.value, [0,3,1,2])
+
+
 @buildingblock("max_pool2d-forward")
 def max_pool2d(input, kernel_size=2, stride=2, padding=0):
     op_id=get_opid()

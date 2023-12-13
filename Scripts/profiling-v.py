@@ -32,7 +32,23 @@ def visualizing(single_dict, fig_name):
     # 创建圆盘比例可视化图表
     plt.figure(figsize=(8, 8))
     colors = plt.cm.Paired(range(len(values)))
-    plt.pie(values, colors=colors, wedgeprops=dict(width=0.4, edgecolor='w'), autopct='%1.1f%%', startangle=90, pctdistance=0.85)
+    
+    # 画空心饼图，标注百分比和原始数值
+    def func(pct, allvalues):
+        value = int(pct/100.*sum(allvalues))
+        value_GB = value / 1024**3 / 8
+        value /= 8
+        if value<1024:
+            return f"{pct:.2f}%\n({value:.2f}B)"
+        value /=1024
+        if value<1024:
+            return f"{pct:.2f}%\n({value:.2f}KB)"
+        value /=1024
+        if value<1024:
+            return f"{pct:.2f}%\n({value:.2f}MB)"
+        value /=1024
+        return f"{pct:.2f}%\n({value:.2f}GB)"
+    plt.pie(values, colors=colors, wedgeprops=dict(width=0.4, edgecolor='w'), autopct=lambda pct: func(pct, values), startangle=90, pctdistance=0.85)
 
     # 添加颜色+标签的说明栏
     handles = [plt.Rectangle((0,0),1,1, color=colors[i], ec="k") for i in range(len(values))]
