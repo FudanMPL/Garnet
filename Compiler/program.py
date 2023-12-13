@@ -493,6 +493,8 @@ class Program(object):
         #     print(key)
         #     for i in range(0, len(value)):
         #         print(len(value[i])) 
+        start_time = time.time()
+        
         profiling_res = self.curr_tape.req_node.aggregate_profiling()
         
         if self.is_profiling:
@@ -502,6 +504,9 @@ class Program(object):
                 for x in value.pretty():
                     if "online" in x or  "offline" in x:
                         print(x)
+                        
+        end_time = time.time()
+        print('profiling time: ' + str(end_time - start_time)) 
         
         if self.tapes:
             self.update_req(self.curr_tape)
