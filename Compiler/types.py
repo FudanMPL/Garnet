@@ -4625,7 +4625,7 @@ class sfix(_fix):
         else:
             cls.k = k
         try:
-            Program.prog.cost_config.set_precision(f)
+            program.cost_config.set_precision(f)
         except:
             pass
 
@@ -6065,11 +6065,11 @@ class SubMultiArray(_vectorizable):
         res.check_indices = self.check_indices
         return res
 
-    @property # added by shenhao,I think this is not a nessaracy addition?
+    @property 
     def shape(self):
         return list(self.sizes)
 
-    @property # added by shenhao,I think this is not a nessaracy addition?
+    @property
     def dim(self):
         return len(self.sizes)
 

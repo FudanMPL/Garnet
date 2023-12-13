@@ -1930,7 +1930,6 @@ class Tensor():
                 dl_d[operation.inputs[0]][:] += cur_dinput1[:]
                 cur_dinput1.delete()
             if other.req_grad:
-                # shenhao: need to revise permute
                 cur_dinput2 = input1.value.trans_bmm_to(dl_dy, is_reduce=True)
                 dl_d[operation.inputs[1]][:] += cur_dinput2[:]
                 cur_dinput2.delete()

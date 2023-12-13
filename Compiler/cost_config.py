@@ -34,7 +34,7 @@ class Cost(object):
     computation_security = 1
     cost_dict = defaultdict(lambda: -1)
     cost_dict_func = defaultdict(lambda: -1)
-
+    subcls = None
     @classmethod
     def update_cost(cls):
         for key, value in cls.cost_dict_constasnt_func.items():
@@ -44,7 +44,13 @@ class Cost(object):
                 cls.cost_dict[key] = value  
         for key, value in cls.cost_dict_func.items():
             if value.__code__.co_argcount == 5:
+
                 cls.cost_dict[key] = value(cls.bit_length, cls._security,cls.computation_security, cls.f, cls.n_parties)
+                if key == 'TruncPr':
+                        print(cls.cost_dict[key])
+                if key == 'muls':
+                        print(cls.cost_dict[key])
+                    
             else:   
                 cls.cost_dict[key] = value
         if cls.program.options.ring:
@@ -73,11 +79,12 @@ class Cost(object):
         cls.n_parties = program.n_parties
         cls.program = program
         cls.update_cost()
+        Cost.subcls = cls
     
     @classmethod
-    def set_precision(cls, precision):
-        cls.f = precision
-        cls.update_cost()
+    def set_precision(self, precision):
+        Cost.f = precision
+        Cost.subcls.update_cost()
 
     cost_dict_constasnt_func = {
         "triple":lambda bit_length, kappa_s ,kapaa, precision, n_parties: (0, 0, bit_length * (bit_length+kapaa), 1), # currently, only for two party
@@ -143,8 +150,11 @@ class MPCFormer(Cost):
     
 def cryptflow2_cost(l, m,kappa):
     q=math.ceil(l/m)
-    R = 2^(l%m)
-    M = 2^m
+    r = l%m
+    if r == 0 :
+        r=m
+    R = 2**(r)
+    M = 2**m
     if q>0:
         return kappa*(4*q-math.ceil(math.log(q))-2)+M*(2*q-3)+R*2+22*(q-1)-2*math.ceil(math.log(q))
     else:
@@ -156,18 +166,15 @@ def cryptflow2_search(l,kappa):
         res = min(res, cryptflow2_cost(l, i, kappa))  
     return res 
 class CryptoFlow2(Cost):
-    
-
-    
     cost_dict_func = {
         "share": lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (0, 0, 0, 0),
         "open" : lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (bit_length*2, 1, 0, 0),
         "muls" : lambda bit_length, kappa_s , kapaa, precision, n_parties: (bit_length*(math.ceil((bit_length+1)/2)+kapaa), 1, 0, 0),
         "matmuls": lambda bit_length, kappa_s , kapaa, precision, n_parties, p ,q, r: (q*r*bit_length*(p*math.ceil((bit_length+1))/2+kapaa), 1, 0, 0),
-        "trunc": lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (kapaa*(2+precision)+4*bit_length+14*precision, math.ceil(math.log(bit_length))+1, 0, 0),
-        "Trunc": lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (kapaa*(2+precision)+4*bit_length+14*precision, math.ceil(math.log(bit_length))+1, 0, 0),
+        # "trunc": lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (kapaa*(2+precision)+4*bit_length+14*precision, math.ceil(math.log(bit_length))+1, 0, 0),
+        # "Trunc": lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (kapaa*(2+precision)+4*bit_length+14*precision, math.ceil(math.log(bit_length))+1, 0, 0),
         "LTZ": lambda bit_length, kappa_s , kapaa, precision,  n_parties: ((kapaa+18)*bit_length, math.log2(bit_length)+2, 0, 0),
-        "TruncPr": lambda bit_length, kappa_s , kapaa, precision, n_parties: (cryptflow2_cost(bit_length-1,7 ,kapaa)+2*kapaa+4*bit_length+kapaa+bit_length+cryptflow2_cost(precision, 7,kapaa), 2*math.ceil(math.log(bit_length))+2, 0, 0)
+        "TruncPr": lambda bit_length, kappa_s , kapaa, precision, n_parties: ((kapaa+2)*bit_length+19*bit_length+kapaa*precision+14*precision, 2*math.ceil(math.log(bit_length))+2, 0, 0)
    }
 # class SPDZ(Cost):
 #     cost_dict_func = {
@@ -224,4 +231,4 @@ def get_cost_config(name):
 
 if __name__ == "__main__":
     print(128*59+4*59)
-    print(cryptflow2_cost(59, 7, 128))
+    print(cryptflow2_cost(32, 7, 128))

@@ -5,8 +5,8 @@ from Compiler.types import *
 import copy
 program.options_from_args()
 
-# sfix.set_precision(20, 40)
-# cfix.set_precision(20, 40)
+sfix.set_precision(23, 40)
+cfix.set_precision(12, 40)
 
 @autograd_function
 def test_mul():
@@ -526,7 +526,7 @@ def test_f_batchnorm():
             for k in range(0, 2):
                 for q in range(0, 2):
                     x[i][j][k][q] = sfix(((i*j*k*q+i+j+k+q)%101)*1e-2)
-    x.print_reveal_nested()
+    # x.print_reveal_nested()
     input1 = Tensor(x, req_grad = True)
 
     w, b = Array(2, sfix), Array(2, sfix)
@@ -551,8 +551,8 @@ def test_f_batchnorm():
     # tensor.train()
     # tensor.reset_op_id()
 
-    input2 = F.batch_norm(input1, running_mean = M, running_var = S, 
-                          weight=None, bias=None, training=True)
+    input2 = F.batch_norm(input1, running_mean = M, running_var = S,running_std = S, 
+                          weight=None, bias=None, training=False)
     # input4 = input2 * vec
 
     # input4.backward()
@@ -968,4 +968,4 @@ test_f_batchnorm()
 # test_expand()
 # test_triu()
 # test_getitem()
-test_chunk()
+# test_chunk()
