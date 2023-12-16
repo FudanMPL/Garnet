@@ -18,6 +18,12 @@
 
 #include <sodium.h>
 #include <string>
+#include <vector>
+#include <algorithm>
+
+#define RECEIVER_P 0
+
+typedef uint64_t idtype;
 
 template <class T>
 SubProcessor<T>::SubProcessor(ArithmeticProcessor &Proc, typename T::MAC_Check &MC,
@@ -701,14 +707,14 @@ void SubProcessor<T>::psi_align(const vector<typename T::clear> &source, const I
   ids++;
   idtype n = dim[0];
   // cout << "align " << distance(S.begin(), res) << " " << distance(res, S.end()) << " " << distance(source.begin(), ids) << " " << distance(ids, source.end()) << "\n";
-  for (int i = 0; i < num; i++)
+  for (size_t i = 0; i < num; i++)
   {
     cout << *(ids + i) << " ";
   }
   cout << endl;
 
   // step1: find position of ids
-  string idfile = "Player-Data/PSI/ID_P" + to_string(P.my_num());
+  string idfile = "Player-Data/PSI/ID-P" + to_string(P.my_num());
   // vector<idtype> lines = readIDP(source, idfile);
   ifstream fid;
   fid.open(idfile, ios::in);
@@ -744,7 +750,7 @@ void SubProcessor<T>::psi_align(const vector<typename T::clear> &source, const I
   fid.close();
 
   // step2: find features of ids
-  string ffile = "Player-Data/PSI/F_P" + to_string(P.my_num());
+  string ffile = "Player-Data/PSI/F-P" + to_string(P.my_num());
   // vector<vector<idtype>> fs = readFeature(ffile, lines, n, dim[P.my_num() + 1]);
   idtype row = dim[0];
   idtype col = dim[1 + P.my_num()];
@@ -768,14 +774,14 @@ void SubProcessor<T>::psi_align(const vector<typename T::clear> &source, const I
     cerr << "Unable to open file: " << ffile << endl;
   }
 
-  idtype currentCol = 0;
+  // idtype currentCol = 0;
   idtype value;
   istringstream iss;
   vector<vector<idtype>> mfs(num, vector<idtype>(col, 0));
-  for (int i = 0; i < num; i++)
+  for (size_t i = 0; i < num; i++)
   {
     iss = istringstream(features[lines[i]]);
-    for (int j = 0; j < col; j++)
+    for (size_t j = 0; j < col; j++)
     {
       iss >> value;
       mfs[i][j] = value;
@@ -799,10 +805,10 @@ void SubProcessor<T>::psi_align(const vector<typename T::clear> &source, const I
   octetStream cs1 = cs[1 - P.my_num()];
   vector<vector<T>> fs_rand(num, vector<T>(col, 0)); // save randomness
   T share_tmp;
-  for (int i = 0; i < num; i++)
+  for (size_t i = 0; i < num; i++)
   {
     vector<T> rand_line;
-    for (int j = 0; j < col; j++)
+    for (size_t j = 0; j < col; j++)
     {
       share_tmp = DataF.get_random();
       share_tmp.pack(cs0);
@@ -818,10 +824,10 @@ void SubProcessor<T>::psi_align(const vector<typename T::clear> &source, const I
   cout << mfs.size() << " " << mfs[0].size() << " " << fs_rand.size() << " " << fs_rand[0].size() << endl;
   if (P.my_num() == RECEIVER_P)
   {
-    for (int i = 0; i < num; i++)
+    for (size_t i = 0; i < num; i++)
     {
       // cout << i << ":" << endl;
-      for (int j = 0; j < col; j++)
+      for (size_t j = 0; j < col; j++)
       {
         // MC->prepare_open(proc.S[args[i * cols + j]]);
         // cout << j << endl;
@@ -840,15 +846,15 @@ void SubProcessor<T>::psi_align(const vector<typename T::clear> &source, const I
   }
   else
   {
-    for (int i = 0; i < num; i++)
+    for (size_t i = 0; i < num; i++)
     {
-      for (int j = 0; j < dim[1]; j++)
+      for (size_t j = 0; j < dim[1]; j++)
       {
         // MC->prepare_open(proc.S[args[i * cols + j]]);
         f_tmp.unpack(cs1);
         *(res + i * cols + j) = f_tmp;
       }
-      for (int j = 0; j < col; j++)
+      for (size_t j = 0; j < col; j++)
       {
         // MC->prepare_open(proc.S[args[i * cols + dim[1] + j]]);
         *(res + i * cols + dim[1] + j) = (T)mfs[i][j] - fs_rand[i][j];
@@ -858,7 +864,7 @@ void SubProcessor<T>::psi_align(const vector<typename T::clear> &source, const I
 }
 
 template <class T>
-void SubProcessor<T>::psi(const vector<typename T::clear> &source, const Instruction &instruction, size_t n)
+void SubProcessor<T>::psi(const Instruction &instruction)
 {
   // octetStream cs;
   // int r0 = instruction.get_r(0);
@@ -876,7 +882,7 @@ void SubProcessor<T>::psi(const vector<typename T::clear> &source, const Instruc
   }
   cout << endl;
 
-  r.open("Player-Data/PSI/ID_P" + to_string(P.my_num()), ios::in);
+  r.open("Player-Data/PSI/ID-P" + to_string(P.my_num()), ios::in);
   vector<osuCrypto::block> ids;
   vector<idtype> smallids;
   idtype r_tmp;
@@ -1060,7 +1066,6 @@ void SubProcessor<T>::psi(const vector<typename T::clear> &source, const Instruc
     num = inter_ids.size();
     // proc.Proc->public_file << num << "\n";
     cs2.store(num);
-    size_t i = 0;
     for (const idtype &inter_id : inter_ids)
     {
       cs2.store(inter_id);

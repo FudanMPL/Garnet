@@ -91,7 +91,7 @@ public:
   void delete_shuffle(int handle);
   void inverse_permutation(const Instruction &instruction);
 
-  void psi(const vector<typename T::clear> &source, const Instruction &instruction, size_t n);
+  void psi(const Instruction &instruction);
   void psi_align(const vector<typename T::clear> &source, const Instruction &instruction);
 
   void input_personal(const vector<int> &args);
