@@ -1,0 +1,7 @@
+f0 = 7
+f1 = 7
+n = 6
+
+val = PSI(n,f0,f1)
+
+print(val)
