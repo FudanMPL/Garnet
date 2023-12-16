@@ -4,6 +4,8 @@ n = 6
 
 result,num = PSI(n,f0,f1)
 
-print_ln("result=%s",result.reveal())
+print_str("num:")
+print_int(num)
+print_str("\n")
 
-print(num)
+print_ln("result=%s",result.reveal())
