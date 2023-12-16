@@ -875,12 +875,12 @@ void SubProcessor<T>::psi(const Instruction &instruction)
   auto &args = instruction.get_start();
   fstream r;
   idtype m = args.back();
-  cout << args.size() << " m: " << m << endl;
-  for (size_t i = 0; i < args.size(); i++)
-  {
-    cout << args[i] << " ";
-  }
-  cout << endl;
+  // cout << args.size() << " m: " << m << endl;
+  // for (size_t i = 0; i < args.size(); i++)
+  // {
+  //   cout << args[i] << " ";
+  // }
+  // cout << endl;
 
   r.open("Player-Data/PSI/ID-P" + to_string(P.my_num()), ios::in);
   vector<osuCrypto::block> ids;
@@ -905,15 +905,18 @@ void SubProcessor<T>::psi(const Instruction &instruction)
   int nbase = 128;
   size_t l = sizeof(idtype) * 8;
   int nOTs = l * params.numBins();
-  PRNG G;
-  G.ReSeed();
+  // PRNG G;
+  // G.ReSeed();
   OT_ROLE ot_role;
   // cout << params.numBins() << endl;
   osuCrypto::CuckooIndex<> cuckoo;
   SimpleIndex sIdx;
   if (P.my_num() == RECEIVER_P)
   {
-    osuCrypto::block cuckooSeed;
+    int seed = 0;
+    cs0.store(seed);
+    P.send_to(1 - RECEIVER_P, cs0);
+    osuCrypto::block cuckooSeed(seed);
     cuckoo.init(params);
     cuckoo.insert(ids, cuckooSeed);
     cuckoo.print();
@@ -921,7 +924,10 @@ void SubProcessor<T>::psi(const Instruction &instruction)
   }
   else
   {
-    osuCrypto::block cuckooSeed;
+    P.receive_player(RECEIVER_P, cs0);
+    int seed;
+    cs0.get(seed);
+    osuCrypto::block cuckooSeed(seed);
     sIdx.init(params.numBins(), m, ssp, 3);
     sIdx.insertItems(ids, cuckooSeed);
     sIdx.print();
@@ -995,15 +1001,15 @@ void SubProcessor<T>::psi(const Instruction &instruction)
   // print
   // for (int i = 0; i < nOTs; i++)
   // {
-  //     if (ot_role == SENDER)
-  //     {
-  //         // send both inputs over
-  //         cout << bot.sender_inputs[i][0].str() << " | " << bot.sender_inputs[i][1].str() << endl;
-  //     }
-  //     else
-  //     {
-  //         cout << receiverInput[i] << ": " << bot.receiver_outputs[i].str() << endl;
-  //     }
+  //   if (ot_role == SENDER)
+  //   {
+  //     // send both inputs over
+  //     cout << i << " " << bot.sender_inputs[i][0].str() << " | " << bot.sender_inputs[i][1].str() << endl;
+  //   }
+  //   else
+  //   {
+  //     cout << i << " " << receiverInput[i] << ": " << bot.receiver_outputs[i].str() << endl;
+  //   }
   // }
   // bot.check();
 
@@ -1052,6 +1058,7 @@ void SubProcessor<T>::psi(const Instruction &instruction)
         // r_fs[i] = key;
         // find same element
         strkey = key.str();
+        // cout << strkey << endl;
         bool found = binary_search(s_fs.begin(), s_fs.end(), strkey);
         if (found)
         {
@@ -1091,7 +1098,7 @@ void SubProcessor<T>::psi(const Instruction &instruction)
 
       // for (size_t jj = i * params.numBins(); jj < i * l + l; jj++)
       // {
-      //     cout << outs[0][jj].str() << " " << outs[1][jj].str() << endl;
+      //   cout << outs[0][jj].str() << " " << outs[1][jj].str() << endl;
       // }
 
       for (unsigned int k = 0; k < sIdx.mBinSizes[i]; k++)
@@ -1135,6 +1142,7 @@ void SubProcessor<T>::psi(const Instruction &instruction)
   for (size_t i = 0; i < num; i++)
   {
     res[i + 1] = inter_ids[i];
+    cout << inter_ids[i] << endl;
   }
   // delete bot;
   delete ot_ext;
