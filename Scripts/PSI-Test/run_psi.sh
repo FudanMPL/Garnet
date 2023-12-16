@@ -7,7 +7,7 @@ case $param in
         sudo ./compile.py -F 64 test_psi -v -C -K psi_cisc
         ;;
     "r")
-        sudo ./compile.py -F 64 test_psi -v
+        sudo ./compile.py -l -F 64 test_psi
         ;;
     "x")
         sudo make -j 8 semi2k-party.x
