@@ -3,11 +3,11 @@
 
 program.options_from_args()
 
-training_samples = sfix.Tensor([60000, 28, 28])
-training_labels = sint.Tensor([60000, 10])
+training_samples = sfix.Tensor([600, 28, 28])
+training_labels = sint.Tensor([600, 10])
 
-test_samples = sfix.Tensor([10000, 28, 28])
-test_labels = sint.Tensor([10000, 10])
+test_samples = sfix.Tensor([100, 28, 28])
+test_labels = sint.Tensor([100, 10])
 
 training_labels.input_from(0)
 training_samples.input_from(0)

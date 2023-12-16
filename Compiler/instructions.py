@@ -33,6 +33,43 @@ _python_input = input
 
 
 ###
+# Private Set Intersection
+###
+
+@base.vectorize
+class psi_risc(base.VarArgsInstruction):
+    """ psi.
+    :param: result plain value (cint)
+    :param: number of element (cint)
+    """
+    __slots__ = []
+    code = base.opcodes['PSI']
+    arg_format = tools.cycle(['cw', 'int'])
+
+# @base.vectorize
+class psi_align(base.VarArgsInstruction):
+    """ psi.
+    :param: result secret shared value (sint)
+    :param: plain of ids (cint)
+    :param: number of data
+    :param: number of features from P0
+    :param: number of features from P1
+    """
+    __slots__ = []
+    code = base.opcodes['PSIALIGN']
+    arg_format = ['sw', 'c','int','int','int']
+    
+    def __init__(self, *args, **kwargs):
+        print(len(args[0]))
+        print(len(args[1]))
+        print(args[2])
+        print(args[3])
+        print(args[4])
+        assert len(args[1]) == args[2]
+        assert len(args[0]) == args[2]*(args[3]+args[4])
+        super(psi_align, self).__init__(*args, **kwargs)
+
+###
 ### Change domain instructions
 ###
 

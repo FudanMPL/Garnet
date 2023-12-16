@@ -285,7 +285,7 @@ $(LIBSIMPLEOT_ASM): deps/SimpleOT/Makefile
 OT/BaseOT.o: deps/SimpleOT/Makefile
 
 deps/SimpleOT/Makefile:
-	git submodule update --init deps/SimpleOT || git clone https://github.com/mkskeller/SimpleOT deps/SimpleOT
+	git submodule update --init deps/SimpleOT || git clone git@github.com:mkskeller/SimpleOT deps/SimpleOT
 endif
 
 $(LIBSIMPLEOT_C): deps/SimplestOT_C/ref10/Makefile
@@ -294,7 +294,7 @@ $(LIBSIMPLEOT_C): deps/SimplestOT_C/ref10/Makefile
 OT/BaseOT.o: deps/SimplestOT_C/ref10/Makefile
 
 deps/SimplestOT_C/ref10/Makefile:
-	git submodule update --init deps/SimplestOT_C || git clone https://github.com/mkskeller/SimplestOT_C deps/SimplestOT_C
+	git submodule update --init deps/SimplestOT_C || git clone git@github.com:mkskeller/SimplestOT_C deps/SimplestOT_C
 	cd deps/SimplestOT_C/ref10; PATH=$(CURDIR)/local/bin:$(PATH) cmake .
 
 .PHONY: Programs/Circuits
@@ -304,7 +304,7 @@ Programs/Circuits:
 .PHONY: mpir-setup mpir-global
 mpir-setup: deps/mpir/Makefile
 deps/mpir/Makefile:
-	git submodule update --init deps/mpir || git clone https://github.com/wbhart/mpir deps/mpir
+	git submodule update --init deps/mpir || git clone git@github.com:wbhart/mpir deps/mpir
 	cd deps/mpir; \
 	autoreconf -i; \
 	autoreconf -i
@@ -323,7 +323,7 @@ local/lib/libmpirxx.so: deps/mpir/Makefile
 	$(MAKE) -C deps/mpir install
 
 deps/libOTe/libOTe:
-	git submodule update --init --recursive deps/libOTe || git clone --recurse-submodules https://github.com/mkskeller/softspoken-implementation deps/libOTe
+	git submodule update --init --recursive deps/libOTe || git clone --recurse-submodules git@github.com:mkskeller/softspoken-implementation deps/libOTe
 boost: deps/libOTe/libOTe
 	cd deps/libOTe; \
 	python3 build.py --setup --boost --install=$(CURDIR)/local
@@ -381,7 +381,7 @@ linux-machine-setup:
 endif
 
 deps/simde/simde:
-	git submodule update --init deps/simde || git clone https://github.com/simd-everywhere/simde deps/simde
+	git submodule update --init deps/simde || git clone git@github.com:simd-everywhere/simde deps/simde
 
 
 clean:
