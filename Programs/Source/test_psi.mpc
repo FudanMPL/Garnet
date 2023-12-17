@@ -1,6 +1,6 @@
 f0 = 7
 f1 = 7
-n = 6
+n = 1024
 
 result,num = PSI(n,f0,f1)
 

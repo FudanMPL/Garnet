@@ -19,11 +19,12 @@ def generate_random_numbers_to_file(m, n, filename):
 
 
 # Specify the number of rows and the number of random numbers per row, as well as the filename to write to
-m = 20  # For example, generate 5mrows
-n = 7  # n random numbers per row
+n = 20  # For example, generate 5mrows
+f = 7  # n random numbers per row
 base_path = "./Player-Data/PSI/"
 pn = 2
 
-for i in range(pn):
-    generate_random_ids_to_file(m, base_path+'ID_P'+str(i))
-    generate_random_numbers_to_file(m, n, base_path+'F_P'+str(i))
+
+# for i in range(pn):
+#     generate_random_ids_to_file(n, base_path+'ID_P'+str(i))
+#     generate_random_numbers_to_file(n, f, base_path+'F_P'+str(i))
