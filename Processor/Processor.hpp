@@ -703,15 +703,15 @@ void SubProcessor<T>::psi_align(const vector<typename T::clear> &source, const I
 
   const void *tmp = (*ids).get_ptr();
   idtype num = *reinterpret_cast<const idtype *>(tmp);
-  cout << "num: " << num << endl;
+  // cout << "num: " << num << endl;
   ids++;
   idtype n = dim[0];
   // cout << "align " << distance(S.begin(), res) << " " << distance(res, S.end()) << " " << distance(source.begin(), ids) << " " << distance(ids, source.end()) << "\n";
-  for (size_t i = 0; i < num; i++)
-  {
-    cout << *(ids + i) << " ";
-  }
-  cout << endl;
+  // for (size_t i = 0; i < num; i++)
+  // {
+  //   cout << *(ids + i) << " ";
+  // }
+  // cout << endl;
 
   // step1: find position of ids
   string idfile = "Player-Data/PSI/ID-P" + to_string(P.my_num());
@@ -737,7 +737,7 @@ void SubProcessor<T>::psi_align(const vector<typename T::clear> &source, const I
       if (it != idend)
       {
         l = std::distance(ids, it);
-        cout << id_tmp << " " << i << " " << l << endl;
+        // cout << id_tmp << " " << i << " " << l << endl;
         lines[l] = i;
       }
     }
@@ -763,7 +763,7 @@ void SubProcessor<T>::psi_align(const vector<typename T::clear> &source, const I
 
     while (getline(file, line) && currentLine < row)
     {
-      std::cout << line << endl;
+      // std::cout << line << endl;
       features.push_back(line);
       currentLine++;
     }
@@ -785,13 +785,13 @@ void SubProcessor<T>::psi_align(const vector<typename T::clear> &source, const I
     {
       iss >> value;
       mfs[i][j] = value;
-      cout << value << " ";
+      // cout << value << " ";
 
       // split by ','
       // if (currentCol < col)
       //   iss.ignore(numeric_limits<streamsize>::max(), ',');
     }
-    cout << endl;
+    // cout << endl;
   }
 
   // int lambda = T::clear::MAX_N_BITS;
@@ -813,15 +813,15 @@ void SubProcessor<T>::psi_align(const vector<typename T::clear> &source, const I
       share_tmp = DataF.get_random();
       share_tmp.pack(cs0);
       fs_rand[i][j] = share_tmp;
-      cout << fs_rand[i][j] << " ";
+      // cout << fs_rand[i][j] << " ";
     }
-    cout << endl;
+    // cout << endl;
   }
   P.send_to(1 - P.my_num(), cs0);
   P.receive_player(1 - P.my_num(), cs1);
 
   T f_tmp;
-  cout << mfs.size() << " " << mfs[0].size() << " " << fs_rand.size() << " " << fs_rand[0].size() << endl;
+  // cout << mfs.size() << " " << mfs[0].size() << " " << fs_rand.size() << " " << fs_rand[0].size() << endl;
   if (P.my_num() == RECEIVER_P)
   {
     for (size_t i = 0; i < num; i++)
@@ -841,7 +841,7 @@ void SubProcessor<T>::psi_align(const vector<typename T::clear> &source, const I
         *(res + i * cols + j) = f_tmp;
         // cout << j << " |";
       }
-      cout << endl;
+      // cout << endl;
     }
   }
   else
@@ -893,11 +893,11 @@ void SubProcessor<T>::psi(const Instruction &instruction)
     ids.push_back(osuCrypto::block(r_tmp));
   }
   r.close();
-  for (size_t i = 0; i < m; i++)
-  {
-    cout << ids[i] << " ";
-  }
-  cout << endl;
+  // for (size_t i = 0; i < m; i++)
+  // {
+  //   cout << ids[i] << " ";
+  // }
+  // cout << endl;
 
   // ssp 40
   int ssp = 40;
@@ -919,7 +919,7 @@ void SubProcessor<T>::psi(const Instruction &instruction)
     osuCrypto::block cuckooSeed(seed);
     cuckoo.init(params);
     cuckoo.insert(ids, cuckooSeed);
-    cuckoo.print();
+    // cuckoo.print();
     ot_role = RECEIVER;
   }
   else
@@ -930,11 +930,11 @@ void SubProcessor<T>::psi(const Instruction &instruction)
     osuCrypto::block cuckooSeed(seed);
     sIdx.init(params.numBins(), m, ssp, 3);
     sIdx.insertItems(ids, cuckooSeed);
-    sIdx.print();
+    // sIdx.print();
     ot_role = SENDER;
   }
 
-  cout << "begin base ot \n";
+  // cout << "begin base ot \n";
   // base ot
   timeval baseOTstart, baseOTend;
   gettimeofday(&baseOTstart, NULL);
@@ -943,8 +943,8 @@ void SubProcessor<T>::psi(const Instruction &instruction)
   bot.exec_base();
   gettimeofday(&baseOTend, NULL);
   double basetime = timeval_diff(&baseOTstart, &baseOTend);
-  cout << "BaseTime (" << role_to_str(ot_role) << "): " << basetime / 1000000 << endl
-       << flush;
+  // cout << "BaseTime (" << role_to_str(ot_role) << "): " << basetime / 1000000 << endl
+  //      << flush;
   // Receiver send something to force synchronization
   // (since Sender finishes baseOTs before Receiver)
   if (P.my_num() == RECEIVER_P)
@@ -985,10 +985,10 @@ void SubProcessor<T>::psi(const Instruction &instruction)
     // receiverInput.randomize(G);
   }
   // cout << receiverInput.str() << flush;
-  cout << "Running " << nOTs << " OT extensions\n"
-       << flush;
+  // cout << "Running " << nOTs << " OT extensions\n"
+  //      << flush;
 
-  cout << "Initialize OT Extension\n";
+  // cout << "Initialize OT Extension\n";
   timeval OTextstart, OTextend;
   gettimeofday(&OTextstart, NULL);
 
@@ -1015,8 +1015,8 @@ void SubProcessor<T>::psi(const Instruction &instruction)
 
   gettimeofday(&OTextend, NULL);
   double totaltime = timeval_diff(&OTextstart, &OTextend);
-  cout << "Time for OTExt (" << role_to_str(ot_role) << "): " << totaltime / 1000000 << endl
-       << flush;
+  // cout << "Time for OTExt (" << role_to_str(ot_role) << "): " << totaltime / 1000000 << endl
+  //      << flush;
 
   // caculate oprf
   idtype num;
@@ -1142,7 +1142,7 @@ void SubProcessor<T>::psi(const Instruction &instruction)
   for (size_t i = 0; i < num; i++)
   {
     res[i + 1] = inter_ids[i];
-    cout << inter_ids[i] << endl;
+    // cout << inter_ids[i] << endl;
   }
   // delete bot;
   delete ot_ext;
