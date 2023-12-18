@@ -26,9 +26,11 @@ from functools import reduce
 #     new_index.append(tmp_i)
 #     print_ln("%s, %s, %s", index_store[0], index_store[1], y.get_vector_by_indices(*index_store).reveal())
 #     print_ln("%s, %s", new_index[0], new_index[1])
-x = sfix(-5)
-y = sfix(6)
-z = x/y
+# program.use_trunc_pr = True
+# # sfix.set_precision(23, 3)
+x = sfix([1,1,1,1,1,1,1,1,1,1,1])
+y = sfix([1,1,1,1,1,1,1,1,1,1,1])
+z = x>y
 # m = z>x
+# z = sfix.get_input_from(0)
 
-print_ln("adsger:%s", z.reveal())

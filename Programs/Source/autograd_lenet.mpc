@@ -15,16 +15,13 @@ class LeNet(nn.Module):
             nn.AvgPool2d(2, 2), # kernel_size, stride
             nn.Conv2d(6, 16, 5),
             nn.Relu(),
-            nn.AvgPool2d(2, 2)
-        )
+            nn.AvgPool2d(2, 2))
         self.fc = nn.Sequential(
             nn.Linear(16*4*4, 1000),
             nn.Relu(),
             nn.Linear(1000, 840),
-            nn.Relu()
-        )
+            nn.Relu())
         self.fc1 = nn.Linear(840, 10)
-
     def forward(self, img):
         feature = self.conv(img)
         feature = feature.view(img.shape[0], -1)

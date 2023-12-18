@@ -88,6 +88,7 @@ class Program(object):
         self.name = name
         self.init_names(args)
         self._security = 40
+        
         self.c_security = 128
         self.prime = None
         self.tapes = []
@@ -125,6 +126,7 @@ class Program(object):
 
         self.n_parties = options.n_parties
         self.cost_config = get_cost_config(self.protocol)
+        self.kappa_s = self.bit_length
         self.cost_config.init(self)
         self.is_profiling = options.profiling
         if self.verbose:
