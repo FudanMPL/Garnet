@@ -1357,6 +1357,10 @@ class Tensor():
     def randomize(self, *args):
         self.value.randomize(*args)
         
+    def get_input_from(self, player):
+        input = self.value.value_type.get_input_from(player, size=self.value.length)
+        self.value.assign_vector(input)
+        return self
         
     @property
     def sizes(self):

@@ -703,12 +703,12 @@ def conv_by_gemm(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[
     
     
     input.value.reshape([C, N*H*W])
-    
-        output_value = MultiArray([output.sizes[0], output.sizes[2], output.sizes[3], output.sizes[1]], output.value.value_type)
-        output.value.permute_without_malloc(output_value, [0,2,3,1]) # N, H, W, C
+    ###
+    output_value = MultiArray([output.sizes[0], output.sizes[2], output.sizes[3], output.sizes[1]], output.value.value_type)
+    output.value.permute_without_malloc(output_value, [0,2,3,1]) # N, H, W, C
         
         
-        output_value.permute_without_malloc(output.value, [0,3,1,2])
+    output_value.permute_without_malloc(output.value, [0,3,1,2])
 
 
 @buildingblock("max_pool2d-forward")

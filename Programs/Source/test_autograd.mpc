@@ -969,3 +969,8 @@ test_f_batchnorm()
 # test_triu()
 # test_getitem()
 # test_chunk()
+
+x = MultiArray([2, 2], sfix)
+input = Tensor(x, req_grad = True)
+input.get_input_from(2)
+input.print_reveal_nested()
