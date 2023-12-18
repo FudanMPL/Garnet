@@ -71,6 +71,9 @@ class DataLoader():
         self.data_buffer.value[:] = self.samples[i].value[:]
         self.label_buffer.value[:] = self.labels[i].value[:]
         return self.data_buffer, self.label_buffer
+    
+    def __getitem__(self, i):
+        return self.get_data(i)
                
         
         

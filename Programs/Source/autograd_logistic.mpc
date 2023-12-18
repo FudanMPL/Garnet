@@ -22,9 +22,10 @@ criterion = nn.CrossEntropyLoss()
 model.train()
 @for_range(5)
 def _(i):
-    x, labels = dataloader.get_data(i)
+    x, labels = dataloader[i]
     optimizer.zero_grad()
     output = model(x)
     loss = criterion(output, labels)
+    loss.print_reveal_nested()
     loss.backward()
     optimizer.step()
