@@ -215,12 +215,12 @@ tree-inference.x: Machines/tree-inference.cpp  $(MINI_OT) $(SHAREDLIB)
 
 
 tree-inference.x:   Machines/tree-inference.cpp
-replicated-bin-party.x: GC/square64.o
-replicated-ring-party.x: GC/square64.o
-replicated-field-party.x: GC/square64.o
+replicated-bin-party.x: $(OT) GC/square64.o
+replicated-ring-party.x:  $(OT) GC/square64.o
+replicated-field-party.x: $(OT) GC/square64.o
 brain-party.x: GC/square64.o
-malicious-rep-bin-party.x: GC/square64.o
-ps-rep-bin-party.x: GC/PostSacriBin.o
+malicious-rep-bin-party.x: $(OT) GC/square64.o
+ps-rep-bin-party.x: $(OT) GC/PostSacriBin.o
 semi-bin-party.x: $(OT) $(GC_SEMI)
 tiny-party.x: $(OT)
 tinier-party.x: $(OT)
@@ -230,7 +230,7 @@ semi-party.x: $(OT)  $(GC_SEMI)
 semi2k-party.x: $(OT) $(GC_SEMI)
 sml-party.x: $(OT) $(GC_SEMI) 
 vss-party.x: $(OT) $(GC_SEMI)
-fss-ring-party.x: GC/square64.o
+fss-ring-party.x: $(OT) GC/square64.o
 hemi-party.x: $(FHEOFFLINE) $(GC_SEMI) $(OT)
 temi-party.x: $(FHEOFFLINE) $(GC_SEMI) $(OT)
 soho-party.x: $(FHEOFFLINE) $(GC_SEMI) $(OT)
@@ -246,9 +246,9 @@ static/cowgear-party.x: $(FHEOBJS)
 static/chaigear-party.x: $(FHEOBJS)
 static/lowgear-party.x: $(FHEOBJS) Protocols/CowGearOptions.o Protocols/LowGearKeyGen.o
 static/highgear-party.x: $(FHEOBJS) Protocols/CowGearOptions.o Protocols/HighGearKeyGen.o
-mascot-party.x: $(SPDZ)
+mascot-party.x: $(OT) $(SPDZ)
 static/mascot-party.x: $(SPDZ)
-Player-Online.x: $(SPDZ)
+Player-Online.x: $(OT) $(SPDZ)
 mama-party.x: $(TINIER)
 ps-rep-ring-party.x: Protocols/MalRepRingOptions.o
 malicious-rep-ring-party.x: Protocols/MalRepRingOptions.o
