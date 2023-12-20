@@ -594,7 +594,6 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0], 
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
-        print("conv output size")
         print(input.shape[0]*weight.shape[0]*((input.shape[2]+2*padding[0]-weight.shape[2])//stride[0]+1)*
                    (input.shape[3]+2*padding[1]-weight.shape[3])//stride[1]+1)
         # set_opid(op_id+1)
@@ -1089,7 +1088,6 @@ def normalize(input, p=2, dim=1, eps=1e-12, out=None):
     xpsumSqr = xpsum.invsqrt(eps=eps)
     return input * xpsumSqr
     
-batch_total_size = 0
 @buildingblock("batch_norm")
 def batch_norm(input, running_mean, running_var, running_std = None, weight=None, bias=None, training=False, eps=1e-05, momentum=0.1):
     
@@ -1115,10 +1113,6 @@ def batch_norm(input, running_mean, running_var, running_std = None, weight=None
     rrrr = 1
     for i in range(0,4):
         rrrr*= input.sizes[i]
-    global batch_total_size
-    print("batch norm size")
-    batch_total_size+=rrrr
-    print(batch_total_size)
     if training:
         x_mean = input.mean(dim=[0,2,3], keepdim=True)
         # x_var = input.std(dim=[0,2,3], keepdim=True) 

@@ -2853,7 +2853,7 @@ class trunc_pr(base.VarArgsInstruction):
     arg_format = tools.cycle(['sw','s','int','int'])
 
     def add_usage(self, req_node):
-        res = program.get_cost("trunc")
+        res = program.get_cost("TruncPr")
         if res == -1:
             print("The profiling results could be biased")
             print("Please config the cost of trunc in cost_config.py")

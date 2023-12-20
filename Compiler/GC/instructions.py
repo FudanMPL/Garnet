@@ -250,7 +250,6 @@ class ands(BinaryVectorInstruction):
             print("The profiling results could be biased")
             print("Please config the cost of ands in cost_config.py")
             return
-        print(sum(self.args[::4]))
         req_node.increment(('online communication', 'bits'), math.ceil(res[0]*sum(self.args[::4])/128)*128)
         req_node.increment(('offline communication', 'bits'), math.ceil(res[2]*sum(self.args[::4])/128)*128)
         req_node.increment(('online', 'round'), res[1])

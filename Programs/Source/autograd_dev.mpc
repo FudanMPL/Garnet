@@ -1,5 +1,6 @@
 
 from functools import reduce
+from Compiler import mpc_math, util
 # m = MultiArray([3,10], cint)
 # for i in range(30):
 #     m[i//10][i%10] = i%10
@@ -28,9 +29,9 @@ from functools import reduce
 #     print_ln("%s, %s", new_index[0], new_index[1])
 # program.use_trunc_pr = True
 # # sfix.set_precision(23, 3)
-x = sfix([1,1,1,1,1,1,1,1,1,1,1])
-y = sfix([1,1,1,1,1,1,1,1,1,1,1])
-z = x>y
-# m = z>x
+x = sfix([1,1,1,1,1,1,1,1,1,1])
+y = sfix([1,1,1,1,1,1,1,1,1,1])
+z = mpc_math.InvertSqrt(x)
+# m = x>y
 # z = sfix.get_input_from(0)
 

@@ -109,7 +109,9 @@ class ABY3(Cost): #done
         "matmuls": lambda bit_length, kappa_s , kapaa, precision, n_parties, p ,q, r: (p*r*bit_length*3, 1, 0, 0),
         "TruncPr": lambda bit_length, kappa_s , kapaa, precision, n_parties: (bit_length, 1, 0, 0),
         "LTZ": lambda bit_length, kappa_s , kapaa, precision, n_parties: (bit_length*9, math.log2(bit_length)+2, 0, 0),
-        "trunc": lambda bit_length, kappa_s , kapaa, precision, n_parties: (bit_length, 1, 0, 0)
+        # "trunc": lambda bit_length, kappa_s , kapaa, precision, n_parties: (bit_length, 1, 0, 0),
+        # "bit_share":lambda bit_length, kappa_s , kapaa, precision, n_parties: (3, 1, 0, 0),
+        # "ands":lambda bit_length, kappa_s , kapaa, precision, n_parties: (3, 1, 0, 0)
    }
 
 class SecureML(Cost): #done
@@ -128,8 +130,8 @@ class ABY(Cost):
         "muls" : lambda bit_length, kappa_s , kapaa, precision, n_parties: (bit_length*4, 1, bit_length*(2*kapaa+bit_length+1), 2),
         "matmuls": lambda bit_length, kappa_s , kapaa, precision, n_parties, p ,q, r: (p*q*r*bit_length*2, 1, p*q*r*bit_length*(2*kapaa+bit_length+1), 2),
         "trunc": lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (0, 0, 0, 0),
-        "Trunc" : lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (0, 0, 0, 0),
-        "LTZ": lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (bit_length*kapaa*2+kapaa+bit_length, 4, bit_length*kapaa*4, 2),
+        "TruncPr" : lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (0, 0, 0, 0),
+        # "LTZ": lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (bit_length*kapaa*2+kapaa+bit_length, 4, bit_length*kapaa*4, 2),
    }
 class MPCFormer(Cost):
     cost_dict_func = {
@@ -137,9 +139,8 @@ class MPCFormer(Cost):
     "open" : lambda bit_length, kappa_s , kapaa, precision, n_parties: (bit_length*2, 1, 0, 0),
     "muls" : lambda bit_length, kappa_s , kapaa, precision, n_parties: (bit_length*4, 1, 0, 0),
     "matmuls": lambda bit_length, kappa_s , kapaa, precision, n_parties, p ,q, r: ((p*q + q*r)*bit_length*2, 1, 0, 0),
-    "trunc": lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (0, 0, 0, 0),
+    "TruncPr": lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (0, 0, 0, 0),
     "exp_fx":lambda bit_length, kappa_s , kapaa, precision, n_parties: (bit_length*(16), 8, 0, 0),
-    "Trunc" : lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (0, 0, 0, 0),
     "LTZ":lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (bit_length*54, 8, 0, 0),
     "EQZ":lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (bit_length*26, 8, 0, 0),
     "Reciprocal":lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (bit_length*138, 38, 0, 0)
@@ -176,8 +177,8 @@ class SPDZ(Cost):
         "share": lambda bit_length, kappa_s , kapaa, precision, n_parties: ((kappa_s+bit_length)*(n_parties-1), 1, (kappa_s*bit_length+bit_length+kappa_s)*n_parties*(n_parties-1), 3), # offline: Fmac 
         "open" : lambda bit_length, kappa_s , kapaa, precision, n_parties: ((bit_length+kappa_s)*n_parties*(n_parties-1), 1, (kappa_s*bit_length+bit_length+kappa_s)*n_parties*(n_parties-1), 3), #((bit_length+kappas_s)*n_parties)
         "muls" : lambda bit_length, kappa_s , kapaa, precision, n_parties: ((bit_length+kappa_s)*n_parties*(n_parties-1)*2, 1, (kappa_s*bit_length+bit_length+kappa_s)*n_parties*(n_parties-1)+ n_parties*(n_parties-1)*(18*kappa_s*kappa_s+4*bit_length*bit_length+17*bit_length*kappa_s), 8), #(Fmac+(bit_length+kappas_s)*n_parties)
-        "matmuls": lambda bit_length, kappa_s , kapaa, precision, n_parties, p ,q, r: (p*q*r*(bit_length+kappa_s)*n_parties*(n_parties-1)*2, 1, 0, 0), #pqr(Fmac+(bit_length+kappas_s)*n_parties)
-        "trunc": lambda bit_length, kappa_s , kapaa, precision, n_parties: ((bit_length+kappa_s)*n_parties*(n_parties-1), 1, 0, 0)
+        "matmuls": lambda bit_length, kappa_s , kapaa, precision, n_parties, p ,q, r: (p*q*r*(bit_length+kappa_s)*n_parties*(n_parties-1)*2, 1, p*q*r*((kappa_s*bit_length+bit_length+kappa_s)*n_parties*(n_parties-1)+ n_parties*(n_parties-1)*(18*kappa_s*kappa_s+4*bit_length*bit_length+17*bit_length*kappa_s)), 8), #pqr(Fmac+(bit_length+kappas_s)*n_parties)
+        "TruncPr": lambda bit_length, kappa_s , kapaa, precision, n_parties: ((bit_length+kappa_s)*n_parties*(n_parties-1), 1, bit_length*((kappa_s+bit_length)*(n_parties-1)+(kappa_s*bit_length+bit_length+kappa_s)*n_parties*(n_parties-1)+(bit_length+kappa_s)*n_parties*(n_parties-1)*2+(kappa_s*bit_length+bit_length+kappa_s)*n_parties*(n_parties-1)+ n_parties*(n_parties-1)*(18*kappa_s*kappa_s+4*bit_length*bit_length+17*bit_length*kappa_s)), 13)
    }
 
 class BGW(Cost): #done
@@ -189,14 +190,17 @@ class BGW(Cost): #done
         # "trunc": lambda bit_length, kapaa, precision, n_parties: (bit_length*3, 1, 0, 0)
    }
 
-# class Falcon(Cost):
-#     cost_dict_func = {
-#         "share": lambda bit_length, kappa_s , kapaa, precision, n_parties: (bit_length*3, 1, 0, 0),
-#         "open" : lambda bit_length, kappa_s , kapaa, precision, n_parties: (bit_length*3, 1, 0, 0),
-#         "muls" : lambda bit_length, kappa_s , kapaa, precision, n_parties: (bit_length*3, 1, 0, 0),
-#         "matmuls": lambda bit_length, kappa_s , kapaa, precision, n_parties, p ,q, r: (p*r*bit_length*2, 1, 0, 0),
-#         "trunc": lambda bit_length, kappa_s , kapaa, precision, n_parties: (bit_length*3, 1, 0, 0)
-#    }
+class Falcon(Cost):
+    cost_dict_func = {
+        "share": lambda bit_length, kappa_s , kapaa, precision, n_parties: (bit_length*3, 1, 0, 0),
+        "open" : lambda bit_length, kappa_s , kapaa, precision, n_parties: (bit_length*6, 1, 0, 0),
+        "muls" : lambda bit_length, kappa_s , kapaa, precision, n_parties: (bit_length*6, 1, 0, 0),
+        "matmuls": lambda bit_length, kappa_s , kapaa, precision, n_parties, p ,q, r: (p*r*bit_length*6, 1, 0, 0),
+        "LTZ": lambda bit_length, kappa_s , kapaa, precision,  n_parties: (24*bit_length, math.log2(bit_length)+5, bit_length*2+8*6*2+bit_length+bit_length*math.log2(bit_length)+bit_length*2+bit_length, 8+math.log2(bit_length)+1+2+math.log2(bit_length)+1),
+        "TruncPr": lambda bit_length, kappa_s , kapaa, precision, n_parties: (bit_length, 0, bit_length*8+bit_length+bit_length*math.log2(bit_length)+(bit_length-precision)+(bit_length-precision)*math.ceil(math.log2((bit_length-precision))), 1+math.log2(bit_length)+1),
+        "Pow2":lambda bit_length, kappa_s , kapaa, precision, n_parties: (bit_length*bit_length*(24),  bit_length*(math.log2(bit_length)+5), (bit_length*2+8*6*2+bit_length+bit_length*math.log2(bit_length)+bit_length*2+bit_length)*bit_length, 8+math.log2(bit_length)+1+2+math.log2(bit_length)+1),
+        "Reciprocal":lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (bit_length*bit_length*(24) + 12*bit_length, bit_length*(math.log2(bit_length)+5)+5, (bit_length*2+8*6*2+bit_length+bit_length*math.log2(bit_length)+bit_length*2+bit_length)*bit_length, 8+math.log2(bit_length)+1+2+math.log2(bit_length)+1),
+   }
 
 # class ABY2(Cost):
 #     cost_dict_func = {
@@ -212,7 +216,7 @@ protocol_store = {
     "SecureML" : SecureML(),
     "ABY": ABY(),
     # "ABY2.0": ABY2(),
-    # "Falcon": Falcon(),
+    "Falcon": Falcon(),
     "BGW": BGW(),
     "CryptFlow2": CryptoFlow2(),
     "MPCFormer": MPCFormer(),

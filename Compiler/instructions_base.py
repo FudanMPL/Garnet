@@ -547,7 +547,10 @@ def cisc(function):
             repeat = 0
             for call in self.calls:
                 repeat += 1
-            res = program.get_cost(self.__class__.__name__)
+            if self.__class__.__name__ == 'Trunc':
+                res = program.get_cost('TruncPr')
+            else:
+                res = program.get_cost(self.__class__.__name__)
             if res == -1:
                 print("The profiling results could be biased")
                 print("Please config the cost of " + self.__class__.__name__ + " in cost_config.py")

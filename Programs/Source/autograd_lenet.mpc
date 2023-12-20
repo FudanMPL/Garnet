@@ -17,11 +17,11 @@ class LeNet(nn.Module):
             nn.Relu(),
             nn.AvgPool2d(2, 2))
         self.fc = nn.Sequential(
-            nn.Linear(16*4*4, 1000),
+            nn.Linear(16*4*4, 120),
             nn.Relu(),
-            nn.Linear(1000, 840),
+            nn.Linear(120, 84),
             nn.Relu())
-        self.fc1 = nn.Linear(840, 10)
+        self.fc1 = nn.Linear(84, 10)
     def forward(self, img):
         feature = self.conv(img)
         feature = feature.view(img.shape[0], -1)
@@ -32,17 +32,17 @@ class LeNet(nn.Module):
 model = LeNet()
 crossloss = nn.MSELoss()
 
-x = MultiArray([10,1,28,28], sfix)
-y = MultiArray([10,10], sfix)
+x = MultiArray([128,1,28,28], sfix)
+y = MultiArray([128,10], sfix)
 
-@for_range(x.total_size())
-def _(i):
-    x.assign_vector(sfix(i/10), i)
-y.assign_all(0)
-for i in range(10):
-    y[i][i//3] = 1
+# @for_range(x.total_size())
+# def _(i):
+#     x.assign_vector(sfix(i/10), i)
+# y.assign_all(0)
+# for i in range(10):
+#     y[i][i//3] = 1
 
-dataload = dataloader.DataLoader(x, y, batch_size = 3, shuffle=True)
+dataload = dataloader.DataLoader(x, y, batch_size = 128)
 optimizer = optim.SGD(model.parameters(), lr = 0.01)
 params = list(model.parameters())
 for i in params:
@@ -56,8 +56,5 @@ def _(i):
     loss = crossloss(output, label)
     optimizer.zero_grad()
     loss.backward()
-    output.print_reveal_nested()
-    loss.print_reveal_nested()
-    output.grad.print_reveal_nested()
     optimizer.step()
    
