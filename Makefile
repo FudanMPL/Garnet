@@ -215,12 +215,12 @@ tree-inference.x: Machines/tree-inference.cpp  $(MINI_OT) $(SHAREDLIB)
 
 
 tree-inference.x:   Machines/tree-inference.cpp
-replicated-bin-party.x: GC/square64.o
-replicated-ring-party.x: GC/square64.o
-replicated-field-party.x: GC/square64.o
+replicated-bin-party.x: $(OT) GC/square64.o
+replicated-ring-party.x:  $(OT) GC/square64.o
+replicated-field-party.x: $(OT) GC/square64.o
 brain-party.x: GC/square64.o
-malicious-rep-bin-party.x: GC/square64.o
-ps-rep-bin-party.x: GC/PostSacriBin.o
+malicious-rep-bin-party.x: $(OT) GC/square64.o
+ps-rep-bin-party.x: $(OT) GC/PostSacriBin.o
 semi-bin-party.x: $(OT) $(GC_SEMI)
 tiny-party.x: $(OT)
 tinier-party.x: $(OT)
@@ -230,7 +230,7 @@ semi-party.x: $(OT)  $(GC_SEMI)
 semi2k-party.x: $(OT) $(GC_SEMI)
 sml-party.x: $(OT) $(GC_SEMI) 
 vss-party.x: $(OT) $(GC_SEMI)
-fss-ring-party.x: GC/square64.o
+fss-ring-party.x: $(OT) GC/square64.o
 hemi-party.x: $(FHEOFFLINE) $(GC_SEMI) $(OT)
 temi-party.x: $(FHEOFFLINE) $(GC_SEMI) $(OT)
 soho-party.x: $(FHEOFFLINE) $(GC_SEMI) $(OT)
@@ -246,9 +246,9 @@ static/cowgear-party.x: $(FHEOBJS)
 static/chaigear-party.x: $(FHEOBJS)
 static/lowgear-party.x: $(FHEOBJS) Protocols/CowGearOptions.o Protocols/LowGearKeyGen.o
 static/highgear-party.x: $(FHEOBJS) Protocols/CowGearOptions.o Protocols/HighGearKeyGen.o
-mascot-party.x: $(SPDZ)
+mascot-party.x: $(OT) $(SPDZ)
 static/mascot-party.x: $(SPDZ)
-Player-Online.x: $(SPDZ)
+Player-Online.x: $(OT) $(SPDZ)
 mama-party.x: $(TINIER)
 ps-rep-ring-party.x: Protocols/MalRepRingOptions.o
 malicious-rep-ring-party.x: Protocols/MalRepRingOptions.o
@@ -285,7 +285,7 @@ $(LIBSIMPLEOT_ASM): deps/SimpleOT/Makefile
 OT/BaseOT.o: deps/SimpleOT/Makefile
 
 deps/SimpleOT/Makefile:
-	git submodule update --init deps/SimpleOT || git clone https://github.com/mkskeller/SimpleOT deps/SimpleOT
+	git submodule update --init deps/SimpleOT || git clone git@github.com:mkskeller/SimpleOT deps/SimpleOT
 endif
 
 $(LIBSIMPLEOT_C): deps/SimplestOT_C/ref10/Makefile
@@ -294,7 +294,7 @@ $(LIBSIMPLEOT_C): deps/SimplestOT_C/ref10/Makefile
 OT/BaseOT.o: deps/SimplestOT_C/ref10/Makefile
 
 deps/SimplestOT_C/ref10/Makefile:
-	git submodule update --init deps/SimplestOT_C || git clone https://github.com/mkskeller/SimplestOT_C deps/SimplestOT_C
+	git submodule update --init deps/SimplestOT_C || git clone git@github.com:mkskeller/SimplestOT_C deps/SimplestOT_C
 	cd deps/SimplestOT_C/ref10; PATH=$(CURDIR)/local/bin:$(PATH) cmake .
 
 .PHONY: Programs/Circuits
@@ -304,7 +304,7 @@ Programs/Circuits:
 .PHONY: mpir-setup mpir-global
 mpir-setup: deps/mpir/Makefile
 deps/mpir/Makefile:
-	git submodule update --init deps/mpir || git clone https://github.com/wbhart/mpir deps/mpir
+	git submodule update --init deps/mpir || git clone git@github.com:wbhart/mpir deps/mpir
 	cd deps/mpir; \
 	autoreconf -i; \
 	autoreconf -i
@@ -323,7 +323,7 @@ local/lib/libmpirxx.so: deps/mpir/Makefile
 	$(MAKE) -C deps/mpir install
 
 deps/libOTe/libOTe:
-	git submodule update --init --recursive deps/libOTe || git clone --recurse-submodules https://github.com/mkskeller/softspoken-implementation deps/libOTe
+	git submodule update --init --recursive deps/libOTe || git clone --recurse-submodules git@github.com:mkskeller/softspoken-implementation deps/libOTe
 boost: deps/libOTe/libOTe
 	cd deps/libOTe; \
 	python3 build.py --setup --boost --install=$(CURDIR)/local
@@ -381,7 +381,7 @@ linux-machine-setup:
 endif
 
 deps/simde/simde:
-	git submodule update --init deps/simde || git clone https://github.com/simd-everywhere/simde deps/simde
+	git submodule update --init deps/simde || git clone git@github.com:simd-everywhere/simde deps/simde
 
 
 clean:
