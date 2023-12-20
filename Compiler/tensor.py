@@ -1357,6 +1357,10 @@ class Tensor():
     def randomize(self, *args):
         self.value.randomize(*args)
         
+    def get_input_from(self, player):
+        input = self.value.value_type.get_input_from(player, size=self.value.length)
+        self.value.assign_vector(input)
+        return self
         
     @property
     def sizes(self):
@@ -3154,7 +3158,7 @@ class Tensor():
         def propagate(dl_doutputs, operation):
             dl_dx, = dl_doutputs
             inputs = operation.inputs
-            inter = operation.intermediate[0]  # reuse the intervalue in mem
+            inter, s, t = operation.intermediate[0]  # reuse the intervalue in mem
             dl_dself = dl_d[inputs[0]]
 
             dl_dself[:] += s.if_else(0, t.if_else(0, 1)) * dl_dx[:]
