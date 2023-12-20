@@ -1,7 +1,11 @@
 f0 = 7
 f1 = 7
-n = 6
+n = 1024
 
-val = PSI(n,f0,f1)
+val,num = PSI(n,f0,f1)
 
-print(val)
+print_str("num:")
+print_int(num)
+print_str("\n")
+
+print_ln("result=%s",val.reveal())
