@@ -2992,24 +2992,32 @@ class Tensor():
         return output
 
     def mean(self, dim=None, keepdim=False):
+        if isinstance(dim, int):
+            dim=[dim]
         if isinstance(self.value, Array) or dim==None:
             return mean_of_array(self)
         else:
             return mean_of_multiarray(self, dim, keepdim)
 
     def sum(self, dim=None, keepdim=False):
+        if isinstance(dim, int):
+            dim=[dim]
         if isinstance(self.value, Array) or dim==None:
             return sum_of_array(self)
         else:
             return sum_of_multiarray(self, dim, keepdim)
 
     def std(self, dim=None, keepdim=False):
+        if isinstance(dim, int):
+            dim=[dim]
         if isinstance(self.value, Array) or dim==None:
             return std_of_array(self)
         else:
             return std_of_multiarray(self, dim, keepdim)
 
     def var(self, dim=None, keepdim=False, unbiased=False):
+        if isinstance(dim, int):
+            dim=[dim]
         if isinstance(self.value, Array) or dim==None:
             return var_of_array(self, unbiased)
         else:
