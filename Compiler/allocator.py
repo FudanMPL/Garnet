@@ -275,6 +275,7 @@ class StraightlineAllocator:
             sizes = defaultdict(lambda: 0)
             for reg in self.alloc:
                 x = reg.reg_type, reg.size
+                sizes[x] +=1
             print('Used registers: ', end='')
             p(sizes)
 

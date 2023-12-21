@@ -751,11 +751,11 @@ class _register(Tape.Register, _number, _structure):
         return sum(cls.conv(b) << i for i,b in enumerate(bits))
 
     @classmethod
-    def malloc(cls, size, creator_tape=None):
+    def malloc(cls, size, creator_tape=None, **kwargs):
         """ Allocate memory (statically).
 
         :param size: compile-time (int) """
-        return program.malloc(size, cls, creator_tape=creator_tape)
+        return program.malloc(size, cls, creator_tape=creator_tape, **kwargs)
 
     @classmethod
     def free(cls, addr):
@@ -778,7 +778,11 @@ class _register(Tape.Register, _number, _structure):
                 else:
                     self[i].load_other(x)
         elif val is not None:
-            self.load_other(val)
+            try:
+                self.load_other(val)
+            except:
+                raise CompilerError(
+                    "cannot convert '%s' to '%s'" % (type(val), type(self)))
 
     def _new_by_number(self, i, size=1):
         res = type(self)(size=size)
@@ -4014,7 +4018,7 @@ class cfix(_number, _structure):
             sign = y > 0
             sign = 2 *  sign - 1
             y = y * sign
-        n = 2 ** (sfix.f / 2)
+        # n = 2 ** (sfix.f / 2)
         z = 3 * cls.exp_fx(1 - 2 * y)+ 0.003  if cls.div_initial == None  else cls.div_initial # sfix(1 / n, size=y.size)
         for i in range(cls.div_iters):
             z = 2 * z - y * z * z
@@ -6381,10 +6385,10 @@ class SubMultiArray(_vectorizable):
 
         max_size = _register.maximum_size // out_col
         
-        # @library.multithread(n_threads, row, max_size)
-        # def _(base, size):
-        res.assign_vector(self.direct_mul(other))
-            # res.assign_part_vector(self.get_part(base,size).direct_mul(other),base) # it uses address not create new. These two are the same in time and online or offline round.
+        @library.multithread(n_threads, row, max_size)
+        def _(base, size):
+        # res.assign_vector(self.direct_mul(other))
+            res.assign_part_vector(self.get_part(base,size).direct_mul(other),base) # it uses address not create new. These two are the same in time and online or offline round.
         return res
     
     # Finished: you need to add matmul which is differ from dot because it uses matrix and it need to explicitly create space
@@ -6566,12 +6570,12 @@ class SubMultiArray(_vectorizable):
         :param res: matrix of matching dimension to store (grad_result+res)
         :param n_threads: number of threads (default: single thread)
         """
-        @library.for_range_multithread(n_threads, self.sizes[1],self.sizes[1])
+        @library.for_range_multithread(n_threads, 1, self.sizes[1])
         def _(i):
             indices = [regint(i), regint.inc(self.sizes[0])]
             indices += [regint.inc(i) for i in other.sizes]
             res[i] += self.direct_trans_mul(other, indices=indices)
-    
+
 
     def mul_trans_to(self, other, res, n_threads=None):
         """
@@ -7130,10 +7134,10 @@ class MultiArray(SubMultiArray):
         if res is None:
             res = MultiArray([self.shape[0], output_col], self.value_type)
 
-        # @library.for_range_multithread(n_threads, N, N)
-        # def _(i):
-        #     res[i] = self.direct_mul(other, indices=(regint(i), regint.inc(self.sizes[1]), regint.inc(self.sizes[1]), regint.inc(output_col)))
-        res.assign_vector(self.direct_mul(other))
+        @library.for_range_multithread(n_threads, N, N)
+        def _(i):
+            res[i] = self.direct_mul(other, indices=(regint(i), regint.inc(self.sizes[1]), regint.inc(self.sizes[1]), regint.inc(output_col)))
+        # res.assign_vector(self.direct_mul(other))
         return res
 
     def single_bmm(self, other, res=None):  # i think single_bmm is a part of mm
@@ -7303,15 +7307,43 @@ class MultiArray(SubMultiArray):
         if len(self.sizes) == 2 and keepdims == False:
             assert isinstance(res,Array), "when operation comes to two dim and keepdims is False, res must be Array"
         dim = len(self.sizes)-1 if dim == -1 else dim
-        index_groups = self.getIndexGroups_by_dim(dim)
-        for i in range(len(index_groups)):
-            summary = self.value_type(0)
-            for j in index_groups[i]:
-                summary += self.get_vector_by_indices(*j)
-            res.assign_vector(summary, i)
-        if keepdims:
-            keep_sizes = self.sizes[:dim] + (1,) +self.sizes[dim+1:]
-            res.view(*keep_sizes)
+        # index_groups = self.getIndexGroups_by_dim(dim)
+        # for i in range(len(index_groups)):
+        #     summary = self.value_type(0)
+        #     for j in index_groups[i]:
+        #         summary += self.get_vector_by_indices(*j)
+        #     res.assign_vector(summary, i)
+        # if keepdims:
+        #     keep_sizes = self.sizes[:dim] + (1,) +self.sizes[dim+1:]
+        #     res.view(*keep_sizes)
+        if len(self.sizes) > 1:
+            def get_permute(n, dims):
+                perm = list(filter(lambda x: x not in dims, range(n))) + dims
+                return tuple(perm)
+            new_perm = get_permute(len(self.sizes), [dim])
+            target_size = self.tuple_permute(self.shape, new_perm)
+            input_perm = MultiArray(target_size, self.value_type)
+            self.permute_without_malloc(input_perm, new_perm)    
+            stride = reduce(lambda x, y: x * self.sizes[y], [dim], 1)
+            summary = Array(1, input_perm.value_type)
+            @library.for_range(self.total_size()//stride)
+            def _(i):
+                summary.assign_all(0)
+                @library.for_range(stride)
+                def _(j):
+                    summary[:] += input_perm.get_vector(i*stride+j, 1)
+                res.assign_vector(summary[:], i)
+            summary.delete()
+            tmp = 1 / stride
+            @library.multithread(1, res.total_size())
+            def _(base, size):
+                res.assign_vector(res.get_vector(base, size)* tmp, base)
+            if keepdims:
+                keep_sizes = self.sizes[:dim] + (1,) +self.sizes[dim+1:]
+                res.view(*keep_sizes)
+        else:
+            res[:] = sum(self[:]) / self.total_size()
+            
         return res
 
     def element_wise_mul(self, other, res=None):

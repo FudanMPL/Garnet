@@ -146,6 +146,14 @@ def reconst_dims(v1, v2):
         dims = dim2
     return dims, v1, v2
 
+def aux_mul(input, other):
+    if other < 10**-4:
+        while other < 10**-4:
+            input *= 10**-4
+            other*=10**4
+    else:
+      input *= other
+    return input
 @buildingblock("add-forward")
 def element_wise_add(self, other):
     # backward
@@ -179,10 +187,17 @@ def element_wise_add(self, other):
             dl_dx_pmt = temp2
             
             stride = input1.total_size()//input2.total_size()
+            vsum = Array(1, dl_dx_pmt.value_type)
+            
             @for_range(input2.total_size())
             def _(i):
-                vsum = sum(dl_dx_pmt.get_vector(i*stride, stride))
-                v2.assign_vector(v2.get_vector(i, 1)+vsum, i) 
+                vsum.assign_all(0)
+                @for_range(stride)
+                def _(j):
+                    vsum[:] += dl_dx_pmt.get_vector(i*stride+j, 1)
+                # vsum = sum(dl_dx_pmt.get_vector(i*stride, stride))
+                v2.assign_vector(v2.get_vector(i, 1)+vsum[:], i) 
+            vsum.delete()
             break_point()
         dl_dinputs = [dl_dself, dl_dother]
         return dl_dinputs
@@ -796,8 +811,10 @@ def sum_of_array(self):
         output = tensors[outputs[0]]
         if not forward:
             init_op_id += 1        
-        output.value[:] = sum(input.value[:])
-        
+        # output.value[:] = sum(input.value[:])
+        @for_range(input.value.total_size())
+        def _(i):
+            output.value[:] += input.value[i]
     op_id += 1
     # record the input and output of the op
     return output
@@ -1012,10 +1029,17 @@ def sum_of_multiarray(self, dim, keepdim=False):
         if not forward:
             init_op_id += 1        
         stride = reduce(lambda x, y: x * self.value.sizes[y], dim, 1)
+        summary = Array(1, input_perm.value_type)
+        
         @for_range_opt(input.value.total_size()//stride)
         def _(i):
-            summary = sum(input_perm.get_vector(i*stride, stride))
-            output.value.assign_vector(summary, i)
+            summary.assign_all(0)
+            @for_range(stride)
+            def _(j):
+                summary[:] += input_perm.get_vector(i*stride+j, 1)
+            # summary = sum(input_perm.get_vector(i*stride, stride))
+            output.value.assign_vector(summary[:], i)
+        summary.delete()
         break_point()
     op_id += 1
     # record the input and output of the op
@@ -1037,11 +1061,21 @@ def mean_of_multiarray(self, dim, keepdim=False):
             def _(j):
                 input_perm.assign_vector(dl_dx.get_vector(i, 1), i*stride+j)
         break_point()
-        input_perm[:] *= 1 / stride
+        # input_perm[:] *= 1/ stride
+        n_per_item = reduce(operator.mul, input_perm.sizes[1:])
+        @multithread(1, input_perm.sizes[0], max(1, 100000 // n_per_item))
+        def _(base, size):
+            input_perm.assign_part_vector( aux_mul(input_perm.get_part_vector(base, size), (1/ stride)), base)
+           
         # permute back
         new_perm = get_permute_back(len(self.value.sizes), dim)
         input_perm.permute_without_malloc(temp, new_perm)
-        dl_dself[:] += temp[:]
+        n_per_item = reduce(operator.mul, dl_dself.sizes[1:])
+        @multithread(1, dl_dself.sizes[0], max(1, 100000 // n_per_item))
+        def _(base, size):
+            dl_dself.assign_part_vector( dl_dself.get_part_vector(base, size)+temp.get_part_vector(base, size), base)
+                    
+        # dl_dself[:] += temp[:]
         
         dl_dinputs = [dl_dself]
         return dl_dinputs
@@ -1084,14 +1118,21 @@ def mean_of_multiarray(self, dim, keepdim=False):
         if not forward:
             init_op_id += 1        
         stride = reduce(lambda x, y: x * self.value.sizes[y], dim, 1)
+        summary = Array(1, input_perm.value_type)
         @for_range(input.value.total_size()//stride)
         def _(i):
-            summary = sum(input_perm.get_vector(i*stride, stride))
-            output.value.assign_vector(summary, i)
+            # summary = sum(input_perm.get_vector(i*stride, stride))
+            # output.value.assign_vector(summary, i)
+            summary.assign_all(0)
+            @for_range(stride)
+            def _(j):
+                summary[:] += input_perm.get_vector(i*stride+j, 1)
+            output.value.assign_vector(summary[:], i)
+        summary.delete()
         tmp = 1 / stride
         @multithread(1, output.value.total_size())
         def _(base, size):
-            output.value.assign_vector(output.value.get_vector(base, size)* tmp, base)
+            output.value.assign_vector(aux_mul(output.value.get_vector(base, size), tmp), base)
 
         # output.value.reshape([(1 if i in dim else self.value.sizes[i]) for i in range(len(self.value.sizes))])
     op_id += 1
@@ -1114,16 +1155,32 @@ def var_of_multiarray(self, dim, keepdim=False, unbiased=False):
             def _(j):
                 input_perm.assign_vector(dl_dx.get_vector(i, 1), i*stride+j)
         break_point()
-        input_perm[:] *= 2
+        # input_perm[:] *= 2
         if unbiased:
-            input_perm[:] *= 1 / stride
+            n_per_item = reduce(operator.mul, input_perm.sizes[1:])
+            @multithread(1, input_perm.sizes[0], max(1, 100000 // n_per_item))
+            def _(base, size):
+                input_perm.assign_part_vector( aux_mul(input_perm.get_part_vector(base, size), (2/ stride)), base)
         else:
-            input_perm[:] *= 1 / (stride - 1)
-        input_perm[:] *= dmean[:]
+            n_per_item = reduce(operator.mul, input_perm.sizes[1:])
+            @multithread(1, input_perm.sizes[0], max(1, 100000 // n_per_item))
+            def _(base, size):
+                input_perm.assign_part_vector( aux_mul(input_perm.get_part_vector(base, size), (2/ (stride-1))), base)
+        n_per_item = reduce(operator.mul, input_perm.sizes[1:])
+        @multithread(1, input_perm.sizes[0], max(1, 100000 // n_per_item))
+        def _(base, size):
+            input_perm.assign_part_vector( input_perm.get_part_vector(base, size)*dmean.get_part_vector(base, size), base)
+        # input_perm[:] *= dmean[:]
         # permute back
         new_perm = get_permute_back(len(self.value.sizes), dim)
-        input_perm.permute_without_malloc(dmean, new_perm)
-        dl_dself[:] += dmean[:]
+        tmp = dl_dself.same_shape()
+        input_perm.permute_without_malloc(tmp, new_perm)
+        n_per_item = reduce(operator.mul, dl_dself.sizes[1:])
+        @multithread(1, dl_dself.sizes[0], max(1, 100000 // n_per_item))
+        def _(base, size):
+            dl_dself.assign_part_vector( dl_dself.get_part_vector(base, size)+tmp.get_part_vector(base, size), base)
+        tmp.delete()   
+        # dl_dself[:] += dmean[:]
         
         dl_dinputs = [dl_dself]
         return dl_dinputs
@@ -1143,13 +1200,14 @@ def var_of_multiarray(self, dim, keepdim=False, unbiased=False):
             mean = MultiArray(new_sizes, self.value.value_type)
         output = Tensor(new_value, req_grad=self.req_grad)
         
-        dmean = MultiArray(self.value.sizes, self.value.value_type)
-        dmean_sqr = MultiArray(self.value.sizes, self.value.value_type)
+        # tmp = MultiArray(self.value.sizes, self.value.value_type)
+        # dmean_sqr = MultiArray(self.value.sizes, self.value.value_type)
         
         new_perm = get_permute(len(self.value.sizes), dim)
         target_size = self.value.tuple_permute(self.shape, new_perm)
         input_perm = MultiArray(target_size, self.value.value_type)
-        
+        dmean = MultiArray(target_size, self.value.value_type)
+        dmean_sqr = MultiArray(target_size, self.value.value_type)        
         operation = Operation(inputs=[self.name], outputs=[output.name], 
                               propagate=propagate if self.req_grad else fake_propagate, 
                               intermediate=[input_perm, mean, dmean, dmean_sqr],
@@ -1171,36 +1229,58 @@ def var_of_multiarray(self, dim, keepdim=False, unbiased=False):
         input.value.permute_without_malloc(input_perm, new_perm)
         # mean
         stride = reduce(lambda x, y: x * self.value.sizes[y], dim, 1)
+        summary = Array(1, input_perm.value_type)
         @for_range_opt(output.value.total_size())
         def _(i):
-            summary = sum(input_perm.get_vector(i*stride, stride))
-            mean.assign_vector(summary, i)
+            summary.assign_all(0)
+            @for_range(stride)
+            def _(j):
+                summary[:] += input_perm.get_vector(i*stride+j, 1)
+            mean.assign_vector(summary[:], i)
+        summary.delete()
         break_point()
-        mean[:]= mean[:]  / stride
+        ss = (1/ stride)
+        mean[:] = aux_mul(mean[:], ss)
+        # n_per_item = reduce(operator.mul, mean.sizes[1:])
+        # @multithread(1, input_perm.sizes[0], max(1, 100000 // n_per_item))
+        # def _(base, size):
+        #     print(mean)
+        #     mean.assign_part_vector( mean.get_part_vector(base, size)* (1/ stride), base)
         # dmean
+        dmean_value = Array(stride, input_perm.value_type)
         @for_range_opt(output.value.total_size())
         def _(i):
-            dmean_value = input_perm.get_vector(i*stride, stride) - mean.get_vector(i, 1) 
-            dmean.assign_vector(dmean_value, i*stride)
+            dmean_value.assign_all(0)
+            @for_range(stride)
+            def _(j):
+                dmean_value[j] = input_perm.get_vector(i*stride+j, 1) - mean.get_vector(i, 1) 
+            dmean.assign_vector(dmean_value[:], i*stride)
+        dmean_value.delete()
         break_point()
-        # var
+        # var        
         dmean_sqr[:] = dmean[:] ** 2
+        summary = Array(1, output.value_type)
         @for_range_opt(output.value.total_size())
         def _(i):
-            summary = sum(dmean_sqr.get_vector(i*stride, stride))
-            output.value.assign_vector(summary, i)
+            summary.assign_all(0)
+            @for_range(stride)
+            def _(j):
+                summary[:] += dmean_sqr.get_vector(i*stride+j, 1)
+            output.value.assign_vector(summary[:], i)
+        summary.delete()
+        # output.print_reveal_nested()
         break_point()
         if unbiased:
             tmp = 1 / stride
             @multithread(1, output.value.total_size())
             def _(base, size):
-                output.value.assign_vector(output.value.get_vector(base, size)* tmp , base)
+                output.value.assign_vector(aux_mul(output.value.get_vector(base, size), tmp) , base)
 
         else:
             tmp = 1 / (stride-1)
             @multithread(1, output.value.total_size())
             def _(base, size):
-                output.value.assign_vector(output.value.get_vector(base, size)* tmp , base)
+                output.value.assign_vector(aux_mul(output.value.get_vector(base, size), tmp), base)
 
     op_id += 1
     # record the input and output of the op
@@ -1287,10 +1367,16 @@ def std_of_multiarray(self, dim, keepdim=False):
         input.value.permute_without_malloc(input_perm, new_perm)
         # mean
         stride = reduce(lambda x, y: x * self.value.sizes[y], dim, 1)
+        summary = Array(1, input_perm.value_type)
         @for_range_opt(output.value.total_size())
         def _(i):
-            summary = sum(input_perm.get_vector(i*stride, stride))
-            mean.assign_vector(summary, i)
+            summary.assign_all(0)
+            @for_range(stride)
+            def _(j):
+                summary[:] += input_perm.get_vector(i*stride+j, 1)
+            # summary = sum(input_perm.get_vector(i*stride, stride))
+            mean.assign_vector(summary[:], i)
+        summary.delete()
         break_point()    
         mean[:] *= 1 / stride
         # dmean
@@ -1301,12 +1387,19 @@ def std_of_multiarray(self, dim, keepdim=False):
         break_point()
         # var
         dmean_sqr[:] = dmean[:] ** 2
+        summary = Array(1, input_perm.value_type)
+        
         @for_range_opt(output.value.total_size())
         def _(i):
-            summary = sum(dmean_sqr.get_vector(i*stride, stride))
-            std.assign_vector(summary, i)
+            summary.assign_all(0)
+            @for_range(stride)
+            def _(j):
+                summary[:] += dmean_sqr.get_vector(i*stride+j, 1)
+            # summary = sum(dmean_sqr.get_vector(i*stride, stride))
+            std.assign_vector(summary[:], i)
+        summary.delete()
         break_point()
-        std[:] *= 1 /( stride - 1)
+        std[:] = std[:] /( stride - 1)
         # std
         std[:] = mpc_math.sqrt(std[:])
         output.value[:] = std[:]
@@ -1457,7 +1550,6 @@ class Tensor():
             for it in op.outputs:
                 flag = flag | searchset.get(it, False)
             if flag:
-                print_ln("%s", index)
                 op.propagate(dl_doutputs, op)
         break_point()
         return 0
@@ -1889,6 +1981,7 @@ class Tensor():
             if other.req_grad:
                 input1.value.trans_mul_add_to(dl_dy,dl_d[operation.inputs[1]],n_threads=10 if input1.shape[0]>=1000 else 1)
                 # C=AB partial derivate of dB=A^T*dC+dB
+            
         global op_id
         global init_op_id
         if prepare:
@@ -2012,8 +2105,10 @@ class Tensor():
         @backwardbuildingblock(get_program().globalbuildingblock[:-12]+"-dot-backward")
         def propagate(dl_doutputs, operation):
             dl_dy,=dl_doutputs
-            dl_d[operation.inputs[0]][:]+= tensors[operation.inputs[1]].value[:]*dl_dy #dA=dC*B+dA
-            dl_d[operation.inputs[1]][:]+= tensors[operation.inputs[0]].value[:]*dl_dy #dB=dC*A+dB
+            if self.req_grad:
+                dl_d[operation.inputs[0]][:]+= tensors[operation.inputs[1]].value[:]*dl_dy #dA=dC*B+dA
+            if other.req_grad:
+                dl_d[operation.inputs[1]][:]+= tensors[operation.inputs[0]].value[:]*dl_dy #dB=dC*A+dB
         global op_id
         global init_op_id
         if prepare:
@@ -2924,13 +3019,14 @@ class Tensor():
         pass
 
     @buildingblock("softmax-forward")
-    def softmax(self,dim=-1):
+    def softmax(input,dim=-1):
         op_id = get_opid()
-        @backwardbuildingblock(get_program().globalbuildingblock[:-13]+"-softmax-backward")
+        @backwardbuildingblock(get_program().globalbuildingblock[:-16]+"-softmax-backward")
         def propagate(dl_doutputs, operation):
             dl_dy, = dl_doutputs
             output = tensors[operation.outputs[0]]
-            if isinstance(self.value, MultiArray):
+            output.value.print_reveal_nested()
+            if isinstance(input.value, MultiArray):
                 # dl_dx = softmax(x)*(   dl_dy    -    (dl_dy*softmax(x)).sum(dim=-1)  )
                 inter_sum=operation.intermediate[2]
                 inter_inital0=operation.intermediate[3]
@@ -2939,36 +3035,39 @@ class Tensor():
                 inter_inital0.sum(dim,res=inter_sum,keepdims=True)
                 boardcasted_multiarray_sub(dl_dy, inter_sum,inter_inital0)
                 output.value.element_wise_mul(inter_inital0, inter_inital0)
+                # print_ln('softmax backward:end:')
+                # inter_inital0.print_reveal_nested()
                 dl_d[operation.inputs[0]][:] += inter_inital0[:]
             else:
                 res = output.value[:]*(dl_dy[:]-sum(output.value[:]*dl_dy[:]))
                 dl_d[operation.inputs[0]][:] += res
                 
         prepare = get_prepare()
-        global init_op_id
+        init_op_id = get_init_op_id()
+        forward = get_forward()
         if prepare:
-            assert isinstance(self, Tensor),"Invalid Input"
-            if isinstance(self.value,Array):
-                new_value=Array(self.shape[0],self.value.value_type)
+            assert isinstance(input, Tensor),"Invalid Input"
+            if isinstance(input.value,Array):
+                new_value=Array(input.shape[0],input.value.value_type)
                 inter=[]
             else:
-                new_value=MultiArray(list(self.shape) ,self.value.value_type)
-                changed_size=list(self.shape)
-                changed_size=self.value.tuple_permute(self.shape,get_permute(len(self.sizes), [(dim)%len(self.sizes)])) #dim=2,input:[4,3,2,5]-->[4,3,5,2]
-                inter=[MultiArray(changed_size,self.value.value_type),MultiArray(changed_size,self.value.value_type)]
-            output = Tensor(new_value, req_grad=self.req_grad)
-            if self.req_grad:
-                if isinstance(self.value,MultiArray):
-                    reduced_dim=list(self.shape)
+                new_value=MultiArray(list(input.shape) ,input.value.value_type)
+                changed_size=list(input.shape)
+                changed_size=input.value.tuple_permute(input.shape,get_permute(len(input.sizes), [dim%len(input.sizes)])) #dim=2,input:[4,3,2,5]-->[4,3,5,2]
+                inter=[MultiArray(changed_size,input.value.value_type),MultiArray(changed_size,input.value.value_type)]
+            output = Tensor(new_value, req_grad=input.req_grad)
+            if input.req_grad:
+                if isinstance(input.value,MultiArray):
+                    reduced_dim=list(input.shape)
                     reduced_dim[dim]=1
-                    inter_sum=MultiArray(reduced_dim,self.value.value_type)  
+                    inter_sum=MultiArray(reduced_dim,input.value.value_type)  
                     dims, v1, _ = reconst_dims(output.value, inter_sum)
                     target_size = v1.tuple_permute(output.value.sizes, get_permute(len(output.sizes), dims))        
-                    inter+=[inter_sum,MultiArray(list(self.shape) ,self.value.value_type)
-                            ,MultiArray(target_size ,self.value.value_type)]       
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate,intermediate=inter)
+                    inter+=[inter_sum,MultiArray(list(input.shape) ,input.value.value_type)
+                            ,MultiArray(target_size ,input.value.value_type)]       
+                operation = Operation(inputs=[input.name], outputs=[output.name], propagate=propagate,intermediate=inter)
             else:
-                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate,intermediate=inter)
+                operation = Operation(inputs=[input.name], outputs=[output.name], propagate=fake_propagate,intermediate=inter)
             gradient_operation.append(operation)
             operation_id = len(gradient_operation) - 1
             op_id_store[op_id] = operation_id
@@ -2978,7 +3077,7 @@ class Tensor():
             input = tensors[operation.inputs[0]]
             output = tensors[operation.outputs[0]]
             if not forward:
-                init_op_id += 1
+                set_init_op_id(init_op_id+1)
             if isinstance(input.value,Array):
                 output.value.assign_vector(vec_softmax(input.value.get_vector()),0)
             else:
@@ -2986,18 +3085,15 @@ class Tensor():
                 changed_output_1=operation.intermediate[1]
                 input.value.permute_without_malloc( changed_0 ,get_permute(len(output.sizes), [(dim)%len(output.sizes)]))      
                 times, num_per_time = reduce(operator.mul, changed_0.shape[:-1]) if len(changed_0.shape[:-1]) >= 1 else 1, changed_0.shape[-1]
-                index = regint(0)
                 @for_range_opt(times)
                 def _(i):
-                    changed_output_1.assign_vector(vec_softmax(changed_0.get_vector(i*num_per_time, num_per_time)), index)
-                    index.update(index+num_per_time)
+                    changed_output_1.assign_vector(vec_softmax(changed_0.get_vector(i*num_per_time, num_per_time)), i*num_per_time)
                 break_point()
                 
-                changed_output_1.permute_without_malloc(output.value,get_permute(len(output.sizes), [(dim)%len(output.sizes)]))
-            
+                changed_output_1.permute_without_malloc(output.value,get_permute_back(len(output.sizes), [ dim%len(output.sizes) ]))
         set_opid(op_id+1)  # record the input and output of the op
         return output
-    
+        
     @buildingblock("relu-forward")
     def relu(self, inplace=False):  
         # Considering that the saved memory overhead has very little impact on MPC computing performance, 
@@ -3028,11 +3124,13 @@ class Tensor():
         if not prepare or not forward:
             operation = gradient_operation[op_id_store[op_id]]
             output = tensors[operation.outputs[0]]
-            larger=0 < self.value[:]
-            operation.intermediate[0].assign_vector(larger)
             if not forward:
                 init_op_id += 1
-            output.value[:] = (larger).if_else(self.value[:], 0) 
+            @multithread(1, 1)
+            def _(base, size):
+                larger=0 < input.value[:]
+                operation.intermediate[0].assign_vector(larger)
+                output.value[:] = (larger).if_else(input.value[:], 0) 
         set_opid(op_id+1)  # record the input and output of the op
         return output
         

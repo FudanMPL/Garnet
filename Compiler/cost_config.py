@@ -131,7 +131,7 @@ class ABY(Cost):
         "matmuls": lambda bit_length, kappa_s , kapaa, precision, n_parties, p ,q, r: (p*q*r*bit_length*2, 1, p*q*r*bit_length*(2*kapaa+bit_length+1), 2),
         "trunc": lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (0, 0, 0, 0),
         "TruncPr" : lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (0, 0, 0, 0),
-        # "LTZ": lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (bit_length*kapaa*2+kapaa+bit_length, 4, bit_length*kapaa*4, 2),
+        "LTZ": lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (bit_length*kapaa*2+kapaa+bit_length, 4, bit_length*kapaa*4+kapaa, 2),
    }
 class MPCFormer(Cost):
     cost_dict_func = {

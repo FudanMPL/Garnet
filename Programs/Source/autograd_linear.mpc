@@ -2,6 +2,8 @@ import nn as nn
 import optimizer as optim
 import dataloader as dataloader
 import functional as F
+from tensor import Tensor,autograd_function
+
 class LogisticRegression(nn.Module):
     def __init__(self):
         super(LogisticRegression, self).__init__()
@@ -12,8 +14,8 @@ class LogisticRegression(nn.Module):
         out = F.sigmoid(out)
         return out
 
-x = Tensor.ones(3, 3)
-y = Tensor.ones(3, 1)
+x = Tensor.ones(30, 3)
+y = Tensor.ones(30, 1)
 dataload = dataloader.DataLoader(x, y, batch_size = 2)
 
 model = LogisticRegression()
@@ -27,4 +29,5 @@ def _(i):
     loss = mse(output, label)
     optimizer.zero_grad()
     loss.backward()
+    loss.print_reveal_nested()
     optimizer.step()

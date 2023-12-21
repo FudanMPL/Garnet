@@ -29,9 +29,10 @@ from Compiler import mpc_math, util
 #     print_ln("%s, %s", new_index[0], new_index[1])
 # program.use_trunc_pr = True
 # # sfix.set_precision(23, 3)
-x = sfix([1,1,1,1,1,1,1,1,1,1])
-y = sfix([1,1,1,1,1,1,1,1,1,1])
-z = mpc_math.InvertSqrt(x)
+x = sfix(10000)
+
+z = x*10**-5
+print_ln("%s", z.reveal())
 # m = x>y
 # z = sfix.get_input_from(0)
 
