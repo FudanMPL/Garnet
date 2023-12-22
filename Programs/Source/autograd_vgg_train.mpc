@@ -16,7 +16,7 @@ def conv_layer(chann_in, chann_out, k_size, p_size):
 def vgg_conv_block(in_list, out_list, k_list, p_list, pooling_k, pooling_s):
 
     layers = [ conv_layer(in_list[i], out_list[i], k_list[i], p_list[i]) for i in range(len(in_list)) ]
-    layers += [ nn.MaxPool2d(kernel_size = pooling_k, stride = pooling_s)]
+    layers += [ nn.AvgPool2d(kernel_size = pooling_k, stride = pooling_s)]
     return nn.Sequential(*layers)
 
 def vgg_fc_layer(size_in, size_out):
@@ -62,7 +62,7 @@ labels = Tensor.ones(128, 1000)
 dataload = dataloader.DataLoader(x, labels, batch_size = 128)
 model = VGG16(n_classes=1000)
 model.train()
-optimizer = optim.Adam(model.parameters(), lr = 0.01)
+optimizer = optim.SGD(model.parameters(), lr = 0.01)
 crossloss = nn.CrossEntropyLoss()
 @for_range(1)
 def _(i):

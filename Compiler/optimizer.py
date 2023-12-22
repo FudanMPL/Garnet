@@ -443,7 +443,8 @@ def _single_tensor_sgd(params: List[Tensor],
                 d_p[:] = d_p[:] + buf[:] * momentum
             else:
                 d_p[:] = buf[:]
-        param.value[:] = param.value[:] - lr * d_p[:]
+        param.value[:] = param.value[:] -  d_p[:] * lr
+        break_point()
 
     iter.update(iter + 1)
 

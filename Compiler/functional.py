@@ -64,7 +64,8 @@ def relu(input, inplace=False):
         @multithread(1, input.sizes[0], max(1, 1000 // n_per_item))
         def _(base, size):
             output.value.assign_part_vector(f_part(input.value, base, size), base)
-            
+        break_point()
+        
             
     set_opid(op_id+1)  # record the input and output of the op
     return output

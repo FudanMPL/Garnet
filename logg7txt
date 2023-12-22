@@ -1,0 +1,1159 @@
+Default bit length: 63
+Default security parameter: 40
+Compiling file /home/wqruan/Garnet/Programs/Source/autograd_vgg_train.mpc
+Compiled 100000 lines at Fri Dec 22 13:02:39 2023
+Compiled 200000 lines at Fri Dec 22 13:02:41 2023
+Compiled 300000 lines at Fri Dec 22 13:02:44 2023
+Compiled 400000 lines at Fri Dec 22 13:02:46 2023
+Compiled 500000 lines at Fri Dec 22 13:02:49 2023
+conv-forward
+(128, 64, 224, 224)
+Processing basic block Fri Dec 22 13:02:50 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-1.bc
+Processing basic block Fri Dec 22 13:02:50 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread1-2.bc
+Processing basic block Fri Dec 22 13:02:50 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-3.bc
+Processing basic block Fri Dec 22 13:02:50 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-4.bc
+Processing basic block Fri Dec 22 13:02:51 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-5.bc
+Processing basic block Fri Dec 22 13:02:52 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-6.bc
+Processing basic block Fri Dec 22 13:02:52 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-7.bc
+Processing basic block Fri Dec 22 13:02:52 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-8.bc
+conv-forward
+(128, 64, 224, 224)
+Processing basic block Fri Dec 22 13:02:52 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-9.bc
+Processing basic block Fri Dec 22 13:02:52 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread1-10.bc
+Processing basic block Fri Dec 22 13:02:52 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-11.bc
+Processing basic block Fri Dec 22 13:02:52 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-12.bc
+Compiled 600000 lines at Fri Dec 22 13:02:53 2023
+Processing basic block Fri Dec 22 13:02:53 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-13.bc
+Processing basic block Fri Dec 22 13:02:54 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-14.bc
+Processing basic block Fri Dec 22 13:02:54 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-15.bc
+Processing basic block Fri Dec 22 13:02:55 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-16.bc
+Processing basic block Fri Dec 22 13:02:55 2023
+WARNING: Order of memory instructions not preserved, errors possible
+autograd_vgg_train-multithread-17-begin-loop-2 blowing up rounds:  (12845056 / 1024) ** 3 < 12845056
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-17.bc
+conv-forward
+(128, 128, 112, 112)
+Processing basic block Fri Dec 22 13:02:55 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-18.bc
+Processing basic block Fri Dec 22 13:02:55 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread1-19.bc
+Processing basic block Fri Dec 22 13:02:55 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-20.bc
+Processing basic block Fri Dec 22 13:02:55 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-21.bc
+Processing basic block Fri Dec 22 13:02:55 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-22.bc
+Processing basic block Fri Dec 22 13:02:57 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-23.bc
+Processing basic block Fri Dec 22 13:02:57 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-24.bc
+Processing basic block Fri Dec 22 13:02:57 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-25.bc
+conv-forward
+(128, 128, 112, 112)
+Processing basic block Fri Dec 22 13:02:57 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-26.bc
+Processing basic block Fri Dec 22 13:02:57 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread1-27.bc
+Processing basic block Fri Dec 22 13:02:57 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-28.bc
+Processing basic block Fri Dec 22 13:02:57 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-29.bc
+Processing basic block Fri Dec 22 13:02:58 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-30.bc
+Processing basic block Fri Dec 22 13:02:59 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-31.bc
+Processing basic block Fri Dec 22 13:02:59 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-32.bc
+Processing basic block Fri Dec 22 13:02:59 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-33.bc
+Processing basic block Fri Dec 22 13:02:59 2023
+WARNING: Order of memory instructions not preserved, errors possible
+autograd_vgg_train-multithread-34-begin-loop-2 blowing up rounds:  (6422528 / 2048) ** 3 < 6422528
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-34.bc
+conv-forward
+(128, 256, 56, 56)
+Processing basic block Fri Dec 22 13:03:00 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-35.bc
+Processing basic block Fri Dec 22 13:03:00 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread1-36.bc
+Processing basic block Fri Dec 22 13:03:00 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-37.bc
+Processing basic block Fri Dec 22 13:03:00 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-38.bc
+Compiled 700000 lines at Fri Dec 22 13:03:00 2023
+Processing basic block Fri Dec 22 13:03:00 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-39.bc
+Processing basic block Fri Dec 22 13:03:00 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-40.bc
+Processing basic block Fri Dec 22 13:03:00 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-41.bc
+conv-forward
+(128, 256, 56, 56)
+Processing basic block Fri Dec 22 13:03:00 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-42.bc
+Processing basic block Fri Dec 22 13:03:00 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread1-43.bc
+Processing basic block Fri Dec 22 13:03:00 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-44.bc
+Processing basic block Fri Dec 22 13:03:00 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-45.bc
+Processing basic block Fri Dec 22 13:03:02 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-46.bc
+Processing basic block Fri Dec 22 13:03:02 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-47.bc
+Processing basic block Fri Dec 22 13:03:02 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-48.bc
+conv-forward
+(128, 256, 56, 56)
+Processing basic block Fri Dec 22 13:03:02 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-49.bc
+Processing basic block Fri Dec 22 13:03:02 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread1-50.bc
+Processing basic block Fri Dec 22 13:03:02 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-51.bc
+Processing basic block Fri Dec 22 13:03:02 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-52.bc
+Processing basic block Fri Dec 22 13:03:02 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-53.bc
+Processing basic block Fri Dec 22 13:03:02 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-54.bc
+Processing basic block Fri Dec 22 13:03:03 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-55.bc
+Processing basic block Fri Dec 22 13:03:03 2023
+WARNING: Order of memory instructions not preserved, errors possible
+autograd_vgg_train-multithread-56-begin-loop-2 blowing up rounds:  (3211264 / 4096) ** 3 < 3211264
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-56.bc
+conv-forward
+(128, 512, 28, 28)
+Processing basic block Fri Dec 22 13:03:03 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-57.bc
+Processing basic block Fri Dec 22 13:03:03 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread1-58.bc
+Processing basic block Fri Dec 22 13:03:03 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-59.bc
+Processing basic block Fri Dec 22 13:03:03 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-60.bc
+Compiled 800000 lines at Fri Dec 22 13:03:03 2023
+Processing basic block Fri Dec 22 13:03:03 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-61.bc
+Processing basic block Fri Dec 22 13:03:03 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-62.bc
+Processing basic block Fri Dec 22 13:03:03 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-63.bc
+conv-forward
+(128, 512, 28, 28)
+Processing basic block Fri Dec 22 13:03:03 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-64.bc
+Processing basic block Fri Dec 22 13:03:03 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread1-65.bc
+Processing basic block Fri Dec 22 13:03:03 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-66.bc
+Processing basic block Fri Dec 22 13:03:03 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-67.bc
+Processing basic block Fri Dec 22 13:03:04 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-68.bc
+Processing basic block Fri Dec 22 13:03:04 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-69.bc
+Processing basic block Fri Dec 22 13:03:04 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-70.bc
+conv-forward
+(128, 512, 28, 28)
+Processing basic block Fri Dec 22 13:03:04 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-71.bc
+Processing basic block Fri Dec 22 13:03:04 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread1-72.bc
+Processing basic block Fri Dec 22 13:03:04 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-73.bc
+Processing basic block Fri Dec 22 13:03:04 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-74.bc
+Processing basic block Fri Dec 22 13:03:06 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-75.bc
+Processing basic block Fri Dec 22 13:03:06 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-76.bc
+Processing basic block Fri Dec 22 13:03:06 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-77.bc
+Compiled 900000 lines at Fri Dec 22 13:03:06 2023
+Processing basic block Fri Dec 22 13:03:06 2023
+WARNING: Order of memory instructions not preserved, errors possible
+autograd_vgg_train-multithread-78-begin-loop-2 blowing up rounds:  (1605632 / 8192) ** 3 < 1605632
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-78.bc
+conv-forward
+(128, 512, 14, 14)
+Processing basic block Fri Dec 22 13:03:06 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-79.bc
+Processing basic block Fri Dec 22 13:03:06 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread1-80.bc
+Processing basic block Fri Dec 22 13:03:06 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-81.bc
+Processing basic block Fri Dec 22 13:03:06 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-82.bc
+Processing basic block Fri Dec 22 13:03:06 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-83.bc
+Processing basic block Fri Dec 22 13:03:07 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-84.bc
+Processing basic block Fri Dec 22 13:03:07 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-85.bc
+conv-forward
+(128, 512, 14, 14)
+Processing basic block Fri Dec 22 13:03:07 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-86.bc
+Processing basic block Fri Dec 22 13:03:07 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread1-87.bc
+Processing basic block Fri Dec 22 13:03:07 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-88.bc
+Processing basic block Fri Dec 22 13:03:07 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-89.bc
+Processing basic block Fri Dec 22 13:03:07 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-90.bc
+Processing basic block Fri Dec 22 13:03:07 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-91.bc
+Processing basic block Fri Dec 22 13:03:07 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-92.bc
+conv-forward
+(128, 512, 14, 14)
+Processing basic block Fri Dec 22 13:03:07 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-93.bc
+Processing basic block Fri Dec 22 13:03:07 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread1-94.bc
+Processing basic block Fri Dec 22 13:03:07 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-95.bc
+Processing basic block Fri Dec 22 13:03:07 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-96.bc
+Compiled 1000000 lines at Fri Dec 22 13:03:08 2023
+Processing basic block Fri Dec 22 13:03:08 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-97.bc
+Processing basic block Fri Dec 22 13:03:08 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-98.bc
+Processing basic block Fri Dec 22 13:03:08 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-99.bc
+Processing basic block Fri Dec 22 13:03:08 2023
+WARNING: Order of memory instructions not preserved, errors possible
+autograd_vgg_train-multithread-100-begin-loop-2 blowing up rounds:  (401408 / 8192) ** 3 < 401408
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-100.bc
+Processing basic block Fri Dec 22 13:03:08 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-101.bc
+Processing basic block Fri Dec 22 13:03:08 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-102.bc
+Processing basic block Fri Dec 22 13:03:08 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-103.bc
+Processing basic block Fri Dec 22 13:03:08 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-104.bc
+Processing basic block Fri Dec 22 13:03:08 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-105.bc
+Compiled 1100000 lines at Fri Dec 22 13:03:11 2023
+Compiled 1200000 lines at Fri Dec 22 13:03:13 2023
+Compiled 1300000 lines at Fri Dec 22 13:03:16 2023
+Compiled 1400000 lines at Fri Dec 22 13:03:18 2023
+Processing basic block Fri Dec 22 13:03:19 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-106.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-107.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+autograd_vgg_train-multithread-108-begin-loop-1 blowing up rounds:  (8192 / 4096) ** 3 < 8192
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-108.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-109.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+autograd_vgg_train-multithread-110-begin-loop-1 blowing up rounds:  (8192 / 4096) ** 3 < 8192
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-110.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-111.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+autograd_vgg_train-multithread-112-begin-loop-1 blowing up rounds:  (50176 / 25088) ** 3 < 50176
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-112.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+autograd_vgg_train-multithread-113-begin-loop-2 blowing up rounds:  (401408 / 8192) ** 3 < 401408
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-113.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-114.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-115.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-116.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-117.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-118.bc
+padding: (1, 1)
+conv backward
+(128, 512, 14, 14)
+(512, 512, 3, 3)
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+autograd_vgg_train-multithread-119-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-119.bc
+
+backward for X start:
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-120.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-121.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-122.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-123.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-124.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-125.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-126.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-127.bc
+padding: (1, 1)
+conv backward
+(128, 512, 14, 14)
+(512, 512, 3, 3)
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+autograd_vgg_train-multithread-128-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-128.bc
+
+backward for X start:
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-129.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-130.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-131.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-132.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-133.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-134.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-135.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-136.bc
+padding: (1, 1)
+conv backward
+(128, 512, 14, 14)
+(512, 512, 3, 3)
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+autograd_vgg_train-multithread-137-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-137.bc
+
+backward for X start:
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-138.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-139.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-140.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+autograd_vgg_train-multithread-141-begin-loop-2 blowing up rounds:  (1605632 / 8192) ** 3 < 1605632
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-141.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-142.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-143.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-144.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-145.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-146.bc
+padding: (1, 1)
+conv backward
+(128, 512, 28, 28)
+(512, 512, 3, 3)
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+autograd_vgg_train-multithread-147-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-147.bc
+
+backward for X start:
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-148.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-149.bc
+Processing basic block Fri Dec 22 13:03:20 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-150.bc
+Compiled 1500000 lines at Fri Dec 22 13:03:21 2023
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-151.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-152.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-153.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-154.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-155.bc
+padding: (1, 1)
+conv backward
+(128, 512, 28, 28)
+(512, 512, 3, 3)
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+autograd_vgg_train-multithread-156-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-156.bc
+
+backward for X start:
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-157.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-158.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-159.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-160.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-161.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-162.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-163.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-164.bc
+padding: (1, 1)
+conv backward
+(128, 256, 28, 28)
+(512, 256, 3, 3)
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+autograd_vgg_train-multithread-165-begin-loop-2 blowing up rounds:  (16384 / 8192) ** 3 < 32768
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-165.bc
+
+backward for X start:
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-166.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-167.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-168.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+autograd_vgg_train-multithread-169-begin-loop-2 blowing up rounds:  (3211264 / 4096) ** 3 < 3211264
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-169.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-170.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-171.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-172.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-173.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-174.bc
+padding: (1, 1)
+conv backward
+(128, 256, 56, 56)
+(256, 256, 3, 3)
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+autograd_vgg_train-multithread-175-begin-loop-2 blowing up rounds:  (8192 / 4096) ** 3 < 16384
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-175.bc
+
+backward for X start:
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-176.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-177.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-178.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-179.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-180.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-181.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-182.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-183.bc
+padding: (1, 1)
+conv backward
+(128, 256, 56, 56)
+(256, 256, 3, 3)
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+autograd_vgg_train-multithread-184-begin-loop-2 blowing up rounds:  (8192 / 4096) ** 3 < 16384
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-184.bc
+
+backward for X start:
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-185.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-186.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-187.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-188.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-189.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-190.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-191.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-192.bc
+padding: (1, 1)
+conv backward
+(128, 128, 56, 56)
+(256, 128, 3, 3)
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+autograd_vgg_train-multithread-193-begin-loop-2 blowing up rounds:  (4096 / 2048) ** 3 < 8192
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-193.bc
+
+backward for X start:
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-194.bc
+Processing basic block Fri Dec 22 13:03:21 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-195.bc
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-196.bc
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+autograd_vgg_train-multithread-197-begin-loop-2 blowing up rounds:  (6422528 / 2048) ** 3 < 6422528
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-197.bc
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-198.bc
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-199.bc
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-200.bc
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-201.bc
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-202.bc
+padding: (1, 1)
+conv backward
+(128, 128, 112, 112)
+(128, 128, 3, 3)
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-203.bc
+
+backward for X start:
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-204.bc
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-205.bc
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-206.bc
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-207.bc
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-208.bc
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-209.bc
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-210.bc
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-211.bc
+padding: (1, 1)
+conv backward
+(128, 64, 112, 112)
+(128, 64, 3, 3)
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-212.bc
+
+backward for X start:
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-213.bc
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-214.bc
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-215.bc
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+autograd_vgg_train-multithread-216-begin-loop-2 blowing up rounds:  (12845056 / 1024) ** 3 < 12845056
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-216.bc
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-217.bc
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-218.bc
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-219.bc
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-220.bc
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-221.bc
+padding: (1, 1)
+conv backward
+(128, 64, 224, 224)
+(64, 64, 3, 3)
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-222.bc
+
+backward for X start:
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-223.bc
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-224.bc
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-225.bc
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-226.bc
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-227.bc
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-228.bc
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-229.bc
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-230.bc
+padding: (1, 1)
+conv backward
+(128, 3, 224, 224)
+(64, 3, 3, 3)
+Processing basic block Fri Dec 22 13:03:22 2023
+WARNING: Order of memory instructions not preserved, errors possible
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-multithread-231.bc
+Processing basic block Fri Dec 22 13:03:30 2023
+WARNING: Order of memory instructions not preserved, errors possible
+autograd_vgg_train-0-begin-loop-1468 blowing up rounds:  (3211264 / 1605632) ** 3 < 12845056
+autograd_vgg_train-0-begin-loop-1635 blowing up rounds:  (3211264 / 1605632) ** 3 < 12845056
+autograd_vgg_train-multithread-17-begin-loop-2 blowing up rounds:  (12845056 / 1024) ** 3 < 12845056
+autograd_vgg_train-multithread-17-begin-loop-2 blowing up rounds:  (12845056 / 1024) ** 3 < 12845056
+autograd_vgg_train-multithread-17-begin-loop-2 blowing up rounds:  (12845056 / 1024) ** 3 < 12845056
+autograd_vgg_train-multithread-17-begin-loop-2 blowing up rounds:  (12845056 / 1024) ** 3 < 12845056
+autograd_vgg_train-multithread-17-begin-loop-2 blowing up rounds:  (12845056 / 1024) ** 3 < 12845056
+autograd_vgg_train-multithread-17-begin-loop-2 blowing up rounds:  (12845056 / 1024) ** 3 < 12845056
+autograd_vgg_train-multithread-17-begin-loop-2 blowing up rounds:  (12845056 / 1024) ** 3 < 12845056
+autograd_vgg_train-multithread-17-begin-loop-2 blowing up rounds:  (12845056 / 1024) ** 3 < 12845056
+autograd_vgg_train-0-begin-loop-1824 blowing up rounds:  (802816 / 401408) ** 3 < 3211264
+autograd_vgg_train-0-begin-loop-1991 blowing up rounds:  (802816 / 401408) ** 3 < 3211264
+autograd_vgg_train-multithread-34-begin-loop-2 blowing up rounds:  (6422528 / 2048) ** 3 < 6422528
+autograd_vgg_train-multithread-34-begin-loop-2 blowing up rounds:  (6422528 / 2048) ** 3 < 6422528
+autograd_vgg_train-multithread-34-begin-loop-2 blowing up rounds:  (6422528 / 2048) ** 3 < 6422528
+autograd_vgg_train-multithread-34-begin-loop-2 blowing up rounds:  (6422528 / 2048) ** 3 < 6422528
+autograd_vgg_train-multithread-34-begin-loop-2 blowing up rounds:  (6422528 / 2048) ** 3 < 6422528
+autograd_vgg_train-multithread-34-begin-loop-2 blowing up rounds:  (6422528 / 2048) ** 3 < 6422528
+autograd_vgg_train-multithread-34-begin-loop-2 blowing up rounds:  (6422528 / 2048) ** 3 < 6422528
+autograd_vgg_train-multithread-34-begin-loop-2 blowing up rounds:  (6422528 / 2048) ** 3 < 6422528
+autograd_vgg_train-0-begin-loop-2164 blowing up rounds:  (200704 / 100352) ** 3 < 802816
+autograd_vgg_train-0-begin-loop-2315 blowing up rounds:  (200704 / 100352) ** 3 < 802816
+autograd_vgg_train-0-begin-loop-2466 blowing up rounds:  (200704 / 100352) ** 3 < 802816
+autograd_vgg_train-multithread-56-begin-loop-2 blowing up rounds:  (3211264 / 4096) ** 3 < 3211264
+autograd_vgg_train-multithread-56-begin-loop-2 blowing up rounds:  (3211264 / 4096) ** 3 < 3211264
+autograd_vgg_train-multithread-56-begin-loop-2 blowing up rounds:  (3211264 / 4096) ** 3 < 3211264
+autograd_vgg_train-multithread-56-begin-loop-2 blowing up rounds:  (3211264 / 4096) ** 3 < 3211264
+autograd_vgg_train-multithread-56-begin-loop-2 blowing up rounds:  (3211264 / 4096) ** 3 < 3211264
+autograd_vgg_train-multithread-56-begin-loop-2 blowing up rounds:  (3211264 / 4096) ** 3 < 3211264
+autograd_vgg_train-multithread-56-begin-loop-2 blowing up rounds:  (3211264 / 4096) ** 3 < 3211264
+autograd_vgg_train-multithread-56-begin-loop-2 blowing up rounds:  (3211264 / 4096) ** 3 < 3211264
+autograd_vgg_train-0-begin-loop-2639 blowing up rounds:  (50176 / 25088) ** 3 < 200704
+autograd_vgg_train-0-begin-loop-2790 blowing up rounds:  (50176 / 25088) ** 3 < 200704
+autograd_vgg_train-0-begin-loop-2941 blowing up rounds:  (50176 / 25088) ** 3 < 200704
+autograd_vgg_train-multithread-78-begin-loop-2 blowing up rounds:  (1605632 / 8192) ** 3 < 1605632
+autograd_vgg_train-multithread-78-begin-loop-2 blowing up rounds:  (1605632 / 8192) ** 3 < 1605632
+autograd_vgg_train-multithread-78-begin-loop-2 blowing up rounds:  (1605632 / 8192) ** 3 < 1605632
+autograd_vgg_train-multithread-78-begin-loop-2 blowing up rounds:  (1605632 / 8192) ** 3 < 1605632
+autograd_vgg_train-multithread-78-begin-loop-2 blowing up rounds:  (1605632 / 8192) ** 3 < 1605632
+autograd_vgg_train-multithread-78-begin-loop-2 blowing up rounds:  (1605632 / 8192) ** 3 < 1605632
+autograd_vgg_train-multithread-78-begin-loop-2 blowing up rounds:  (1605632 / 8192) ** 3 < 1605632
+autograd_vgg_train-multithread-78-begin-loop-2 blowing up rounds:  (1605632 / 8192) ** 3 < 1605632
+autograd_vgg_train-0-begin-loop-3114 blowing up rounds:  (12544 / 6272) ** 3 < 50176
+autograd_vgg_train-0-begin-loop-3265 blowing up rounds:  (12544 / 6272) ** 3 < 50176
+autograd_vgg_train-0-begin-loop-3416 blowing up rounds:  (12544 / 6272) ** 3 < 50176
+autograd_vgg_train-multithread-100-begin-loop-2 blowing up rounds:  (401408 / 8192) ** 3 < 401408
+autograd_vgg_train-multithread-100-begin-loop-2 blowing up rounds:  (401408 / 8192) ** 3 < 401408
+autograd_vgg_train-multithread-100-begin-loop-2 blowing up rounds:  (401408 / 8192) ** 3 < 401408
+autograd_vgg_train-multithread-100-begin-loop-2 blowing up rounds:  (401408 / 8192) ** 3 < 401408
+autograd_vgg_train-multithread-100-begin-loop-2 blowing up rounds:  (401408 / 8192) ** 3 < 401408
+autograd_vgg_train-multithread-100-begin-loop-2 blowing up rounds:  (401408 / 8192) ** 3 < 401408
+autograd_vgg_train-multithread-100-begin-loop-2 blowing up rounds:  (401408 / 8192) ** 3 < 401408
+autograd_vgg_train-multithread-100-begin-loop-2 blowing up rounds:  (401408 / 8192) ** 3 < 401408
+autograd_vgg_train-multithread-108-begin-loop-1 blowing up rounds:  (8192 / 4096) ** 3 < 8192
+autograd_vgg_train-multithread-110-begin-loop-1 blowing up rounds:  (8192 / 4096) ** 3 < 8192
+autograd_vgg_train-multithread-112-begin-loop-1 blowing up rounds:  (50176 / 25088) ** 3 < 50176
+autograd_vgg_train-multithread-113-begin-loop-2 blowing up rounds:  (401408 / 8192) ** 3 < 401408
+autograd_vgg_train-multithread-113-begin-loop-2 blowing up rounds:  (401408 / 8192) ** 3 < 401408
+autograd_vgg_train-multithread-113-begin-loop-2 blowing up rounds:  (401408 / 8192) ** 3 < 401408
+autograd_vgg_train-multithread-113-begin-loop-2 blowing up rounds:  (401408 / 8192) ** 3 < 401408
+autograd_vgg_train-multithread-113-begin-loop-2 blowing up rounds:  (401408 / 8192) ** 3 < 401408
+autograd_vgg_train-multithread-113-begin-loop-2 blowing up rounds:  (401408 / 8192) ** 3 < 401408
+autograd_vgg_train-multithread-113-begin-loop-2 blowing up rounds:  (401408 / 8192) ** 3 < 401408
+autograd_vgg_train-multithread-113-begin-loop-2 blowing up rounds:  (401408 / 8192) ** 3 < 401408
+autograd_vgg_train-0-begin-loop-4986 blowing up rounds:  (12544 / 6272) ** 3 < 50176
+autograd_vgg_train-multithread-119-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-119-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-119-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-119-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-119-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-119-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-119-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-119-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-0-begin-loop-5171 blowing up rounds:  (12544 / 6272) ** 3 < 50176
+autograd_vgg_train-multithread-128-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-128-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-128-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-128-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-128-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-128-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-128-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-128-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-0-begin-loop-5356 blowing up rounds:  (12544 / 6272) ** 3 < 50176
+autograd_vgg_train-multithread-137-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-137-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-137-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-137-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-137-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-137-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-137-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-137-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-141-begin-loop-2 blowing up rounds:  (1605632 / 8192) ** 3 < 1605632
+autograd_vgg_train-multithread-141-begin-loop-2 blowing up rounds:  (1605632 / 8192) ** 3 < 1605632
+autograd_vgg_train-multithread-141-begin-loop-2 blowing up rounds:  (1605632 / 8192) ** 3 < 1605632
+autograd_vgg_train-multithread-141-begin-loop-2 blowing up rounds:  (1605632 / 8192) ** 3 < 1605632
+autograd_vgg_train-multithread-141-begin-loop-2 blowing up rounds:  (1605632 / 8192) ** 3 < 1605632
+autograd_vgg_train-multithread-141-begin-loop-2 blowing up rounds:  (1605632 / 8192) ** 3 < 1605632
+autograd_vgg_train-multithread-141-begin-loop-2 blowing up rounds:  (1605632 / 8192) ** 3 < 1605632
+autograd_vgg_train-multithread-141-begin-loop-2 blowing up rounds:  (1605632 / 8192) ** 3 < 1605632
+autograd_vgg_train-0-begin-loop-5562 blowing up rounds:  (50176 / 25088) ** 3 < 200704
+autograd_vgg_train-multithread-147-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-147-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-147-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-147-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-147-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-147-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-147-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-147-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-0-begin-loop-5747 blowing up rounds:  (50176 / 25088) ** 3 < 200704
+autograd_vgg_train-multithread-156-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-156-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-156-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-156-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-156-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-156-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-156-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-multithread-156-begin-loop-2 blowing up rounds:  (32768 / 16384) ** 3 < 65536
+autograd_vgg_train-0-begin-loop-5932 blowing up rounds:  (50176 / 25088) ** 3 < 200704
+autograd_vgg_train-multithread-165-begin-loop-2 blowing up rounds:  (16384 / 8192) ** 3 < 32768
+autograd_vgg_train-multithread-165-begin-loop-2 blowing up rounds:  (16384 / 8192) ** 3 < 32768
+autograd_vgg_train-multithread-165-begin-loop-2 blowing up rounds:  (16384 / 8192) ** 3 < 32768
+autograd_vgg_train-multithread-165-begin-loop-2 blowing up rounds:  (16384 / 8192) ** 3 < 32768
+autograd_vgg_train-multithread-165-begin-loop-2 blowing up rounds:  (16384 / 8192) ** 3 < 32768
+autograd_vgg_train-multithread-165-begin-loop-2 blowing up rounds:  (16384 / 8192) ** 3 < 32768
+autograd_vgg_train-multithread-165-begin-loop-2 blowing up rounds:  (16384 / 8192) ** 3 < 32768
+autograd_vgg_train-multithread-165-begin-loop-2 blowing up rounds:  (16384 / 8192) ** 3 < 32768
+autograd_vgg_train-multithread-169-begin-loop-2 blowing up rounds:  (3211264 / 4096) ** 3 < 3211264
+autograd_vgg_train-multithread-169-begin-loop-2 blowing up rounds:  (3211264 / 4096) ** 3 < 3211264
+autograd_vgg_train-multithread-169-begin-loop-2 blowing up rounds:  (3211264 / 4096) ** 3 < 3211264
+autograd_vgg_train-multithread-169-begin-loop-2 blowing up rounds:  (3211264 / 4096) ** 3 < 3211264
+autograd_vgg_train-multithread-169-begin-loop-2 blowing up rounds:  (3211264 / 4096) ** 3 < 3211264
+autograd_vgg_train-multithread-169-begin-loop-2 blowing up rounds:  (3211264 / 4096) ** 3 < 3211264
+autograd_vgg_train-multithread-169-begin-loop-2 blowing up rounds:  (3211264 / 4096) ** 3 < 3211264
+autograd_vgg_train-multithread-169-begin-loop-2 blowing up rounds:  (3211264 / 4096) ** 3 < 3211264
+autograd_vgg_train-0-begin-loop-6138 blowing up rounds:  (200704 / 100352) ** 3 < 802816
+autograd_vgg_train-multithread-175-begin-loop-2 blowing up rounds:  (8192 / 4096) ** 3 < 16384
+autograd_vgg_train-multithread-175-begin-loop-2 blowing up rounds:  (8192 / 4096) ** 3 < 16384
+autograd_vgg_train-multithread-175-begin-loop-2 blowing up rounds:  (8192 / 4096) ** 3 < 16384
+autograd_vgg_train-multithread-175-begin-loop-2 blowing up rounds:  (8192 / 4096) ** 3 < 16384
+autograd_vgg_train-multithread-175-begin-loop-2 blowing up rounds:  (8192 / 4096) ** 3 < 16384
+autograd_vgg_train-multithread-175-begin-loop-2 blowing up rounds:  (8192 / 4096) ** 3 < 16384
+autograd_vgg_train-multithread-175-begin-loop-2 blowing up rounds:  (8192 / 4096) ** 3 < 16384
+autograd_vgg_train-multithread-175-begin-loop-2 blowing up rounds:  (8192 / 4096) ** 3 < 16384
+autograd_vgg_train-0-begin-loop-6323 blowing up rounds:  (200704 / 100352) ** 3 < 802816
+autograd_vgg_train-multithread-184-begin-loop-2 blowing up rounds:  (8192 / 4096) ** 3 < 16384
+autograd_vgg_train-multithread-184-begin-loop-2 blowing up rounds:  (8192 / 4096) ** 3 < 16384
+autograd_vgg_train-multithread-184-begin-loop-2 blowing up rounds:  (8192 / 4096) ** 3 < 16384
+autograd_vgg_train-multithread-184-begin-loop-2 blowing up rounds:  (8192 / 4096) ** 3 < 16384
+autograd_vgg_train-multithread-184-begin-loop-2 blowing up rounds:  (8192 / 4096) ** 3 < 16384
+autograd_vgg_train-multithread-184-begin-loop-2 blowing up rounds:  (8192 / 4096) ** 3 < 16384
+autograd_vgg_train-multithread-184-begin-loop-2 blowing up rounds:  (8192 / 4096) ** 3 < 16384
+autograd_vgg_train-multithread-184-begin-loop-2 blowing up rounds:  (8192 / 4096) ** 3 < 16384
+autograd_vgg_train-0-begin-loop-6508 blowing up rounds:  (200704 / 100352) ** 3 < 802816
+autograd_vgg_train-multithread-193-begin-loop-2 blowing up rounds:  (4096 / 2048) ** 3 < 8192
+autograd_vgg_train-multithread-193-begin-loop-2 blowing up rounds:  (4096 / 2048) ** 3 < 8192
+autograd_vgg_train-multithread-193-begin-loop-2 blowing up rounds:  (4096 / 2048) ** 3 < 8192
+autograd_vgg_train-multithread-193-begin-loop-2 blowing up rounds:  (4096 / 2048) ** 3 < 8192
+autograd_vgg_train-multithread-193-begin-loop-2 blowing up rounds:  (4096 / 2048) ** 3 < 8192
+autograd_vgg_train-multithread-193-begin-loop-2 blowing up rounds:  (4096 / 2048) ** 3 < 8192
+autograd_vgg_train-multithread-193-begin-loop-2 blowing up rounds:  (4096 / 2048) ** 3 < 8192
+autograd_vgg_train-multithread-193-begin-loop-2 blowing up rounds:  (4096 / 2048) ** 3 < 8192
+autograd_vgg_train-multithread-197-begin-loop-2 blowing up rounds:  (6422528 / 2048) ** 3 < 6422528
+autograd_vgg_train-multithread-197-begin-loop-2 blowing up rounds:  (6422528 / 2048) ** 3 < 6422528
+autograd_vgg_train-multithread-197-begin-loop-2 blowing up rounds:  (6422528 / 2048) ** 3 < 6422528
+autograd_vgg_train-multithread-197-begin-loop-2 blowing up rounds:  (6422528 / 2048) ** 3 < 6422528
+autograd_vgg_train-multithread-197-begin-loop-2 blowing up rounds:  (6422528 / 2048) ** 3 < 6422528
+autograd_vgg_train-multithread-197-begin-loop-2 blowing up rounds:  (6422528 / 2048) ** 3 < 6422528
+autograd_vgg_train-multithread-197-begin-loop-2 blowing up rounds:  (6422528 / 2048) ** 3 < 6422528
+autograd_vgg_train-multithread-197-begin-loop-2 blowing up rounds:  (6422528 / 2048) ** 3 < 6422528
+autograd_vgg_train-0-begin-loop-6714 blowing up rounds:  (802816 / 401408) ** 3 < 3211264
+autograd_vgg_train-0-begin-loop-6899 blowing up rounds:  (802816 / 401408) ** 3 < 3211264
+autograd_vgg_train-multithread-216-begin-loop-2 blowing up rounds:  (12845056 / 1024) ** 3 < 12845056
+autograd_vgg_train-multithread-216-begin-loop-2 blowing up rounds:  (12845056 / 1024) ** 3 < 12845056
+autograd_vgg_train-multithread-216-begin-loop-2 blowing up rounds:  (12845056 / 1024) ** 3 < 12845056
+autograd_vgg_train-multithread-216-begin-loop-2 blowing up rounds:  (12845056 / 1024) ** 3 < 12845056
+autograd_vgg_train-multithread-216-begin-loop-2 blowing up rounds:  (12845056 / 1024) ** 3 < 12845056
+autograd_vgg_train-multithread-216-begin-loop-2 blowing up rounds:  (12845056 / 1024) ** 3 < 12845056
+autograd_vgg_train-multithread-216-begin-loop-2 blowing up rounds:  (12845056 / 1024) ** 3 < 12845056
+autograd_vgg_train-multithread-216-begin-loop-2 blowing up rounds:  (12845056 / 1024) ** 3 < 12845056
+autograd_vgg_train-0-begin-loop-7105 blowing up rounds:  (3211264 / 1605632) ** 3 < 12845056
+autograd_vgg_train-0-begin-loop-7290 blowing up rounds:  (3211264 / 1605632) ** 3 < 12845056
+using <python ./Scripts/profiling-v.py autograd_vgg_train-ABY3> to visualize the result.
+initial
+initial-conv2d-forward
+443925135360 online communication bits
+           0 offline communication bits
+         750 online round
+           0 offline round
+initial-addconstant-forward
+initial-batch_norm
+initial-batch_norm-mean-forward
+      270336 online communication bits
+           0 offline communication bits
+          13 online round
+           0 offline round
+initial-batch_norm-var-forward
+443927838720 online communication bits
+           0 offline communication bits
+          78 online round
+           0 offline round
+initial-batch_norm-addconstant-forward
+initial-batch_norm-mulconstant-forward
+initial-batch_norm-add-forward
+initial-batch_norm-invsqrt-forward
+   168960000 online communication bits
+    75423744 offline communication bits
+         234 online round
+         806 offline round
+initial-batch_norm-mul-forward
+443925135360 online communication bits
+           0 offline communication bits
+     8818432 online round
+           0 offline round
+initial-relu-forward
+1332580712448 online communication bits
+           0 offline communication bits
+       17280 online round
+           0 offline round
+initial-avg_pool2d-forward
+ 12536774656 online communication bits
+           0 offline communication bits
+    24485888 online round
+           0 offline round
+initial-view-forward
+initial-linear
+initial-linear-transpose-forward
+initial-linear-mm-forward
+   301203456 online communication bits
+           0 offline communication bits
+           6 online round
+           0 offline round
+initial-linear-add-forward
+initial-dropout-forward
+   201326592 online communication bits
+   603979776 offline communication bits
+           2 online round
+           4 offline round
+initial-logsoftmax-forward
+   414318592 online communication bits
+    13787136 offline communication bits
+       35200 online round
+       47872 offline round
+initial-nll_loss-forward
+   131072064 online communication bits
+           0 offline communication bits
+          12 online round
+           0 offline round
+initial-nll_loss-backward
+     8192000 online communication bits
+           0 offline communication bits
+           1 online round
+           0 offline round
+initial-logsoftmax-backward
+    32776192 online communication bits
+           0 offline communication bits
+         501 online round
+           0 offline round
+initial-linear-add-backward
+initial-linear-mm-backward
+ 32740737024 online communication bits
+           0 offline communication bits
+       67328 online round
+           0 offline round
+initial-linear-transpose-backward
+initial-relu-backward
+333145178112 online communication bits
+           0 offline communication bits
+          15 online round
+           0 offline round
+initial-dropout-backward
+   268435456 online communication bits
+           0 offline communication bits
+           4 online round
+           0 offline round
+initial-view-backward
+initial-avg_pool2d-backward
+ 12536774656 online communication bits
+           0 offline communication bits
+    24485888 online round
+           0 offline round
+initial-batch_norm-mul-backward
+443926216704 online communication bits
+           0 offline communication bits
+     8826880 online round
+           0 offline round
+initial-batch_norm-invsqrt-backward
+     3514368 online communication bits
+           0 offline communication bits
+          91 online round
+           0 offline round
+initial-batch_norm-add-backward
+initial-batch_norm-mulconstant-backward
+initial-batch_norm-addconstant-backward
+initial-batch_norm-var-backward
+554906419200 online communication bits
+           0 offline communication bits
+        9603 online round
+           0 offline round
+initial-batch_norm-mean-backward
+110981283840 online communication bits
+           0 offline communication bits
+        3201 online round
+           0 offline round
+initial-conv2d-backward
+313825607680 online communication bits
+           0 offline communication bits
+      205240 online round
+           0 offline round
+initial-sgd
+     3538944 online communication bits
+           0 offline communication bits
+           1 online round
+           0 offline round
+profiling time: 0.2904949188232422
+Writing to /home/wqruan/Garnet/Programs/Schedules/autograd_vgg_train.sch
+Writing to /home/wqruan/Garnet/Programs/Bytecode/autograd_vgg_train-0.bc
+Program requires at most:
+4480491421760 online communication bits
+   693190656 offline communication bits
+    66956648 online round
+       48682 offline round
+compiling time: 114.57584619522095
