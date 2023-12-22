@@ -1888,7 +1888,7 @@ class MaxPool2d(_MaxPoolNd):
 
     def forward(self, input: Tensor):
         return F.max_pool2d(input, self.kernel_size, self.stride,
-                            self.padding)
+                            self.padding, self.training)
 class _AdaptiveAvgPoolNd(Module):
     __constants__ = ['output_size']
 

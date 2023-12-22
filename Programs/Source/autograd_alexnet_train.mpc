@@ -47,7 +47,7 @@ labels = Tensor.ones(128, 1000)
 dataload = dataloader.DataLoader(x, labels, batch_size = 128)
 model = AlexNet()
 model.train()
-optimizer = optim.Adam(model.parameters(), lr = 0.01)
+optimizer = optim.SGD(model.parameters(), lr = 0.01)
 crossloss = nn.CrossEntropyLoss()
 @for_range(1)
 def _(i):

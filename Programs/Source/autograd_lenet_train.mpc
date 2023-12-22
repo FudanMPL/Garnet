@@ -18,9 +18,9 @@ class LeNet(nn.Module):
         self.fc = nn.Sequential(
             nn.Linear(16*4*4, 120),
             nn.Relu(),
-            nn.Linear(120, 84),
+            nn.Linear(120, 840),
             nn.Relu())
-        self.fc1 = nn.Linear(84, 10)
+        self.fc1 = nn.Linear(840, 10)
     def forward(self, img):
         feature = self.conv(img)
         feature = feature.view(img.shape[0], -1)
@@ -31,10 +31,10 @@ class LeNet(nn.Module):
 loss = nn.CrossEntropyLoss()
 x = Tensor.ones(128, 1, 28, 28)
 labels = Tensor.ones(128, 10)
-dataload = dataloader.DataLoader(x, labels, batch_size = 128)
+dataload = dataloader.DataLoader(x, labels, batch_size = 8)
 model = LeNet()
 model.train()
-optimizer = optim.Adam(model.parameters(), lr = 0.01)
+optimizer = optim.SGD(model.parameters(), lr = 0.01)
 crossloss = nn.CrossEntropyLoss()
 @for_range(1)
 def _(i):

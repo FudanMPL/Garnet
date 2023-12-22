@@ -64,7 +64,8 @@ def relu(input, inplace=False):
         @multithread(1, input.sizes[0], max(1, 1000 // n_per_item))
         def _(base, size):
             output.value.assign_part_vector(f_part(input.value, base, size), base)
-            
+        break_point()
+        
             
     set_opid(op_id+1)  # record the input and output of the op
     return output
@@ -726,7 +727,7 @@ def conv_by_gemm(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[
 
 
 @buildingblock("max_pool2d-forward")
-def max_pool2d(input, kernel_size=2, stride=2, padding=0):
+def max_pool2d(input, kernel_size=2, stride=2, padding=0, training = False):
     op_id=get_opid()
     @backwardbuildingblock(get_program().globalbuildingblock[:-19]+"-max_pool2d-backward")
     def propagate(dl_doutputs, operation):
@@ -832,7 +833,7 @@ def max_pool2d(input, kernel_size=2, stride=2, padding=0):
         n_threads=8 if input.numel() > 2**20 else 1
         N,  n_channels_in,inputs_h, inputs_w = input.shape
         _,  n_channels_out,output_h, output_w = output.shape
-        training=input.req_grad
+        # training=input.req_grad
         batch=Array.create_from(regint.inc(N))
         if not forward:
             set_init_op_id(init_op_id+1)
