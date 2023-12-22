@@ -140,5 +140,6 @@ Compiler/DL/checkpoint/*
 
 #GFA temp
 Compiler/GFA/*.json
+*.json
 
 *.dSYM
