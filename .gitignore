@@ -132,6 +132,7 @@ _build/
 doc/readme.md
 doc/xml
 Compiler/profiling_res/*.pdf
+*.pdf
 
 #ignore model and data
 Compiler/DL/data/*

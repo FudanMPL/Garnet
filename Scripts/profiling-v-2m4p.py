@@ -1,5 +1,6 @@
 import sys
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FuncFormatter
 import json
 import copy
 import numpy as np
@@ -9,9 +10,16 @@ file_path = './'
 file_type = '.json'
 fig_type = '.png'
 
+plt.rcParams['font.family'] = 'Times New Roman'
+
 mp = {
     'MPCFormer':  ['ABY', 'SPDZ', 'ABY3', 'Falcon'],
     'resnet': ['ABY', 'SPDZ', 'ABY3', 'Falcon']
+}
+
+rename = {
+    'MPCFormer':  'Bert',
+    'resnet': 'ResNet'
 }
 
 ops = {
@@ -36,6 +44,9 @@ def jsonLoader(file_name):
 def wrap_labels(labels, width=8):
     return [textwrap.fill(label, width) for label in labels]
 
+def percentage_formatter(x, pos):
+    return f'{x:.0f}%'
+
 def drawing_graph(data_list, name_list):
     # 提取所有可能的操作名称
     operations = set(key for data_dict in data_list for key in data_dict.keys())
@@ -52,12 +63,12 @@ def drawing_graph(data_list, name_list):
     fig, ax = plt.subplots()
 
     colors = [
-        "#006699",  # 深蓝色
-        "#1E8449",  # 深绿色
-        "#9b59b6",  # 深紫色
-        "#e67e22",  # 深橙色
-        "#95a5a6",  # 深灰色
-        "#800080"   # 深紫色
+        "#8ECFC9",
+        "#FFBE7A",
+        "#FA7F6F",
+        "#82B0D2",
+        "#BEB8DC",
+        "#E7DAD2"
     ]
 
 
@@ -72,13 +83,16 @@ def drawing_graph(data_list, name_list):
 
     # 在 y 轴的刻度上绘制虚线
     for tick in ax.get_yticks():
-        ax.axhline(y=tick, linestyle='dashed', color='gray', alpha=0.2)
+        ax.axhline(y=tick, linestyle='dashed', color='gray', alpha=0.1)
 
     fig.legend(loc='upper center', ncol=3)
     
+    # 格式化 y 轴标签为百分比
+    ax.yaxis.set_major_formatter(FuncFormatter(percentage_formatter))
+    
     # 保存图形到文件
     fig.savefig('2m4p.png')
-
+    fig.savefig('2m4p.pdf')
 
 
 
@@ -110,9 +124,7 @@ if __name__=='__main__':
             print(profiling_ops)
             
             data_list.append(profiling_ops)
-            mm = m
-            if mm == 'MPCFormer':
-                mm = 'Bert'
-            name_list.append(mm + '\n(' + p + ')')
+
+            name_list.append(rename[m] + '\n(' + p + ')')
     drawing_graph(data_list, name_list)       
     
