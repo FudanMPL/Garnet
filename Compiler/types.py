@@ -7134,10 +7134,10 @@ class MultiArray(SubMultiArray):
         if res is None:
             res = MultiArray([self.shape[0], output_col], self.value_type)
 
-        @library.for_range_multithread(n_threads, N, N)
-        def _(i):
-            res[i] = self.direct_mul(other, indices=(regint(i), regint.inc(self.sizes[1]), regint.inc(self.sizes[1]), regint.inc(output_col)))
-        # res.assign_vector(self.direct_mul(other))
+        # @library.for_range_multithread(n_threads, N, N)
+        # def _(i):
+        #     res[i] = self.direct_mul(other, indices=(regint(i), regint.inc(self.sizes[1]), regint.inc(self.sizes[1]), regint.inc(output_col)))
+        res.assign_vector(self.direct_mul(other))
         return res
 
     def single_bmm(self, other, res=None):  # i think single_bmm is a part of mm
