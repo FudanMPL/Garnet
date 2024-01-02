@@ -500,6 +500,8 @@ def cisc(function):
             reset_global_vector_size()
 
         def expand_merged(self, skip):
+            if function.__name__ == "MTS":
+                return [self], 0
             if function.__name__ in skip:
                 good = True
                 for call in self.calls:
@@ -522,7 +524,6 @@ def cisc(function):
                 except TypeError:
                     break
                 except:
-                    print([call[0][0].size for call in self.calls])
                     raise
             assert len(new_regs) > 1
             base = 0
@@ -540,6 +541,7 @@ def cisc(function):
                 reg.mov(reg, new_regs[0].get_vector(base, reg.size))
                 reset_global_vector_size()
                 base += reg.size
+            # print("Instructions are ", block.instructions)
             return block.instructions, self.n_rounds - 1
 
         def add_usage(self, req_node):
@@ -583,14 +585,18 @@ def cisc(function):
         def __str__(self):
             return self.function.__name__ + ' ' + ', '.join(
                 str(x) for x in itertools.chain(call[0] for call in self.calls))
-
     MergeCISC.__name__ = function.__name__
 
     def wrapper(*args, **kwargs):
         same_sizes = True
+
         for arg in args:
             try:
                 same_sizes &= arg.size == args[0].size
+                # print("arg[0].size is ",arg[0].size)
+                # print(arg)
+                # print("arg.size is ",arg.size)
+                # print(same_sizes)
             except:
                 pass
         if program.options.cisc and same_sizes:
@@ -871,7 +877,7 @@ class Instruction(object):
         for n,(arg,f) in enumerate(zip(self.args, self.arg_format)):
             try:
                 ArgFormats[f].check(arg)
-            except ArgumentError as e:
+            except ArgumentError as e:     
                 raise CompilerError('Invalid argument %d "%s" to instruction: %s'
                     % (n, e.arg, self) + '\n' + e.msg)
             except KeyError as e:

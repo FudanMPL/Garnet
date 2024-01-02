@@ -659,6 +659,16 @@ def Mod2(a_0, a, k, kappa, signed):
     addm(t[5], r_0, c_0)
     subs(a_0, t[5], t[4])
 
+@instructions_base.cisc
+def MTS(useless, res, x, spline_address, parallel, length):
+    from .types import cfix, sfix
+    """
+    res[i] = (x ?< a[i])
 
+    k: bit length of a
+    """
+    print("Calling expand of MTS, Errors will occured!")
+    return res
+        
 # hack for circular dependency
 from .instructions import *

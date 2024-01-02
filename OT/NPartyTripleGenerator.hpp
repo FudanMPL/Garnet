@@ -575,7 +575,6 @@ ShareMatrix<U> OTTripleGenerator<U>::generateMatrixTriples(int k, int n_rows, in
         int xid = id / (n_cols * n_inner);
         int yid = id % (n_cols * n_inner) / n_inner;
         int kid = id % (n_inner);
-        // cout<<"xyzid: "<<xid<<' '<<yid<<' '<<kid<<endl;
         vA[i] = A[{xid,kid}];
         vB[i] = B[{kid,yid}];
     }
@@ -590,16 +589,17 @@ ShareMatrix<U> OTTripleGenerator<U>::generateMatrixTriples(int k, int n_rows, in
     timers["OTs"].stop();
     
     timers["Triple computation"].start();
-    for (int p = 0; p < nparties-1; p++)
-    {
-        for (int i = 0; i < nPreampTriplesPerLoop; i++){
-            int id = k * nPreampTriplesPerLoop + i;
-            if (id >= n_rows * n_cols * n_inner) break;
-            int xid = id / (n_cols * n_inner);
-            int yid = id % (n_cols * n_inner) / n_inner;
-            int kid = id % (n_inner);
-            C[{xid,yid}] += A[{xid,kid}]*B[{kid,yid}] + ot_multipliers[p]->c_output[i];
-        }
+    for (int i = 0; i < nPreampTriplesPerLoop; i++){
+        int id = k * nPreampTriplesPerLoop + i;
+        if (id >= n_rows * n_cols * n_inner) break;
+        int xid = id / (n_cols * n_inner);
+        int yid = id % (n_cols * n_inner) / n_inner;
+        int kid = id % (n_inner);
+        C[{xid,yid}] += A[{xid,kid}]*B[{kid,yid}];
+        for (int p = 0; p < nparties-1; p++)
+        {
+            C[{xid,yid}] += ot_multipliers[p]->c_output[i];
+        }  
     }
     timers["Triple computation"].stop();
     return C;
@@ -637,7 +637,7 @@ void OTTripleGenerator<U>::generateMyTriples( typename U::open_type a,
     T c = a * b;
     timers["Triple computation"].start();
     for (int j = 0; j < nparties-1; j++)
-    {
+    {  
         c += ot_multipliers[j]->c_output[0];
     }
     timers["Triple computation"].stop();

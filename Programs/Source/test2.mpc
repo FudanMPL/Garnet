@@ -1,27 +1,24 @@
-y = sint(10)
-g = sint(
-y = [y.get_vector().bit_not(), y]
-u = [GroupPrefixSum(g, yy) for yy in y]
-s = [GroupSum(g, yy) for yy in y]
-w = [ss - uu for ss, uu in zip(s, u)]
-us = sum(u)
-ws = sum(w)
-change_machine_domain(128)
-u0_128 = u[0].change_domain_from_to(32, 128)
-u1_128 = u[1].change_domain_from_to(32, 128)
-w0_128 = w[0].change_domain_from_to(32, 128)
-w1_128 = w[1].change_domain_from_to(32, 128)
-us_128 = us.change_domain_from_to(32, 128)
-ws_128 = ws.change_domain_from_to(32, 128)
-uqs = u0_128 ** 2 + u1_128 ** 2
-wqs = w0_128 ** 2 + w1_128 ** 2
-if single_thread:
-    start_timer(2)
-res = sfix(uqs) / us_128 + sfix(wqs) / ws_128
-if single_thread:
-    stop_timer(2)
-n = len(y)
-res = res * 2 ** (31 - sfix.f - math.ceil(math.log(n)))
+import random
 
-res = res.v.round(128, sfix.f)
-change_machine_domain(32)
+
+ca = 5
+cb = 15
+cc = 25
+cr = 15
+
+
+
+a = cfix(ca)
+b = cfix(cb)
+c = cfix(cc)
+r = cfix(cr)
+x = sfix(10)
+
+reveal_val = (x+r).reveal()
+f = sfix(-3 * ca * cr + cb)
+g = sfix(3 * ca * cr * cr - 2 * cb * cr + cc)
+h = sfix(- ca * cr * cr * cr + cb * cr * cr - cc * cr)
+
+original = a * x * x * x + b * x * x + c * x
+optimize = a * reveal_val * reveal_val * reveal_val + f * reveal_val * reveal_val + g * reveal_val + h
+print_ln("original is %s, optimize is %s", original.reveal(), optimize.reveal())

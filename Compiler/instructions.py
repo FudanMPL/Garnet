@@ -2977,7 +2977,7 @@ class check(base.Instruction):
 ###
 ### CISC-style instructions
 ###
-
+       
 @base.gf2n
 @base.vectorize
 class sqrs(base.CISC):
@@ -2998,7 +2998,6 @@ class sqrs(base.CISC):
         adds(s[4], s[3], s[3])
         adds(s[5], s[1], s[4])
         subml(self.args[0], s[5], c[1])
-
 
 # placeholder for documentation
 class cisc:

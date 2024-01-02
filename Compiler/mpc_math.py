@@ -960,7 +960,43 @@ def InvertSqrt(x, old=False):
 def ltz(x):
     return x<0
 
-def argmax(x):
+# def argmax(x):
+#     len=x.length
+#     len2=(int)(len*(len-1)/2)
+#     temp=type(x[0]).Array(len2)
+#     count=0
+#     for i in range(len-1):
+#         for j in range(i+1,len):
+#             temp[count]=x[i]-x[j]
+#             count=count+1
+#     temp2=ltz(temp.get_vector())
+#     count=0
+#     acc=type(x[0]).Array(len)
+#     for i in range(len-1):
+#         for j in range(i+1,len):
+#             acc[i]=acc[i]+temp2[count]
+#             acc[j]=acc[j]+1-temp2[count]
+#             count=count+1
+#         acc[i]=acc[i]-1
+#     acc[len-1]=acc[len-1]-1
+#     return ltz(acc.get_vector())
+#
+# def max(x):
+#     arg=argmax(x)
+#     return type(x[0]).dot_product(x,arg)
+#
+# def logsum(x):
+#     maximum=max(x)
+#     l=len(x)
+#     for i in range(l):
+#         x[i]=x[i]-maximum
+#     temp=exp_fx(x.get_vector())
+#     acc=0
+#     for i in range(l):
+#         acc=acc+temp[i]
+#     return log_fx(acc,math.e)+maximum
+    
+def argmax_opted(x):
     len=x.length
     len2=(int)(len*(len-1)/2)
     temp=type(x[0]).Array(len2)
@@ -981,12 +1017,12 @@ def argmax(x):
     acc[len-1]=acc[len-1]-1
     return ltz(acc.get_vector())
 
-def max(x):
-    arg=argmax(x)
+def max_opted(x):
+    arg=argmax_opted(x)
     return type(x[0]).dot_product(x,arg)
 
 def logsum(x):
-    maximum=max(x)
+    maximum=max_opted(x)
     l=len(x)
     for i in range(l):
         x[i]=x[i]-maximum
@@ -995,8 +1031,6 @@ def logsum(x):
     for i in range(l):
         acc=acc+temp[i]
     return log_fx(acc,math.e)+maximum
-    
-
 
 
 
