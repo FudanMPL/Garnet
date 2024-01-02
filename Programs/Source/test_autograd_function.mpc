@@ -1,0 +1,87 @@
+from tensor import Tensor, autograd_function, softmax_last_dim
+import functional as F
+import tensor
+program.options_from_args()
+
+
+@autograd_function
+def test_one_hot():
+    print_ln('test_one_hot')
+    length, num_classes = 4, 8
+    x = MultiArray([2, 3, 4], cint)
+    x.assign_all(1)
+    indice = Tensor(x)
+    output = F.one_hot(indice, num_classes)
+    output.value.print_reveal_nested()
+
+
+@autograd_function
+def test_forward_sum():
+    print_ln('test_forward_sum')
+    x = MultiArray([10, 2], sfix)
+    for i in range(10):
+        for j in range(2):
+            x[i][j] = sfix(i+j)
+    x.print_reveal_nested()
+    res = MultiArray([1, 2], sfix)
+    x.sum(dim=0, res=res, keepdims=True)
+    res.print_reveal_nested()
+
+
+@autograd_function
+def test_forward_mul():
+    print_ln('test_forward_mul')
+    x = MultiArray([10, 5, 2], sfix)
+    for i in range(10):
+        for j in range(5):
+            for k in range(2):
+                x[i][j][k] = sfix(i+j+k)
+    y = MultiArray([10, 5, 2], sfix)
+    res = MultiArray([10, 5, 2], sfix)
+    y.assign_all(2)
+    x.print_reveal_nested()
+    y.print_reveal_nested()
+    res = x.element_wise_mul(y, res)
+    res.print_reveal_nested()
+
+
+@autograd_function
+def test_softmax():
+    print_ln('test_softmax')
+    x = MultiArray([10, 2], sfix)
+    # y = Array(10, sfix)
+    x.assign_all(1)
+    # y.assign_all(1)
+    x.print_reveal_nested()
+    # y.print_reveal_nested()
+    x = Tensor(x, req_grad=True)
+    # y = Tensor(y, req_grad=True)
+    res = x.softmax(dim=0)
+
+    tensor.train()
+    tensor.reset_op_id()
+
+    res = x.softmax(dim=0)
+    res.backward()
+    res.value.print_reveal_nested()
+    x.grad.print_reveal_nested()
+
+
+# test_one_hot()
+# test_forward_sum()
+# test_forward_mul()
+#test_softmax()
+
+def test_view():
+    x = Tensor.zeros([3,4,2], req_grad=True)
+    for i in range(0,3):
+        for  j in range(0,4):
+            for k in range(2):
+                x.value[i][j][k] = sfix(i*8+j*2+k)
+    x.print_reveal_nested()    
+    y = x.permute([1,0,2])
+    y.print_reveal_nested()
+
+test_view()
+
+

@@ -1,0 +1,33 @@
+import nn as nn
+import optimizer as optim
+import dataloader as dataloader
+import functional as F
+from tensor import Tensor,autograd_function
+
+class LogisticRegression(nn.Module):
+    def __init__(self):
+        super(LogisticRegression, self).__init__()
+        self.linear = nn.Linear(4,1)
+
+    def forward(self,x):
+        out = self.linear(x)
+        out = F.sigmoid(out)
+        return out
+
+x = Tensor.ones(30, 4)
+y = Tensor.ones(30, 1)
+dataload = dataloader.DataLoader(x, y, batch_size = 2)
+
+model = LogisticRegression()
+optimizer = optim.SGD(model.parameters(), lr = 0.01)
+mse = nn.MSELoss()
+model.train(mse, dataload)
+@for_range(1)
+def _(i):
+    input, label = dataload.get_data(i)
+    output = model(input)
+    loss = mse(output, label)
+    optimizer.zero_grad()
+    loss.backward()
+    loss.print_reveal_nested()
+    optimizer.step()

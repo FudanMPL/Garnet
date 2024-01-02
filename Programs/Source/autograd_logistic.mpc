@@ -1,0 +1,31 @@
+import nn as nn
+from tensor import Tensor,autograd_function
+import optimizer as optim
+import dataloader as dataloader
+import functional as F
+program.use_trunc_pr = True
+
+class LogisticRegression(nn.Module):
+    def __init__(self, n_inputs, n_outputs):
+        super(LogisticRegression, self).__init__()
+        self.linear = nn.Linear(n_inputs, n_outputs)
+    def forward(self,x):
+        out = F.sigmoid(self.linear(x))
+        return out
+
+x = Tensor([5, 10]).get_input_from(0)
+y = Tensor([5, 2]).get_input_from(0)
+dataloader = dataloader.DataLoader(x, y, batch_size = 1)
+model = LogisticRegression(10, 2)
+optimizer = optim.SGD(model.parameters(), lr = 0.01)
+criterion = nn.CrossEntropyLoss()
+model.train()
+@for_range(5)
+def _(i):
+    x, labels = dataloader[i]
+    optimizer.zero_grad()
+    output = model(x)
+    loss = criterion(output, labels)
+    loss.print_reveal_nested()
+    loss.backward()
+    optimizer.step()

@@ -66,7 +66,8 @@ Spdz2kMultiplier<K, S>::Spdz2kMultiplier(OTTripleGenerator<Spdz2kShare<K, S>>& g
         OTMultiplier<Spdz2kShare<K, S>>
         (generator, thread_num)
 {
-#ifdef USE_OPT_VOLE
+#ifdef USE_OPT_
+
 		mac_vole = new OTVole<Z2<MAC_BITS>>(S, generator.players[thread_num], BOTH, false);
 		input_mac_vole = new OTVole<Z2<K + S>>(S, generator.players[thread_num], BOTH, false);
 #else

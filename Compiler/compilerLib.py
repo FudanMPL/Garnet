@@ -256,7 +256,7 @@ class Compiler:
     def build_program(self, name=None):
         self.prog = Program(self.args, self.options, name=name)
 
-    def build_vars(self):
+    def build_vars(self): 
         from . import comparison, floatingpoint, instructions, library, types
 
         # add all instructions to the program VARS dictionary
@@ -276,6 +276,7 @@ class Compiler:
             for t in inspect.getmembers(library, inspect.isfunction)
             if t[1].__module__ == library.__name__
         ]
+
 
         for op in instr_classes:
             self.VARS[op.__name__] = op

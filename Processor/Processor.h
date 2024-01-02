@@ -73,10 +73,8 @@ public:
   void muls(const vector<int>& reg, int size);
   void mulrs(const vector<int>& reg);
   void dotprods(const vector<int>& reg, int size);
-  void matmuls(const vector<T>& source, const Instruction& instruction, size_t a,
-      size_t b);
-  void matmulsm(const CheckVector<T>& source, const Instruction& instruction, size_t a,
-      size_t b);
+  void matmuls(const vector<T>& source, const Instruction& instruction);
+  void matmulsm(const CheckVector<T>& source, const Instruction& instruction);
   void conv2ds(const Instruction& instruction);
 
   void secure_shuffle(const Instruction& instruction);

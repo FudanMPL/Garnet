@@ -165,8 +165,8 @@ class andrs(BinaryVectorInstruction):
             print("The profiling results could be biased")
             print("Please config the cost of ands in cost_config.py")
             return
-        req_node.increment(('online communication', 'bits'), res[0]*sum(self.args[::4]))
-        req_node.increment(('offline communication', 'bits'), res[2]*sum(self.args[::4]))
+        req_node.increment(('online communication', 'bits'), math.ceil(res[0]*sum(self.args[::4])/64)*64)
+        req_node.increment(('offline communication', 'bits'), math.ceil(res[2]*sum(self.args[::4])/64)*64)
         req_node.increment(('online', 'round'), res[1])
         req_node.increment(('offline', 'round'), res[3])
         req_node.increment(('bit', 'triple'), sum(self.args[::4]))
@@ -222,8 +222,8 @@ class andrsvec(base.VarArgsInstruction, base.Mergeable,
         for i, n in self.bases(iter(self.args)):
             size = self.args[i + 1]
             times += size * (n - 3) // 2
-        req_node.increment(('online communication', 'bits'), res[0]*sum(self.args[::4]))
-        req_node.increment(('offline communication', 'bits'), res[2]*sum(self.args[::4]))
+        req_node.increment(('online communication', 'bits'), math.ceil(res[0]*sum(self.args[::4])/64)*64)
+        req_node.increment(('offline communication', 'bits'), math.ceil(res[2]*sum(self.args[::4])/64)*64)
         req_node.increment(('online', 'round'), res[1])
         req_node.increment(('offline', 'round'), res[3])
         req_node.increment(('bit', 'triple'), sum(self.args[::4]))
@@ -250,8 +250,8 @@ class ands(BinaryVectorInstruction):
             print("The profiling results could be biased")
             print("Please config the cost of ands in cost_config.py")
             return
-        req_node.increment(('online communication', 'bits'), res[0]*sum(self.args[::4]))
-        req_node.increment(('offline communication', 'bits'), res[2]*sum(self.args[::4]))
+        req_node.increment(('online communication', 'bits'), math.ceil(res[0]*sum(self.args[::4])/128)*128)
+        req_node.increment(('offline communication', 'bits'), math.ceil(res[2]*sum(self.args[::4])/128)*128)
         req_node.increment(('online', 'round'), res[1])
         req_node.increment(('offline', 'round'), res[3])
         req_node.increment(('bit', 'triple'), sum(self.args[::4]))
@@ -671,8 +671,8 @@ class inputb(base.DoNotEliminateInstruction, base.VarArgsInstruction):
         times = 0        
         for i in range(0, len(self.args), 4):
             times += self.args[i + 1]
-        req_node.increment(('online communication', 'bits'), res[0]*times)
-        req_node.increment(('offline communication', 'bits'), res[2]*times)
+        req_node.increment(('online communication', 'bits'), res[0]*math.ceil(times/8)*8)
+        req_node.increment(('offline communication', 'bits'), res[2]*math.ceil(times/8)*8)
         req_node.increment(('online', 'round'), res[1])
         req_node.increment(('offline', 'round'), res[3])
         for i in range(0, len(self.args), 4):
@@ -728,8 +728,8 @@ class inputbvec(base.DoNotEliminateInstruction, base.VarArgsInstruction,
         times = 0        
         for x in self.get_arg_tuples(self.args):
             times += x[0] - 3
-        req_node.increment(('online communication', 'bits'), res[0]*times)
-        req_node.increment(('offline communication', 'bits'), res[2]*times)
+        req_node.increment(('online communication', 'bits'), res[0]*math.ceil(times/8)*8)
+        req_node.increment(('offline communication', 'bits'), res[2]*math.ceil(times/8)*8)
         req_node.increment(('online', 'round'), res[1])
         req_node.increment(('offline', 'round'), res[3])
         for x in self.get_arg_tuples(self.args):
