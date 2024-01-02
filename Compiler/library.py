@@ -2037,7 +2037,6 @@ def stop_profiling():
 def mpc_psi_merge(*tables):
     from Compiler.sorting import gen_perm_by_radix_sort, SortPerm
     from Compiler.group_ops import GroupSum
-    party_number = len(tables)
     num = 0
     attr = 1
     for table in tables:
@@ -2047,7 +2046,6 @@ def mpc_psi_merge(*tables):
     final_table = tables[0].value_type.Matrix(num, attr)
     num_count = 0
     attr_count = 0
-
     for table in tables:
         table_attr = len(table[0])
         for ele in table:
@@ -2071,8 +2069,8 @@ def mpc_psi_merge(*tables):
 
     in_intersection = sint.Array(size=num)
     in_intersection.assign_vector(ids.get_vector(size=len(ids) - 1) ==
-                       ids.get_vector(size=len(ids) - 1, base=party_number - 1), base=0)
-
+                       ids.get_vector(size=len(ids) - 1, base=1), base=0)
+    in_intersection[num - 1] = 0
     for i in range(attr):
         final_table.set_column(i, final_table.get_column(i) * in_intersection)
     perm = SortPerm(in_intersection.get_vector().bit_not())

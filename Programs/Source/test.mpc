@@ -1,7 +1,7 @@
 program.use_split(3)
 
-table0 = sint.Matrix(1000, 100)
-table1 = sint.Matrix(1000, 100)
+table0 = sint.Matrix(1000, 1)
+table1 = sint.Matrix(1000, 1)
 
 # for x in table0:
 #     x.input_from(0)
