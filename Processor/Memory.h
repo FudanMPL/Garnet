@@ -73,6 +73,8 @@ class Memory
     return MC;
   }
 
+#ifdef BIG_DOMAIN_USE_RSS
+
   template<class T2>
   void assign_S(CheckVector<T2>& s2){
     int size = s2.size();
@@ -84,16 +86,32 @@ class Memory
     }
   }
 
+#endif
+
+#ifdef BIG_DOMAIN_USE_SEMI
+
+  template<class T2>
+  void assign_S(CheckVector<T2>& s2){
+    int size = s2.size();
+    MS.resize(size);
+    // only work when T is Rep3Share and one of the domain size is smaller than 2^32
+    for (int i = 0 ; i < size; i++){
+      MS[i] = s2.at(i).get_limb(0);
+    }
+  }
+
+
+#endif
+
     template<class T2>
     void assign_C(CheckVector<typename T2::clear>& c2){
       int size = c2.size();
       MC.resize(size);
-      // only work when T is Rep3Share
+
       for (int i = 0 ; i < size; i++){
         MC[i] = c2.at(i).get_limb(0);
       }
     }
-
 
 
     void write_C(size_t i,const typename T::clear& x)
