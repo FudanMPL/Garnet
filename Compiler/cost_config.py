@@ -109,11 +109,11 @@ class ABY3(Cost): #done
         "matmuls": lambda bit_length, kappa_s , kapaa, precision, n_parties, p ,q, r: (p*r*bit_length*3, 1, 0, 0),
         "TruncPr": lambda bit_length, kappa_s , kapaa, precision, n_parties: (bit_length, 1, 0, 0),
         "LTZ": lambda bit_length, kappa_s , kapaa, precision, n_parties: (bit_length*9, math.log2(bit_length)+2, 0, 0),
+   }
         # "trunc": lambda bit_length, kappa_s , kapaa, precision, n_parties: (bit_length, 1, 0, 0),
         # "bit_share":lambda bit_length, kappa_s , kapaa, precision, n_parties: (3, 1, 0, 0),
         # "ands":lambda bit_length, kappa_s , kapaa, precision, n_parties: (3, 1, 0, 0)
-   }
-
+        
 class SecureML(Cost): #done
     cost_dict_func = {
         "share": lambda bit_length, kappa_s , kapaa, precision, n_parties: (0, 0, 0, 0),
@@ -129,10 +129,10 @@ class ABY(Cost):
         "open" : lambda bit_length, kappa_s , kapaa, precision, n_parties: (bit_length*2, 1, 0, 0),
         "muls" : lambda bit_length, kappa_s , kapaa, precision, n_parties: (bit_length*4, 1, bit_length*(2*kapaa+bit_length+1), 2),
         "matmuls": lambda bit_length, kappa_s , kapaa, precision, n_parties, p ,q, r: (p*q*r*bit_length*2, 1, p*q*r*bit_length*(2*kapaa+bit_length+1), 2),
-        "trunc": lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (0, 0, 0, 0),
         "TruncPr" : lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (0, 0, 0, 0),
         "LTZ": lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (bit_length*kapaa*2+kapaa+bit_length, 4, bit_length*kapaa*4+kapaa, 2),
    }
+    
 class MPCFormer(Cost):
     cost_dict_func = {
     "share": lambda bit_length, kappa_s , kapaa, precision, n_parties: (0, 0, 0, 0),
@@ -172,6 +172,7 @@ class CryptoFlow2(Cost):
         "LTZ": lambda bit_length, kappa_s , kapaa, precision,  n_parties: ((kapaa+18)*bit_length, math.log2(bit_length)+2, 0, 0),
         "TruncPr": lambda bit_length, kappa_s , kapaa, precision, n_parties: ((kapaa+2)*bit_length+19*bit_length+kapaa*precision+14*precision, 2*math.ceil(math.log(bit_length))+2, 0, 0)
    }
+    
 class SPDZ(Cost):
     cost_dict_func = {
         "share": lambda bit_length, kappa_s , kapaa, precision, n_parties: ((kappa_s+bit_length)*(n_parties-1), 1, (kappa_s*bit_length+bit_length+kappa_s)*n_parties*(n_parties-1), 3), # offline: Fmac 
@@ -187,7 +188,6 @@ class BGW(Cost): #done
         "open" : lambda bit_length, kappa_s , kapaa, precision, n_parties: (n_parties*math.floor(n_parties/2), 1, 0, 0),
         "muls" : lambda bit_length, kappa_s , kapaa, precision, n_parties: (n_parties*(n_parties-math.floor(n_parties/2)-1), 1, 0, 0),
         "matmuls": lambda bit_length, kappa_s , kapaa, precision, n_parties, p ,q, r: (p*r*n_parties*(n_parties-math.floor(n_parties/2)-1), 1, 0, 0)
-        # "trunc": lambda bit_length, kapaa, precision, n_parties: (bit_length*3, 1, 0, 0)
    }
 
 class Falcon(Cost):
@@ -202,20 +202,10 @@ class Falcon(Cost):
         "Reciprocal":lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (bit_length*bit_length*(24) + 12*bit_length, bit_length*(math.log2(bit_length)+5)+5, (bit_length*2+8*6*2+bit_length+bit_length*math.log2(bit_length)+bit_length*2+bit_length)*bit_length, 8+math.log2(bit_length)+1+2+math.log2(bit_length)+1),
    }
 
-# class ABY2(Cost):
-#     cost_dict_func = {
-#         "share": lambda bit_length, kappa_s , kapaa, precision, n_parties: (bit_length*3, 1, 0, 0),
-#         "open" : lambda bit_length, kappa_s , kapaa, precision, n_parties: (bit_length*3, 1, 0, 0),
-#         "muls" : lambda bit_length, kappa_s , kapaa, precision, n_parties: (bit_length*3, 1, 0, 0),
-#         "matmuls": lambda bit_length, kappa_s , kapaa, precision, n_parties, p ,q, r: (p*r*bit_length*2, 1, 0, 0),
-#         "trunc": lambda bit_length, kappa_s , kapaa, precision, n_parties: (bit_length*3, 1, 0, 0)
-#    }
-
 protocol_store = {
     "ABY3" : ABY3(),
     "SecureML" : SecureML(),
     "ABY": ABY(),
-    # "ABY2.0": ABY2(),
     "Falcon": Falcon(),
     "BGW": BGW(),
     "CryptFlow2": CryptoFlow2(),
