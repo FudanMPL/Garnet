@@ -1454,7 +1454,6 @@ def mse_loss(input, target, reduction='mean'):
     dx = input - target
     dx2 = dx * dx
     out = dx2.sum()
-   
     if reduction == 'mean':
         out /= input.value.total_size()
     return out

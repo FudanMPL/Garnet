@@ -812,6 +812,7 @@ def sum_of_array(self):
         if not forward:
             init_op_id += 1        
         # output.value[:] = sum(input.value[:])
+        output.value[:] = 0
         @for_range(input.value.total_size())
         def _(i):
             output.value[:] += input.value[i]
