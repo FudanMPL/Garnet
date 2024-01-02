@@ -416,7 +416,8 @@ class FunctionBlock(Function):
         parent_node = get_tape().req_node
         get_tape().open_scope(lambda x: x[0], None, 'begin-' + self.name)
         block = get_tape().active_basicblock
-        block.alloc_pool = defaultdict(list)
+        from . import allocator as al
+        block.alloc_pool = al.AllocPool()
         del parent_node.children[-1]
         self.node = get_tape().req_node
         if get_program().verbose:

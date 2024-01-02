@@ -58,7 +58,7 @@ m = 4 # 特征数
 n_train = 135 # 训练样本数量
 n_test = 15 # 测试样本数量
 h = 4 # 树高
-n_estimators = 5 # 树的数量
+tree_number = 5 # 树的数量
 n_threads = 4 # 最大线程数
 ```
 
