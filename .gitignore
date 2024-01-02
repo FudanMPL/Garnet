@@ -8,6 +8,7 @@ logs/*
 Language-Definition/main.pdf
 keys/*
 Data/*
+build/*
 .idea/*
 Compiler/DL/data*
 # Personal CONFIG file #
@@ -24,7 +25,8 @@ config_mine.py
 callgrind.out.*
 HOSTS*
 *.csv
-
+*.txt
+*.png
 # Vim
 .*.swp
 tags
@@ -53,6 +55,8 @@ callgrind.out.*
 Programs/Bytecode/*
 Programs/Schedules/*
 Programs/Public-Input/*
+Programs/Profiling-data/*.json
+Programs/Profiling-data/*.png
 *.com
 *.class
 *.dll
@@ -128,6 +132,7 @@ _build/
 doc/readme.md
 doc/xml
 Compiler/profiling_res/*.pdf
+*.pdf
 
 #ignore model and data
 Compiler/DL/data/*
@@ -136,3 +141,6 @@ Compiler/DL/checkpoint/*
 
 #GFA temp
 Compiler/GFA/*.json
+*.json
+
+*.dSYM
