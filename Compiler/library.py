@@ -3,7 +3,7 @@ This module defines functions directly available in high-level programs,
 in particularly providing flow control and output.
 """
 
-from Compiler.types import cint,sint,cfix,sfix,sfloat,MPCThread,Array,MemValue,cgf2n,sgf2n,_number,_mem,_register,regint,Matrix,_types, cfloat, _single, localint, personal, copy_doc, _vec
+from Compiler.types import cint,sint,cfix,sfix,sfloat,MPCThread,Array,MemValue,cgf2n,sgf2n,_number,_mem,_register,regint,Matrix,_types, cfloat, _single, localint, personal, copy_doc, _vec,cchr
 from Compiler.instructions import *
 from Compiler.util import tuplify,untuplify,is_zero
 from Compiler.allocator import RegintOptimizer
@@ -14,9 +14,6 @@ import collections
 import operator
 import copy
 from functools import reduce
-
-
-
 
 
 def change_machine_domain(k):
@@ -69,6 +66,7 @@ def set_instruction_type(function):
 def _expand_to_print(val):
     return ('[' + ', '.join('%s' for i in range(len(val))) + ']',) + tuple(val)
 
+        
 def print_str(s, *args):
     """ Print a string, with optional args for adding
     variables/registers with ``%s``. """
@@ -94,7 +92,13 @@ def print_str(s, *args):
                 val = args[i].read()
             else:
                 val = args[i]
-            if isinstance(val, program.Tape.Register):
+            if isinstance(val,cchr):
+                # print("Enter print_ln cchr")
+                if val.is_clear:
+                    print_cchr(val)
+                else:
+                    raise CompilerError('Cannot print secret value:', args[i])
+            elif isinstance(val, program.Tape.Register):
                 if val.is_clear:
                     val.print_reg_plain()
                 else:

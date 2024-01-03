@@ -1255,6 +1255,26 @@ class cint(_clear, _int):
         cond_print_plain(self.conv(cond), self, cint(0, size=self.size))
 
 
+class cchr(cint):
+    # reg_type = 'c'
+    def __init__(self, val=None, size=None):
+        if isinstance(val,str):
+            assert len(val)==1,"Length not 1"
+            ss = bytearray(val[0], 'utf8')
+            if len(ss) > 4:
+                raise CompilerError('String longer than 4 characters')
+            n = 0
+            for c in reversed(ss.ljust(4)):
+                n <<= 8
+                n += c
+            val=n
+        super().__init__(val, size)
+
+
+
+
+
+
 class cgf2n(_clear, _gf2n):
     """
     Clear :math:`\mathrm{GF}(2^n)` value. n is chosen at runtime.  A
@@ -2935,6 +2955,41 @@ class sint(_secret, _int):
         res = sint()
         prefixsums(res, self)
         return res
+
+
+class schr(sint):
+    __slots__ = []
+    instruction_type = 'modp'
+    clear_type = cchr
+    reg_type = 's'
+
+    PreOp = staticmethod(floatingpoint.PreOpL)
+    PreOR = staticmethod(floatingpoint.PreOR)
+    get_type = staticmethod(lambda n: sint)
+
+    def __init__(self, val=None, size=None):
+        if isinstance(val,str):
+            assert len(val)==1,"Length not 1"
+            ss = bytearray(val[0], 'utf8')
+            if len(ss) > 4:
+                raise CompilerError('String longer than 4 characters')
+            n = 0
+            for c in reversed(ss):
+                n <<= 8
+                n += c
+            val=n
+        super().__init__(val, size)
+    @vectorized_classmethod
+    def get_input_from(cls, player):
+        """ Secret input.
+
+        :param player: public (regint/cint/int)
+        :param size: vector size (int, default 1)
+        """
+        res = cls()
+        inputmixed('string', res, player)
+        return res
+
 
 class sintbit(sint):
     """ :py:class:`sint` holding a bit, supporting binary operations
@@ -5623,6 +5678,16 @@ class Array(_vectorizable):
 
         :param index: public (regint/cint/int)
         :param value: convertible for relevant basic type """
+        if isinstance(value,str):
+            assert len(value)==1,"Length not 1"       
+            ss = bytearray(value[0], 'utf8')
+            if len(ss) > 4:
+                raise CompilerError('String longer than 4 characters')
+            n = 0
+            for c in reversed(ss):
+                n <<= 8
+                n += c
+            value=n
         if isinstance(index, slice):
             start, stop, step = self.get_slice(index)
             if step == 1:
@@ -6043,6 +6108,96 @@ sint.dynamic_array = Array
 sgf2n.dynamic_array = Array
 
 
+def VecMul(data):
+    def reducer(x, y):
+        b = x*y
+        return b
+    return util.tree_reduce(reducer, data)[0]
+
+
+class sstring(Array):
+    def __init__(self,val=None,length=0, value_type=schr, address=None, debug=None, alloc=True):
+        if val!=None:
+            length=len(val)
+        super(sstring,self).__init__(length, value_type, address=None, debug=None, alloc=True)
+        if isinstance(val,str):
+            s_iter = iter(val)
+            for i in range(length):
+                self[i]=schr(next(s_iter))
+    
+    def __eq__(self,other):
+        if isinstance(other,sstring):
+            # print(self.length,other.length)
+            if self.length==other.length:
+                from Compiler.library import print_ln
+                # print_ln("%s",other.reveal())
+                tmp= ((sint) (self.get_vector())) == ((sint)(other.get_vector()))
+                # tmp=(super().__getitem__(slice(None,None,None))==other.call_parent_getitem(slice(None,None,None)))
+                # print_ln("tmp:%s",tmp.reveal())
+                res=VecMul(tmp)
+                # print_ln("res:%s",res.reveal())
+                return res
+        return sint(0)
+    equal=__eq__
+    
+    def __getitem__(self, index):
+        """ Reading from array.
+
+        :param index: public (regint/cint/int/slice)
+        :return: vector if slice is given, basic type otherwise"""
+        if isinstance(index, slice):
+            start, stop, step = self.get_slice(index)
+            if step == 1:
+                length=stop - start
+                sstring_tmp=sstring(length=length)
+                sstring_tmp[:]=self.get_vector(start, stop - start)
+                return  sstring_tmp
+            else:
+                res_length = (stop - start - 1) // step + 1
+                addresses = regint.inc(res_length, start, step)
+                sstring_tmp=sstring(length=res_length)
+                sstring_tmp[:]=self.get_vector(addresses, res_length)
+                return sstring_tmp
+        sstring_tmp=sstring(length=1)
+        sstring_tmp[:]=self._load(self.get_address(index))
+        return sstring_tmp
+    
+    def __setitem__(self, index, value):
+        """ Writing to array.
+
+        :param index: public (regint/cint/int)
+        :param value: convertible for relevant basic type """
+        if isinstance(value,str):
+            value=list(value)
+            for i in range(len(value)):     
+                ss = bytearray(value[i], 'utf8')
+                if len(ss) > 4:
+                    raise CompilerError('String longer than 4 characters')
+                n = 0
+                for c in reversed(ss):
+                    n <<= 8
+                    n += c
+                value[i]=n
+        if isinstance(index, slice):
+            start, stop, step = self.get_slice(index)
+            if step == 1:
+                return self.assign(value, start)
+            else:
+                res_length = (stop - start - 1) // step + 1
+                addresses = regint.inc(res_length, start, step)
+                return self.assign(value, addresses)
+        self._store(*value, self.get_address(index))
+    def print_reveal_nested(self, end='\n'):
+        """ Reveal and print as list.
+
+        :param end: string to print after (default: line break)
+        """
+        @library.for_range(self.length)
+        def _(i):
+            library.print_cchr(self._load(self.address+i).reveal())
+        library.print_str(end)
+            
+    
 class SubMultiArray(_vectorizable):
     """ Multidimensional array functionality.  Don't construct this
     directly, use :py:class:`MultiArray` instead. """
