@@ -1,0 +1,35 @@
+
+
+training_samples = MultiArray([128, 3,28, 28], sfix)
+training_samples.assign_all(2)
+training_labels = MultiArray([128, 10], sint)
+test_samples=MultiArray([128, 3,28, 28], sfix)
+test_labels = MultiArray([128, 10], sint)
+weight_v=MultiArray([1,3,4,4],sfix)
+for i in range(0,3):
+    for j in range(0,4):
+        for k in range(0,4):
+            weight_v[0][i][j][k] = sfix(i+j+k)
+
+from Compiler import ml
+tf = ml
+layers = [
+    tf.keras.layers.Conv2D(20, 5, 2, 'valid', activation='relu'),
+]
+
+model = tf.keras.models.Sequential(layers)
+
+optim = tf.keras.optimizers.Adam(amsgrad=True)
+
+model.compile(optimizer=optim)
+start_profiling()
+opt = model.fit(
+    training_samples,
+    training_labels,
+    epochs=1,
+    batch_size=128,
+    validation_data=(test_samples, test_labels)
+)
+stop_profiling()
+for var in model.trainable_variables:
+    var.write_to_file()

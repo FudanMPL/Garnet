@@ -217,6 +217,7 @@ tree-inference.x: Machines/tree-inference.cpp  $(MINI_OT) $(SHAREDLIB)
 tree-inference.x:   Machines/tree-inference.cpp
 replicated-bin-party.x: GC/square64.o
 replicated-ring-party.x: GC/square64.o
+rss-with-conversion-party.x: GC/square64.o
 replicated-field-party.x: GC/square64.o
 brain-party.x: GC/square64.o
 malicious-rep-bin-party.x: GC/square64.o
@@ -228,6 +229,7 @@ spdz2k-party.x: $(TINIER) $(patsubst %.cpp,%.o,$(wildcard Machines/SPDZ2*.cpp))
 static/spdz2k-party.x: $(patsubst %.cpp,%.o,$(wildcard Machines/SPDZ2*.cpp))
 semi-party.x: $(OT)  $(GC_SEMI)
 semi2k-party.x: $(OT) $(GC_SEMI)
+semi2k-with-conversion-party.x: $(OT) $(GC_SEMI)
 sml-party.x: $(OT) $(GC_SEMI) 
 vss-party.x: $(OT) $(GC_SEMI)
 fss-ring-party.x: GC/square64.o
@@ -252,6 +254,7 @@ Player-Online.x: $(SPDZ)
 mama-party.x: $(TINIER)
 ps-rep-ring-party.x: Protocols/MalRepRingOptions.o
 malicious-rep-ring-party.x: Protocols/MalRepRingOptions.o
+mal-rss-with-conversion-party.x: Protocols/MalRepRingOptions.o
 sy-rep-ring-party.x: Protocols/MalRepRingOptions.o
 rep4-ring-party.x: GC/Rep4Secret.o
 no-party.x: Protocols/ShareInterface.o

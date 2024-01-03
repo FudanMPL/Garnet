@@ -125,9 +125,9 @@ public:
 
     template <int = 0>
     void matmulsm(SubProcessor<T> &proc, CheckVector<T> &source,
-                  const Instruction &instruction, int a, int b)
+                  const Instruction &instruction)
     {
-        proc.matmulsm(source, instruction, a, b);
+        proc.matmulsm(source, instruction);
     }
 
     template <int = 0>

@@ -10,6 +10,9 @@
 #include "GC/Processor.hpp"
 #include "GC/ShareThread.hpp"
 #include "Protocols/SecureShuffle.hpp"
+#include "Conv2dTuple.h"
+#include "MatmulsTuple.h"
+#include "MatmulsmTuple.h"
 
 #include <sodium.h>
 #include <string>
@@ -509,19 +512,70 @@ void SubProcessor<T>::dotprods(const vector<int>& reg, int size)
     }
 }
 
+// template<class T>
+// void SubProcessor<T>::matmuls(const vector<T>& source,
+//         const Instruction& instruction, size_t a, size_t b)
+// {
+//     auto& dim = instruction.get_start();
+//     auto A = source.begin() + a;
+//     auto B = source.begin() + b;
+//     auto C = S.begin() + (instruction.get_r(0));
+//     assert(A + dim[0] * dim[1] <= source.end());
+//     assert(B + dim[1] * dim[2] <= source.end());
+//     assert(C + dim[0] * dim[2] <= S.end());
+
+//     protocol.init_dotprod();
+//     for (int i = 0; i < dim[0]; i++)
+//         for (int j = 0; j < dim[2]; j++)
+//         {
+//             for (int k = 0; k < dim[1]; k++)
+//                 protocol.prepare_dotprod(*(A + i * dim[1] + k),
+//                         *(B + k * dim[2] + j));
+//             protocol.next_dotprod();
+//         }
+//     protocol.exchange();
+//     for (int i = 0; i < dim[0]; i++)
+//         for (int j = 0; j < dim[2]; j++)
+//             *(C + i * dim[2] + j) = protocol.finalize_dotprod(dim[1]);
+// }
+
 template<class T>
 void SubProcessor<T>::matmuls(const vector<T>& source,
-        const Instruction& instruction, size_t a, size_t b)
+        const Instruction& instruction)
 {
-    auto& dim = instruction.get_start();
+    protocol.init_dotprod();
+    auto& args = instruction.get_start();
+    vector<MatmulsTuple> tuples;
+    for (size_t i = 0; i < args.size(); i += 6)
+        tuples.push_back(MatmulsTuple(args, i));
+    for (auto& tuple : tuples)
+        tuple.pre(source, S, protocol);
+    protocol.exchange();
+    for (auto& tuple : tuples)
+        tuple.post(S, protocol);
+}
+inline
+MatmulsTuple::MatmulsTuple(const vector<int>& arguments, int start)
+{
+    assert(arguments.size() >= start + 6ul);
+    auto args = arguments.data() + start + 3;
+    c = arguments[start];
+    a = arguments[start + 1];
+    b = arguments[start + 2];
+    dim[0] = args[0];
+    dim[1] = args[1];
+    dim[2] = args[2];
+}
+
+template<class T>
+void MatmulsTuple::pre(const vector<T>& source, vector<T>& S, typename T::Protocol& protocol)
+{
     auto A = source.begin() + a;
     auto B = source.begin() + b;
-    auto C = S.begin() + (instruction.get_r(0));
+    auto C = S.begin() + c;
     assert(A + dim[0] * dim[1] <= source.end());
     assert(B + dim[1] * dim[2] <= source.end());
     assert(C + dim[0] * dim[2] <= S.end());
-
-    protocol.init_dotprod();
     for (int i = 0; i < dim[0]; i++)
         for (int j = 0; j < dim[2]; j++)
         {
@@ -530,21 +584,91 @@ void SubProcessor<T>::matmuls(const vector<T>& source,
                         *(B + k * dim[2] + j));
             protocol.next_dotprod();
         }
-    protocol.exchange();
+}
+
+template<class T>
+void MatmulsTuple::post( vector<T>& S, typename T::Protocol& protocol)
+{
+    auto C = S.begin() + c;
     for (int i = 0; i < dim[0]; i++)
         for (int j = 0; j < dim[2]; j++)
             *(C + i * dim[2] + j) = protocol.finalize_dotprod(dim[1]);
 }
 
+
+// template<class T>
+// void SubProcessor<T>::matmulsm(const CheckVector<T>& source,
+//         const Instruction& instruction, size_t a, size_t b)
+// {
+//     auto& dim = instruction.get_start();
+//     auto C = S.begin() + (instruction.get_r(0));
+//     assert(C + dim[0] * dim[2] <= S.end());
+//     assert(Proc);
+
+//     protocol.init_dotprod();
+//     for (int i = 0; i < dim[0]; i++)
+//     {
+//         auto ii = Proc->get_Ci().at(dim[3] + i);
+//         for (int j = 0; j < dim[2]; j++)
+//         {
+//             auto jj = Proc->get_Ci().at(dim[6] + j);
+//             for (int k = 0; k < dim[1]; k++)
+//             {
+//                 auto kk = Proc->get_Ci().at(dim[4] + k);
+//                 auto ll = Proc->get_Ci().at(dim[5] + k);
+//                 protocol.prepare_dotprod(source.at(long(a) + ii * dim[7] + kk),
+//                         source.at(long(b) + ll * dim[8] + jj));
+//             }
+//             protocol.next_dotprod();
+//         }
+//     }
+//     protocol.exchange();
+//     for (int i = 0; i < dim[0]; i++)
+//         for (int j = 0; j < dim[2]; j++)
+//             *(C + i * dim[2] + j) = protocol.finalize_dotprod(dim[1]);
+// }
+
 template<class T>
 void SubProcessor<T>::matmulsm(const CheckVector<T>& source,
-        const Instruction& instruction, size_t a, size_t b)
+        const Instruction& instruction)
 {
-    auto& dim = instruction.get_start();
-    auto C = S.begin() + (instruction.get_r(0));
-    assert(C + dim[0] * dim[2] <= S.end());
-    assert(Proc);
     protocol.init_dotprod();
+    auto& args = instruction.get_start();
+    vector<MatmulsmTuple> tuples;
+    for (size_t i = 0; i < args.size(); i += 12)
+        tuples.push_back(MatmulsmTuple(args, Proc, i));
+    for (auto& tuple : tuples)
+        tuple.pre(source, Proc, protocol);
+    protocol.exchange();
+    for (auto& tuple : tuples)
+        tuple.post(S, protocol);
+}
+
+inline
+MatmulsmTuple::MatmulsmTuple(const vector<int>& arguments, ArithmeticProcessor* Proc, int start)
+{
+    assert(arguments.size() >= start + 12ul);
+    auto args = arguments.data() + start + 3;
+    c = arguments[start];
+    a = Proc->sync_Ci(arguments[start + 1]);
+    b = Proc->sync_Ci(arguments[start + 2]);
+    // a = arguments[start + 1];
+    // b = arguments[start + 2];
+    dim[0] = args[0];
+    dim[1] = args[1];
+    dim[2] = args[2];
+    dim[3] = args[3];
+    dim[4] = args[4];
+    dim[5] = args[5];
+    dim[6] = args[6];
+    dim[7] = args[7];
+    dim[8] = args[8];
+}
+
+template<class T>
+void MatmulsmTuple::pre(const vector<T>& source, ArithmeticProcessor* Proc, typename T::Protocol& protocol)
+{
+    assert(Proc);
     for (int i = 0; i < dim[0]; i++)
     {
         auto ii = Proc->get_Ci().at(dim[3] + i);
@@ -555,38 +679,145 @@ void SubProcessor<T>::matmulsm(const CheckVector<T>& source,
             {
                 auto kk = Proc->get_Ci().at(dim[4] + k);
                 auto ll = Proc->get_Ci().at(dim[5] + k);
-                protocol.prepare_dotprod(source.at(a + ii * dim[7] + kk),
-                        source.at(b + ll * dim[8] + jj));
+                protocol.prepare_dotprod(source.at(long (a) + ii * dim[7] + kk),
+                        source.at(long (b) + ll * dim[8] + jj));
             }
             protocol.next_dotprod();
         }
     }
-    protocol.exchange();
+}
+
+template<class T>
+void MatmulsmTuple::post( vector<T>& S, typename T::Protocol& protocol)
+{
+    auto C = S.begin() + c;
+    assert(C + dim[0] * dim[2] <= S.end());
     for (int i = 0; i < dim[0]; i++)
         for (int j = 0; j < dim[2]; j++)
             *(C + i * dim[2] + j) = protocol.finalize_dotprod(dim[1]);
 }
+
+
+// template<class T>
+// void SubProcessor<T>::conv2ds(const Instruction& instruction)
+// {
+//     protocol.init_dotprod();
+//     auto& args = instruction.get_start();
+//     int output_h = args[0], output_w = args[1];
+//     int inputs_h = args[2], inputs_w = args[3];
+//     int weights_h = args[4], weights_w = args[5];
+//     int stride_h = args[6], stride_w = args[7];
+//     int n_channels_in = args[8];
+//     int padding_h = args[9];
+//     int padding_w = args[10];
+//     int batch_size = args[11];
+//     size_t r0 = instruction.get_r(0);
+//     size_t r1 = instruction.get_r(1);
+//     int r2 = instruction.get_r(2);
+//     int lengths[batch_size][output_h][output_w];
+//     memset(lengths, 0, sizeof(lengths));
+//     int filter_stride_h = 1;
+//     int filter_stride_w = 1;
+//     if (stride_h < 0)
+//     {
+//         filter_stride_h = -stride_h;
+//         stride_h = 1;
+//     }
+//     if (stride_w < 0)
+//     {
+//         filter_stride_w = -stride_w;
+//         stride_w = 1;
+//     }
+
+//     for (int i_batch = 0; i_batch < batch_size; i_batch ++)
+//     {
+//         size_t base = r1 + i_batch * inputs_w * inputs_h * n_channels_in;
+//         assert(base + inputs_w * inputs_h * n_channels_in <= S.size());
+//         T* input_base = &S[base];
+//         for (int out_y = 0; out_y < output_h; out_y++)
+//             for (int out_x = 0; out_x < output_w; out_x++)
+//             {
+//                 int in_x_origin = (out_x * stride_w) - padding_w;
+//                 int in_y_origin = (out_y * stride_h) - padding_h;
+
+//                 for (int filter_y = 0; filter_y < weights_h; filter_y++)
+//                 {
+//                     int in_y = in_y_origin + filter_y * filter_stride_h;
+//                     if ((0 <= in_y) and (in_y < inputs_h))
+//                         for (int filter_x = 0; filter_x < weights_w; filter_x++)
+//                         {
+//                             int in_x = in_x_origin + filter_x * filter_stride_w;
+//                             if ((0 <= in_x) and (in_x < inputs_w))
+//                             {
+//                                 T* pixel_base = &input_base[(in_y * inputs_w
+//                                         + in_x) * n_channels_in];
+//                                 T* weight_base = &S[r2
+//                                         + (filter_y * weights_w + filter_x)
+//                                                 * n_channels_in];
+//                                 for (int in_c = 0; in_c < n_channels_in; in_c++)
+//                                     protocol.prepare_dotprod(pixel_base[in_c],
+//                                             weight_base[in_c]);
+//                                 lengths[i_batch][out_y][out_x] += n_channels_in;
+//                             }
+//                         }
+//                 }
+
+//                 protocol.next_dotprod();
+//             }
+//     }
+
+//     protocol.exchange();
+
+//     for (int i_batch = 0; i_batch < batch_size; i_batch ++)
+//     {
+//         size_t base = r0 + i_batch * output_h * output_w;
+//         assert(base + output_h * output_w <= S.size());
+//         T* output_base = &S[base];
+//         for (int out_y = 0; out_y < output_h; out_y++)
+//             for (int out_x = 0; out_x < output_w; out_x++)
+//             {
+//                 output_base[out_y * output_w + out_x] =
+//                         protocol.finalize_dotprod(
+//                                 lengths[i_batch][out_y][out_x]);
+//             }
+//     }
+// }
+
 
 template<class T>
 void SubProcessor<T>::conv2ds(const Instruction& instruction)
 {
     protocol.init_dotprod();
     auto& args = instruction.get_start();
-    int output_h = args[0], output_w = args[1];
-    int inputs_h = args[2], inputs_w = args[3];
-    int weights_h = args[4], weights_w = args[5];
-    int stride_h = args[6], stride_w = args[7];
-    int n_channels_in = args[8];
-    int padding_h = args[9];
-    int padding_w = args[10];
-    int batch_size = args[11];
-    size_t r0 = instruction.get_r(0);
-    size_t r1 = instruction.get_r(1);
-    int r2 = instruction.get_r(2);
-    int lengths[batch_size][output_h][output_w];
-    memset(lengths, 0, sizeof(lengths));
-    int filter_stride_h = 1;
-    int filter_stride_w = 1;
+    vector<Conv2dTuple> tuples;
+    for (size_t i = 0; i < args.size(); i += 16)
+        tuples.push_back(Conv2dTuple(args, i));
+    for (auto& tuple : tuples)
+        tuple.pre(S, protocol);
+    protocol.exchange();
+    for (auto& tuple : tuples)
+        tuple.post(S, protocol);
+}
+
+inline
+Conv2dTuple::Conv2dTuple(const vector<int>& arguments, int start)
+{
+    assert(arguments.size() >= start + 15ul);
+    auto args = arguments.data() + start + 3;
+    output_h = args[0], output_w = args[1];
+    inputs_h = args[2], inputs_w = args[3];
+    weights_h = args[4], weights_w = args[5];
+    stride_h = args[6], stride_w = args[7];
+    n_channels_in = args[8];
+    padding_h = args[9];
+    padding_w = args[10];
+    batch_size = args[11];
+    r0 = arguments[start];
+    r1 = arguments[start + 1];
+    r2 = arguments[start + 2];
+    lengths.resize(batch_size, vector<vector<int>>(output_h, vector<int>(output_w)));
+    filter_stride_h = 1;
+    filter_stride_w = 1;
     if (stride_h < 0)
     {
         filter_stride_h = -stride_h;
@@ -597,7 +828,11 @@ void SubProcessor<T>::conv2ds(const Instruction& instruction)
         filter_stride_w = -stride_w;
         stride_w = 1;
     }
+}
 
+template<class T>
+void Conv2dTuple::pre(vector<T>& S, typename T::Protocol& protocol)
+{
     for (int i_batch = 0; i_batch < batch_size; i_batch ++)
     {
         size_t base = r1 + i_batch * inputs_w * inputs_h * n_channels_in;
@@ -634,9 +869,11 @@ void SubProcessor<T>::conv2ds(const Instruction& instruction)
                 protocol.next_dotprod();
             }
     }
+}
 
-    protocol.exchange();
-
+template<class T>
+void Conv2dTuple::post(vector<T>& S, typename T::Protocol& protocol)
+{
     for (int i_batch = 0; i_batch < batch_size; i_batch ++)
     {
         size_t base = r0 + i_batch * output_h * output_w;
@@ -774,12 +1011,12 @@ long Processor<sint, sgf2n>::sync(long x) const
   return x;
 }
 
-#ifdef BIG_DOMAIN_FOR_RSS
+#ifdef BIG_DOMAIN_FOR_RING
 template<class sint, class sgf2n>
 void Processor<sint, sgf2n>::start_subprocessor_for_big_domain(){
-  this->datafp = Preprocessing<Rep3Share128>::get_new(machine, DataF.usage, this->Procp_2);
-  this->temp_mcp = new ReplicatedMC<Rep3Share128>({}, 0, 0);
-  this->Procp_2 = new SubProcessor<Rep3Share128>(*this, *temp_mcp, *datafp,P);
+  this->datafp = Preprocessing<BigDomainShare>::get_new(machine, DataF.usage, this->Procp_2);
+  this->temp_mcp = new BigDomainShare::MAC_Check({}, 0, 0);
+  this->Procp_2 = new SubProcessor<BigDomainShare>(*this, *temp_mcp, *datafp,P);
 //  this->Procp_2->S.resize(Procp.S.size());
 //  this->Procp_2->C.resize(Procp.C.size());
 };

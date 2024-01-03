@@ -64,7 +64,7 @@ from . import instructions
 from .util import is_zero, is_one
 import operator
 from functools import reduce
-import re
+import re,os
 from Compiler.cost_config import Cost
 
 class ClientMessageType:
@@ -362,6 +362,7 @@ class _int(Tape._no_truth):
     @staticmethod
     def ripple_carry_adder(*args, **kwargs):
         return intbitint.ripple_carry_adder(*args, **kwargs)
+    
 
     def if_else(self, a, b):
         """ MUX on bit in arithmetic circuits.
@@ -373,6 +374,8 @@ class _int(Tape._no_truth):
             f, a, b = a.for_mux(b)
         else:
             f = lambda x: x
+        if program.protocol == "CryptFlow2":
+                return f(self)
         return f(self * (a - b) + b)
 
     def cond_swap(self, a, b):
@@ -748,11 +751,11 @@ class _register(Tape.Register, _number, _structure):
         return sum(cls.conv(b) << i for i,b in enumerate(bits))
 
     @classmethod
-    def malloc(cls, size, creator_tape=None):
+    def malloc(cls, size, creator_tape=None, **kwargs):
         """ Allocate memory (statically).
 
         :param size: compile-time (int) """
-        return program.malloc(size, cls, creator_tape=creator_tape)
+        return program.malloc(size, cls, creator_tape=creator_tape, **kwargs)
 
     @classmethod
     def free(cls, addr):
@@ -775,7 +778,11 @@ class _register(Tape.Register, _number, _structure):
                 else:
                     self[i].load_other(x)
         elif val is not None:
-            self.load_other(val)
+            try:
+                self.load_other(val)
+            except:
+                raise CompilerError(
+                    "cannot convert '%s' to '%s'" % (type(val), type(self)))
 
     def _new_by_number(self, i, size=1):
         res = type(self)(size=size)
@@ -2243,6 +2250,19 @@ class _secret(_arithmetic_register, _secret_structure):
     def raw_mod2m(self, m):
         return self - (self.raw_right_shift(m) << m)
 
+class schr(_secret, _int):
+    @vectorized_classmethod
+    def get_input_from(cls, player):
+        """ Secret input.
+
+        :param player: public (regint/cint/int)
+        :param size: vector size (int, default 1)
+        """
+        res = cls()
+        inputmixedstring('int', res, player)
+        return res
+    
+
 
 class sint(_secret, _int):
     """
@@ -2546,12 +2566,12 @@ class sint(_secret, _int):
         self._store_in_mem(address, stms, stmsi)
 
     @classmethod
-    def direct_matrix_mul(cls, A, B, n, m, l, reduce=None, indices=None):
+    def direct_matrix_mul(cls, first_size, second_size, A, B, n, m, l, reduce=None, indices=None):
         if indices is None:
             indices = [regint.inc(i) for i in (n, m, m, l)]
         res = cls(size=indices[0].size * indices[3].size)
-        matmulsm(res, regint(A), regint(B), len(indices[0]), len(indices[1]),
-                 len(indices[3]), *(list(indices) + [m, l]))
+        matmulsm(A, B, first_size, second_size,  res, regint(A), regint(B), len(indices[0]), len(indices[1]),
+                len(indices[3]), *(list(indices) + [m, l]))  
         return res
 
     @vectorize_init
@@ -3747,6 +3767,9 @@ class cfix(_number, _structure):
     __slots__ = ['value', 'f', 'k']
     reg_type = 'c'
     scalars = (int, float, regint, cint)
+    div_iters = 10
+    all_pos = False
+    div_initial = None
     @classmethod
     def set_precision(cls, f, k = None):
         """ Set the precision of the integer representation. Note that some
@@ -4036,23 +4059,45 @@ class cfix(_number, _structure):
     for op in __le__, __lt__, __ge__, __gt__, __ne__:
         op.__doc__ = __eq__.__doc__
     del op
-
+    @classmethod
+    def exp_fx(cls, x,iter=9):
+        n=1<<iter
+        a=1+x/n
+        for i in range(0,iter):
+            a=a*a
+        return a
+    @classmethod
+    def newton_div(cls, x, y):
+        sign = 1
+        if not cls.all_pos:
+            sign = y > 0
+            sign = 2 *  sign - 1
+            y = y * sign
+        # n = 2 ** (sfix.f / 2)
+        z = 3 * cls.exp_fx(1 - 2 * y)+ 0.003  if cls.div_initial == None  else cls.div_initial # sfix(1 / n, size=y.size)
+        for i in range(cls.div_iters):
+            z = 2 * z - y * z * z
+        return x * z *sign
     @vectorize
     def __truediv__(self, other):
         """ Clear fixed-point division.
 
         :param other: cfix/cint/regint/int """
         other = parse_type(other, self.k, self.f)
+
         if isinstance(other, cfix):
             return cfix._new(library.cint_cint_division(
                 self.v, other.v, self.k, self.f), k=self.k, f=self.f)
         elif isinstance(other, sfix):
             assert self.k == other.k
             assert self.f == other.f
-            return sfix._new(library.FPDiv(self.v, other.v, self.k, self.f,
-                                           other.kappa,
-                                           nearest=sfix.round_nearest),
-                             k=self.k, f=self.f)
+            return cfix.newton_div(self, other)
+            # recip = other.compute_reciprocal()
+            # return self*recip
+            # return sfix._new(library.FPDiv(self.v, other.v, self.k, self.f,
+            #                                other.kappa,
+            #                                nearest=sfix.round_nearest),
+            #                  k=self.k, f=self.f)
         else:
             raise TypeError('Incompatible fixed point types in division')
 
@@ -4494,12 +4539,30 @@ class _fix(_single):
     def __neg__(self):
         """ Secret fixed-point negation. """
         return self._new(-self.v, k=self.k, f=self.f)
-
+    @classmethod
+    def exp_fx(cls, x,iter=9):
+        n=1<<iter
+        a=1+x/n
+        for i in range(0,iter):
+            a=a*a
+        return a
+    @classmethod
+    def newton_div(cls, x, y):
+        sign = 1
+        if not cls.all_pos:
+            sign = y > 0
+            sign = 2 *  sign - 1
+            y = y * sign
+        z = 3 * cls.exp_fx(1 - 2 * y)+ 0.003  if cls.div_initial == None  else cls.div_initial # sfix(1 / n, size=y.size)
+        for i in range(cls.div_iters):    
+            z = 2 * z  - y * z * z
+        return x * z * sign
     @vectorize
     def __truediv__(self, other):
         """ Secret fixed-point division.
 
         :param other: sfix/cfix/sint/cint/regint/int """
+        #Problematic div, low efficiency when div a constant
         if util.is_constant_float(other):
             assert other != 0
             log = math.ceil(math.log(abs(other), 2))
@@ -4514,8 +4577,11 @@ class _fix(_single):
         assert self.k == other.k
         assert self.f == other.f
         if isinstance(other, _fix):
-            v = library.FPDiv(self.v, other.v, self.k, self.f, self.kappa,
-                              nearest=self.round_nearest)
+            # return sfix.newton_div(self, other)
+            recip = other.compute_reciprocal()
+            return self*recip
+            # v = library.FPDiv(self.v, other.v, self.k, self.f, self.kappa,
+            #                   nearest=self.round_nearest)
         elif isinstance(other, cfix):
             v = library.sint_cint_division(self.v, other.v, self.k, self.f,
                                            self.kappa)
@@ -4533,7 +4599,7 @@ class _fix(_single):
     @vectorize
     def compute_reciprocal(self):
         """ Secret fixed-point reciprocal. """
-        return type(self)(library.FPDiv(cint(2) ** self.f, self.v, self.k, self.f, self.kappa, True))
+        return library.Reciprocal(self)
 
     def reveal(self):
         """ Reveal secret fixed-point number.
@@ -4584,7 +4650,9 @@ class sfix(_fix):
     clear_type = cfix
     get_type = staticmethod(lambda n: sint)
     default_type = sint
-
+    div_iters = 9
+    all_pos = False
+    div_initial = None
     def change_domain_from_to(self, k1, k2, bit_length=None):
         temp = self.v.change_domain_from_to(k1, k2, bit_length)
         res = sfix(size=temp.size)
@@ -4616,7 +4684,7 @@ class sfix(_fix):
         else:
             cls.k = k
         try:
-            Program.prog.cost_config.set_precision(f)
+            program.cost_config.set_precision(f)
         except:
             pass
 
@@ -4647,9 +4715,9 @@ class sfix(_fix):
             return r
 
     @classmethod
-    def direct_matrix_mul(cls, A, B, n, m, l, reduce=True, indices=None):
+    def direct_matrix_mul(cls , first_size, second_size, A, B, n, m, l, reduce=True, indices=None):
         # pre-multiplication must be identity
-        tmp = cls.int_type.direct_matrix_mul(A, B, n, m, l, indices=indices)
+        tmp = cls.int_type.direct_matrix_mul(first_size, second_size, A, B, n, m, l, indices=indices)
         res = unreduced_sfix._new(tmp)
         if reduce:
             res = res.reduce_after_mul()
@@ -5497,7 +5565,6 @@ class Array(_vectorizable):
         :param l: Python iterable or register vector
         :returns: :py:class:`Array` of appropriate type containing the contents
           of :py:obj:`l`
-
         """
         if isinstance(l, cls):
             res = l.same_shape()
@@ -5517,6 +5584,7 @@ class Array(_vectorizable):
         value_type = _get_type(value_type)
         self.address = address
         self.length = length
+        self.sizes = (length,)  #change from [length] to (length),because MultiArray.size is tuple()
         self.value_type = value_type
         self.address = address
         self.address_cache = {}
@@ -5533,11 +5601,17 @@ class Array(_vectorizable):
         if self.address is None:
             self.address = self.value_type.malloc(self.length,
                                                   self.creator_tape)
+            # print("Malloc",self.address)
+            # @library.print_ln("%s",self.address)
 
     @property
     def shape(self):
         return [self.length]
 
+    @property
+    def dim(self):
+        return 1
+        
     def delete(self):
         self.value_type.free(self.address)
         self.address = None
@@ -5758,6 +5832,14 @@ class Array(_vectorizable):
         :returns: Array of same type
         """
         return Array(size, self.value_type, self.get_address(base))
+    
+    # def assign_part_vector(self,vector,base=0):
+    #     #added by zhou,For elements at the base position, replace them, such as a=[1,2,3,4] (sfix), 
+    #     # and b is in the form of sfix [12,13] using a.assign_ Part (b, 2), a will become [1,2,12,13]
+    #     print(123)
+    #     assert self.value_type.n_elements()==1
+    #     vector.store_in_mem(self.address+base)
+    
 
     def get(self, indices):
         """ Vector from arbitrary indices.
@@ -5768,7 +5850,7 @@ class Array(_vectorizable):
             regint.inc(len(indices), self.address, 0) + indices,
             size=len(indices))
 
-    def get_slice_addresses(self, slice):
+    def get_slice_addresses(self, slice): 
         assert self.value_type.n_elements() == 1
         assert len(slice) <= self.total_size()
         base = regint.inc(len(slice), slice.address, 1, 1)
@@ -5812,7 +5894,6 @@ class Array(_vectorizable):
             def _(base, size):
                 self.assign(input_from(player, size=size, **kwargs), base)
         except (TypeError, CompilerError):
-            print(budget)
 
             @library.for_range_opt(self.length, budget=budget)
             def _(i):
@@ -5991,7 +6072,18 @@ class Array(_vectorizable):
                                     'with Batcher\'s odd-even mergesort')
             from . import sorting
             sorting.radix_sort(self, self, n_bits=n_bits)
-
+   
+   
+    def reshape(self,sizes):
+        if len(sizes)>1:
+            res=MultiArray(sizes,self.value_type)
+            res.assign(self)
+            return res
+    
+            
+    
+        
+        
     def Array(self, size):
         # compatibility with registers
         return Array(size, self.value_type)
@@ -6156,9 +6248,13 @@ class SubMultiArray(_vectorizable):
         res.check_indices = self.check_indices
         return res
 
-    @property
+    @property 
     def shape(self):
         return list(self.sizes)
+
+    @property
+    def dim(self):
+        return len(self.sizes)
 
     def __setitem__(self, index, other):
         """ Part assignment.
@@ -6208,6 +6304,8 @@ class SubMultiArray(_vectorizable):
         :param base: public (regint/cint/int)
         :param size: compile-time (int) """
         assert self.value_type.n_elements() == 1
+        # if size:
+        #     assert size<self.total_size(),"size is out of range"
         size = size or self.total_size()
         return self.value_type.load_mem(self.address + base, size=size)
 
@@ -6217,7 +6315,7 @@ class SubMultiArray(_vectorizable):
         :param vector: vector of matching size convertible to relevant basic type
         :param base: compile-time (int) """
         assert self.value_type.n_elements() == 1
-        assert vector.size <= self.total_size()
+        # assert vector.size <= self.total_size()-base,"vector size with base cause a buffer overflow"
         self.value_type.conv(vector).store_in_mem(self.address + base)
 
     def assign(self, other):
@@ -6238,7 +6336,6 @@ class SubMultiArray(_vectorizable):
         assert self.value_type.n_elements() == 1
         part_size = reduce(operator.mul, self.sizes[1:])
         size = (size or 1) * part_size
-        assert size <= self.total_size()
         return self.value_type.load_mem(self.address + base * part_size,
                                         size=size)
 
@@ -6251,7 +6348,6 @@ class SubMultiArray(_vectorizable):
         """
         assert self.value_type.n_elements() == 1
         part_size = reduce(operator.mul, self.sizes[1:])
-        assert vector.size <= self.total_size()
         vector.store_in_mem(self.address + base * part_size)
 
     def get_slice_vector(self, slice):
@@ -6302,9 +6398,7 @@ class SubMultiArray(_vectorizable):
         Vector with potential asterisks. The potential retrieves
         all entry where the first dimension index is 0, and the third
         dimension index is 1::
-
             a.get_vector_by_indices(0, None, 1)
-
         """
         addresses = self.get_addresses(*indices)
         return self.value_type.load_mem(addresses)
@@ -6396,6 +6490,7 @@ class SubMultiArray(_vectorizable):
 
         :param other: container of matching size and type
         :return: container of same shape and type as :py:obj:`self` """
+        print(self.sizes, other.sizes,"-----------------")
         if is_zero(other):
             return self
         assert self.sizes == other.sizes
@@ -6448,15 +6543,37 @@ class SubMultiArray(_vectorizable):
 
     def __mul__(self, other):
         # legacy function
+        # Finished: you need to add matmul which is differ from dot because it uses matrix
         return self.mul(other)
 
     def mul(self, other, res_params=None):
         # legacy function
         return self.dot(other, res_params)
+    
+    def matmul(self, other, res=None, n_threads=None):
+        
+        assert self.value_type==other.value_type,"Invalid Data Type"
+        assert len(self.sizes)==2 and self.sizes[1]==other.sizes[0] ,"Invalid Dimension"
 
-    def dot(self, other, res_params=None, n_threads=None):
+        out_col = 1 if isinstance(other,Array) else other.sizes[1]
+        inter = self.sizes[1]
+        row = self.shape[0]
+
+        if res is None:
+            res=MultiArray([row, out_col], self.value_type)
+
+        max_size = _register.maximum_size // out_col
+        
+        @library.multithread(n_threads, row, max_size)
+        def _(base, size):
+        # res.assign_vector(self.direct_mul(other))
+            res.assign_part_vector(self.get_part(base,size).direct_mul(other),base) # it uses address not create new. These two are the same in time and online or offline round.
+        return res
+    
+    # Finished: you need to add matmul which is differ from dot because it uses matrix and it need to explicitly create space
+    def dot(self, other, res_params=None, n_threads=None, res_matrix=None): 
         """ Matrix-matrix and matrix-vector multiplication.
-
+        Note: i think res_params is not used for now
         :param self: two-dimensional
         :param other: Matrix or Array of matching size and type
         :param n_threads: number of threads (default: all in same thread) """
@@ -6470,6 +6587,7 @@ class SubMultiArray(_vectorizable):
                 return Array(res.sizes[0], res.value_type, address=res.address)
             else:
                 matrix = Matrix(len(other), 1, other.value_type)
+                # matrix = MultiArray([len(other), 1], other.value_type)
                 for i, x in enumerate(other):
                     matrix[i][0] = x
                 res = self * matrix
@@ -6484,7 +6602,9 @@ class SubMultiArray(_vectorizable):
                 t.params = res_params
             else:
                 t = self.value_type
-            res_matrix = Matrix(self.sizes[0], other.sizes[1], t)
+            if res_matrix is None:
+                res_matrix = Matrix(self.sizes[0], other.sizes[1], t)
+            # res_matrix = MultiArray([self.sizes[0], other.sizes[1]], t)
             try:
                 try:
                     self.value_type.direct_matrix_mul
@@ -6551,7 +6671,7 @@ class SubMultiArray(_vectorizable):
             assert len(other.sizes) == 2
         assert self.sizes[1] == other_sizes[0]
         assert self.value_type == other.value_type
-        return self.value_type.direct_matrix_mul(self.address, other.address,
+        return self.value_type.direct_matrix_mul(self.total_size(), other.total_size(), self.address, other.address,
                                                  self.sizes[0], *other_sizes,
                                                  reduce=reduce, indices=indices)
 
@@ -6575,7 +6695,7 @@ class SubMultiArray(_vectorizable):
         assert len(indices[1]) == len(indices[2])
         indices = list(indices)
         indices[3] *= other.sizes[1]
-        return self.value_type.direct_matrix_mul(
+        return self.value_type.direct_matrix_mul(self.total_size(), other.total_size(),
             self.address, other.address, None, self.sizes[1], 1,
             reduce=reduce, indices=indices)
 
@@ -6598,7 +6718,7 @@ class SubMultiArray(_vectorizable):
         assert len(indices[1]) == len(indices[2])
         indices = list(indices)
         indices[1] *= self.sizes[1]
-        return self.value_type.direct_matrix_mul(
+        return self.value_type.direct_matrix_mul(self.total_size(), other.total_size(),
             self.address, other.address, None, 1, other.sizes[1],
             reduce=reduce, indices=indices)
 
@@ -6617,6 +6737,24 @@ class SubMultiArray(_vectorizable):
             indices = [regint(i), regint.inc(self.sizes[0])]
             indices += [regint.inc(i) for i in other.sizes]
             res[i] = self.direct_trans_mul(other, indices=indices)
+            
+    
+    def trans_mul_add_to(self, other, res, n_threads=None):
+        """
+        Matrix multiplication with the transpose of :py:obj:`self`
+        in the virtual machine.
+
+        :param self: :py:class:`Matrix` / 2-dimensional :py:class:`MultiArray`
+        :param other: :py:class:`Matrix` / 2-dimensional :py:class:`MultiArray`
+        :param res: matrix of matching dimension to store (grad_result+res)
+        :param n_threads: number of threads (default: single thread)
+        """
+        @library.for_range_multithread(n_threads, 1, self.sizes[1])
+        def _(i):
+            indices = [regint(i), regint.inc(self.sizes[0])]
+            indices += [regint.inc(i) for i in other.sizes]
+            res[i] += self.direct_trans_mul(other, indices=indices)
+
 
     def mul_trans_to(self, other, res, n_threads=None):
         """
@@ -6633,6 +6771,23 @@ class SubMultiArray(_vectorizable):
             indices = [regint(i), regint.inc(self.sizes[1])]
             indices += [regint.inc(i) for i in reversed(other.sizes)]
             res[i] = self.direct_mul_trans(other, indices=indices)
+    
+    def mul_trans_add_to(self, other, res, n_threads=None): #not in MP-SPDZ,added by zhou
+        """
+        Matrix multiplication with the transpose of :py:obj:`other`
+        in the virtual machine.
+
+        :param self: :py:class:`Matrix` / 2-dimensional :py:class:`MultiArray`
+        :param other: :py:class:`Matrix` / 2-dimensional :py:class:`MultiArray`
+        :param res: matrix of matching dimension to store (grad_result + res)
+        :param n_threads: number of threads (default: single thread)
+        """
+        @library.for_range_multithread(n_threads, 1, self.sizes[0])
+        def _(i):
+            indices = [regint(i), regint.inc(self.sizes[1])]
+            indices += [regint.inc(i) for i in reversed(other.sizes)]
+            res[i] += self.direct_mul_trans(other, indices=indices)
+    
 
     def direct_mul_to_matrix(self, other):
         # Obsolete. Use dot().
@@ -6719,7 +6874,6 @@ class SubMultiArray(_vectorizable):
 
     def transpose(self):
         """ Matrix transpose.
-
         :param self: two-dimensional """
         assert len(self.sizes) == 2
         res = Matrix(self.sizes[1], self.sizes[0], self.value_type)
@@ -6868,20 +7022,46 @@ class MultiArray(SubMultiArray):
     def disable_index_checks():
         SubMultiArray.check_indices = False
 
-    def __init__(self, sizes, value_type, debug=None, address=None, alloc=True):
+    def __init__(self, sizes, value_type, debug=None, address=None, alloc=True, index = 0):
         if isinstance(address, Array):
             self.array = address
         else:
             self.array = Array(reduce(operator.mul, sizes), \
                                value_type, address=address, alloc=alloc)
-        SubMultiArray.__init__(self, sizes, value_type, self.array.address, 0, \
+        SubMultiArray.__init__(self, sizes, value_type, self.array.address, index = index, \
                                debug=debug)
         if len(sizes) < 2:
             raise CompilerError('Use Array')
+        
+    def __matmul__(self, other):
+        # TODO: should be depricated
+        return self.matmul(other)
+    
+    def matmul(self, other):
+        # mv or does not work for now
+        assert self.dim >= other.dim, "The former must be higher dimensional than the latter"
+        if self.dim == other.dim:
+            if self.dim == 1:
+                return self.dot(other)
+            elif self.dim == 2:
+                return self.mm(other)
+            else:
+                return self.bmm(other)
+        else:
+            if other.dim == 1:
+                return self.mv(other)
+            elif other.dim == 2:
+                return self.single_bmm(other)
+            else:
+                raise CompilerError("Invalid Dimension: The multiplication does not match")
 
     @property
     def address(self):
         return self.array.address
+    
+    @property
+    def length(self):
+        return reduce(operator.mul,self.sizes[:])
 
     @address.setter
     def address(self, value):
@@ -6891,33 +7071,116 @@ class MultiArray(SubMultiArray):
         self.array.alloc()
 
     def tuple_permute(self, tuple, perm):
+        """
+        Permute a tuple according to a permutation.
+        example: self.tuple_permute((3,2,5), (2,0,1)) = (5,3,2)
+        """
         res = ()
-        for i, x  in enumerate(perm):
+        for _, x  in enumerate(perm):
             res = res[:] + (tuple[x],)
         return res
 
     def permute_singledim(self, new_perm, indices, i, res):
         if i == len(self.sizes) - 1:
-            for j in range(self.sizes[i]):
+            # for j in range(self.sizes[i]):
+            @library.for_range(self.sizes[i])
+            def _(j):
+                # get all the indices, like (0,0,0), (0,0,1), (0,0,2)...
                 tmp_indices = indices[:] + (j,)
+                # get value at that index
                 tmp = self.get_vector_by_indices(*tmp_indices)
                 new_indices = self.tuple_permute(tmp_indices, new_perm)
+                # assign the value to the new indices
                 res.assign_vector_by_indices(tmp, *new_indices)
+                # res.print_reveal_nested()
             return
-        for j in range(self.sizes[i]):
-            tmp_indices = indices[:] + (j,)
-            self.permute_singledim(new_perm, tmp_indices, i+1, res)
+        if i == 0:
+            @library.for_range_multithread(1, 1, self.sizes[i])
+            def _(j):
+                tmp_indices = indices[:] + (j,)
+                self.permute_singledim(new_perm, tmp_indices, i+1, res)
+        else:
+            @library.for_range(self.sizes[i])
+            def _(j):
+                tmp_indices = indices[:] + (j,)
+                self.permute_singledim(new_perm, tmp_indices, i+1, res)            
 
-
+    # def permute(self, new_perm):
+    #     assert len(new_perm) == len(self.sizes)
+    #     i = 0
+    #     indices = ()
+    #     new_sizes = self.tuple_permute(self.sizes, new_perm)
+    #     res = MultiArray(new_sizes, self.value_type)
+    #     self.permute_singledim(new_perm, indices, i, res)
+    #     return res
+    
     def permute(self, new_perm):
         assert len(new_perm) == len(self.sizes)
         i = 0
         indices = ()
         new_sizes = self.tuple_permute(self.sizes, new_perm)
         res = MultiArray(new_sizes, self.value_type)
-        self.permute_singledim(new_perm, indices, i, res)
+        @library.for_range(self.total_size())
+        def _(i):
+            index_store = []
+            new_index = []
+            def mul(x, y):
+                return x*y
+            tmp_i = i
+            for j in range(len(self.sizes)-1):
+                left_size = (reduce(mul, self.sizes[j+1:]))
+                tmp_index = tmp_i// left_size
+                index_store.append(tmp_index)
+                new_index.append(tmp_index)
+                tmp_i = tmp_i%left_size
+            index_store.append(tmp_i)
+            new_index.append(tmp_i)   
+            new_index = self.tuple_permute(new_index, new_perm)   
+            tmp_val = self.get_vector_by_indices(*index_store)
+            res.assign_vector_by_indices(tmp_val, *new_index)
         return res
-
+    
+    
+    
+        
+    def permute_without_malloc(self, res , new_perm):
+        assert len(new_perm) == len(self.sizes)
+        i = 0
+        indices = ()
+        # self.permute_singledim(new_perm, indices, i, res)
+        library.break_point()
+        @library.for_range(self.total_size())
+        def _(i):
+            index_store = []
+            new_index = []
+            def mul(x, y):
+                return x*y
+            tmp_i = i
+            for j in range(len(self.sizes)-1):
+                left_size = (reduce(mul, self.sizes[j+1:]))
+                tmp_index = tmp_i// left_size
+                index_store.append(tmp_index)
+                new_index.append(tmp_index)
+                tmp_i = tmp_i%left_size
+            index_store.append(tmp_i)
+            new_index.append(tmp_i)   
+            new_index = self.tuple_permute(new_index, new_perm)   
+            # library.print_ln("%s, %s, %s", index_store[0], index_store[1], index_store[2])              
+            # library.print_ln("%s, %s, %s", new_index[0], new_index[1], new_index[2]) 
+            # library.print_ln("%s, %s, %s", new_perm[0], new_perm[1], new_perm[2]) 
+            # library.print_ln("%s, %s, %s", res.sizes[0], res.sizes[1], res.sizes[2]) 
+        
+            tmp_val = self.get_vector_by_indices(*index_store)
+            res.assign_vector_by_indices(tmp_val, *new_index)
+        library.break_point()
+        return res
+        
+    def reshape(self, sizes):
+        res=MultiArray(self.sizes,self.value_type)
+        res.assign(self) #assign self to res
+        res.view(*sizes)
+        return res
+    
     def view(self, *sizes):
         assert self.value_type.n_elements() == 1
         tmp = self.total_size()
@@ -6934,22 +7197,35 @@ class MultiArray(SubMultiArray):
                 continue
             assert tmp % x == 0
             tmp = tmp / x
-            
         if is_negative_one: 
             tmp_sizes[negative_index] = int(tmp)
         self.sizes = tuple(tmp_sizes)
-
-    def mean(self, dim):
+    
+    def swap_single_dim(self, src_dim, tgt_dim, res=None):
+        assert res is not None, "res must be specified"
+        assert src_dim < len(self.sizes) and tgt_dim < len(self.sizes), "Invalid dim"
+        src_dim, tgt_dim = len(self.sizes) - 1 if src_dim == -1 else src_dim, len(self.sizes) - 1 if tgt_dim == -1 else tgt_dim
+        if src_dim == tgt_dim:
+            res[:] = self[:]
+            return
+        perm = list(range(len(self.sizes)))
+        perm[src_dim] = tgt_dim
+        perm[tgt_dim] = src_dim
+        self.permute_without_malloc(res, perm)
+        # res.print_reveal_nested()
+    
+    def getIndexGroups_by_dim(self, dim):
         assert dim < len(self.sizes)
         new_sizes = self.sizes[:dim] +  self.sizes[dim+1:]
-        res = MultiArray(new_sizes, self.value_type)
-        new_num = res.total_size()
+        new_num = 1
+        for si in new_sizes:
+            new_num*=si
         pre_mul_prod = []
         tmp = 1
-        
         for i in range(len(new_sizes) - 1):
             tmp *= new_sizes[-i-1]
             pre_mul_prod.append(tmp)
+        index_groups = []
         for i in range(new_num):
             index = []
             mod = i
@@ -6958,19 +7234,313 @@ class MultiArray(SubMultiArray):
                 mod = mod % pre_mul_prod[j]
             index.append(mod)
             index = tuple(index)
-            tmp_value = self.value_type(0)
+            #tmp_value = self.value_type(0)
+            indices = []
             for j in range(self.sizes[dim]):
                 tmp_indices = index[:dim] +(j,) + index[dim:]
-                tmp_value+=self.get_vector_by_indices(*tmp_indices)
-            res.assign_vector_by_indices(tmp_value, *index)
-        div = MultiArray(new_sizes, cint)
-        div.assign_all(self.sizes[dim])
-        res /= div
-        div.delete()
+                tmp_address = 0
+                for k in range(len(tmp_indices)):
+                    tmp_address += tmp_indices[k] #* pre_mul_prod[k]
+                # print(tmp_address)
+                indices.append(tmp_indices)
+                #tmp_value+=self.get_vector_by_indices(*tmp_indices)
+            index_groups.append(indices)
+            #res.assign_vector(tmp_value, i)
+        return index_groups
+    
+    def mean(self, dim):
+        # assert dim < len(self.sizes)
+        # new_sizes = self.sizes[:dim] +  self.sizes[dim+1:]
+        # res = MultiArray(new_sizes, self.value_type)
+        # new_num = res.total_size()
+        # pre_mul_prod = []
+        # tmp = 1
+        
+        # for i in range(len(new_sizes) - 1):
+        #     tmp *= new_sizes[-i-1]
+        #     pre_mul_prod.append(tmp)
+        # for i in range(new_num):
+        #     index = []
+        #     mod = i
+        #     for j in range(len(new_sizes)-1):
+        #         index.append(mod//pre_mul_prod[j])
+        #         mod = mod % pre_mul_prod[j]
+        #     index.append(mod)
+        #     index = tuple(index)
+        #     tmp_value = self.value_type(0)
+        #     for j in range(self.sizes[dim]):
+        #         tmp_indices = index[:dim] +(j,) + index[dim:]
+        #         tmp_value+=self.get_vector_by_indices(*tmp_indices)
+        #     res.assign_vector(tmp_value, i)
+        new_sizes = self.sizes[:dim] +  self.sizes[dim+1:]
+        res = MultiArray(new_sizes, self.value_type)
+        new_num = res.total_size()
+        
+        index_groups = self.getIndexGroups_by_dim(dim)
+        for i in range(new_num):
+            tmp_value = self.value_type(0)
+            indices = index_groups[i]
+            for j in indices:
+                tmp_value+=self.get_vector_by_indices(*j)
+            res.assign_vector(tmp_value, i)
+            
+        res /= cint(self.sizes[dim])
+        return res
+    
+    def mv(self,other,res=None): # not MP-SPDZ,added by zhou
+        save_sizes=self.sizes
+        first_dim=reduce(operator.mul,self.sizes[:-1])
+        second_dim=self.sizes[-1]
+        self.view(first_dim,second_dim)
+        matrix = Matrix(len(other), 1, other.value_type, address=other.address)
+        if isinstance(res, Array):
+            tmp_res = Matrix(len(res), 1, other.value_type, address=res.address)
+            self.dot(matrix, res_matrix= tmp_res)
+        else:
+            self.dot(matrix, res_matrix= res)
+        self.view(*save_sizes)
+        
+    
+    def mm(self, other, res=None):  # not MP-SPDZ,added by zhou
+        assert self.value_type == other.value_type, "Invalid Data Type"
+        assert len(self.sizes) == 2 and self.sizes[1] == other.sizes[0], "Invalid Dimension"
+        if isinstance(other, Array):
+            output_col = 1
+        else:
+            output_col = other.shape[1]
+        N = self.shape[0]
+        n_threads = os.cpu_count()
+        if res is None:
+            res = MultiArray([self.shape[0], output_col], self.value_type)
+
+        # @library.for_range_multithread(n_threads, N, N)
+        # def _(i):
+        #     res[i] = self.direct_mul(other, indices=(regint(i), regint.inc(self.sizes[1]), regint.inc(self.sizes[1]), regint.inc(output_col)))
+        res.assign_vector(self.direct_mul(other))
+        return res
+
+    def single_bmm(self, other, res=None):  # i think single_bmm is a part of mm
+        """
+        :param self.sizes: (batch, n, m) # batch can be int or *list(int)
+        :param other.sizes: (m, p) but it can run accurately when other is a vector: (m)
+        :return: res.sizes: (batch, n, p)
+        """
+        assert self.value_type == other.value_type, "Invalid Data Type"
+        assert len(self.sizes) >= 3 and len(other.sizes) == 2 and self.sizes[-1] == other.sizes[0], "Invalid Dimension"
+
+        batch = self.sizes[:-2]
+        b, n, m = reduce(operator.mul, batch) if len(batch) >= 2 else batch[0], self.shape[-2], self.shape[-1]
+
+        self.view(b*n, m)
+        if res is not None:
+            res.view(b*n, -1)
+        res = self.mm(other, res)
+        self.view(*batch, n, m)
+        res.view(*batch, n, -1)
+        return res
+
+    def single_bmm_trans_to(self, other, res=None):
+        """
+        :param self.sizes: (batch, n, m) # batch can be int or *list(int)
+        :param other.sizes: (p, m)
+        :return: res.sizes: (batch, n, p)
+        """
+        assert self.value_type == other.value_type, "Invalid Data Type"
+        assert len(self.sizes) >= 3 and len(other.sizes) == 2 and self.sizes[-1] == other.sizes[-1], "Invalid Dimension"
+
+        # Finished: you can delete this init because res = self.single_bmm(trans_other, res) achieves the same
+        # if not res:
+        #     res = MultiArray([*self.sizes[:-2], self.sizes[-2], other.sizes[0]], self.value_type)
+
+        trans_other = MultiArray(other.sizes[::-1], self.value_type)
+
+        other.permute_without_malloc(trans_other, [1, 0])
+        res = self.single_bmm(trans_other, res)
+
+        trans_other.delete()
+
+        return res
+
+    def trans_bmm_to(self, other, res=None, is_reduce=False):
+        """
+        # batch can be int or *list(int)
+        :param self.sizes: (batch, n, m)
+        :param other.sizes: (batch, n, p)
+        :param res.sizes: (batch, m, p) if not reduce else (m, p)
+        :param is_reduce: whether to reduce the first dimension
+        :return: 
+            if not reduce: sizes: (batch, m, p)
+            if reduce: sizes: (m, p)
+        """
+        assert self.value_type == other.value_type, "Invalid Data Type"
+        assert len(self.sizes) == len(other.sizes) >= 3 and self.sizes[:-2] == other.sizes[:-2] and self.sizes[-2] == other.sizes[-2], "Invalid Dimension"
+
+        # if not res and is_reduce:
+        #     res = MultiArray([self.sizes[-1], other.sizes[-1]], self.value_type)
+        # if not res and not is_reduce:
+        #     res = MultiArray([*self.sizes[:-2], self.sizes[-1], other.sizes[-1]], self.value_type)
+
+        trans_self = MultiArray([*self.sizes[:-2], self.sizes[-1], self.sizes[-2]], self.value_type)
+        reverse_perm = [i for i in range(self.dim-2)] + [self.dim-1, self.dim-2]
+
+        self.permute_without_malloc(trans_self, reverse_perm)
+        res = trans_self.bmm(other, res, is_reduce)
+
+        trans_self.delete()
+
+        return res
+
+    def bmm_trans_to(self, other, res=None, is_reduce=False):
+        """
+        # batch can be int or *list(int)
+        :param self.sizes: (batch, n, m)
+        :param other.sizes: (batch, p, m)
+        :param res.sizes: (batch, n, p) if not reduce else (n, p)
+        :param is_reduce: whether to reduce the first dimension
+        :return: 
+            if not reduce: sizes: (batch, n, p)
+            if reduce: sizes: (n, p)
+        """
+        assert self.value_type == other.value_type, "Invalid Data Type"
+        assert len(self.sizes) == len(other.sizes) >= 3 and self.sizes[:-2] == other.sizes[:-2] and self.shape[-1] == other.sizes[-1], "Invalid Dimension"
+
+        # if not res and is_reduce:
+        #     res = MultiArray([self.sizes[-2], other.sizes[-2]], self.value_type)
+        # if not res and not is_reduce:
+        #     res = MultiArray([*self.sizes[:-2], self.sizes[-2], other.sizes[-2]], self.value_type)
+
+        trans_other = MultiArray([*other.sizes[:-2], other.sizes[-1], other.sizes[-2]], other.value_type)
+        reverse_perm = [i for i in range(self.dim-2)] + [self.dim-1, self.dim-2]
+
+        other.permute_without_malloc(trans_other, reverse_perm)
+        res = self.bmm(trans_other, res, is_reduce)
+
+        trans_other.delete()
+
+        return res
+
+    def bmm(self, other, res=None, is_reduce=False):
+        """
+        # batch can be int or *list(int)
+        :param self.sizes: (batch, n, m)
+        :param other.sizes: (batch, m, p)
+        :param res.sizes: (batch, n, p) if not reduce else (n, p)
+        :param is_reduce: whether to reduce the first dimension
+        :return: 
+            if not reduce: sizes: (batch, n, p)
+            if reduce: sizes: (n, p)
+        """
+        assert self.value_type == other.value_type, "Invalid Data Type"
+        assert len(self.sizes) == len(other.sizes) >= 3 and self.sizes[:-2] == other.sizes[:-2] and self.shape[-1] == other.sizes[-2], "Invalid Dimension"
+        batch = self.sizes[:-2]
+        b, n, m = reduce(operator.mul, batch) if len(batch) >= 2 else batch[0], self.shape[-2], self.shape[-1]
+        p = other.sizes[-1]
+
+        if not res and is_reduce:
+            res = MultiArray([n, p], self.value_type)
+        elif not res and not is_reduce:
+            res = MultiArray([*batch, n, p], self.value_type)
+        elif res and is_reduce:
+            assert res.sizes == (n, p), "Invalid Output Dimension"
+        else:
+            assert res.sizes == (*batch, n, p), "Invalid Output Dimension"
+
+        self.view(b, n, m)
+        n_threads = 1
+        if not is_reduce:
+            other.view(b, m, p), res.view(b, n, p)
+            library.break_point()
+            @library.for_range_opt_multithread(n_threads, b)
+            def _(i):
+                # self[i] is SubMultiArray
+                # self[i].matmul(other[i], res[i])
+                res.assign_part_vector(self[i].direct_mul(other[i]),i)
+            library.break_point()
+                
+            res.view(*batch, n, p)
+        else:
+            other.view(b*m, p)
+            concate_x = MultiArray([n, b*m], self.value_type)
+            index = regint(0)
+            @library.for_range_parallel(n_threads, [b, n])
+            def _(i, j):
+                concate_x.assign_vector(self[i].get_vector(j*m, m), index)
+                index.update(index + m)
+            concate_x.mm(other, res)
+            concate_x.delete()
+
+            # Not very efficient method
+            """  @library.for_range_opt(b)
+            def _(i):
+                # nonlocal res # why? i think it is because of assignment operation.
+                # res += self[i]*other[i]
+                res.assign_vector(res.get_vector()+(self[i]*other[i]).get_vector())  """
+
+        self.view(*batch, n, m), other.view(*batch, m, p),
+        return res
+    
+    def sum(self, dim=-1, res=None, keepdims=False): # TODO: code review (Ozer)
+        assert res is not None, "res must be specified"
+        if len(self.sizes) == 2 and keepdims == True:
+            assert isinstance(res, MultiArray), "when operation comes to two dim and keepdims is True, res must be MultiArray"
+        if len(self.sizes) == 2 and keepdims == False:
+            assert isinstance(res,Array), "when operation comes to two dim and keepdims is False, res must be Array"
+        dim = len(self.sizes)-1 if dim == -1 else dim
+        # index_groups = self.getIndexGroups_by_dim(dim)
+        # for i in range(len(index_groups)):
+        #     summary = self.value_type(0)
+        #     for j in index_groups[i]:
+        #         summary += self.get_vector_by_indices(*j)
+        #     res.assign_vector(summary, i)
+        # if keepdims:
+        #     keep_sizes = self.sizes[:dim] + (1,) +self.sizes[dim+1:]
+        #     res.view(*keep_sizes)
+        if len(self.sizes) > 1:
+            def get_permute(n, dims):
+                perm = list(filter(lambda x: x not in dims, range(n))) + dims
+                return tuple(perm)
+            new_perm = get_permute(len(self.sizes), [dim])
+            target_size = self.tuple_permute(self.shape, new_perm)
+            input_perm = MultiArray(target_size, self.value_type)
+            self.permute_without_malloc(input_perm, new_perm)    
+            stride = reduce(lambda x, y: x * self.sizes[y], [dim], 1)
+            summary = Array(1, input_perm.value_type)
+            @library.for_range(self.total_size()//stride)
+            def _(i):
+                summary.assign_all(0)
+                @library.for_range(stride)
+                def _(j):
+                    summary[:] += input_perm.get_vector(i*stride+j, 1)
+                res.assign_vector(summary[:], i)
+            summary.delete()
+            tmp = 1 / stride
+            @library.multithread(1, res.total_size())
+            def _(base, size):
+                res.assign_vector(res.get_vector(base, size)* tmp, base)
+            if keepdims:
+                keep_sizes = self.sizes[:dim] + (1,) +self.sizes[dim+1:]
+                res.view(*keep_sizes)
+        else:
+            res[:] = sum(self[:]) / self.total_size()
+            
+        return res
+
+    def element_wise_mul(self, other, res=None):
+        assert res is not None, "res must be specified"
+        v1, v2 = self, other
+        len1, len2 = v1.total_size(), v2.total_size()
+        assert len1 % len2 == 0, "Invalid Dimension"
+        if self.total_size() < other.total_size():
+            v1, v2 = v2, v1
+        @library.for_range_opt(len1//len2)
+        def _(i):
+            v3 = v1.get_vector(i*len2, len2) * v2.get_vector(0, len2)
+            res.assign_vector(v3, i*len2)
+        library.break_point()
         return res
 
     def delete(self):
-            self.array.delete()
+        self.array.delete()
 
 class Matrix(MultiArray):
     """ Matrix.

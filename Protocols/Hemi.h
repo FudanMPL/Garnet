@@ -8,7 +8,7 @@
 
 #include "Semi.h"
 #include "HemiMatrixPrep.h"
-
+#include "../Processor/MatmulsmTuple.h"
 /**
  * Matrix multiplication optimized with semi-homomorphic encryption
  */
@@ -20,8 +20,7 @@ class Hemi : public T::BasicProtocol
 
     MatrixMC<T> mc;
 
-    ShareMatrix<T> matrix_multiply(const ShareMatrix<T>& A, const ShareMatrix<T>& B,
-            SubProcessor<T>& processor);
+
 
 public:
     Hemi(Player& P) :
@@ -34,8 +33,11 @@ public:
             SubProcessor<T>& processor);
 
     void matmulsm(SubProcessor<T>& processor, CheckVector<T>& source,
-            const Instruction& instruction, int a, int b);
+            const Instruction& instruction);
     void conv2ds(SubProcessor<T>& processor, const Instruction& instruction);
+    
+    ShareMatrix<T> matrix_multiply(const ShareMatrix<T>& A, const ShareMatrix<T>& B,
+            SubProcessor<T>& processor);
 };
 
 #endif /* PROTOCOLS_HEMI_H_ */

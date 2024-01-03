@@ -1,0 +1,13 @@
+table0 = sint.Matrix(3, 4) # 第0方的数据量为3行4列
+table1 = sint.Matrix(4, 3) # 第1方的数据量为4行3列
+
+for x in table0:
+    x.input_from(0)
+
+for x in table1:
+    x.input_from(1)
+
+
+merge_table, n = ss_psi_merge(table0, table1)
+
+

@@ -95,8 +95,6 @@ def sigmoid(x):
     """ Sigmoid function.
 
     :param x: sfix """
-
-
     return sigmoid_from_e_x(x, exp(-x))
 
 def sigmoid_from_e_x(x, e_x):
@@ -123,7 +121,7 @@ def approx_sigmoid(x, n=3):
         select = [le[i + 1] - le[i] for i in range(5)]
         outputs = [cfix(10 ** -4),
                    0.02776 * x + 0.145,
-                   0.17 * x + 0.5,
+                    0.17 * x + 0.5,
                    0.02776 * x + 0.85498,
                    cfix(1 - 10 ** -4)]
         return sum(a * b for a, b in zip(select, outputs))
@@ -915,6 +913,8 @@ class Dense(DenseBase):
         else:
             prod = self.f_input
         max_size = program.Program.prog.budget // self.d_out
+        
+        #标记一下，矩阵乘
         @multithread(self.n_threads, N, max_size)
         def _(base, size):
             X_sub = sfix.Matrix(self.N, self.d_in, address=self.X.address)
@@ -2158,15 +2158,15 @@ class FixConv2d(Conv2d, FixBase):
                     self.nabla_Y[i][j][k].get_vector() for k in range(output_w))
                                                    for j in range(output_h)))
 
-        input_size = inputs_h * inputs_w * N
-        batch_repeat = regint.Matrix(N, inputs_h * inputs_w)
+        input_size = inputs_h * inputs_w * N #why have no channel_in? 128*36
+        batch_repeat = regint.Matrix(N, inputs_h * inputs_w) # 128,6*6
         batch_repeat.assign_vector(batch.get(
             regint.inc(input_size, 0, 1, 1, N)) *
                                    reduce(operator.mul, self.input_shape[1:]))
         @for_range_opt_multithread(self.n_threads, [n_channels_in, n_channels_out])
         def _(i, j):
             a = regint.inc(input_size, self.X.address + i, n_channels_in, N,
-                           inputs_h * inputs_w)
+                           inputs_h * inputs_w)  
             inputs = sfix.load_mem(batch_repeat.get_vector() + a).pre_mul()
             b = regint.inc(N * output_w * output_h, self.nabla_Y.address + j, n_channels_out, N)
             rep_out = regint.inc(output_h * output_w * N, 0, 1, 1, N) * \
@@ -2175,7 +2175,7 @@ class FixConv2d(Conv2d, FixBase):
             res = sint(size = weights_h * weights_w)
             conv2ds(res, inputs, nabla_outputs, weights_h, weights_w, inputs_h,
                     inputs_w, output_h, output_w, -stride_h, -stride_w, N,
-                    padding_h, padding_w, 1)
+                    padding_h, padding_w, 1) 
             reduced = unreduced_sfix._new(res).reduce_after_mul()
             self.nabla_weights.assign_vector_by_indices(reduced, j, None, None, i)
 
@@ -2201,6 +2201,7 @@ class FixConv2d(Conv2d, FixBase):
                     [N, padded_h, padded_w, n_channels_in], sfix)
             else:
                 output = self.nabla_X
+            
             @for_range_opt_multithread(self.n_threads,
                                        [N, n_channels_in])
             def _(i, j):
@@ -2222,8 +2223,7 @@ class FixConv2d(Conv2d, FixBase):
                         def _(k):
                             jj = j + padding_w
                             kk = k + padding_w
-                            self.nabla_X[i][j][k].assign_vector(
-                                output[i][jj][kk].get_vector())
+                            self.nabla_X[i][j][k].assign_vector(output[i][jj][kk].get_vector())
 
         if self.debug_output:
             @for_range(len(batch))
@@ -2644,6 +2644,7 @@ class Optimizer:
             corners = [x[i] for i in (0, len(x) // 2 - 1, -1)]
         print_ln('corners:%s shape:%s', util.reveal(corners), tensor.shape)
 
+    @buildingblock("Update")
     def update(self, i_epoch, i_batch, batch):
         if self.output_grad:
             @if_(i_batch % 100 == 0)
@@ -3024,6 +3025,7 @@ class Adam(Optimizer):
     """
     def __init__(self, layers, n_epochs=1, approx=False, amsgrad=False,
                  normalize=False):
+        super(Adam, self).__init__()
         self.gamma = MemValue(cfix(.001))
         self.beta1 = 0.9
         self.beta2 = 0.999
@@ -3058,10 +3060,8 @@ class Adam(Optimizer):
                 if amsgrad:
                     self.vhats.append(nabla.same_shape())
 
-        super(Adam, self).__init__()
-
     @buildingblock("Update")
-    def update(self, i_epoch, batch):
+    def _update(self, i_epoch, i_batch, batch):
         self.beta1_power *= self.beta1
         self.beta2_power *= self.beta2
         m_factor = MemValue(1 / (1 - self.beta1_power))
@@ -3089,20 +3089,30 @@ class Adam(Optimizer):
                 v_part = self.beta2 * v_part + (1 - self.beta2) * g_part ** 2
                 m.assign_vector(m_part, base)
                 v.assign_vector(v_part, base)
+                mhat = m_part * m_factor.expand_to_vector(size)
+                vhat = v_part * v_factor.expand_to_vector(size)
                 if self.amsgrad:
-                    vhat = self.vhats [i_layer].get_vector(base, size)
-                    vhat = util.max(vhat, v_part)
+                    v_max = self.vhats [i_layer].get_vector(base, size)
+                    vhat = util.max(vhat, v_max)
                     self.vhats[i_layer].assign_vector(vhat, base)
-                    diff = self.gamma.expand_to_vector(size) * m_part
-                else:
-                    mhat = m_part * m_factor.expand_to_vector(size)
-                    vhat = v_part * v_factor.expand_to_vector(size)
-                    diff = self.gamma.expand_to_vector(size) * mhat
+                diff = self.gamma.expand_to_vector(size) * mhat
                 if self.approx:
                     diff *= mpc_math.InvertSqrt(vhat + self.epsilon ** 2)
                 else:
                     diff /= mpc_math.sqrt(vhat) + self.epsilon
                 theta.assign_vector(theta.get_vector(base, size) - diff, base)
+                if self.output_diff:
+                    @if_(i_batch % 100 == 0)
+                    def _():
+                        diff.reveal().binary_output()
+            if self.output_stats and m.total_size() < 1000:
+                @if_(i_batch % self.output_stats == 0)
+                def _():
+                    self.stat('g', g)
+                    self.stat('m', m)
+                    self.stat('v', v)
+                    self.stat('vhat', self.vhats[i_layer])
+                    self.stat('theta', theta)
 
 class SGD(Optimizer):
     """ Stochastic gradient descent.
@@ -3146,7 +3156,7 @@ class SGD(Optimizer):
             y.assign_all(0)
         super(SGD, self).reset()
 
-    @buildingblock("Update")
+    
     def _update(self, i_epoch, i_batch, batch):
         for nabla, theta, delta_theta in zip(self.nablas, self.thetas,
                                              self.delta_thetas):
@@ -3407,6 +3417,7 @@ class keras:
                             print('WARNING: epsilon smaller than default might '
                                   'cause overflows')
                         opt.epsilon = epsilon
+                    print(opt.layers)
                 elif opt == 'inference':
                     opt = Optimizer()
                     opt.layers = layers

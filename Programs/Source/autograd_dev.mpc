@@ -1,0 +1,38 @@
+
+from functools import reduce
+from Compiler import mpc_math, util
+# m = MultiArray([3,10], cint)
+# for i in range(30):
+#     m[i//10][i%10] = i%10
+# y = MultiArray([3,10], sfix)
+# for i in range(y.total_size()):
+#     y.assign_vector(sfix(i), i)
+
+# y.print_reveal_nested()
+
+# @for_range(y.total_size())
+# def _(i):
+#     index_store = []
+#     new_index = []
+#     def mul(x, y):
+#         return x*y
+#     tmp_i = i
+#     for j in range(len(y.sizes)-1):
+#         left_size = (reduce(mul, y.sizes[j+1:]))
+#         tmp_index = tmp_i// left_size
+#         index_store.append(tmp_index)
+#         new_index.append(tmp_index)
+#         tmp_i = tmp_i%left_size
+#     index_store.append(tmp_i)
+#     new_index.append(tmp_i)
+#     print_ln("%s, %s, %s", index_store[0], index_store[1], y.get_vector_by_indices(*index_store).reveal())
+#     print_ln("%s, %s", new_index[0], new_index[1])
+# program.use_trunc_pr = True
+# # sfix.set_precision(23, 3)
+x = sfix([2,3,4,5,6,7])
+
+z = 0.1*x
+# print_ln("%s", z.reveal())
+# m = x>y
+# z = sfix.get_input_from(0)
+

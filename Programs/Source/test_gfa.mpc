@@ -1,7 +1,7 @@
 import sympy as sp
 import Compiler.mpc_math
 from gfapp import GFA
-from ml import sigmoid
+import numpy as np
 
 sfix.set_precision(31, 63)
 
@@ -11,8 +11,8 @@ def mysigmoid(x):
     return 1 / ((1 + sp.exp(-x)))
 
 print_ln('using GFA sigmoid')
-for i in range(-2, 2):
+for i in range(-5, 5):
     actual = mysigmoid(sfix(i))
-    expected = sigmoid(sfix(i))
-    print_ln('expected %s, got %s', expected.reveal(), actual.reveal())
+    expected = 1 / ((1 + np.exp(-i)))
+    print_ln('expected %s, got %s', str(expected), actual.reveal())
 

@@ -15,8 +15,6 @@ learning_rate = 0.5
 
 
 
-
-
 def Sort(keys, *to_sort, n_bits=None, time=False):
     if time:
         start_timer(1)
@@ -71,6 +69,7 @@ def CropLayer(k, *v):
 
 
 def TrainLeafNodes(h, g, y, y_pred, NID, lamb=0.1):
+    print_ln("training %s-th layer (leaf layer)", h)
     assert len(g) == len(y)
     assert len(g) == len(NID)
     gradients = SquareLoss.gradient(y, y_pred)
