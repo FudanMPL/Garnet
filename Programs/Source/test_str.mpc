@@ -1,0 +1,72 @@
+'''
+a=schr.get_input_from(0)
+b=schr.get_input_from(0)
+c=schr.get_input_from(0)
+d=schr.get_input_from(0)
+d=schr('a')
+#print_cchr(a.reveal())
+#print_ln('\nrevealed array:%s',array.reveal())
+print_ln('revealed a :%s      b:%s     c :%s        d:%s ',a.reveal(),b.reveal(),c.reveal(),d.reveal())
+Marray=MultiArray([4,10],schr)
+Marray[0][0]='a'
+Marray[0][1]='周'
+Marray[0][2]='瑞'
+Marray.print_reveal_nested()
+array1=Array(10,schr)
+array1[0]='a'
+array1[1]='周'
+print_ln('array1[0]==arrat1[1]:%s',(array1[0]==array1[1]).reveal())
+
+#print_ln('%s',array.reveal()) #这里相当于调用__str__(self)方法
+
+print_ln('Marray[0][1]==Marray[0][2]:%s',(Marray[0][1]==Marray[0][2]).reveal())
+s1=sstring('sh吴王辰龙')
+s2= sstring('sz郑巳蛇午马未羊身后又继续狗亥猪')
+s1[3]='摔'
+s1[:2]='z钱'
+s3=s1[:4]
+
+print_ln("%s",s1.reveal())
+print_ln('%s %s',type(s1),type(s3))
+s1.print_reveal_nested()
+s2.print_reveal_nested()
+s3.print_reveal_nested()
+
+d=cchr('周')
+print_cchr(d)
+
+s2=sstring('to be or not to be！')
+s2.print_reveal_nested()
+'''
+s1=sstring('sh吴王辰龙')
+s2= sstring('sz郑巳蛇午')
+print_ln("%s",(s1==s2).reveal())
+
+
+User_ID=[]
+for player in [0,1,2]:
+    Not_exist=1
+    ID=sstring(length=18)
+    for i in range(18):
+        ID[i]=schr.get_input_from(player)
+    for itm in User_ID:
+        print_ln("bbbbbbb:%s",(ID==itm).reveal())
+        @if_((ID==itm).reveal()==1)
+        def _():
+            Not_exist=0
+            print("in if:",Not_exist)
+        '''
+        if (ID==itm).reveal():
+            print_ln('aaaaa')
+            Not_exist=0
+            print("in if:",Not_exist)
+        '''
+    print("out",Not_exist)
+    if Not_exist==1:
+        Name=sstring(length=3)
+        for i in range(3):
+            Name[i]=schr.get_input_from(player)
+        ID.print_reveal_nested(end='\t')
+        Name.print_reveal_nested()
+        User_ID.append(ID)
+        

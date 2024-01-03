@@ -160,6 +160,7 @@ void BaseInstruction::parse_operands(istream& s, int pos, int file_pos)
       case CLOSECLIENTCONNECTION:
       case CRASH:
       case DELSHUFFLE:
+      case PRINTCCHR:
         r[0]=get_int(s);
         break;
       // instructions with 2 registers + 1 integer operand
@@ -261,6 +262,7 @@ void BaseInstruction::parse_operands(istream& s, int pos, int file_pos)
       // instructions with 1 integer operand
       case PRINTSTR:
       case PRINTCHR:
+      // case PRINTCCHR:
       case JMP:
       case START:
       case STOP:
@@ -303,6 +305,8 @@ void BaseInstruction::parse_operands(istream& s, int pos, int file_pos)
       case INPUTFLOAT:
       case INPUTMIXED:
       case INPUTMIXEDREG:
+      case INPUTMIXEDSTRING:
+      case INPUTMIXEDREGSTRING:
       case RAWINPUT:
       case GRAWINPUT:
       case INPUTPERSONAL:
@@ -1055,12 +1059,32 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
       case INPUTFLOAT:
         sint::Input::template input<FloatInput>(Proc.Procp, start, size);
         return;
+      
+      // case INPUTMIXEDSTRING:
+      //     printf("INPUTMIXEDSTRING\n");
+      //     sint::Input::input_mixed_string(Proc.Procp, start, size, false);
+      //   return;
+       
+      // case INPUTMIXEDREGSTRING:
+      // {
+      //   printf("INPUTMIXEDREGSTRING\n");
+      //   sint::Input::input_mixed_string(Proc.Procp, start, size, true);
+      //   return;
+      // }
       case INPUTMIXED:
+      {
+        // printf("INPUTMIXED\n");
         sint::Input::input_mixed(Proc.Procp, start, size, false);
         return;
+      }
+        
       case INPUTMIXEDREG:
+      {
+        // printf("INPUTMIXEDREG\n");
         sint::Input::input_mixed(Proc.Procp, start, size, true);
         return;
+      }
+        
       case RAWINPUT:
         Proc.Procp.input.raw_input(Proc.Procp, start, size);
         return;
@@ -1180,6 +1204,9 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
         break;
       case PRINTREGPLAIN:
         print(Proc.out, &Proc.read_Cp(r[0]));
+        return;
+      case PRINTCCHR:
+        Proc.out<<string((char*)&Proc.read_Cp(r[0]))<<flush;
         return;
       case CONDPRINTPLAIN:
         if (not Proc.read_Cp(r[0]).is_zero())
@@ -1474,6 +1501,7 @@ inline void Instruction::execute_big_domain_instructions(Processor<sint, sgf2n>&
     case DELSHUFFLE:
     case CONDPRINTSTR:
     case STMCI:
+    case PRINTCCHR:
       execute(Proc);
       break;
     case PRINTFLOATPLAIN:
@@ -1688,12 +1716,28 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
       case INPUTFLOAT:
           sint::Input::template input<FloatInput>(Proc.Procp, start, size);
         return;
+      // case INPUTMIXEDSTRING:
+      //     printf("INPUTMIXEDSTRING");
+      //     sint::Input::input_mixed_string(Proc.Procp, start, size, false);
+      //   return;
+       
+      // case INPUTMIXEDREGSTRING:
+      //     printf("INPUTMIXEDREGSTRING");
+      //     sint::Input::input_mixed_string(Proc.Procp, start, size, true);
+      //   return;
       case INPUTMIXED:
-          sint::Input::input_mixed(Proc.Procp, start, size, false);
+      {
+        // printf("INPUTMIXED");
+        sint::Input::input_mixed(Proc.Procp, start, size, false);
         return;
+      }
+        
       case INPUTMIXEDREG:
-          sint::Input::input_mixed(Proc.Procp, start, size, true);
+      {
+        // printf("INPUTMIXEDREG");
+        sint::Input::input_mixed(Proc.Procp, start, size, true);
         return;
+      }
       case RAWINPUT:
           Proc.Procp.input.raw_input(Proc.Procp, start, size);
         return;
@@ -1837,6 +1881,9 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
           print(Proc.out, &Proc.read_Cp(r[0]));
         else
           print(Proc.out, &Proc.Procp_2->C[r[0]]);
+        return;
+      case PRINTCCHR:
+        Proc.out<<string((char*)&(Proc.read_Cp(r[0])))<<flush;
         return;
       case CONDPRINTPLAIN:
         if (not Proc.read_Cp(r[0]).is_zero())

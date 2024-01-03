@@ -155,6 +155,12 @@ enum
     ACCEPTCLIENTCONNECTION = 0x6d,
     CLOSECLIENTCONNECTION = 0x6e,
     READCLIENTPUBLICKEY = 0x6f,
+
+    // added by zhou
+    INPUTMIXEDREGSTRING = 0xF7,
+    INPUTMIXEDSTRING = 0xFf,
+
+
     // Bitwise logic
     ANDC = 0x70,
     XORC = 0x71,
@@ -214,6 +220,7 @@ enum
     CONDPRINTPLAIN = 0xE1,
     INTOUTPUT = 0xE6,
     FLOATOUTPUT = 0xE7,
+    PRINTCCHR=0x110,
 
     // GF(2^n) versions
     

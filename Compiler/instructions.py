@@ -1534,12 +1534,14 @@ class inputmixed_base(base.TextInputInstruction, base.DynFormatInstruction):
     types = {
         0: (1, 0),
         1: (1, 1),
-        2: (4, 1)
+        2: (4, 1),
+        3: (1, 0)
     }
     type_ids = {
         'int': 0,
         'fix': 1,
-        'float': 2
+        'float': 2,
+        'string':3
     }
 
     def __init__(self, name, *args):
@@ -1571,6 +1573,105 @@ class inputmixed_base(base.TextInputInstruction, base.DynFormatInstruction):
             for j in range(n + 1):
                 next(args)
 
+# @base.vectorize
+# class inputmixed_string(inputmixed_base):
+#     """ Store private input in secret registers (vectors). The input is
+#     read as integer or floating-point number and the latter is then
+#     converted to the internal representation using the given precision.
+#     This instruction uses compile-time player numbers.
+
+#     :param: number of arguments to follow (int)
+#     :param: type (0: integer, 1: fixed-point, 2: floating-point)
+#     :param: destination (sint)
+#     :param: destination (sint, only for floating-point)
+#     :param: destination (sint, only for floating-point)
+#     :param: destination (sint, only for floating-point)
+#     :param: fixed-point precision or precision of floating-point significand (int, not with integer)
+#     :param: input player (int)
+#     :param: (repeat from type parameter)...
+
+#     """
+#     code = base.opcodes['INPUTMIXED']
+#     player_arg_type = 'p'
+
+#     def add_usage(self, req_node):
+#         res = program.get_cost("share")
+#         if res == -1:
+#             print("The profiling results could be biased")
+#             print("Please config the cost of share in cost_config.py")
+#             return
+#         times = 0
+#         for i, t in self.bases(iter(self.args)):
+#             n_dest = self.types[t][0]
+#             times += n_dest * self.get_size()
+#         req_node.increment(('online communication', 'bits'), res[0]*times)
+#         req_node.increment(('offline communication', 'bits'), res[2]*times)
+#         req_node.increment(('online', 'round'), res[1])
+#         req_node.increment(('offline', 'round'), res[3])
+#         for i, t in self.bases(iter(self.args)):
+#             player = self.args[i + sum(self.types[t]) + 1]
+#             n_dest = self.types[t][0]
+#             req_node.increment((self.field_type, 'input', player), \
+#                                n_dest * self.get_size())
+
+#     def get_players(self):
+#         for i, t in self.bases(iter(self.args)):
+#             yield self.args[i + sum(self.types[t]) + 1]
+
+
+# class inputmixedreg_string(inputmixed_base):
+#     """ Store private input in secret registers (vectors). The input is
+#     read as integer or floating-point number and the latter is then
+#     converted to the internal representation using the given precision.
+#     This instruction uses run-time player numbers.
+
+#     :param: number of arguments to follow (int)
+#     :param: type (0: integer, 1: fixed-point, 2: floating-point)
+#     :param: destination (sint)
+#     :param: destination (sint, only for floating-point)
+#     :param: destination (sint, only for floating-point)
+#     :param: destination (sint, only for floating-point)
+#     :param: fixed-point precision or precision of floating-point significand (int, not with integer)
+#     :param: input player (regint)
+#     :param: (repeat from type parameter)...
+
+#     """
+#     code = base.opcodes['INPUTMIXEDREG']
+#     player_arg_type = 'ci'
+#     is_vec = lambda self: True
+
+#     def __init__(self, *args):
+#         inputmixed_base.__init__(self, *args)
+#         for i, t in self.bases(iter(self.args)):
+#             n = self.types[t][0]
+#             for j in range(i + 1, i + 1 + n):
+#                 assert args[j].size == self.get_size()
+
+#     def get_size(self):
+#         return self.args[1].size
+
+#     def get_code(self):
+#         return inputmixed_base.get_code(
+#             self, self.get_size() if self.get_size() > 1 else 0)
+
+#     def add_usage(self, req_node):
+#         res = program.get_cost("share")
+#         if res == -1:
+#             print("The profiling results could be biased")
+#             print("Please config the cost of share in cost_config.py")
+#             return
+#         times = 0
+#         for i, t in self.bases(iter(self.args)):
+#             n_dest = self.types[t][0]
+#             times += n_dest * self.get_size()
+#         req_node.increment(('online communication', 'bits'), res[0]*times)
+#         req_node.increment(('offline communication', 'bits'), res[2]*times)
+#         req_node.increment(('online', 'round'), res[1])
+#         req_node.increment(('offline', 'round'), res[3])
+#         req_node.increment((self.field_type, 'input', 0), float('inf'))
+
+#     def get_players(self):
+#         pass
 @base.vectorize
 class inputmixed(inputmixed_base):
     """ Store private input in secret registers (vectors). The input is
@@ -1891,9 +1992,34 @@ class print_char(base.IOInstruction):
     """
     code = base.opcodes['PRINTCHR']
     arg_format = ['int']
-
+    
     def __init__(self, ch):
         super(print_char, self).__init__(ch)
+
+# class print_cchr(base.IOInstruction):
+#     """ Output a single byte.
+
+#     :param: byte (int)
+#     """
+#     code = base.opcodes['PRINTCCHR']
+#     arg_format = ['c']
+    
+#     def __init__(self, ch):
+#         super(print_cchr, self).__init__(ch)
+
+@base.gf2n
+@base.vectorize
+class print_cchr(base.IOInstruction):
+    """ Output clear register.
+
+    :param: source (cint)
+    """
+    __slots__ = []
+    code = base.opcodes['PRINTCCHR']
+    arg_format = ['c']
+
+
+
 
 class print_char4(base.IOInstruction):
     """ Output four bytes.
