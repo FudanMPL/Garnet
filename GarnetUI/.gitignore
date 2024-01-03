@@ -1,0 +1,9 @@
+.venv
+*.pyc
+ui/uploads/mpc/*
+ui/uploads/data/*
+ui/uploads/ssl/*
+!ui/uploads/mpc/社区矫正监督模型.mpc
+!ui/uploads/mpc/特种病药物转卖医保诈骗监督模型.mpc
+ui/db.sqlite3
+ui/Model/migrations/*
