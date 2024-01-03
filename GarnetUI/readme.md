@@ -41,7 +41,7 @@ npm install
 ```python
 # region 需要自定义设置的内容
 # garnet文件夹
-GARNETPATH = "/home/nhy/Garnet"
+GARNETPATH = "../../Garnet"
 
 # Metadata
 NAME = "DELL_Windows"
