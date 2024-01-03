@@ -6041,7 +6041,8 @@ class sstring(Array):
             if self.length==other.length:
                 from Compiler.library import print_ln
                 # print_ln("%s",other.reveal())
-                tmp=(super().__getitem__(slice(None,None,None))==other.call_parent_getitem(slice(None,None,None)))
+                tmp= ((sint) (self.get_vector())) == ((sint)(other.get_vector()))
+                # tmp=(super().__getitem__(slice(None,None,None))==other.call_parent_getitem(slice(None,None,None)))
                 # print_ln("tmp:%s",tmp.reveal())
                 res=VecMul(tmp)
                 print_ln("res:%s",res.reveal())

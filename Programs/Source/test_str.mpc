@@ -45,24 +45,16 @@ print_ln("%s",(s1==s2).reveal())
 
 User_ID=[]
 for player in [0,1,2]:
-    Not_exist=1
+    Not_exist=sint(0)
     ID=sstring(length=18)
     for i in range(18):
         ID[i]=schr.get_input_from(player)
     for itm in User_ID:
-        print_ln("bbbbbbb:%s",(ID==itm).reveal())
-        @if_((ID==itm).reveal()==1)
-        def _():
-            Not_exist=0
-            print("in if:",Not_exist)
-        '''
-        if (ID==itm).reveal():
-            print_ln('aaaaa')
-            Not_exist=0
-            print("in if:",Not_exist)
-        '''
-    print("out",Not_exist)
-    if Not_exist==1:
+        Not_exist = Not_exist + (ID==itm).reveal()
+
+
+    @if_(Not_exist.reveal()==0)
+    def _():
         Name=sstring(length=3)
         for i in range(3):
             Name[i]=schr.get_input_from(player)
