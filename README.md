@@ -34,6 +34,15 @@ make -j 8 tldr
 
 ## 历史发布
 
+
+#### 2024年1月份发布: 
+
+* [GarnetUI](./GarnetUI/readme.md)
+* [自动微分模块](./docs/autograd.md)
+* [隐私集合求交](./docs/PSI.md)
+* [安全字符串操作](./docs/string.md)
+* [XGBoost训练扩展至两方场景和最多带有一个恶意参与方的三方场景](./docs/xgboost-training.md)
+
 #### 2023年9月份发布: 
 
 * [优化Function Secret Sharing的通信轮次](./docs/fss.md)
