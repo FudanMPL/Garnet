@@ -52,8 +52,7 @@ void ReplicatedMC<T>::POpen_End(vector<typename T::open_type>& values,
 }
 
 template<class T>
-void ReplicatedMC<T>::finalize(vector<typename T::open_type>& values,
-        const vector<T>& S)
+void ReplicatedMC<T>::finalize(vector<typename T::open_type>& values,const vector<T>& S)
 {
     values.resize(S.size());
     for (size_t i = 0; i < S.size(); i++)

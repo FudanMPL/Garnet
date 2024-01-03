@@ -2,7 +2,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from collections import defaultdict
-
+import json
 
 name_dict = {"online communicationbits":"online comm",
              "offline communicationbits":"offline comm",
@@ -80,7 +80,15 @@ def plot_stackedcolumn(data, name):
     plt.savefig(dir+name+"-stack.pdf")
 
 
-def plot_cost(profiling_res, name):
+file_path = './Programs/Profiling-data/'
+file_type = '.json'
+
+def plot_cost(profiling_res, name, protocol):
     data = parse(profiling_res)
-    plot_histogram(data, name)
-    plot_stackedcolumn(data, name)
+    file_id = name + '-' + protocol
+    print('using <python ./Scripts/profiling-v.py '+file_id+'> to visualize the result.')
+    file_name = file_path + file_id + file_type
+    with open(file_name, 'w') as json_file:
+        json.dump(data, json_file, indent=2)
+    # plot_histogram(data, name)
+    # plot_stackedcolumn(data, name)

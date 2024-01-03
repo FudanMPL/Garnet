@@ -23,6 +23,7 @@
 #include <map>
 #include <atomic>
 #include "Protocols/Rep3Share128.h"
+#include "Protocols/MalRepRingShare128.h"
 
 using namespace std;
 
@@ -59,8 +60,8 @@ class Machine : public BaseMachine
   Memory<sgf2n> M2;
 
   Memory<sint> Mp;
-#ifdef BIG_DOMAIN_FOR_RSS
-  Memory<Rep3Share128>* Mp_2 = NULL;
+#ifdef BIG_DOMAIN_FOR_RING
+  Memory<BigDomainShare>* Mp_2 = NULL;
 #endif
   Memory<Integer> Mi;
   GC::Memories<typename sint::bit_type> bit_memories;

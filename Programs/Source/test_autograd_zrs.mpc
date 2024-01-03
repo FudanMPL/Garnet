@@ -1,0 +1,906 @@
+from tensor import Tensor,reset_gloabal_store,untrain,autograd_function
+import tensor as tensor
+from functools import reduce
+import functional as F
+import operator
+
+# program.options_from_args()
+ROW=4
+COL=4
+HEIGHT=3
+LENGTH=10
+program.use_trunc_pr = True
+xArray = Array(LENGTH, sfix)
+for i in range(0,LENGTH):
+    xArray[i]=sfix(i-LENGTH/2)
+
+xMultiArray_2 = MultiArray([ROW, COL], sfix)
+for i in range(0,ROW):
+    for  j in range(0,COL):
+        xMultiArray_2[i][j] = sfix(i-j)
+
+xMultiArray_3 = MultiArray([ROW, COL,HEIGHT], sfix)
+for i in range(0,ROW):
+    for  j in range(0,COL):
+        for k in range(0,HEIGHT):
+            xMultiArray_3[i][j][k] = sfix(i-j+k)
+            
+
+def test_single_operation(func,Value):
+    Value.print_reveal_nested()
+    input = Tensor(Value, req_grad = True)
+    # output = getattr(input, func)() 
+    # tensor.train()
+    # tensor.reset_op_id()
+    output = getattr(input, func)()
+    output.backward()
+    output.value.print_reveal_nested()
+    input.grad.print_reveal_nested()
+    tensor.reset_op_id()
+    untrain()
+    reset_gloabal_store()
+
+
+# test for Array and MultiArray
+def test_sin():
+    test_single_operation('sin',xArray)
+    test_single_operation('sin',xMultiArray_2)
+
+def test_abs():
+    test_single_operation('abs',xArray)
+    test_single_operation('abs',xMultiArray_2)
+
+def test_exp():
+   # test_single_operation('exp',xArray)
+    test_single_operation('exp',xMultiArray_2)
+
+def test_log():
+    test_single_operation('log',xArray)
+    test_single_operation('log',xMultiArray_2)
+
+def test_sum():
+    test_single_operation('sum',xArray)
+    test_single_operation('sum',xMultiArray_2)
+
+
+@autograd_function
+def test_sin2():
+    xMultiArray_2.print_reveal_nested()
+    input1 = Tensor(xMultiArray_2, req_grad = True)
+
+    input2 = input1.sin()
+
+    # tensor.train()
+    # tensor.reset_op_id()
+
+    input2 = input1.sum()
+    input2.backward()
+    input2.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+
+@autograd_function
+def test_permute():
+    print_ln('test_permute():')
+    xMultiArray_3 = MultiArray([ROW, COL,4], sfix)
+    for i in range(0,ROW):
+        for  j in range(0,COL):
+            for k in range(0,4):
+                xMultiArray_3[i][j][k] = sfix(i*12+j*4+k)
+    xMultiArray_3.print_reveal_nested()
+    input1 = Tensor(xMultiArray_3, req_grad = True)
+
+    # input2 = input1.permute([1,2,0])
+    
+
+    # tensor.train()
+    # tensor.reset_op_id()
+
+    input2 = input1.permute([1,2,0])
+    input2.backward()
+    input2.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+
+#test_permute()
+
+
+@autograd_function
+def test_reshape_MultiArrayToMultiArray():
+    print_ln('test_reshape_MultiArrayToMultiArray()')
+    xMultiArray_3.print_reveal_nested()
+    input1 = Tensor(xMultiArray_3, req_grad = True)
+
+    # input2 = input1.reshape([6,4])
+
+    # tensor.train()
+    # tensor.reset_op_id()
+
+    input2 = input1.reshape([6,4])
+    input2.backward()
+    input2.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+
+@autograd_function
+def test_reshape_ArrayToMultiArray():
+    print_ln('test_reshape_ArrayToMultiArray()')
+    xArray.print_reveal_nested()
+    input1 = Tensor(xArray, req_grad = True)
+
+    # input2 = input1.reshape([2,5])
+
+    # tensor.train()
+    # tensor.reset_op_id()
+
+    input2 = input1.reshape([2,5])
+    input2.backward()
+    input2.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+
+
+@autograd_function
+def test_reshape_MultiArrayToArray():
+    print_ln('test_reshape_MultiArrayToArray()')
+    xMultiArray_2.print_reveal_nested()
+    input1 = Tensor(xMultiArray_2, req_grad = True)
+
+    # input2 = input1.reshape(ROW*COL)
+
+    # tensor.train()
+    # tensor.reset_op_id()
+
+    input2 = input1.reshape(ROW*COL)
+    input2.backward()
+    input2.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+
+@autograd_function
+def test_squeeze():
+    xMultiArray_3_tmp = MultiArray([ROW, 1,HEIGHT], sfix)
+    for i in range(0,ROW):
+        for  j in range(0,1):
+            for k in range(0,HEIGHT):
+                xMultiArray_3_tmp[i][j][k] = sfix(i-j+k)
+    print_ln('test_squeeze():')
+    xMultiArray_3_tmp.print_reveal_nested()
+    input1 = Tensor(xMultiArray_3_tmp, req_grad = True)
+
+    # input2 = input1.squeeze(1)
+
+    # tensor.train()
+    # tensor.reset_op_id()
+
+    input2 =  input1.squeeze(1)
+    input2.backward()
+    input2.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+
+@autograd_function
+def test_unsqueeze():
+    print_ln('test_unsqueeze():')
+    xMultiArray_2 = MultiArray([ROW, COL], sfix)
+    for i in range(0,ROW):
+        for  j in range(0,COL):
+            xMultiArray_2[i][j] = sfix(i-j)
+    xMultiArray_2.print_reveal_nested()
+    input1 = Tensor(xMultiArray_2, req_grad = True)
+
+    # input2 = input1.unsqueeze(0)
+
+    # tensor.train()
+    # tensor.reset_op_id()
+
+    input2 = input1.unsqueeze(0)
+    input2.backward()
+    input2.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+
+@autograd_function
+def test_transpose_Array():
+    print_ln('test_transpose_Array():')
+    xArray = Array(LENGTH, sfix)
+    for i in range(0,LENGTH):
+        xArray[i]=sfix(i-LENGTH/2)
+    xArray.print_reveal_nested()
+    input1 = Tensor(xArray, req_grad = True)
+    # input2 = input1.transpose()
+
+    # tensor.train()
+    # tensor.reset_op_id()
+
+    input2 = input1.transpose()
+    input2.backward()
+    input2.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+
+@autograd_function
+def test_transpose_MultiArray():
+    print_ln('test_transpose_MultiArray():')
+    xMultiArray_2 = MultiArray([ROW, COL], sfix)
+    for i in range(0,ROW):
+        for  j in range(0,COL):
+            xMultiArray_2[i][j] = sfix(i-j)
+    xMultiArray_2.print_reveal_nested()
+    input1 = Tensor(xMultiArray_2, req_grad = True)
+    # input2 = input1.transpose()
+
+    # tensor.train()
+    # tensor.reset_op_id()
+
+    input2 = input1.transpose()
+    input2.backward()
+    input2.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+
+
+@autograd_function
+def test_concat_Array():
+    print_ln('test_concat_Array():')
+    xArray_1 = Array(LENGTH, sfix)
+    for i in range(0,LENGTH):
+        xArray_1[i]=sfix(i-LENGTH/2)
+    xArray_2 = Array(5, sfix)
+    for i in range(0,5):
+        xArray_2[i]=sfix(i+10+LENGTH/2)
+    print_str("Array1 and Array2:\n")
+    xArray_1.print_reveal_nested()
+    xArray_2.print_reveal_nested()
+    input1 = Tensor(xArray_1, req_grad = True)
+    input2 = Tensor(xArray_2, req_grad = True)
+    # output=input1.concat(input2)
+
+    # tensor.train()
+    # tensor.reset_op_id()
+
+    output=input1.concat(input2)
+    
+    output.backward()
+    print_str("The output of Array1 concat Array2:\n")
+    output.value.print_reveal_nested()
+    print_str("The grad of Array1 and Array2:\n")
+    input1.grad.print_reveal_nested()
+    input2.grad.print_reveal_nested()
+
+
+
+@autograd_function
+def test_concat_MultiArray():
+    print_ln('test_concat_MultiArray():')
+    xMultiArray_3_1 = MultiArray([ROW, COL+2,HEIGHT], sfix)
+    for i in range(0,ROW):
+        for  j in range(0,COL+2):
+            for k in range(0,HEIGHT):
+                xMultiArray_3_1[i][j][k] = sfix(i+j+k+100)
+    
+    xMultiArray_3_2 = MultiArray([ROW, COL,HEIGHT], sfix)
+    for i in range(0,ROW):
+        for  j in range(0,COL):
+            for k in range(0,HEIGHT):
+                xMultiArray_3_2[i][j][k] = sfix(i+j+k)
+
+
+    print_str("3-Dimension MultiArray1 and MultiArray2:\n")
+    xMultiArray_3_1.print_reveal_nested()
+    xMultiArray_3_2.print_reveal_nested()
+
+    input1 = Tensor(xMultiArray_3_1, req_grad = True)
+    input2 = Tensor(xMultiArray_3_2, req_grad = True)
+    # output=input1.concat(input2,1)
+
+    # tensor.train()
+    # tensor.reset_op_id()
+
+    output=input1.concat(input2,1)
+    
+    output.backward()
+    print_str("The output of 3-Dimension MultiArray1 concat MultiArray2 in axis=1:\n")
+    output.value.print_reveal_nested()
+    print_str("The grad of MultiArray1 and MultiArray2:\n")
+    input1.grad.print_reveal_nested()
+    input2.grad.print_reveal_nested()
+
+
+@autograd_function
+def test_mm_MultiArray():
+    print_ln('test_mm_MultiArray():')
+    xMultiArray_2_1 = MultiArray([COL, COL], sfix)
+    for i in range(0,COL):
+        for  j in range(0,COL):
+            xMultiArray_2_1[i][j] = sfix(1)
+
+    xMultiArray_2_2 = MultiArray([COL, COL], sfix)
+    for i in range(0,COL):
+        for  j in range(0,COL):
+            xMultiArray_2_2[i][j] = sfix(1)
+
+
+    xMultiArray_2_1.print_reveal_nested()
+    xMultiArray_2_2.print_reveal_nested()
+    input1 = Tensor(xMultiArray_2_1, req_grad = True)
+    input2 = Tensor(xMultiArray_2_2, req_grad = True)
+    # output = input1.mm(input2)+input1
+
+    # tensor.train()
+    # tensor.reset_op_id()
+
+    output = input1.mm(input2)+input1
+    output.backward()
+    output.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+    input2.grad.print_reveal_nested()
+
+
+@autograd_function
+def test_mv_MultiArray_Array():
+    print_ln('test_mv_MultiArray_Array():')
+    xMultiArray_1 = MultiArray([ROW, COL], sfix)
+    xMultiArray_1.assign_all(1)
+
+    xArray_2 = Array(COL, sfix)
+    xArray_2.assign_all(1)
+
+
+    xMultiArray_1.print_reveal_nested()
+    xArray_2.print_reveal_nested()
+    input1 = Tensor(xMultiArray_1, req_grad = True)
+    input2 = Tensor(xArray_2, req_grad = True)
+    # output = input1.mv(input2)
+
+    # tensor.train()
+    # tensor.reset_op_id()
+
+    output = input1.mv(input2)
+    output.backward()
+    output.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+    input2.grad.print_reveal_nested()
+
+@autograd_function
+def test_mv_3Dim_MultiArray_Array():
+    print_ln('test_mv_3Dim_MultiArray_Array():')
+    xMultiArray_3 = MultiArray([ROW, COL,HEIGHT], sfix)
+    for i in range(0,ROW):
+        for  j in range(0,COL):
+            for k in range(0,HEIGHT):
+                xMultiArray_3[i][j][k] = sfix(1)
+
+    xArray_2 = Array(HEIGHT, sfix)
+    xArray_2.assign_all(1)
+
+    xMultiArray_3.print_reveal_nested()
+    xArray_2.print_reveal_nested()
+    input1 = Tensor(xMultiArray_3, req_grad = True)
+    input2 = Tensor(xArray_2, req_grad = True)
+    # output = input1.mv(input2)
+
+    # tensor.train()
+    # tensor.reset_op_id()
+
+    output = input1.mv(input2)
+    output.backward()
+    output.value.print_reveal_nested()
+    print_ln("The grad is:")
+    input1.grad.print_reveal_nested()
+    input2.grad.print_reveal_nested()
+
+
+
+@autograd_function
+def test_dot():
+    print_ln('test_dot():')
+    xArray_1 = Array(COL, sfix)
+    xArray_1.assign_all(2)
+
+    xArray_2 = Array(COL, sfix)
+    xArray_2.assign_all(3)
+
+
+    xArray_1.print_reveal_nested()
+    xArray_2.print_reveal_nested()
+    input1 = Tensor(xArray_1, req_grad = True)
+    input2 = Tensor(xArray_2, req_grad = True)
+    # output = input1.dot(input2)
+
+    # tensor.train()
+    # tensor.reset_op_id()
+
+    output = input1.dot(input2)
+    output.backward()
+    output.value.print_reveal_nested()
+    input1.grad.print_reveal_nested()
+    input2.grad.print_reveal_nested()
+
+@autograd_function
+def test_sigmoid(approx=False):
+    print_ln('test sigmoid')
+    xMultiArray_2_1 = MultiArray([COL, HEIGHT], sfix)
+    for i in range(0,COL):
+        for  j in range(0,HEIGHT):
+            xMultiArray_2_1[i][j] = sfix(i-j)
+    input = Tensor(xMultiArray_2_1, req_grad = True)
+    # output=F.sigmoid(input,approx=approx)
+    # tensor.train()
+    # tensor.reset_op_id()
+    output=F.sigmoid(input,approx=approx)
+    output.backward()
+    input.value.print_reveal_nested()
+    output.value.print_reveal_nested()
+    output.grad.print_reveal_nested()
+    input.grad.print_reveal_nested()
+
+@autograd_function
+def test_relu():
+    print_ln("test relu:")
+    xMultiArray_2_1 = MultiArray([COL, HEIGHT], sfix)
+    for i in range(0,COL):
+        for  j in range(0,HEIGHT):
+            xMultiArray_2_1[i][j] = sfix(i-j)
+    input = Tensor(xMultiArray_2_1, req_grad = True)
+    # output=F.relu(input,inplace=True)
+    # tensor.train()
+    # tensor.reset_op_id()
+    output=F.relu(input,inplace=True)
+    output.backward()
+    input.value.print_reveal_nested()
+    output.value.print_reveal_nested()
+    output.grad.print_reveal_nested()
+    input.grad.print_reveal_nested()
+
+@autograd_function
+def test_logsigmoid():
+    print_ln("test_logsigmoid:")
+    xMultiArray_2_1 = MultiArray([COL, HEIGHT], sfix)
+    for i in range(0,COL):
+        for  j in range(0,HEIGHT):
+            xMultiArray_2_1[i][j] = sfix(i-j)
+    input = Tensor(xMultiArray_2_1, req_grad = True)
+    # output=F.logsigmoid(input)
+    # tensor.train()
+    # tensor.reset_op_id()
+    output=F.logsigmoid(input)
+    output.backward()
+    input.value.print_reveal_nested()
+    output.value.print_reveal_nested()
+    output.grad.print_reveal_nested()
+    input.grad.print_reveal_nested()
+
+@autograd_function
+def test_tanh():
+    print_ln("test_tanh:")
+    xMultiArray_2_1 = MultiArray([COL, HEIGHT], sfix)
+    for i in range(0,COL):
+        for  j in range(0,HEIGHT): 
+            xMultiArray_2_1[i][j] = sfix(i-j)
+    input = Tensor(xMultiArray_2_1, req_grad = True)
+    # output=F.tanh(input)
+    # tensor.train()
+    # tensor.reset_op_id()
+    output=F.tanh(input)
+    output.backward()
+    input.value.print_reveal_nested()
+    output.value.print_reveal_nested()
+    output.grad.print_reveal_nested()
+    input.grad.print_reveal_nested()
+
+
+
+
+
+@autograd_function
+def test_conv2d():
+    print_ln("test_conv2d:")
+    training_samples = MultiArray([4, 3,5, 5], sfix)
+    for i in range(0,4):
+        for j in range(0,3):
+            for k in range(0,5):
+                for m in range(5):
+                    training_samples[i][j][k][m]=i+j+k+m
+
+
+    training_labels = MultiArray([4, 10], sint)
+    weight_v=MultiArray([3,3,3,3],sfix)
+    for i in range(0,3):
+        for j in range(0,3):
+            for k in range(0,3):
+                weight_v[i][0][j][k] = sfix(i+j+k)
+
+    weight_v.print_reveal_nested()
+    input = Tensor(training_samples, req_grad = True)
+    weight=Tensor(weight_v,req_grad = True )
+    output=F.conv2d(input,weight,padding=[2,2], groups = 1)
+    output.backward()
+    output.value.print_reveal_nested()
+    weight.grad.print_reveal_nested()
+    input.grad.print_reveal_nested()
+
+
+
+
+
+@autograd_function
+def test_maxpool2d():
+    print_ln("test_maxpool2d:")
+    training_samples = MultiArray([4, 3,5, 5], sfix)
+    for i in range(0,4):
+        for j in range(0,3):
+            for k in range(0,5):
+                for m in range(5):
+                    training_samples[i][j][k][m]=i+j+k+m
+
+    input = Tensor(training_samples, req_grad = True)
+
+
+    # output=F.max_pool2d(input)
+    # tensor.train()
+    # tensor.reset_op_id()
+    output=F.max_pool2d(input)
+    output.backward()
+    print_ln("output shape:%s",output.shape)
+    output.value.print_reveal_nested()
+    #output.value.permute([0,3,1,2]).print_reveal_nested()
+    print_ln("input grad shape:%s",input.shape)
+    input.grad.print_reveal_nested()
+    
+
+@autograd_function
+def test_avgpool2d():
+    print_ln("test_avgpool2d:")
+    training_samples = MultiArray([4, 3,5, 5], sfix)
+    for i in range(0,4):
+        for j in range(0,3):
+            for k in range(0,5):
+                for m in range(5):
+                    training_samples[i][j][k][m]=i+j+k+m
+
+    input = Tensor(training_samples, req_grad = True)
+
+
+    # output=F.avg_pool2d(input,2)
+    # tensor.train()
+    # tensor.reset_op_id()
+    output=F.avg_pool2d(input,2)
+    output.backward()
+    print_ln("input value:")
+    input.value.print_reveal_nested()
+    print_ln("output shape:%s\n output_value",output.shape)
+    output.value.print_reveal_nested()
+    print_ln("input grad shape:%s",input.shape)
+    input.grad.print_reveal_nested()
+
+@autograd_function
+def test_normalize():
+    print_ln("test_normalize:")
+    training_samples = MultiArray([4, 3,5, 5], sfix)
+    for i in range(0,4):
+        for j in range(0,3):
+            for k in range(0,5):
+                for m in range(5):
+                    training_samples[i][j][k][m]=i+j+k+m
+
+    input = Tensor(training_samples, req_grad = True)
+    
+    # output=F.normalize(input,dim=[2])
+    # tensor.train()
+    # tensor.reset_op_id()
+    output=F.normalize(input,dim=[2])
+    output.backward()
+    print_ln("input value:")
+    input.value.print_reveal_nested()
+    print_ln("output shape:%s\n output_value",output.shape)
+    output.value.print_reveal_nested()
+    print_ln("input grad shape:%s",input.shape)
+    input.grad.print_reveal_nested()
+
+@autograd_function
+def test_l1_loss():
+    print_ln('test_l1loss')
+    x = MultiArray([3, 4], sfix)
+    for i in range(0,3):
+        for  j in range(0,4):
+            x[i][j] = sfix(i-j)
+    y = MultiArray([3, 4], sfix)
+    for i in range(0,3):
+        for  j in range(0,4):
+            y[i][j] = sfix(i+j)
+    x.print_reveal_nested()
+    y.print_reveal_nested()
+    input1 = Tensor(x, req_grad = True)
+    input2 = Tensor(y, req_grad = True)
+    # output = F.l1_loss(input1,input2,'sum')
+    # tensor.train()
+    # tensor.reset_op_id()
+    output = F.l1_loss(input1,input2,'sum')
+    output.value.print_reveal_nested()
+    output.backward()
+    input1.grad.print_reveal_nested()
+
+@autograd_function
+def test_kl_div():
+    print_ln('test_div')
+    x = MultiArray([3, 4], sfix)
+    for i in range(0,3):
+        for  j in range(0,4):
+            x[i][j] = sfix(i-j)
+    y = MultiArray([3, 4], sfix)
+    for i in range(0,3):
+        for  j in range(0,4):
+            y[i][j] = sfix(i+j)
+    x.print_reveal_nested()
+    y.print_reveal_nested()
+    input1 = Tensor(x, req_grad = True)
+    input2 = Tensor(y, req_grad = True)
+    # output = F.kl_div(input1,input2,True,'sum')
+    # tensor.train()
+    # tensor.reset_op_id()
+    output = F.kl_div(input1,input2,True,'sum')
+    output.value.print_reveal_nested()
+    output.backward()
+    input1.grad.print_reveal_nested()
+
+@autograd_function
+def test_softmax():
+    print_ln('test_softmax')
+    x = MultiArray([1, 12, 512,512], sfix)
+    # for i in range(0,3):
+    #     for  j in range(0,4):
+    #         for k in range(2):
+    #             x[i][j][k] = sfix(i-j-k)
+    # x.print_reveal_nested()
+
+    y = MultiArray([3, 4,2], sfix)
+    for i in range(0,3):
+        for  j in range(0,4):
+            for k in range(2):
+                    y[i][j][k] = sfix(i+j+k)
+    y.print_reveal_nested()
+
+    input1 = Tensor(x, req_grad = True)
+    input2 = Tensor(y, req_grad = True)
+    # output = input1.softmax(dim=1)
+    # out = output*input2
+    # tensor.train()
+    # tensor.reset_op_id()
+    output = input1.softmax(dim=-1)
+    # out = output*input2
+    # output.value.print_reveal_nested()
+    # out.backward()
+    # input1.grad.print_reveal_nested()
+
+
+
+
+
+def test_dim():
+    print_ln('test_dim')
+    x = MultiArray([3, 4,3], sfix)
+    for i in range(0,3):
+        for  j in range(0,4):
+            for k in range(0,3):
+                x[i][j][k] = sfix(i+j+k)
+    x.print_reveal_nested()
+    dim=1
+    part_suffix = reduce(operator.mul, x.sizes[dim+1:])
+    part_prefix = reduce(operator.mul, x.sizes[:dim])
+    index=regint.inc(x.sizes[dim],base=0,step=part_suffix,repeat=1)
+    print_ln(x.get(index).reveal())
+
+
+@autograd_function
+def test_nllloss():
+    print_ln('test_nllloss')
+    x = MultiArray([128, 1000], sfix)
+    for i in range(0,3):
+        for  j in range(0,4):
+            x[i][j]= sfix(i-j)
+    x.print_reveal_nested()
+
+    y = MultiArray([128, 1000], sint)
+    y[0][2]=1
+    y[1][0]=1
+    y[2][3]=1
+    y.print_reveal_nested()
+
+    input = Tensor(x, req_grad = True)
+    target = Tensor(y, req_grad = True)
+    # output = F.nll_loss(input,target)
+    # tensor.train()
+    # tensor.reset_op_id()
+    output = F.nll_loss(input,target)
+    output.value.print_reveal_nested()
+    output.backward()
+    input.grad.print_reveal_nested()
+    output.grad.print_reveal_nested()
+
+
+@autograd_function
+def test_cross_entropy():
+    print_ln('test_cross_entropy')
+    x = MultiArray([3, 4], sfix)
+    for i in range(0,3):
+        for  j in range(0,4):
+            x[i][j]= sfix(i-j)
+    x.print_reveal_nested()
+
+    y = MultiArray([3, 4], sint)
+    y[0][0]=1
+    y[1][2]=1
+    y[2][1]=1
+    y.print_reveal_nested()
+
+    input = Tensor(x, req_grad = True)
+    target = Tensor(y, req_grad = True)
+    # output = F.cross_entropy(input,target)
+    # tensor.train()
+    # tensor.reset_op_id()
+    output = F.cross_entropy(input,target)
+    output.value.print_reveal_nested()
+    output.backward()
+    input.grad.print_reveal_nested()
+
+
+@autograd_function
+def test_softmax_0():
+    print_ln('test_softmax_0')
+    x = MultiArray([3, 4,2], sfix)
+    for i in range(0,3):
+        for  j in range(0,4):
+            for k in range(2):
+                x[i][j][k] = sfix(1)
+    x.print_reveal_nested()
+
+    y = MultiArray([3, 4,2], sfix)
+    for i in range(0,3):
+        for  j in range(0,4):
+            for k in range(2):
+                    y[i][j][k] = sfix(1)
+    y.print_reveal_nested()
+
+    input1 = Tensor(x, req_grad = True)
+    input2 = Tensor(y, req_grad = True)
+    # output = F.softmax(input1,dim=0)
+    # out = output*input2
+    # tensor.train()
+    # tensor.reset_op_id()
+    output = F.softmax(input1,dim=0)
+    # out = output*input2
+    # out.value.print_reveal_nested()
+    # out.backward()
+    # input1.grad.print_reveal_nested()
+
+#test_softmax_0()
+
+@autograd_function
+def test_softmax_F_Array():
+    print_ln('test_softmax_F_Array')
+    x = Array(10, sfix)
+    for i in range(0,10):
+        x[i] = sfix(i)
+    x.print_reveal_nested()
+
+    y = Array(10, sfix)
+    for i in range(0,10):
+        y[i] = sfix(-i)
+    y.print_reveal_nested()
+
+    input1 = Tensor(x, req_grad = True)
+    input2 = Tensor(y, req_grad = True)
+    # output = F.softmax(input1,dim=0)
+    # #out = output*input2
+    # tensor.train()
+    # tensor.reset_op_id()
+    output = F.softmax(input1,dim=0)
+    #out = output*input2
+    output.value.print_reveal_nested()
+    output.backward()
+    input1.grad.print_reveal_nested()
+
+
+@autograd_function
+def test_log_softmax_0():
+    print_ln('test_log_softmax_0')
+    x = MultiArray([3, 128, 1000], sfix)
+    for i in range(0,3):
+        for  j in range(0,4):
+            for k in range(2):
+                x[i][j][k] = sfix(i-j-k)
+    x.print_reveal_nested()
+
+    y = MultiArray([3, 4,2], sfix)
+    for i in range(0,3):
+        for  j in range(0,4):
+            for k in range(2):
+                    y[i][j][k] = sfix(i+j+k)
+    y.print_reveal_nested()
+
+    input1 = Tensor(x, req_grad = True)
+    input2 = Tensor(y, req_grad = True)
+    # output = F.log_softmax(input1,dim=1)
+    # out = output*input2
+    # tensor.train()
+    # tensor.reset_op_id()
+    output = F.log_softmax(input1,dim=1)
+    # out = output*input2
+    # out.value.print_reveal_nested()
+    # out.backward()
+    # input1.grad.print_reveal_nested()
+
+
+@autograd_function
+def test_logsoftmax_F_Array():
+    print_ln('test_logsoftmax_F_Array')
+    x = Array(10, sfix)
+    for i in range(0,10):
+        x[i] = sfix(i)
+    x.print_reveal_nested()
+
+    y = Array(10, sfix)
+    for i in range(0,10):
+        y[i] = sfix(-i)
+    y.print_reveal_nested()
+
+    input1 = Tensor(x, req_grad = True)
+    input2 = Tensor(y, req_grad = True)
+    # output = F.log_softmax(input1,dim=0)
+    # #out = output*input2
+    # tensor.train()
+    # tensor.reset_op_id()
+    output = F.log_softmax(input1,dim=0)
+    #out = output*input2
+    output.value.print_reveal_nested()
+    output.backward()
+    input1.grad.print_reveal_nested()
+
+
+# test_conv2d()
+# test_logsoftmax_F_Array()
+
+# test_softmax_0()
+
+# test_log_softmax_0()
+
+
+
+# test_softmax_F_Array()
+
+# test_cross_entropy()
+
+# test_nllloss()
+# # test_dim()
+
+# 
+# test_softmax()
+# test_softmax_0()
+
+# test_kl_div()
+
+# test_l1_loss()
+
+# test_normalize()
+
+# test_avgpool2d()
+
+test_maxpool2d()
+
+# test_conv2d()
+# test_tanh()
+
+# test_logsigmoid()
+# test_sigmoid(True)
+# test_sigmoid(False)
+# test_relu()
+# test_mv_3Dim_MultiArray_Array()
+# test_mv_MultiArray_Array()
+# test_dot()
+
+# test_squeeze()
+# test_unsqueeze()
+# test_permute()
+# test_transpose_Array() #todo fix the bug
+# test_transpose_MultiArray()
+# test_reshape_MultiArrayToMultiArray()
+# test_reshape_ArrayToMultiArray()
+# test_reshape_MultiArrayToArray()
+
+# test_concat_Array()
+# test_concat_MultiArray()
+# test_mm_MultiArray()
+
+

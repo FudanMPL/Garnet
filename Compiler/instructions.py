@@ -1244,7 +1244,7 @@ class edabit(base.Instruction):
             print("The profiling results could be biased")
             print("Please config the cost of " + self.__class__.__name__ + " in cost_config.py")
             return
-        res = cost_func(config.bit_length, config._security, config.f, config.n_parties, len(self.args)-1)
+        res = cost_func(config.bit_length, config._security, config.computation_security, config.f, config.n_parties, len(self.args)-1)
         req_node.increment(('online communication', 'bits'), res[0]*self.get_size() * self.get_repeat())
         req_node.increment(('offline communication', 'bits'), res[2]*self.get_size() * self.get_repeat())
         req_node.increment(('online', 'round'), res[1])
@@ -1901,8 +1901,9 @@ class sendpersonal(base.Instruction, base.Mergeable):
 
     def add_usage(self, req_node):
         num_bits = 0
+        config = program.cost_config
         for i in range(0, len(self.args), 5):
-            num_bits += program.bit_length * args[i]
+            num_bits += config.bit_length * args[i]
         req_node.increment(('online communication', 'bits'), num_bits)
         req_node.increment(('online', 'round'), 1)
         req_node.increment(('offline', 'round'), 0)
@@ -2775,14 +2776,18 @@ class dotprods(base.VarArgsInstruction, base.DataInstruction,
             return
         res = (0, 0, 0, 0)
         config = program.cost_config
+        online_round = 0
+        offline_round = 0
         for i, n in self.bases(iter(self.args)):
             dimension = self.args[i] // 2 - 1
-            tmpres = cost_func(config.bit_length, config._security, config.f, config.n_parties, 1, dimension, 1)
+            tmpres = cost_func(config.bit_length, config._security, config.computation_security, config.f, config.n_parties, 1, dimension, 1)
+            online_round = max(online_round, res[1])
+            offline_round = max(offline_round, res[3])
             res = merge_tuple(res, tmpres)
         req_node.increment(('online communication', 'bits'), res[0])
         req_node.increment(('offline communication', 'bits'), res[2])
-        req_node.increment(('online', 'round'), res[1])
-        req_node.increment(('offline', 'round'), res[3])
+        req_node.increment(('online', 'round'), online_round)
+        req_node.increment(('offline', 'round'), offline_round)
         req_node.increment((self.field_type, self.data_type),
                            self.get_size() * self.get_repeat())
  
@@ -2793,23 +2798,10 @@ class matmul_base(base.DataInstruction):
     def get_repeat(self):
         return reduce(operator.mul, self.args[3:6])
 
-    def add_usage(self, req_node):
-        cost_func = program.get_cost("matmuls")
-        if cost_func == -1:
-            print("The profiling results could be biased")
-            print("Please config the cost of matmuls in cost_config.py")
-            return
-        config = program.cost_config
-        res = cost_func(config.bit_length, config._security, config.f, config.n_parties, self.args[3], self.args[4], self.args[5])       
-        req_node.increment(('online communication', 'bits'), res[0])
-        req_node.increment(('offline communication', 'bits'), res[2])
-        req_node.increment(('online', 'round'), res[1])
-        req_node.increment(('offline', 'round'), res[3])
-        req_node.increment((self.field_type, self.data_type),
-                           self.get_size() * self.get_repeat())
+
     
 
-class matmuls(matmul_base):
+class matmuls(matmul_base, base.VarArgsInstruction, base.Mergeable):
     """ Secret matrix multiplication from registers. All matrices are
     represented as vectors in row-first order.
 
@@ -2821,9 +2813,34 @@ class matmuls(matmul_base):
     :param: number of columns in second factor and result (int)
     """
     code = base.opcodes['MATMULS']
-    arg_format = ['sw','s','s','int','int','int']
+    arg_format = itertools.cycle(['sw','s','s','int','int','int'])
 
-class matmulsm(matmul_base):
+    def get_repeat(self):
+        res = 0
+        for i in range(0, len(self.args), 6):
+            res += reduce(operator.mul, self.args[i+3:i+6])
+        return 
+    
+    def add_usage(self, req_node):
+        cost_func = program.get_cost("matmuls")
+        if cost_func == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of matmuls in cost_config.py")
+            return
+        config = program.cost_config
+        online_round = 0
+        offline_round = 0
+        for i in range(0, len(self.args), 6):
+            res = cost_func(config.bit_length, config._security, config.computation_security, config.f, config.n_parties, self.args[i+3], self.args[i+4], self.args[i+5])       
+            req_node.increment(('online communication', 'bits'), res[0])
+            req_node.increment(('offline communication', 'bits'), res[2])
+            online_round = max(online_round, res[1])
+            offline_round = max(offline_round, res[3])
+            req_node.increment((self.field_type, self.data_type),
+                            self.get_size() * self.get_repeat())
+        req_node.increment(('online', 'round'), online_round)
+        req_node.increment(('offline', 'round'), offline_round)
+class matmulsm(matmul_base, base.VarArgsInstruction, base.Mergeable):
     """ Secret matrix multiplication reading directly from memory.
 
     :param: result (sint vector in row-first order)
@@ -2839,20 +2856,50 @@ class matmulsm(matmul_base):
     :param: number of columns of first / rows of second factor to use (int)
     :param: number of columns of second factor to use (int)
     """
+    __slots__ = ["first_addr", "second_addr", "first_size", "second_size"]
     code = base.opcodes['MATMULSM']
-    arg_format = ['sw','ci','ci','int','int','int','ci','ci','ci','ci',
-                  'int','int']
+    arg_format =   itertools.cycle(['sw','ci','ci','int','int','int','ci','ci','ci','ci',
+                  'int','int'])
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, first_addr, second_addr, first_size, second_size, *args, **kwargs):
         matmul_base.__init__(self, *args, **kwargs)
-        for i in range(2):
-            assert args[6 + i].size == args[3 + i]
-        for i in range(2):
-            assert args[8 + i].size == args[4 + i]
+        self.first_addr = first_addr
+        self.second_addr = second_addr
+        self.first_size = first_size
+        self.second_size = second_size
+        for i in range(0, len(self.args), 12):
+            for j in range(2):
+                assert args[6 + i + j].size == args[3 + i + j]
+            for j in range(2):
+                assert args[8 + i + j].size == args[4 + i + j]
+                
+    def get_repeat(self):
+        res = 0
+        for i in range(0, len(self.args), 12):
+            res += reduce(operator.mul, self.args[i+3:i+6])
+        return res
+    
+    def add_usage(self, req_node):
+        cost_func = program.get_cost("matmuls")
+        if cost_func == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of matmuls in cost_config.py")
+            return
+        config = program.cost_config
+        online_round = 0
+        offline_round = 0
+        for i in range(0, len(self.args), 12):
+            res = cost_func(config.bit_length, config._security, config.computation_security, config.f, config.n_parties, self.args[i+3], self.args[i+4], self.args[i+5])       
+            req_node.increment(('online communication', 'bits'), res[0])
+            req_node.increment(('offline communication', 'bits'), res[2])
+            online_round = max(online_round, res[1])
+            offline_round = max(offline_round, res[3])
+            req_node.increment((self.field_type, self.data_type),
+                            self.get_size() * self.get_repeat())
+        req_node.increment(('online', 'round'), online_round)
+        req_node.increment(('offline', 'round'), offline_round)
 
-
-
-class conv2ds(base.DataInstruction):
+class conv2ds(base.DataInstruction, base.VarArgsInstruction, base.Mergeable):
     """ Secret 2D convolution.
 
     :param: result (sint vector in row-first order)
@@ -2870,10 +2917,11 @@ class conv2ds(base.DataInstruction):
     :param: padding height (int)
     :param: padding width (int)
     :param: batch size (int)
+    :param: whether the first conv instruction in a group convolution
     """
     code = base.opcodes['CONV2DS']
-    arg_format = ['sw','s','s','int','int','int','int','int','int','int','int',
-                  'int','int','int','int']
+    arg_format = itertools.cycle(['sw','s','s','int','int','int','int','int',
+                                  'int','int','int','int','int','int','int','int'])
     data_type = 'triple'
     is_vec = lambda self: True
 
@@ -2884,8 +2932,9 @@ class conv2ds(base.DataInstruction):
         assert args[2].size == args[7] * args[8] * args[11]
 
     def get_repeat(self):
-        return self.args[3] * self.args[4] * self.args[7] * self.args[8] * \
-            self.args[11] * self.args[14]
+        args = self.args
+        return sum(args[i+3] * args[i+4] * args[i+7] * args[i+8] * \
+            args[i+11] * args[i+14] for i in range(0, len(args), 16))
 
     def add_usage(self, req_node):
         cost_func = program.get_cost("matmuls")
@@ -2895,16 +2944,25 @@ class conv2ds(base.DataInstruction):
             return
         config = program.cost_config
         args = self.args
-        res = cost_func(config.bit_length, config._security, config.f, config.n_parties, 1 , args[7]*args[8], 1)
-        times = args[14] * args[11] * args[3] * args[4]    
-        req_node.increment(('online communication', 'bits'), res[0]*times)
-        req_node.increment(('offline communication', 'bits'), res[2]*times)
-        req_node.increment(('online', 'round'), res[1])
-        req_node.increment(('offline', 'round'), res[3])
+        online_round = 0
+        offline_round = 0
+        for i in range(0, len(self.args), 16):
+            args = self.args[i:i + 16]
+            res = cost_func(config.bit_length, config._security, config.computation_security, config.f, config.n_parties, args[14] * args[3] * args[4] , args[7] * args[8] * args[11], 1 )
+            if program.protocol == 'CryptFlow2' and args[15] == 1:
+                req_node.increment(('online communication', 'bits'), args[14] * args[3] * args[4] * args[7] * args[8] * args[11] * config.bit_length * config.computation_security)
+            req_node.increment(('online communication', 'bits'), res[0])
+            req_node.increment(('offline communication', 'bits'), res[2])
+            online_round = max(online_round, res[1])
+            offline_round = max(offline_round, res[3])
+        req_node.increment(('online', 'round'), online_round)
+        req_node.increment(('offline', 'round'), offline_round)
         super(conv2ds, self).add_usage(req_node)
         args = self.args
-        req_node.increment(('matmul', (1, args[7] * args[8] * args[11],
-                                       args[14] * args[3] * args[4])), 1)
+        for i in range(0, len(self.args), 16):
+            args = self.args[i:i + 15]
+            req_node.increment(('matmul', (1, args[7] * args[8] * args[11],
+                                           args[14] * args[3] * args[4])), 1)
 
 @base.vectorize
 class trunc_pr(base.VarArgsInstruction):
@@ -2921,12 +2979,12 @@ class trunc_pr(base.VarArgsInstruction):
     arg_format = tools.cycle(['sw','s','int','int'])
 
     def add_usage(self, req_node):
-        res = program.get_cost("trunc")
+        res = program.get_cost("TruncPr")
         if res == -1:
             print("The profiling results could be biased")
             print("Please config the cost of trunc in cost_config.py")
             return
-        req_node.increment(('online communication', 'bits'), res[0]*self.get_size() )
+        req_node.increment(('online communication', 'bits'), res[0]*self.get_size())
         req_node.increment(('offline communication', 'bits'), res[2]*self.get_size())
         req_node.increment(('online', 'round'), res[1])
         req_node.increment(('offline', 'round'), res[3])
@@ -2950,7 +3008,7 @@ class shuffle_base(base.DataInstruction):
             print("Please config the cost of shuffle generation in cost_config.py")
             return 1, 0
         config = program.cost_config
-        res = cost_func(config.bit_length, config._security, config.f, config.n_parties, n)       
+        res = cost_func(config.bit_length, config._security, config.computation_security, config.f, config.n_parties, n)       
         return res[1], res[3]
 
     def get_app_round(self, n, record_size):
@@ -2960,7 +3018,7 @@ class shuffle_base(base.DataInstruction):
             print("Please config the cost of shuffle application in cost_config.py")
             return 1, 0
         config = program.cost_config
-        res = cost_func(config.bit_length, config._security, config.f, config.n_parties, n)       
+        res = cost_func(config.bit_length, config._security, config.computation_security, config.f, config.n_parties, n)       
         return res[1], res[3]
 
     def add_gen_usage(self, req_node, n):
@@ -2970,7 +3028,7 @@ class shuffle_base(base.DataInstruction):
             print("Please config the cost of shuffle generation in cost_config.py")
             return
         config = program.cost_config
-        res = cost_func(config.bit_length, config._security, config.f, config.n_parties, n)       
+        res = cost_func(config.bit_length, config._security,config.computation_security, config.f, config.n_parties, n)       
         req_node.increment(('online communication', 'bits'), res[0])
         req_node.increment(('offline communication', 'bits'), res[2])
         req_node.increment(('online', 'round'), res[1])
@@ -2993,7 +3051,7 @@ class shuffle_base(base.DataInstruction):
             print("Please config the cost of shuffle application in cost_config.py")
             return
         config = program.cost_config
-        res = cost_func(config.bit_length, config._security, config.f, config.n_parties, n, record_size)       
+        res = cost_func(config.bit_length, config._security, config.computation_security, config.f, config.n_parties, n, record_size)       
         req_node.increment(('online communication', 'bits'), res[0])
         req_node.increment(('offline communication', 'bits'), res[2])
         req_node.increment(('online', 'round'), res[1])

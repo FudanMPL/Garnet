@@ -6,6 +6,8 @@
  */
 
 #include "Protocols/Rep3Share128.h"
+#include "Protocols/MalRepRingShare128.h"
+#include "Protocols/Semi2kShare128.h"
 #include "Math/Integer.h"
 #include "Tools/Exceptions.h"
 #include "Networking/Player.h"
@@ -23,6 +25,10 @@
 #include "GC/ShareThread.h"
 #include "Protocols/SecureShuffle.h"
 #include "Processor/Memory.h"
+#ifdef BIG_DOMAIN_USE_SEMI
+#include "Protocols/SemiInput.h"
+#endif
+
 
 class Program;
 
@@ -73,10 +79,8 @@ public:
   void muls(const vector<int>& reg, int size);
   void mulrs(const vector<int>& reg);
   void dotprods(const vector<int>& reg, int size);
-  void matmuls(const vector<T>& source, const Instruction& instruction, size_t a,
-      size_t b);
-  void matmulsm(const CheckVector<T>& source, const Instruction& instruction, size_t a,
-      size_t b);
+  void matmuls(const vector<T>& source, const Instruction& instruction);
+  void matmulsm(const CheckVector<T>& source, const Instruction& instruction);
   void conv2ds(const Instruction& instruction);
 
   void secure_shuffle(const Instruction& instruction);
@@ -92,6 +96,7 @@ public:
 
 
 
+#ifdef BIG_DOMAIN_USE_RSS
   template<class T2>
   void assign_S(CheckVector<T2>& s2){
     int size = s2.size();
@@ -101,8 +106,22 @@ public:
         S[i].v[0] = s2.at(i).v[0].get_limb(0);
         S[i].v[1] = s2.at(i).v[1].get_limb(0);
     }
-
   }
+
+#endif
+
+#ifdef BIG_DOMAIN_USE_SEMI
+  template<class T2>
+  void assign_S(CheckVector<T2>& s2){
+    int size = s2.size();
+    S.resize(size);
+    // only work when T is Rep3Share and one of the domain size is smaller than 2^32
+    for (int i = 0 ; i < size; i++){
+        S[i] = s2.at(i).get_limb(0);
+
+    }
+  }
+#endif
 
   template<class T2>
   void assign_C(CheckVector<typename T2::clear>& c2){
@@ -202,7 +221,7 @@ public:
   void bitdecint(const Instruction& instruction);
 };
 
-#ifndef BIG_DOMAIN_FOR_RSS
+#ifndef BIG_DOMAIN_FOR_RING
 template<class sint, class sgf2n>
 class Processor : public ArithmeticProcessor
 {
@@ -307,8 +326,8 @@ private:
 #endif
 
 
-#ifdef BIG_DOMAIN_FOR_RSS
-class Rep3Share128;
+#ifdef BIG_DOMAIN_FOR_RING
+class BigDomainShare;
 template<class sint, class sgf2n>
 class Processor : public ArithmeticProcessor
 {
@@ -332,9 +351,9 @@ class Processor : public ArithmeticProcessor
   GC::Processor<typename sint::bit_type> Procb;
   SubProcessor<sgf2n> Proc2;
   SubProcessor<sint>  Procp;
-  SubProcessor<Rep3Share128>*  Procp_2;
-  Preprocessing<Rep3Share128>* datafp;
-  ReplicatedMC<Rep3Share128>* temp_mcp;
+  SubProcessor<BigDomainShare>*  Procp_2;
+  Preprocessing<BigDomainShare>* datafp;
+  BigDomainShare::MAC_Check* temp_mcp;
 
 
   unsigned int PC;

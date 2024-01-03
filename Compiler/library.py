@@ -420,7 +420,8 @@ class FunctionBlock(Function):
         parent_node = get_tape().req_node
         get_tape().open_scope(lambda x: x[0], None, 'begin-' + self.name)
         block = get_tape().active_basicblock
-        block.alloc_pool = defaultdict(list)
+        from . import allocator as al
+        block.alloc_pool = al.AllocPool()
         del parent_node.children[-1]
         self.node = get_tape().req_node
         if get_program().verbose:
@@ -927,7 +928,9 @@ def for_range(start, stop=None, step=None):
             x.update(x + 1)
 
     Note that you cannot overwrite data structures such as
-    :py:class:`~Compiler.types.Array` in a loop.  Use
+    :py:class:`~Compiler.types.Array` in a loop.  
+    
+    Use
     :py:func:`~Compiler.types.Array.assign` instead.
     """
     def decorator(loop_body):
@@ -1067,6 +1070,7 @@ def map_reduce_single(n_parallel, n_loops, initializer=lambda *x: [],
                     j = i + k
                     state = reducer(tuplify(loop_body(j)), state)
                     k += 1
+                RegintOptimizer().run(block.instructions, get_program())
                 _link(pre, loop_body.__globals__)
                 r = reducer(mem_state, state)
                 write_state_to_memory(r)
@@ -1098,7 +1102,7 @@ def map_reduce_single(n_parallel, n_loops, initializer=lambda *x: [],
                 del blocks[-n_to_merge + 1:]
                 del get_tape().req_node.children[-1]
                 merged.children = []
-                RegintOptimizer().run(merged.instructions)
+                RegintOptimizer().run(merged.instructions, get_program())
                 get_tape().active_basicblock = merged
             else:
                 req_node = get_tape().req_node.children[-1].nodes[0]
@@ -1183,7 +1187,7 @@ def multithread(n_threads, n_items=None, max_size=None):
 
     .. code::
 
-        @multithread(8, 25)
+        @multithread(3, 25)
         def f(base, size):
             ...
     """
@@ -1941,6 +1945,19 @@ def FPDiv(a, b, k, f, kappa, simplex_flag=False, nearest=False):
     y = y.round(l_y, 3 * f - res_f, kappa, nearest, signed=True)
     return y
 
+
+@instructions_base.sfix_cisc
+def Reciprocal(y):
+    sign = 1
+    if not sfix.all_pos:
+        sign = y > 0
+        sign = 2 *  sign - 1
+        y = y * sign
+    z = 3 * sfix.exp_fx(1 - 2 * y)+ 0.003  if sfix.div_initial == None  else sfix.div_initial # sfix(1 / n, size=y.size)
+    for i in range(sfix.div_iters):    
+        z = 2 * z  - y * z * z
+    return  z * sign   
+
 def AppRcr(b, k, f, kappa=None, simplex_flag=False, nearest=False):
     """
         Approximate reciprocal of [b]:
@@ -1989,18 +2006,37 @@ def Norm(b, k, f, kappa, simplex_flag=False):
 def set_global_buildingblock(name):
     instructions.program.globalbuildingblock = name
 
+def get_global_buildingblock():
+    return instructions.program.globalbuildingblock
+
 def buildingblock(name):
     def decorator(func):
         def wrapper(*args, **kw):
-            old_name = instructions.program.globalbuildingblock 
+            old_name = get_global_buildingblock()
+            set_global_buildingblock(old_name+'-'+name)
+            get_tape().start_new_basicblock(name = name+"-start")
+            res = func(*args, **kw)
+            get_tape().start_new_basicblock(name = name + "-close")
+            set_global_buildingblock(old_name)
+            return res
+        copy_doc(wrapper, func)
+        return wrapper
+    return decorator
+
+def backwardbuildingblock(name):
+    def decorator(func):
+        def wrapper(*args, **kw):
+            old_name = get_global_buildingblock()
             set_global_buildingblock(name)
             get_tape().start_new_basicblock(name = name+"-start")
             res = func(*args, **kw)
             get_tape().start_new_basicblock(name = name + "-close")
             set_global_buildingblock(old_name)
+            return res
         copy_doc(wrapper, func)
         return wrapper
     return decorator
+
 
 def start_profiling():
     break_point()
@@ -2011,7 +2047,7 @@ def stop_profiling():
     # instructions.program.is_profiling = False
 
 
-def mpc_psi_merge(*tables):
+def ss_psi_merge(*tables):
     from Compiler.sorting import gen_perm_by_radix_sort, SortPerm
     from Compiler.group_ops import GroupSum
     party_number = len(tables)

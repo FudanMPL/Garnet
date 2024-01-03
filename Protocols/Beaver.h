@@ -55,6 +55,11 @@ public:
     void stop_exchange();
 
     int get_n_relevant_players() { return 1 + T::threshold(P.num_players()); }
+
+      template <class U>
+    void change_domain(const vector<int>& regs, int reg_size, U& proc){
+      // not impletement
+    };
 };
 
 #endif /* PROTOCOLS_BEAVER_H_ */
