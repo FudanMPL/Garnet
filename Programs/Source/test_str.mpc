@@ -37,28 +37,27 @@ print_cchr(d)
 
 s2=sstring('to be or not to be！')
 s2.print_reveal_nested()
-'''
+
 s1=sstring('sh吴王辰龙')
 s2= sstring('sz郑巳蛇午')
 print_ln("%s",(s1==s2).reveal())
-
+'''
 
 User_ID=[]
 for player in [0,1,2]:
-    Not_exist=sint(0)
-    ID=sstring(length=18)
-    for i in range(18):
-        ID[i]=schr.get_input_from(player)
-    for itm in User_ID:
-        Not_exist = Not_exist + (ID==itm).reveal()
-
-
-    @if_(Not_exist.reveal()==0)
-    def _():
+    for i in range(2):
+        Not_exist=sint(0)
+        ID=sstring(length=18)
+        for i in range(18):
+            ID[i]=schr.get_input_from(player)
         Name=sstring(length=3)
         for i in range(3):
             Name[i]=schr.get_input_from(player)
-        ID.print_reveal_nested(end='\t')
-        Name.print_reveal_nested()
-        User_ID.append(ID)
-        
+            
+        for itm in User_ID:
+            Not_exist = Not_exist + (ID==itm).reveal()
+        @if_(Not_exist.reveal()==0)
+        def _():
+            Name.print_reveal_nested(end='\t')
+            ID.print_reveal_nested()
+            User_ID.append(ID)

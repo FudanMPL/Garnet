@@ -6032,8 +6032,6 @@ class sstring(Array):
             s_iter = iter(val)
             for i in range(length):
                 self[i]=schr(next(s_iter))
-    def call_parent_getitem(self,index):
-        return super().__getitem__(index)
     
     def __eq__(self,other):
         if isinstance(other,sstring):
@@ -6045,7 +6043,7 @@ class sstring(Array):
                 # tmp=(super().__getitem__(slice(None,None,None))==other.call_parent_getitem(slice(None,None,None)))
                 # print_ln("tmp:%s",tmp.reveal())
                 res=VecMul(tmp)
-                print_ln("res:%s",res.reveal())
+                # print_ln("res:%s",res.reveal())
                 return res
         return sint(0)
     equal=__eq__
