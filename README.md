@@ -70,7 +70,6 @@ make -j 8 tldr
 * [SecureML协议](./docs/secureML.md)
 * [预训练模型安全微调](./docs/pretrain.md)
 * [XGBoost模型安全训练](./docs/xgboost-training.md)
-* [SecureML协议](./docs/secureML.md)
 
 
 
