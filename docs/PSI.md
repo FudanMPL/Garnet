@@ -5,6 +5,7 @@
 
 ## 运行基于OPRF的两方PSI协议
 
+目前该方案代码还没有合并进main分支，因此想要使用该该方案需要切换到csy-psi分支上。
 
 ### 功能介绍
 使用我们的PSI功能可以获得两个参与方的Set数据集的交集，并且不暴露额外的信息。
@@ -36,7 +37,7 @@ bash Scripts/PSI-Test/run_psi.sh t # run test_psi program in two-party
 ## 运行基于Secret Sharing 的多方PSI
 
 
-该PSI方案支持任意多方（2-N），同样支持纵向数据集对齐。
+该PSI方案支持任意多方（2-N），此外该PSI方案不会泄漏交集的结果。
 
 
 ### 编译虚拟机
