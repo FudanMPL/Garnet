@@ -25,6 +25,6 @@ base_path = "./Player-Data/PSI/"
 pn = 2
 
 
-# for i in range(pn):
-#     generate_random_ids_to_file(n, base_path+'ID_P'+str(i))
-#     generate_random_numbers_to_file(n, f, base_path+'F_P'+str(i))
+for i in range(pn):
+    generate_random_ids_to_file(n, base_path+'ID-P'+str(i))
+    generate_random_numbers_to_file(n, f, base_path+'F-P'+str(i))
