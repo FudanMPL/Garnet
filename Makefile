@@ -246,8 +246,8 @@ static/cowgear-party.x: $(FHEOBJS)
 static/chaigear-party.x: $(FHEOBJS)
 static/lowgear-party.x: $(FHEOBJS) Protocols/CowGearOptions.o Protocols/LowGearKeyGen.o
 static/highgear-party.x: $(FHEOBJS) Protocols/CowGearOptions.o Protocols/HighGearKeyGen.o
-mascot-party.x: $(OT) $(SPDZ)
-static/mascot-party.x: $(SPDZ)
+mascot-party.x: $(SPDZ) 
+static/mascot-party.x: $(SPDZ) 
 Player-Online.x: $(OT) $(SPDZ)
 mama-party.x: $(TINIER)
 ps-rep-ring-party.x: Protocols/MalRepRingOptions.o

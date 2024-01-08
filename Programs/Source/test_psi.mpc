@@ -1,6 +1,9 @@
 f0 = 7
 f1 = 7
-n = 1024
+n = 8
+
+print_str("begin psi:")
+print_str("\n")
 
 val,num = PSI(n,f0,f1)
 

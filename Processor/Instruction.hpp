@@ -1133,7 +1133,7 @@ inline void Instruction::execute(Processor<sint, sgf2n> &Proc) const
       Proc.Proc2.dotprods(start, size);
       return;
     case PSIALIGN:
-      Proc.Procp.psi_align(Proc.Procp.get_C(), *this);
+      Proc.Procp.protocol.psi_align(Proc.Procp.get_C(), *this, Proc.Procp);
       return;
     case PSI:
       Proc.Procp.psi(*this);

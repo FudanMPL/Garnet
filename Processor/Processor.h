@@ -92,7 +92,10 @@ public:
   void inverse_permutation(const Instruction &instruction);
 
   void psi(const Instruction &instruction);
-  void psi_align(const vector<typename T::clear> &source, const Instruction &instruction);
+  void psi_align(const vector<typename T::clear> &source, const Instruction &instruction)
+  {
+    // not impletement
+  }
 
   void input_personal(const vector<int> &args);
   void send_personal(const vector<int> &args);
