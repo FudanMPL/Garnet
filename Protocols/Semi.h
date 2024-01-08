@@ -92,6 +92,7 @@ public:
     template <class U>
     void psi_align(const vector<typename T::clear> &source, const Instruction &instruction, U &proc)
     {
+        // cout << "psi_align" << endl;
         typedef uint64_t idtype;
 #define RECEIVER_P 0
         auto &dim = instruction.get_start();

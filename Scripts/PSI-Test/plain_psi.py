@@ -60,5 +60,5 @@ f0_num = 7
 f1_num = 7
 base_path = "./Player-Data/PSI/"
 
-# fs = psi(n,f0_num,f1_num)
-# print(fs)
+fs = psi(n,f0_num,f1_num)
+print(fs)

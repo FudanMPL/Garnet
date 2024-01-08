@@ -94,7 +94,7 @@ public:
   void psi(const Instruction &instruction);
   void psi_align(const vector<typename T::clear> &source, const Instruction &instruction)
   {
-    // not impletement
+    throw not_implemented();
   }
 
   void input_personal(const vector<int> &args);

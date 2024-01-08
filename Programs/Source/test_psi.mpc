@@ -2,12 +2,12 @@ f0 = 7
 f1 = 7
 n = 8
 
-print_str("begin psi:")
+print_str("begin psi")
 print_str("\n")
 
 val,num = PSI(n,f0,f1)
 
-print_str("num:")
+print_str("num of intersection:")
 print_int(num)
 print_str("\n")
 

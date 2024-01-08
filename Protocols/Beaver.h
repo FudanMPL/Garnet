@@ -61,7 +61,7 @@ public:
     template <class U>
     void psi_align(const vector<typename T::clear> &source, const Instruction &instruction, U &proc)
     {
-        // not impletement
+        throw not_implemented();
     }
 };
 
