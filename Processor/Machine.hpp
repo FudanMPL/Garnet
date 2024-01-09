@@ -209,13 +209,14 @@ size_t Machine<sint, sgf2n>::load_program(const string& threadname,
   M2.minimum_size(SGF2N, CGF2N, progs[i], threadname);
   Mp.minimum_size(SINT, CINT, progs[i], threadname);
   Mi.minimum_size(NONE, INT, progs[i], threadname);
-#ifdef BIG_DOMAIN_FOR_RSS
-  if (this->Mp_2 != NULL)
-    delete this->Mp_2;
-  this->Mp_2 = new Memory<Rep3Share128>();
+#ifdef BIG_DOMAIN_FOR_RING
+  if (this->Mp_2 != NULL){
+      delete this->Mp_2;
+      this->Mp_2 = NULL;
+  }
+  this->Mp_2 = new Memory<BigDomainShare>();
   this->Mp_2->template assign_S<sint>(Mp.get_S());
   this->Mp_2->template assign_C<sint>(Mp.get_C());
-
 #endif
   return progs.back().size();
 }
@@ -358,7 +359,7 @@ DataPositions Machine<sint, sgf2n>::run_tape(int thread_number, int tape_number,
     {
       if (not opts.live_prep and thread_number != 0)
         {
-        #ifndef BIG_DOMAIN_FOR_RSS
+        #ifndef BIG_DOMAIN_FOR_RING
           insecure(
               "Internally called tape " + to_string(tape_number)
                   + " has unknown offline data usage");

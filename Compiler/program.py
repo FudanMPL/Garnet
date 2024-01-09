@@ -834,7 +834,7 @@ class Tape:
         def expand_cisc(self):
             new_instructions = []
             if self.parent.program.options.keep_cisc is not None:
-                skip = [ "Trunc", "LTZ"]
+                skip = [ "Trunc", "LTZ","MTS"]
                 skip += self.parent.program.options.keep_cisc.split(",")
             else:
                 skip = []
@@ -843,7 +843,7 @@ class Tape:
                 new_instructions.extend(new_inst)
                 self.n_rounds += n_rounds
             self.instructions = new_instructions
-
+            
         def __str__(self):
             return self.name
 
@@ -996,6 +996,11 @@ class Tape:
 
         # now remove any empty blocks (must be done after setting jumps)
         self.basicblocks = [x for x in self.basicblocks if len(x.instructions) != 0]
+
+        # for x in self.basicblocks:
+        #     print(x.instructions)
+        
+        
         # allocate registers
         reg_counts = self.count_regs()
         if options.noreallocate:

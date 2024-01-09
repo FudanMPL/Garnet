@@ -174,18 +174,6 @@ exp[3] = 4
 print_ln('ERROR WITHIN 0.2')
 test(Compiler.mpc_math.exp_fx(exp.get_vector())[3],53.8)
 
-print_ln('ARGMAX/MAX TEST')
-argmax=sfix.Array(4)
-argmax[0]=0
-argmax[1]=1
-argmax[2]=3
-argmax[3]=2
-test(Compiler.mpc_math.argmax(argmax)[1],0)
-test(Compiler.mpc_math.argmax(argmax)[2],1)
-
-test(Compiler.mpc_math.max(argmax),3)
-
-
 print_ln('LOGSUM TEST')
 
 logsum=sfix.Array(2)

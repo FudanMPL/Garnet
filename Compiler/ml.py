@@ -618,6 +618,77 @@ class ReluMultiOutput(MultiOutputBase):
             prod = relus * inv
             res = prod - self.Y[batch[i]].get_vector()
             self.nabla_X[i].assign_vector(res)
+class Linear(Layer):
+    thetas = lambda self: (self.W)
+    nablas = lambda self: (self.nabla_W)
+
+    def __init__(self, N, d_in, d_out, d=128, debug=False):
+        self.N = N
+        self.d_in = d_in
+        self.d_out = d_out
+        self.d = d
+        self.X = MultiArray([N, d, d_in], sfix)
+        self.Y = MultiArray([N, d, d_out], sfix)
+        self.W = sfix.Matrix(d_in, d_out)
+        back_N = min(N, self.back_batch_size)
+        self.nabla_Y = MultiArray([back_N, d, d_out], sfix)
+        self.nabla_X = MultiArray([back_N, d, d_in], sfix)
+        self.nabla_W = sfix.Matrix(d_in, d_out)
+
+    def __repr__(self):
+        return '%s(%s, %s, %s)' % \
+               (type(self).__name__, self.N, self.d_in,
+                self.d_out)
+
+    def reset(self):
+        d_in = self.d_in
+        d_out = self.d_out
+        r = math.sqrt(1.0 / (d_in + d_out))
+        print('Initializing dense weights in [%f,%f]' % (-r, r))
+        self.W.randomize(-r, r)
+
+
+    def input_from(self, player, raw=False):
+        self.W.input_from(player, raw=raw)
+
+    def compute_f_input(self, batch):
+        N = len(batch)
+        @for_range_opt(N)
+        def _(i):
+            X_sub = sfix.Matrix(self.d, self.d_in, address=self.X[i].address)
+            self.Y[i]=X_sub.direct_mul(self.W, indices=(
+                    regint.inc(self.d), regint.inc(self.d_in),
+                    regint.inc(self.d_in), regint.inc(self.d_out)))
+        progress('f input')
+
+    def _forward(self, batch=None):
+        self.nabla_W = sfix.Matrix(self.d_in, self.d_out)
+        if batch is None:
+            batch = regint.Array(self.N)
+            batch.assign(regint.inc(self.N))
+        self.compute_f_input(batch=batch)
+
+    def backward(self, compute_nabla_X=True, batch=None):
+        N = len(batch)
+
+        if compute_nabla_X:
+            @for_range_opt(N)
+            def _(i):
+                B = sfix.Matrix(self.d, self.d_out, address=self.nabla_Y[i].address)
+                self.nabla_X[i]=B.direct_mul_trans(self.W, indices=(
+                        regint.inc(self.d), regint.inc(self.d_out),
+                        regint.inc(self.d_out), regint.inc(self.d_in)))
+            progress('nabla X')
+
+        @for_range_opt(N)
+        def _(i):
+            X_sub = sfix.Matrix(self.d, self.d_in, address=self.X[i].address)
+            self.nabla_W += X_sub.direct_trans_mul(self.nabla_Y[i], indices=(
+                regint.inc(self.d_in), regint.inc(self.d),
+                regint.inc(self.d), regint.inc(self.d_out)))
+
+        progress('nabla W')
+
 
 class DenseBase(Layer):
     thetas = lambda self: (self.W, self.b)
@@ -1099,6 +1170,119 @@ class ElementWiseLayer(NoVariableLayer):
                 print_ln('%s nabla Y %s %s', name, i, self.nabla_Y[i].reveal_nested())
                 print_ln('%s nabla X %s %s', name, i, self.nabla_X[i].reveal_nested())
 
+class SoftMax():
+
+    def __init__(self,shape):
+        self.N = shape[0]
+        self.shapes=shape
+        self.X = MultiArray(shape, sfix)
+        self.Y = MultiArray(shape, sfix)
+        self.nabla_Y = MultiArray(shape, sfix)
+        self.nabla_X = MultiArray(shape, sfix)
+        self.tmpsum=sfix(0.0)
+
+    def forward(self,batch):
+        tmpsize=self.Y.sizes
+        @for_range_opt(tmpsize[0])
+        def _(i):
+            @for_range(tmpsize[1])
+            def _(j):
+                self.tmpsum = sfix.from_sint(0)
+                for k in range(tmpsize[2]):
+                    self.Y[i][j][k]=exp(self.X[i][j][k])
+                    self.tmpsum+=exp(self.X[i][j][k])
+                self.tmpsum=1.0/self.tmpsum
+                for k in range(self.shapes[2]):
+                    self.Y[i][j][k]*=self.tmpsum
+
+    def backward(self,batch):
+        @for_range_opt(self.shapes[0])
+        def _(i):
+            @for_range(self.shapes[1])
+            def _(j):
+                self.tmpsum = sfix(0.0)
+                for k in range(self.shapes[2]):
+                    self.tmpsum+=(self.nabla_Y[i][j][k]*self.Y[i][j][k])
+                for k in range(self.shapes[2]):
+                    self.nabla_X[i][j][k]=(self.nabla_Y[i][j][k]-self.tmpsum)*self.Y[i][j][k]
+
+class LayerNorm(Layer):
+    thetas = lambda self: (self.weights, self.bias)
+    nablas = lambda self: (self.nabla_weights, self.nabla_bias)
+
+    def __init__(self,N,d,d_in,d_out):
+        self.N=N
+        self.d=d
+        self.d_in=d_in
+        self.d_out=d_out
+        self.X=MultiArray([N, d, d_in], sfix)
+        self.Y=MultiArray([N, d, d_out], sfix)
+        self.nabla_X=MultiArray([N, d, d_in], sfix)
+        self.nabla_Y=MultiArray([N, d, d_out], sfix)
+        self.weights=sfix.Matrix(d_in, d_out)
+        self.nabla_weights=sfix.Matrix(d_in, d_out)
+        self.bias=sfix.Matrix(d_in, d_out)
+        self.nabla_bias=sfix.Matrix(d_in, d_out)
+        self.mean=Array(N,sfix)
+        self.var=Array(N,sfix)
+        self.epsilon = 2 ** (-sfix.f + 1)
+        self.InvertSqrt = lambda x: 1 / mpc_math.sqrt(x)
+        self.rev_var=Array(N,sfix)
+
+    def reset(self):
+        self.bias.assign_all(0)
+        self.weights.assign_all(1)
+        print('Initializing dense weights in [%f,%f]' % (1, 0))
+
+    def forward(self, batch):
+        N=len(batch)
+        @for_range_opt(N)
+        def _(i):
+            self.mean[i]=sfix(0.0)
+            self.var[i]=sfix(0.0)
+            @for_range(self.d)
+            def _(j):
+                for k in range(self.d_in):
+                    self.mean[i]+=self.X[i][j][k]
+            self.mean[i]/=(self.d*self.d_in)
+            @for_range(self.d)
+            def _(j):
+                for k in range(self.d_in):
+                    self.var[i] += (self.mean[i]-self.X[i][j][k])*(self.mean[i]-self.X[i][j][k])
+            self.var[i]/=(self.d*self.d_in-1)
+            self.rev_var[i]=self.InvertSqrt(self.var[i]+self.epsilon)
+            @for_range(self.d)
+            def _(j):
+                @for_range(self.d_in)
+                def _(k):
+                    self.Y[i][j][k]=(self.X[i][j][k]-self.mean[i])*self.rev_var[i]*self.weights[j][k]+self.bias[j][k]
+
+    def backward(self, batch, compute_nabla_X=True):
+        N=len(batch)
+        self.partone=MultiArray([N, self.d, self.d_in], sfix)
+        self.parttwo=MultiArray([N, self.d, self.d_in], sfix)
+        self.partthree=MultiArray([N, self.d, self.d_in], sfix)
+        self.tmpnum=sfix(0.0)
+        self.tmpsum2=sfix(0.0)
+        self.tmpsum3=sfix(0.0)
+        @for_range_opt(N)
+        def _(i):
+            @for_range(self.d)
+            def _(j):
+                for k in range(self.d_in):
+                    self.tmpnum=self.weights[j][k]*self.nabla_Y[i][j][k]
+                    self.partone[i][j][k]=self.tmpnum*self.rev_var[i]
+                    self.tmpsum2+=(self.partone[i][j][k]/(self.d*self.d_in))
+                    self.tmpsum3+=(self.partone[i][j][k]*self.Y[i][j][k]/(self.d * self.d_in))
+            @for_range(self.d)
+            def _(j):
+                for k in range(self.d_in):
+                    self.parttwo[i][j][k]=self.tmpsum2
+                    self.partthree[i][j][k]=self.tmpsum3*self.Y[i][j][k]
+                    self.nabla_X[i][j][k]=self.partone[i][j][k]-self.parttwo[i][j][k]-self.partthree[i][j][k]
+                    self.nabla_weights[j][k]+=(self.Y[i][j][k]*self.nabla_Y[i][j][k])
+                    self.nabla_bias[j][k]+=self.nabla_Y[i][j][k]
+
 class Relu(ElementWiseLayer):
     """ Fixed-point ReLU layer.
 
@@ -1116,6 +1300,35 @@ class Relu(ElementWiseLayer):
     def f_part(self, base, size):
         x = self.X.get_part_vector(base, size)
         c = x > 0
+        self.comparisons.assign_part_vector(c, base)
+        return c.if_else(x, 0)
+
+    def f_prime_part(self, base, size):
+        return self.comparisons.get_vector(base, size)
+
+class Linear_Relu(ElementWiseLayer):
+    """ Fixed-point Linear_ReLU layer.
+
+    :param shape: input/output shape (tuple/list of int)
+    """
+    f = staticmethod(relu)
+    f_prime = staticmethod(relu_prime)
+    prime_type = sint
+    comparisons = None
+
+    def __init__(self, shape, inputs=None):
+        super(Linear_Relu, self).__init__(shape)
+        self.comparisons = MultiArray(shape, sint)
+        self.ReluMask = MultiArray(shape, cint)
+
+    def set_mask(self, Mask):
+        self.ReluMask=Mask
+
+    def f_part(self, base, size):
+        x = self.X.get_part_vector(base, size)
+        mask = self.ReluMask.get_part_vector(base, size)
+        tmptrue=sint(1) > sint(0)
+        c = mask.if_else(x > 0, tmptrue)
         self.comparisons.assign_part_vector(c, base)
         return c.if_else(x, 0)
 
@@ -1665,6 +1878,131 @@ class ConvBase(BaseLayer):
                              address=self.temp_weights)
         return inputs, weights
 
+class Basic_Transformer_Block_Single_Head(Layer):
+
+    def __init__(self,N,d,d_in,d_out):
+
+        if(N>=bs_num):
+            self.N = bs_num
+        else:
+            self.N = N
+        self.d_in=d_in
+        self.d_out=d_out
+        self.d=d
+        self.X=MultiArray([N,d,d_in], sfix)
+        self.x=MultiArray([self.N,d,d_in], sfix)
+        self.Y=MultiArray([self.N,d,d_out], sfix)
+        back_N=min(N, self.back_batch_size)
+        self.nabla_Y=MultiArray([back_N,d,d_out], sfix)
+
+        self.W_k=Linear(self.N,d_in,d_out,d)
+        self.W_q=Linear(self.N,d_in,d_out,d)
+        self.W_v=Linear(self.N,d_in,d_out,d)
+        self.W_o=Linear(self.N, d_in, d_out, d)
+        self.nabla_X = MultiArray([back_N, d, d_in], sfix)
+        self.nabla_k = MultiArray([self.N, d, d_in], sfix)
+        self.nabla_q = MultiArray([self.N, d, d_in], sfix)
+        self.nabla_v = MultiArray([self.N, d, d_in], sfix)
+        self.sf=SoftMax([self.N,d,d])
+        self.l=1/math.sqrt(d_in)
+        self.ln=LayerNorm(self.N,d,d_in,d_out)
+        # self.relu=Relu([self.N, d, d_in])
+        self.thetas = lambda : [self.W_k.W, self.W_q.W, self.W_v.W, self.W_o.W, self.ln.weights,
+                                self.ln.bias]
+        self.nablas = lambda : [self.W_k.nabla_W, self.W_q.nabla_W, self.W_v.nabla_W, self.W_o.nabla_W
+                                , self.ln.nabla_weights, self.ln.nabla_bias]
+        self.N=N
+    def reset(self):
+        print('transformer reset')
+        self.W_k.reset()
+        self.W_q.reset()
+        self.W_v.reset()
+        self.W_o.reset()
+        self.ln.reset()
+    def _forward(self,batch):
+        self.nabla_X = MultiArray([self.N, self.d, self.d_in], sfix)
+        self.nabla_k = MultiArray([self.N, self.d, self.d_in], sfix)
+        self.nabla_q = MultiArray([self.N, self.d, self.d_in], sfix)
+        self.nabla_v = MultiArray([self.N, self.d, self.d_in], sfix)
+        N = len(batch)
+        if(self.N>=bs_num):
+            @for_range_opt(N)
+            def _(i):
+                self.x[i].assign(self.X[batch[i]])
+        else:
+            self.x=self.X
+        self.W_k.X=self.x
+        self.W_q.X=self.x
+        self.W_v.X=self.x
+        self.W_k.forward(batch)
+        self.W_q.forward(batch)
+        self.W_v.forward(batch)
+        self.prod = MultiArray([N, self.d, self.d], sfix)
+        @for_range_opt(N)
+        def _(i):
+            X_sub = sfix.Matrix(self.d, self.d_in, address=self.W_q.Y[i].address)
+            self.prod[i]=X_sub.direct_mul_trans(self.W_k.Y[i], indices=(
+                    regint.inc(self.d), regint.inc(self.d_in),
+                    regint.inc(self.d_in), regint.inc(self.d)))
+        self.sf.X.assign(self.prod[:]*self.l)
+        self.sf.forward(batch)
+        self.attention=MultiArray([N, self.d, self.d_in], sfix)
+        @for_range_opt(N)
+        def _(i):
+            X_sub = sfix.Matrix(self.d, self.d, address=self.sf.Y[i].address)
+            self.attention[i]=X_sub.direct_mul(self.W_v.Y[i], indices=(
+                    regint.inc(self.d), regint.inc(self.d),
+                    regint.inc(self.d), regint.inc(self.d_in)))
+        self.W_o.X=self.attention
+        self.W_o.forward(batch)
+        @for_range_opt(N)
+        def _(i):
+            self.Y[i] = self.W_o.Y[i] + self.x[i]
+        self.ln.X = self.Y
+        self.ln.forward(batch)
+        self.Y = self.ln.Y
+    def backward(self,compute_nabla_X=True,batch=None):
+        N = len(batch)
+        self.ln.nabla_Y = self.nabla_Y
+        self.ln.backward(batch,True)
+        # self.relu.nabla_Y=self.ln.nabla_X
+        # self.relu.backward(batch)
+        self.W_o.nabla_Y = self.ln.nabla_X
+        # self.W_o.nabla_Y=self.nabla_Y
+        self.W_o.backward(True,batch)
+        @for_range_opt(N)
+        def _(i):
+            X_sub = sfix.Matrix(self.d, self.d, address=self.sf.Y[i].address)
+            self.W_v.nabla_Y[i]=X_sub.direct_trans_mul(self.W_o.X[i], indices=(
+                    regint.inc(self.d), regint.inc(self.d),
+                    regint.inc(self.d), regint.inc(self.d_in)))
+        self.W_v.backward(True, batch)
+        @for_range_opt(N)
+        def _(i):
+            X_sub = sfix.Matrix(self.d, self.d_in, address=self.W_o.nabla_X[i].address)
+            self.sf.nabla_Y[i]=X_sub.direct_mul_trans(self.W_v.Y[i], indices=(
+                    regint.inc(self.d), regint.inc(self.d_in),
+                    regint.inc(self.d_in), regint.inc(self.d)))
+        self.sf.backward(batch)
+        self.sf.nabla_X.assign(self.sf.nabla_X[:]*self.l)
+        @for_range_opt(N)
+        def _(i):
+            X_sub = sfix.Matrix(self.d, self.d, address=self.sf.nabla_X[i].address)
+            self.W_q.nabla_Y[i]=X_sub.direct_mul_trans(self.W_k.Y[i], indices=(
+                    regint.inc(self.d), regint.inc(self.d),
+                    regint.inc(self.d), regint.inc(self.d_in)))
+        self.W_q.backward(True,batch)
+        @for_range_opt(N)
+        def _(i):
+            X_sub = sfix.Matrix(self.d, self.d_in, address=self.W_q.Y[i].address)
+            self.W_k.nabla_Y[i]=X_sub.direct_trans_mul(self.prod[i], indices=(
+                    regint.inc(self.d_in), regint.inc(self.d),
+                    regint.inc(self.d), regint.inc(self.d)))
+        self.W_k.backward(True, batch)
+        if (compute_nabla_X == False):
+            return
+        else:
+            self.nabla_X=self.nabla_Y+self.W_v.nabla_X+self.W_q.nabla_X+self.W_k.nabla_X
 class Conv2d(ConvBase):
     def n_summands(self):
         _, weights_h, weights_w, _ = self.weight_shape

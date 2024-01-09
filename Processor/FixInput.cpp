@@ -12,6 +12,7 @@ void FixInput_<Integer>::read(std::istream& in, const int* params)
 {
     double x;
     in >> x;
+
     items[0] = x * exp2(*params);
 }
 

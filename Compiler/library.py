@@ -3,7 +3,7 @@ This module defines functions directly available in high-level programs,
 in particularly providing flow control and output.
 """
 
-from Compiler.types import cint,sint,cfix,sfix,sfloat,MPCThread,Array,MemValue,cgf2n,sgf2n,_number,_mem,_register,regint,Matrix,_types, cfloat, _single, localint, personal, copy_doc, _vec
+from Compiler.types import cint,sint,cfix,sfix,sfloat,MPCThread,Array,MemValue,cgf2n,sgf2n,_number,_mem,_register,regint,Matrix,_types, cfloat, _single, localint, personal, copy_doc, _vec,cchr
 from Compiler.instructions import *
 from Compiler.util import tuplify,untuplify,is_zero
 from Compiler.allocator import RegintOptimizer
@@ -14,9 +14,6 @@ import collections
 import operator
 import copy
 from functools import reduce
-
-
-
 
 
 def change_machine_domain(k):
@@ -69,6 +66,7 @@ def set_instruction_type(function):
 def _expand_to_print(val):
     return ('[' + ', '.join('%s' for i in range(len(val))) + ']',) + tuple(val)
 
+        
 def print_str(s, *args):
     """ Print a string, with optional args for adding
     variables/registers with ``%s``. """
@@ -94,7 +92,13 @@ def print_str(s, *args):
                 val = args[i].read()
             else:
                 val = args[i]
-            if isinstance(val, program.Tape.Register):
+            if isinstance(val,cchr):
+                # print("Enter print_ln cchr")
+                if val.is_clear:
+                    print_cchr(val)
+                else:
+                    raise CompilerError('Cannot print secret value:', args[i])
+            elif isinstance(val, program.Tape.Register):
                 if val.is_clear:
                     val.print_reg_plain()
                 else:
@@ -416,7 +420,8 @@ class FunctionBlock(Function):
         parent_node = get_tape().req_node
         get_tape().open_scope(lambda x: x[0], None, 'begin-' + self.name)
         block = get_tape().active_basicblock
-        block.alloc_pool = defaultdict(list)
+        from . import allocator as al
+        block.alloc_pool = al.AllocPool()
         del parent_node.children[-1]
         self.node = get_tape().req_node
         if get_program().verbose:
@@ -2039,4 +2044,53 @@ def start_profiling():
     
 def stop_profiling():
     break_point()
-    # instructions.program.is_profiling = False    
+    # instructions.program.is_profiling = False
+
+
+def ss_psi_merge(*tables):
+    from Compiler.sorting import gen_perm_by_radix_sort, SortPerm
+    from Compiler.group_ops import GroupSum
+    party_number = len(tables)
+    num = 0
+    attr = 1
+    for table in tables:
+        num = num + len(table)
+        attr = attr + len(table[0]) - 1
+    # merge all the table into one table
+    final_table = tables[0].value_type.Matrix(num, attr)
+    num_count = 0
+    attr_count = 0
+
+    for table in tables:
+        table_attr = len(table[0])
+        for ele in table:
+            final_table[num_count][0] = ele[0]
+            for i in range(1, table_attr):
+                final_table[num_count][attr_count + i] = ele[i]
+            num_count = num_count + 1
+        attr_count = attr_count + table_attr - 1  # the id column should not be added
+
+    ids = final_table.get_column(0)
+    perm = gen_perm_by_radix_sort(ids)
+    for i in range(attr):
+        final_table.set_column(i, perm.apply(final_table.get_column(i)).get_vector())
+    ids = final_table.get_column(0)
+    flag = sint.Array(size=num)
+    flag[0] = 1
+    flag.assign_vector(ids.get_vector(size=len(ids) - 1) !=
+                       ids.get_vector(size=len(ids) - 1, base=1), base=1)
+    for i in range(1, attr):
+        final_table.set_column(i, GroupSum(flag, final_table.get_column(i)))
+
+    in_intersection = sint.Array(size=num)
+    in_intersection.assign_vector(ids.get_vector(size=len(ids) - 1) ==
+                       ids.get_vector(size=len(ids) - 1, base=party_number - 1), base=0)
+
+    for i in range(attr):
+        final_table.set_column(i, final_table.get_column(i) * in_intersection)
+    perm = SortPerm(in_intersection.get_vector().bit_not())
+    for i in range(attr):
+        final_table.set_column(i, perm.apply(final_table.get_column(i)).get_vector())
+    return final_table, sum(in_intersection)
+
+

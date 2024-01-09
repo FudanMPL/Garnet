@@ -90,6 +90,96 @@ public:
         for (int i = 0; i < OnlineOptions::singleton.batch_size; i++)
             this->random.push_back(G.get<T>());
     }
+
+      template <class U>
+  void change_domain(const vector<int>& regs, int reg_size, U& proc){
+    assert(regs.size() % 4 == 0);
+    assert(proc.P.num_players() == 2);
+    assert(proc.Proc != 0);
+    typedef typename T::clear value_type;
+    typedef typename T::clear bit_type;
+
+    int n = regs.size() / 4;
+    int ring_bit_length =  regs[2];
+
+    vector<T> dabits;
+    vector<typename T::bit_type> bits;
+    vector<bit_type> lsbs_mask_0;
+    vector<bit_type> lsbs_mask_1;
+    dabits.resize(n * reg_size);
+    bits.resize(n * reg_size);
+    lsbs_mask_0.resize(n * reg_size);
+    lsbs_mask_1.resize(n * reg_size);
+    for (int i = 0; i < n * reg_size; i++){
+      proc.DataF.get_dabit_no_count(dabits[i], bits[i]);
+    }
+    if (this->P.my_num() == 0){
+      octetStream cs;
+      for (int i = 0; i < n; i++){
+        for (int k = 0; k < reg_size; k++){
+          value_type d0 = proc.S[regs[4 * i + 1] + k];
+          proc.input.add_mine(d0);
+          value_type overflow_0 = d0 >> (ring_bit_length - 1);
+          proc.input.add_mine(overflow_0);
+          lsbs_mask_0[i * reg_size + k] = (bit_type) (overflow_0 & 0x1) ^ bits[i * reg_size + k];
+          lsbs_mask_0[i * reg_size + k].pack(cs);
+        }
+      }
+      this->P.send_to(1, cs);
+      octetStream cs1;
+
+      this->P.receive_player(1, cs1);
+      for (int i = 0; i < n * reg_size; i++){
+        lsbs_mask_1[i] = cs1.get<bit_type>();
+      }
+    }
+    if (this->P.my_num() == 1){
+
+      octetStream cs;
+
+      for (int i = 0; i < n; i++){
+        for (int k = 0; k < reg_size; k++){
+          value_type d1 = proc.S[regs[4 * i + 1] + k];
+          proc.input.add_mine(d1);
+
+          value_type overflow_1 = -((-d1).arith_right_shift( ring_bit_length - 1));;
+          proc.input.add_mine(overflow_1);
+
+          lsbs_mask_1[i * reg_size + k] = (bit_type) (overflow_1 & 0x1) ^ bits[i * reg_size + k];
+          lsbs_mask_1[i * reg_size + k].pack(cs);
+        }
+      }
+      this->P.send_to(0, cs);
+      octetStream cs0;
+
+      this->P.receive_player(0, cs0);
+      for (int i = 0; i < n * reg_size; i++){
+        lsbs_mask_0[i] = cs0.get<bit_type>();
+      }
+    }
+
+    proc.input.add_other(0);
+    proc.input.add_other(1);
+    proc.input.exchange();
+
+    value_type size(1);
+    size = size << (ring_bit_length - 1);
+
+    for (int i = 0; i < n; i++) {
+      for (int k = 0; k < reg_size; k++) {
+        auto d0 = proc.input.finalize(0);
+        auto overflow_0 = proc.input.finalize(0);
+        auto d1 = proc.input.finalize(1);
+        auto overflow_1 = proc.input.finalize(1);
+        auto lsb_mask = lsbs_mask_0[i * reg_size + k] ^ lsbs_mask_1[i * reg_size + k];
+        auto lsb = dabits[i * reg_size + k]  -  dabits[i * reg_size + k] * 2 * lsb_mask;
+        if (this->P.my_num() == 0)
+          lsb = lsb + lsb_mask;
+
+        proc.S[regs[4 * i] + k] = d0 + d1 - (overflow_0 + overflow_1 - lsb) * size;
+      }
+    }
+    }
 };
 
 #endif /* PROTOCOLS_SEMI_H_ */

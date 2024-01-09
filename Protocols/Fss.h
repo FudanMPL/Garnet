@@ -86,6 +86,8 @@ public:
     //new added function    
     void distributed_comparison_function(SubProcessor<T> &processor, const Instruction &instruction, int lambda);
 
+    void Muliti_Interval_Containment(SubProcessor<T> &processor, const Instruction &instruction, int lambda);
+
     //new added generate function
     void generate();
 

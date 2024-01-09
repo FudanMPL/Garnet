@@ -289,6 +289,7 @@ def determine_scope(block, options):
                 used_from_scope.add(dup)
 
     def write(reg, n):
+        # print("reg is " + str(reg) + " last_def[reg] is " + str(last_def[reg]))
         if last_def[reg] != -1:
             print('Warning: double write at register', reg)
             print('\tline %d: %s' % (n, instr))
@@ -298,6 +299,7 @@ def determine_scope(block, options):
         last_def[reg] = n
 
     for n,instr in enumerate(block.instructions):
+        # print(n, instr)
         outputs,inputs = instr.get_def(), instr.get_used()
         for reg in inputs:
             if reg.vector and instr.is_vec():
