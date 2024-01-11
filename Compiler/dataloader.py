@@ -74,6 +74,8 @@ class DataLoader():
     
     def __getitem__(self, i):
         return self.get_data(i)
+    
+    # TODO: 添加转化numpy数组为tensor函数
                
         
         
