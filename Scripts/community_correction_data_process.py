@@ -12,10 +12,20 @@ TimeInterval_XS_Zxtz = 20 * 24 * 3600  # 刑事-执行通知书距离判决时�
 TimeInterval_Rjbd = 10 * 24 * 3600  # 入矫时间距离执行通知书报警阈值
 
 
-def id_process(date_str):
-    result = re.sub(r'\D', '', date_str)
-    return int(result)
+def id_process(id_str):
+    l = 18 - len(id_str)
+    for i in range(l):
+        id_str = id_str + "\\x00"
+    return id_str
 
+
+def name_process(name_str):
+    name_str = name_str[:min(len(name_str),8)]
+    l = 8 - len(name_str)
+    for i in range(l):
+        name_str = name_str + "\\x00"
+
+    return name_str
 
 def date_process(date):
     if isinstance(date, float):
@@ -58,8 +68,8 @@ def process(file_path):
     data = data[~data['证件号'].isin(['无', '无身份证号码', 'NULL', None, np.nan])]  # 删除没有身份证的
     data = data.dropna(subset=['证件号'])  # 删除没有身份证的
     data['证件号'] = data['证件号'].astype(str)
-    data['证件号'] = data['证件号'].apply(id_process)  # 删除字母身份证号中的字母
-    data['证件号'] = data['证件号'].astype(int)
+    data['证件号'] = data['证件号'].apply(id_process)
+    data['姓名'] = data['姓名'].apply(name_process)
     data['提前结束天数'] = 0
     data['间隔天数'] = 0
     result = pd.DataFrame(columns=data.columns)
@@ -91,7 +101,7 @@ def process(file_path):
     result['终止日期'] = result['终止日期'].apply(date_process)  # 将时间转化为数字
     result['入矫日期'] = result['入矫日期'].apply(date_process)  # 将时间转化为数字
 
-    result = result[['证件号', '判决时间', '矫正期限', '入矫日期', '终止日期']]
+    result = result[['证件号', '姓名', '判决时间', '矫正期限', '入矫日期', '终止日期']]
     result = result.drop_duplicates()
     result = result.drop_duplicates(subset=['证件号'])
     file = open("./Player-Data/Input-P2-0", 'w')
