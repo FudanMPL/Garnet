@@ -72,6 +72,7 @@ def process(file_path):
     data['姓名'] = data['姓名'].apply(name_process)
     data['提前结束天数'] = 0
     data['间隔天数'] = 0
+    data['类型'] = 0
     result = pd.DataFrame(columns=data.columns)
 
     for index, ele in data.iterrows():
@@ -82,9 +83,7 @@ def process(file_path):
         ele['间隔天数'] = (convert_to_seconds(ele['入矫日期']) - convert_to_seconds(ele['判决时间'])) // 24 // 3600
         if convert_to_seconds(ele['入矫日期']) > convert_to_seconds(ele['判决时间']) \
                 and convert_to_seconds(ele['入矫日期']) - convert_to_seconds(ele['判决时间']) > (TimeInterval_XS_Zxtz + TimeInterval_Rjbd):
-            # if ele['矫正期限'] not in ['NULL', "", np.nan] and ele['终止日期'] not in ['NULL', "", np.nan] and ele['矫正级别名称'] != '初期矫正':
-            #     duration = duration_convert_to_seconds(ele['矫正期限'])
-            #     ele['提前结束天数'] = (duration - convert_to_seconds(ele['终止日期']) + convert_to_seconds(ele['判决时间'])) // 24 // 3600
+            ele['类型'] = '未按时报道\\x00'
             result = result.append(ele, ignore_index=True)
             continue
         if ele['矫正期限'] in ['NULL', "", np.nan] or ele['终止日期'] in ['NULL', "", np.nan] or ele['矫正级别名称'] == '初期矫正':
@@ -93,6 +92,7 @@ def process(file_path):
         ele['提前结束天数'] = (duration - convert_to_seconds(ele['终止日期']) + convert_to_seconds(ele['判决时间'])) // 24 // 3600
         if convert_to_seconds(ele['终止日期']) > convert_to_seconds(ele['判决时间'])\
                 and convert_to_seconds(ele['终止日期']) - convert_to_seconds(ele['判决时间']) < duration:
+            ele['类型'] = '违规提前结束'
             result = result.append(ele, ignore_index=True)
             continue
     result['矫正期限'] = result['矫正期限'].apply(duration_convert_to_seconds) // 24 // 3600
@@ -101,7 +101,7 @@ def process(file_path):
     result['终止日期'] = result['终止日期'].apply(date_process)  # 将时间转化为数字
     result['入矫日期'] = result['入矫日期'].apply(date_process)  # 将时间转化为数字
 
-    result = result[['证件号', '姓名', '判决时间', '矫正期限', '入矫日期', '终止日期']]
+    result = result[['证件号', '姓名', '判决时间', '矫正期限', '入矫日期', '终止日期', '类型']]
     result = result.drop_duplicates()
     result = result.drop_duplicates(subset=['证件号'])
     file = open("./Player-Data/Input-P2-0", 'w')
