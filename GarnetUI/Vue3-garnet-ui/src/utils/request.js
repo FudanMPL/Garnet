@@ -3,7 +3,7 @@ import { useUserStore } from '../stores'
 
 const useStore = useUserStore()
 
-const baseURL = 'http://10.176.34.171:8000/api/'
+const baseURL = 'http://<djangoHost>:8000/api/'
 const instance = axios.create({
   // TODO 1. 基础地址，超时时间
   baseURL,

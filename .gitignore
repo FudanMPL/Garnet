@@ -144,3 +144,7 @@ Compiler/GFA/*.json
 *.json
 
 *.dSYM
+
+#GarnetUI loaddata
+!GarnetUI/ui/mpc.json
+!GarnetUI/ui/protocol.json

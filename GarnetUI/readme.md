@@ -44,9 +44,9 @@ npm install
 GARNETPATH = "../../Garnet"
 
 # Metadata
-NAME = "DELL_Windows"
-IPADDRESS = "127.0.0.1"
-PORT = 9000
+NAME = "<hostName>"
+IPADDRESS = "<djangoHost>"
+PORT = 8000
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "django-insecure-3pn^b24iqv(2*ta^rq+%)ghl2--z7*qk4y7mkznai16_jx&@c8"
@@ -56,7 +56,7 @@ SECRET_KEY = "django-insecure-3pn^b24iqv(2*ta^rq+%)ghl2--z7*qk4y7mkznai16_jx&@c8
 修改前端中的后端地址 Vue3-garnet-ui/src/utils/request.js
 
 ```javascript
-const baseURL = 'http://<djangoHost:djangoPort>/api/'
+const baseURL = 'http://<djangoHost>:8000/api/'
 ```
 
 迁移数据库
