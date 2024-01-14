@@ -148,3 +148,8 @@ Compiler/GFA/*.json
 #GarnetUI loaddata
 !GarnetUI/ui/mpc.json
 !GarnetUI/ui/protocol.json
+
+#GarnetUI node packge
+!GarnetUI/Vue3-garnet-ui/.prettierrc.json
+!GarnetUI/Vue3-garnet-ui/package-lock.json
+!GarnetUI/Vue3-garnet-ui/package.json
