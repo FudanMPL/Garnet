@@ -18,11 +18,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # region 需要自定义设置的内容
 # garnet文件夹
-GARNETPATH = "/home/zw/Garnet"
+GARNETPATH = "<GarnetPATH>"
 
 # Metadata
-NAME = "服务器171"
-IPADDRESS = "10.176.34.171"
+NAME = "<hostName>"
+IPADDRESS = "<djangoHost>"
 PORT = 8000
 
 # SECURITY WARNING: keep the secret key used in production secret!
