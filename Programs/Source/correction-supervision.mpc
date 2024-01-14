@@ -1,11 +1,11 @@
-program.use_split(3)
 
-from Compiler.sorting import *
-from Compiler.group_ops import *
+if len(program.args) > 3:
+    court_row = int(program.args[1]) # 法院数据总共有多少条数据
+    community_row = int(program.args[2]) # 社区数据总共有多少条数据
+else:
+    court_row = 15024 # 法院数据总共有多少条数据
+    community_row = 1173 # 社区数据总共有多少条数据
 
-
-court_row = 15024 # 法院数据总共有多少条数据
-community_row = 1173 # 社区数据总共有多少条数据
 
 id_length = 18 # 身份证最长长度
 name_length = 8 # 名字的最长长度

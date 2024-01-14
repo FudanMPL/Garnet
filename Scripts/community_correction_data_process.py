@@ -12,26 +12,32 @@ TimeInterval_XS_Zxtz = 20 * 24 * 3600  # 刑事-执行通知书距离判决时�
 TimeInterval_Rjbd = 10 * 24 * 3600  # 入矫时间距离执行通知书报警阈值
 
 
+name_length = 8  # 名字的最长长度
+id_length = 18  # 身份证号的最长长度
+
+
 def id_process(id_str):
-    l = 18 - len(id_str)
+    id_str = id_str[:min(len(id_str), id_length)]
+    l = id_length - len(id_str)
     for i in range(l):
         id_str = id_str + "\\x00"
     return id_str
 
 
 def name_process(name_str):
-    name_str = name_str[:min(len(name_str),8)]
-    l = 8 - len(name_str)
+    name_str = name_str[:min(len(name_str),name_length)]
+    l = name_length - len(name_str)
     for i in range(l):
         name_str = name_str + "\\x00"
-
     return name_str
+
 
 def date_process(date):
     if isinstance(date, float):
         return 0
     date = date.replace("-", "")
     return int(date)
+
 
 def convert_to_inttime(date_str):
     # 提取日期部分并删除短划线
