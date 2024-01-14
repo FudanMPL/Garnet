@@ -41,7 +41,7 @@ npm install
 ```python
 # region 需要自定义设置的内容
 # garnet文件夹
-GARNETPATH = "<GarnetPATH>"
+GARNETPATH = "../../Garnet"
 
 # Metadata
 NAME = "<hostName>"
