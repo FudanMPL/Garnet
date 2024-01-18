@@ -110,7 +110,6 @@ void CryptoPlayer::connect(int i, vector<int>* plaintext_sockets)
     if (server_names.size() == 0){
         auto filename =  std::string(SSL_DIR) + "server.name";
         if (fileExists(filename)) {
-        cout << "file name: " << filename << endl;
         std::ifstream file(filename);
         std::string line;
         while (std::getline(file, line)) {
