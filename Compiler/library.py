@@ -93,9 +93,9 @@ def print_str(s, *args):
             else:
                 val = args[i]
             if isinstance(val,cchr):
-                # print("Enter print_ln cchr")
                 if val.is_clear:
-                    print_cchr(val)
+                    for j in range(len(val)):
+                        print_cchr(val[j])
                 else:
                     raise CompilerError('Cannot print secret value:', args[i])
             elif isinstance(val, program.Tape.Register):
