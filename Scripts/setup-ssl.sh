@@ -11,7 +11,7 @@ test -e $ssl_dir || mkdir $ssl_dir
 echo Setting up SSL for $n parties
 
 for i in `seq 0 $[n-1]`; do
-    openssl req -newkey rsa -nodes -x509 -out $ssl_dir/P$i.pem -keyout $ssl_dir/P$i.key -subj "/CN=P$i"
+    openssl req -newkey rsa -nodes -x509 -out $ssl_dir/P$i.pem -keyout $ssl_dir/P$i.key -subj "/CN=PM$i"
 done
 
 c_rehash $ssl_dir
