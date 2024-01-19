@@ -19,18 +19,21 @@ from Model.serializers import (
 )
 from rest_framework.viewsets import GenericViewSet, ModelViewSet
 from ..authentication import UserAuthentication
+from ..pagination import PagePagination
 
 
 class LocalTaskSets(ModelViewSet):
     queryset = LocalTask.objects.all()
     serializer_class = LocalTaskModelSerializer
     authentication_classes = [UserAuthentication]
+    pagination_class = PagePagination
 
 
 class DataTaskRelationshipSets(GenericViewSet):
     queryset = DataTaskRelationship.objects.all()
     serializer_class = DataTaskRelationshipModelSerializer
     authentication_classes = [UserAuthentication]
+    pagination_class = PagePagination
 
     @extend_schema(
         request=DataTaskRelationshipModelSerializer(many=True),

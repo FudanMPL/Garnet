@@ -4,7 +4,7 @@
         "pk": 1,
         "fields": {
             "name": "特种病药物转卖医保诈骗监督模型",
-            "file":"mpc/特种病药物转卖医保诈骗监督模型.mpc",
+            "file":"mpc/drug_supervision.mpc",
             "description": "特种病药物转卖医保诈骗监督模型"
         }
     },
@@ -13,7 +13,7 @@
         "pk": 2,
         "fields": {
             "name": "社区矫正监督模型",
-            "file":"mpc/社区矫正监督模型.mpc",
+            "file":"mpc/correction-supervision.mpc",
             "description": "社区矫正监督模型"
         }
     },
@@ -22,7 +22,7 @@
         "pk": 3,
         "fields": {
             "name": "线性回归模型",
-            "file":"mpc/线性回归模型.mpc",
+            "file":"mpc/autograd_linear.mpc",
             "description": "线性回归模型"
         }
     },
@@ -31,7 +31,7 @@
         "pk": 4,
         "fields": {
             "name": "逻辑回归模型",
-            "file":"mpc/逻辑回归模型.mpc",
+            "file":"mpc/autograd_logistic.mpc",
             "description": "逻辑回归模型"
         }
     },
@@ -40,7 +40,7 @@
         "pk": 5,
         "fields": {
             "name": "神经网络模型",
-            "file":"mpc/神经网络模型.mpc",
+            "file":"mpc/autograd_lenet.mpc",
             "description": "神经网络模型"
         }
     },
@@ -49,7 +49,7 @@
         "pk": 6,
         "fields": {
             "name": "XGBoost模型",
-            "file":"mpc/XGBoost模型.mpc",
+            "file":"mpc/xgboost.mpc",
             "description": "XGBoost模型"
         }
     },
@@ -58,7 +58,7 @@
         "pk": 7,
         "fields": {
             "name": "隐私集合求交",
-            "file":"mpc/隐私集合求交.mpc",
+            "file":"mpc/ss_psi_test.mpc",
             "description": "隐私集合求交"
         }
     }

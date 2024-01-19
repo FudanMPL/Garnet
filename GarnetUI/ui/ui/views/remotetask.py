@@ -1,9 +1,6 @@
 import uuid
 from django.conf import settings
 import datetime
-import os
-import subprocess
-from typing import Dict
 
 import requests
 from django.http import StreamingHttpResponse
@@ -22,17 +19,19 @@ from rest_framework import status
 from .link import metadataUpdate, TaskReleaseView
 from drf_spectacular.utils import (
     extend_schema,
-    OpenApiExample,
     inline_serializer,
     OpenApiParameter,
     OpenApiResponse,
 )
 from rest_framework import serializers
+from ..pagination import PagePagination
+from ..Rtask import RTask, mpc_compile, protocol_compile
 
 
 class RemoteTaskSets(ModelViewSet):
     queryset = RemoteTask.objects.all()
     serializer_class = RemoteTaskModelSerializer
+    pagination_class = PagePagination
 
     @extend_schema(
         description="创建远程任务表",
@@ -44,10 +43,12 @@ class RemoteTaskSets(ModelViewSet):
     )
     def create(self, request, *args, **kwargs):
         relationship = ServerTaskRelationship()
-        s = self.serializer_class(data=request.data)
+        s = RemoteTaskModelSerializer(data=request.data)
         if not s.is_valid():
             return Response(status=status.HTTP_400_BAD_REQUEST)
         obj = s.save()
+        # 断言，不加这个就报错，尽管不会出问题
+        assert isinstance(obj, RemoteTask)
         relationship.task = obj
         relationship.part = 0
         try:
@@ -56,6 +57,8 @@ class RemoteTaskSets(ModelViewSet):
             m = metadataUpdate()
             relationship.server = m
         relationship.save()
+        async_task(mpc_compile, obj.mpc, obj.mpc_parameters)
+        async_task(protocol_compile, obj.protocol.name)
         return Response(status=status.HTTP_200_OK)
 
     def release(self, request):
@@ -103,7 +106,7 @@ class RemoteTaskAddData(GenericViewSet, UpdateModelMixin):
         except UserData.DoesNotExist:
             return Response(status=status.HTTP_400_BAD_REQUEST)
         task.data = data
-        if task.host == settings.IPADDRESS:
+        if task.part == 0:
             if ServerTaskRelationship.objects.filter(task=task).count() == task.pN:
                 task.status = "本地就绪"
         else:
@@ -163,80 +166,6 @@ class RemoteResultsView(GenericViewSet):
             str(task.prefix) + "-P" + str(task.pN) + "-0"
         )
         return response
-
-
-class RTask:
-    task: RemoteTask
-    serverName: str
-    part: int
-    pN: int
-    mpc: str
-    protocol: str
-    host: str
-    basePort: int
-    prefix: str
-    data: str
-    mpc_parameters: str
-    protocol_parameters: str
-    servers: Dict[int, str]
-
-    def __init__(self, task: RemoteTask) -> None:
-        if task == None or task.data == None:
-            return
-        self.task = task
-        self.part = task.part
-        self.pN = task.pN
-        self.mpc = os.path.basename(str(task.mpc.file))
-        self.protocol = task.protocol.name
-        self.prefix = str(task.prefix)
-        # 这个判断并不会执行
-        if task.host == None:
-            return
-        self.host = task.host
-        self.basePort = task.baseport
-        self.data = str(task.data.file.name)
-        self.mpc_parameters = str(task.mpc_parameters)
-        self.protocol_parameters = str(task.protocol_parameters)
-        self.servers = {}
-        self.serverName = Servers.objects.get(id=1).servername
-        servers = ServerTaskRelationship.objects.filter(task=task).exclude(server=1)
-        for server in servers:
-            self.servers[server.part] = server.server.servername
-
-    def rehash(self):
-        s = ""
-        for k, v in self.servers.items():
-            s = f"{s} {k} {v}"
-        subprocess.Popen(
-            f"{settings.BASE_DIR}/scripts/rehash.sh {settings.MEDIA_ROOT}/ssl {settings.GARNETPATH} {self.part} {self.serverName} {s}",
-            shell=True,
-        ).wait()
-
-    def compile(self):
-        subprocess.Popen(
-            f"{settings.BASE_DIR}/scripts/run.sh {settings.GARNETPATH} ./compile.py {self.mpc_parameters if self.mpc_parameters else ''} {settings.MEDIA_ROOT}/mpc/{self.mpc}",
-            shell=True,
-        ).wait()
-
-    def link(self):
-        subprocess.Popen(
-            f"ln -s {settings.MEDIA_ROOT}/{self.data} {settings.GARNETPATH}/Input/{self.prefix}-P{self.part}-0",
-            shell=True,
-        ).wait()
-
-    def run(self):
-        self.rehash()
-        self.compile()
-        self.link()
-        inputPrefix = settings.GARNETPATH + "/Input/" + self.prefix
-        outputPrefix = settings.GARNETPATH + "/Output/" + self.prefix
-        subprocess.Popen(
-            f"{settings.BASE_DIR}/scripts/run.sh {settings.GARNETPATH} ./{self.protocol}.x {os.path.splitext(self.mpc)[0]} -h {self.host} -pn {self.basePort} -p {self.part} -IF {inputPrefix} -OF {outputPrefix} ",
-            shell=True,
-        ).wait()
-        self.task.status = "已完成"
-        self.task.end_time = datetime.datetime.now()
-        self.task.save()
 
 
 class RemoteRun(GenericViewSet):

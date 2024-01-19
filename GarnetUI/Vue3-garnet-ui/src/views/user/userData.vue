@@ -11,15 +11,11 @@
       </el-button>
     </div>
     <el-table :data="tableData" style="width: 100%">
-      <el-table-column
-        prop="servername"
-        label="服务器名称"
-        style="width: 50%"
-      />
+      <el-table-column prop="servername" label="服务器名称" style="width: 50%" />
       <el-table-column prop="ip" label="IP地址" style="width: 25%" />
       <el-table-column prop="port" label="端口号" style="width: 25%" />
     </el-table>
-    <el-dialog v-model="centerDialogVisible" title="Warning" width="30%" center>
+    <el-dialog v-model="centerDialogVisible" title="提示" width="30%" center>
       <span> 请指定需要进行连接的服务器IP和端口 </span>
       <el-form :model="connectInfo" label-width="120px">
         <el-form-item label="IP地址">
@@ -35,12 +31,7 @@
         </span>
       </template>
     </el-dialog>
-    <el-dialog
-      v-model="feedbackDialogVisible"
-      title="提示"
-      width="30%"
-      :before-close="feedbackDialogClose"
-    >
+    <el-dialog v-model="feedbackDialogVisible" title="提示" width="30%" :before-close="feedbackDialogClose">
       <span class="formatted-text">{{ feedbackMessage }}</span>
       <template #footer>
         <span class="dialog-footer">
@@ -68,11 +59,19 @@ const feedbackDialogVisible = ref(false)
 const feedbackMessage = ref()
 
 const sendLink = async () => {
-  await userLinkServer(connectInfo.value)
-  centerDialogVisible.value = false
-  feedbackMessage.value='连接成功，可以加入该服务器上的任务了！'
-  feedbackDialogVisible.value = true
-  fresh()//连接后刷新页面
+  try {
+    const res = await userLinkServer(connectInfo.value)
+    if (res.status == 202) {
+      centerDialogVisible.value = false
+      feedbackMessage.value = '连接成功，可以加入该服务器上的任务了！'
+      feedbackDialogVisible.value = true
+      fresh()//连接后刷新页面
+    }
+  }
+  catch (error) {
+    feedbackMessage.value = '连接服务器出错！'
+    feedbackDialogVisible.value = true
+  }
 }
 const centerDialogVisible = ref(false)
 const connectInfo = ref({
@@ -96,6 +95,7 @@ const fresh = async () => {
   display: flex;
   justify-content: flex-end;
 }
+
 .text-container {
   text-align: center;
 }

@@ -37,6 +37,9 @@ class Mpc(models.Model):
         null=True,
         verbose_name="mpc文件路径",
     )
+    status = models.CharField(
+        max_length=50, null=False, verbose_name="mpc文件状态", default="uncompiled"
+    )
     description = models.TextField(null=True, verbose_name="详情")
 
 

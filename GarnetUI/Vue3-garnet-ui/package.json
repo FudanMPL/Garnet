@@ -13,6 +13,7 @@
     "@element-plus/icons-vue": "^2.1.0",
     "axios": "^1.6.0",
     "element-plus": "^2.4.1",
+    "follow-redirects": "^1.15.4",
     "pinia": "^2.1.7",
     "pnpm": "^8.12.1",
     "unplugin-auto-import": "^0.16.7",
@@ -29,6 +30,6 @@
     "prettier": "^3.0.3",
     "sass": "^1.69.5",
     "unplugin-vue-components": "^0.25.2",
-    "vite": "^4.4.11"
+    "vite": "^4.5.1"
   }
 }
