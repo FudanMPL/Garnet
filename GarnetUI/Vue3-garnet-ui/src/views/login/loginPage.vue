@@ -81,9 +81,9 @@ const login = async () => {
     try{
     const res  = await userLoginService(formModel.value);
     if(res.status == 200){
-    console.log(res)
     userStore.setToken(res.data.token)
     ElMessage.success('登录成功')
+    userStore.isLogin = true
     router.push('/locate/locateCompute')}
     else {
     // 注册失败，根据状态码或其他信息来处理

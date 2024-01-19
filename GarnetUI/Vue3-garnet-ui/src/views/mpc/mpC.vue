@@ -127,12 +127,12 @@ import { userCreateTask } from '../../api/mpC.js'
 
 onMounted(async() => {//加载页面时读取模型和协议
   const protocolRes = await getAllProtocol()
-  protocolArray.value=protocolRes.data
+  protocolArray.value=protocolRes.data.results
   partyArray.value=protocolArray.value.map
   (item => ({ label: item.name, value: item.id }));
 
   const modelRes = await getAllModel()
-  modelArray.value=modelRes.data
+  modelArray.value=modelRes.data.results
   modelPartyArray.value=modelArray.value.map
   (item => ({ label: item.name, value: item.id }));
 });

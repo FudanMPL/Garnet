@@ -18,11 +18,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # region 需要自定义设置的内容
 # garnet文件夹
-GARNETPATH = "../../Garnet"
+GARNETPATH = "GARNETPATH"
 
 # Metadata
-NAME = "<hostName>"
-IPADDRESS = "<djangoHost>"
+NAME = "NAME"
+IPADDRESS = "IPADDRESS"
 PORT = 8000
 
 # SECURITY WARNING: keep the secret key used in production secret!
@@ -180,4 +180,8 @@ Q_CLUSTER = {
     "queue_limit": 500,
     "label": "Django Q",
     "orm": "default",
+    "queues": [
+        {"name": "mpc_run", "workers": 1, "timeout": 90},
+        {"name": "others", "workers": 4, "timeout": 60},
+    ],
 }

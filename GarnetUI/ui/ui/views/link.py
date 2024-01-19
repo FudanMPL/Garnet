@@ -6,6 +6,7 @@ from rest_framework.mixins import ListModelMixin
 from drf_spectacular.utils import extend_schema
 from django_q.tasks import async_task
 from django.conf import settings
+from typing import Dict
 from Model.models import Servers, RemoteTask, ServerTaskRelationship, Protocol, Mpc
 from Model.serializers import (
     ServersModelSerializer,
@@ -20,6 +21,7 @@ import utils.common, requests, subprocess, uuid
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
 from utils.common import md5
 from uuid import uuid4
+from ..Rtask import RTask, mpc_compile, downloadAndCompile
 
 
 class MetadataView(GenericViewSet):
@@ -58,6 +60,8 @@ class MetadataView(GenericViewSet):
     )
     def send(self, request):
         hostSerializer = MetadataSerializer(instance=None, data=request.data)
+        hostSerializer.is_valid()
+        assert isinstance(hostSerializer.data, Dict)
         if not hostSerializer.is_valid():
             return Response(status=status.HTTP_400_BAD_REQUEST)
         try:
@@ -66,7 +70,7 @@ class MetadataView(GenericViewSet):
                 int(hostSerializer.data["port"]),
             )
         except Exception as err:
-            return Response(status=err)
+            return Response(status=err.args[0])
         return Response(
             data=ServersModelSerializer(instance=data).data,
             status=status.HTTP_202_ACCEPTED,
@@ -90,6 +94,8 @@ class TaskReleaseView(GenericViewSet, ListModelMixin):
         r = TaskRequestSerializer(data=request.data)
         if not r.is_valid():
             return Response(status=status.HTTP_400_BAD_REQUEST)
+        # 使用断言让Pylance知晓正确的类型
+        assert isinstance(r.data, Dict)
         prefix = r.data["prefix"]
         servername = r.data["servername"]
         part = r.data["part"]
@@ -99,7 +105,6 @@ class TaskReleaseView(GenericViewSet, ListModelMixin):
             return Response(data=None, status=status.HTTP_409_CONFLICT)
         try:
             task = RemoteTask.objects.get(prefix=prefix)
-
             if (
                 ServerTaskRelationship.objects.filter(part=part, task=task)
                 or part > task.pN
@@ -205,21 +210,23 @@ class TaskJoinView(GenericViewSet):
         dic = res.json()
         dic["part"] = part
         dic["protocol"] = Protocol.objects.get(name=res.json()["protocolName"])
-        name = res.json()["mpcURL"].split("/")[-1].split(".")[0]
-
-        [mpc, _] = Mpc.objects.get_or_create(name=name, description=dic["description"])
-        mpc.file.name = "mpc" + "/" + name + ".mpc"
-        path = Path.joinpath(settings.MEDIA_ROOT, "mpc", mpc.file.name)
-        async_task(utils.common.download, res.json()["mpcURL"], path)
-        mpc.save()
-
+        name = res.json()["mpcName"]
+        [mpc, isExist] = Mpc.objects.get_or_create(name=name)
         dic["mpc"] = mpc
         dic["status"] = "等待数据"
         dic.pop("mpcURL")
         dic.pop("protocolName")
         dic.pop("id")
+        dic.pop("mpcName")
         task = RemoteTask(**dic)
         task.save()
+        if not isExist:
+            mpc.file.name = "mpc" + "/" + res.json()["mpcURL"].split("/")[-1].split(".")[0] + ".mpc"
+            mpc.save
+            path = Path.joinpath(settings.MEDIA_ROOT, mpc.file.name)
+            async_task(downloadAndCompile, task, res.json()["mpcURL"], path)
+        elif mpc.status != "compiled" and mpc.status != "compiling":
+            async_task(mpc_compile, mpc, task.mpc_parameters)
         s = RemoteTaskModelSerializer(instance=task)
         return Response(data=s.data, status=status.HTTP_200_OK)
 
@@ -229,9 +236,25 @@ class TaskJoinView(GenericViewSet):
         task = RemoteTask.objects.get(prefix=prefix)
         del request.data[-1]
         joined = request.data
-        delete = set(ServerTaskRelationship.objects.filter(task=task.pk))
+        delete = set(
+            ServerTaskRelationship.objects.filter(task=task.pk).exclude(server=1)
+        )
         for s in joined:
             try:
+                if s["servername"] == settings.NAME:
+                    server = Servers.objects.get(id=1)
+                    try:
+                        relationship = ServerTaskRelationship.objects.get(
+                            task=task.pk, server=server.pk
+                        )
+                    except:
+                        relationship = ServerTaskRelationship()
+                        relationship.server = server
+                        relationship.task = task
+                        relationship.part = s["part"]
+                        relationship.save()
+                    finally:
+                        continue
                 server = link_ssl(s["serverIP"], s["serverPort"])
             except Exception as err:
                 continue
@@ -273,10 +296,18 @@ class ReadyView(GenericViewSet):
     )
     def ready(self, request, prefix: uuid.UUID):
         task = RemoteTask.objects.get(prefix=prefix)
+        if task.mpc.status != "compiled":
+            if task.mpc.status != "compiling":
+                async_task(compile, task.mpc, task.mpc_parameters)
+            return Response(
+                {"msg": "mpc compilation not finished"},
+                status=status.HTTP_204_NO_CONTENT,
+            )
         if task.status != "就绪":
             return Response(
                 {"msg": "not ready localy"}, status=status.HTTP_204_NO_CONTENT
             )
+        r = RTask(task)
         servers = ServerTaskRelationship.objects.filter(task=task).exclude(server=1)
         ready = True
         for server in servers:
@@ -330,6 +361,15 @@ class ReadyView(GenericViewSet):
             )
         if task.data == None:
             return Response({"msg": "not ready"}, status=status.HTTP_425_TOO_EARLY)
+        if RemoteTask.objects.filter(status="运行中").count() != 0:
+            return Response({"msg": "在忙"}, status=status.HTTP_409_CONFLICT)
+        if task.mpc.status != "compiled":
+            if task.mpc.status != "compiling":
+                async_task(mpc_compile, task.mpc, task.mpc_parameters)
+            return Response(
+                {"msg": "mpc compilation not finished"},
+                status=status.HTTP_425_TOO_EARLY,
+            )
         return Response({"msg": "就绪"}, status=status.HTTP_200_OK)
 
 

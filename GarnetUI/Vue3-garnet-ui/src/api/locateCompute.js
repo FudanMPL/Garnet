@@ -25,13 +25,13 @@ export const userCreateLocateTask = ({
   // console.log(res)
   return res
 }
-export const getAllLocatetask = () => request.get('/task/local/model/')
+export const getAllLocatetask = () => request.get('/task/local/model/?page=1&size=100')
 
 export const getAllFiles = () => request.get('/model/userdata/')
 
-export const getAllProtocol = () => request.get('/model/protocol/')
+export const getAllProtocol = () => request.get('/model/protocol/?page=1&size=100')
 
-export const getAllModel = () => request.get('/model/mpc/')
+export const getAllModel = () => request.get('/model/mpc/?page=1&size=100')
 
 export const userPostData = ({ content, description, userID, fileName }) => {
   request.post('/model/userdata/string/', {
