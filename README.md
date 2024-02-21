@@ -78,4 +78,4 @@ make -j 8 tldr
 
 
 ## 联系我们
-如果您对项目有任何疑问，请在GitHub仓库上创建issue或者发送邮件到dsglab@fudan.edu.cn。
+如果您对项目代码有任何疑问，请在GitHub仓库上创建issue。
