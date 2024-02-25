@@ -1,0 +1,4 @@
+a = sint().Array(10)
+b = sint().Array(10)
+
+a.get_vector() == b.get_vector()
