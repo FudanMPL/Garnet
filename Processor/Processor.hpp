@@ -13,9 +13,18 @@
 #include "Conv2dTuple.h"
 #include "MatmulsTuple.h"
 #include "MatmulsmTuple.h"
+#include "Tools/SimpleIndex.h"
+#include "cryptoTools/Common/CuckooIndex.h"
+#include "OT/OTExtension.h"
+#include "OT/OTExtensionWithMatrix.h"
+#include "Tools/octetStream.h"
 
 #include <sodium.h>
 #include <string>
+
+#define RECEIVER_P 0
+
+typedef uint64_t idtype;
 
 template <class T>
 SubProcessor<T>::SubProcessor(ArithmeticProcessor &Proc, typename T::MAC_Check &MC,

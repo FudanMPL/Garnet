@@ -55,7 +55,7 @@ def psi(n,f0,f1,base_path="./Player-Data/PSI/"):
     return fs
 pn = 2
 
-n = 6
+n = 8
 f0_num = 7
 f1_num = 7
 base_path = "./Player-Data/PSI/"

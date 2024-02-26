@@ -29,8 +29,8 @@ class SwitchableOutput;
 enum
 {
   // PSI
-  PSI = 0xaff,
-  PSIALIGN = 0xaf7,
+  PSI = 0xa10,
+  PSIALIGN = 0xa11,
   // Change domain
   CSD = 0xf8,
   CMD = 0xf9,
