@@ -15,6 +15,35 @@ import operator
 import copy
 from functools import reduce
 
+def PSI(n,f0,f1):
+    # tmp_array = types.Array.create_from(tmp)
+    # print("tmp.size",len(tmp_array))
+    # @library.for_range(n)
+    # def _(i):
+    #     library.print_int(tmp_array[i].to_regint())
+    # library.break_point()
+    # id intersection
+    # library.print_ln('psi=%s',  tmp.reveal())
+    tmp = cint(size=n)
+    psi_risc(tmp, n)
+    break_point()
+    f = f0+f1
+    fs = sint(size = n*f)
+    psi_align(fs,tmp,n,f0,f1)
+    ####### log ######
+    # print_str("psi end\n")
+    # # print("tmp.size",tmp.size)
+    # tmp_array = Array.create_from(tmp)
+    # @for_range(n)
+    # def _(i):
+    #     print_int(tmp_array[i].to_regint())
+    #     print_str("\n")
+    # print_ln("result=%s",fs.reveal())
+    # library.print_ln('psi=%s',  tmp.reveal())
+    # print_str("psi end 2")
+    num =  tmp[0].to_regint()
+    # print_int(num)
+    return fs,num
 
 def change_machine_domain(k):
     break_point()
