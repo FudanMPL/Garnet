@@ -59,11 +59,11 @@ class psi_align(base.VarArgsInstruction):
     arg_format = ['sw', 'c','int','int','int']
     
     def __init__(self, *args, **kwargs):
-        print(len(args[0]))
-        print(len(args[1]))
-        print(args[2])
-        print(args[3])
-        print(args[4])
+        # print(len(args[0]))
+        # print(len(args[1]))
+        # print(args[2])
+        # print(args[3])
+        # print(args[4])
         assert len(args[1]) == args[2]
         assert len(args[0]) == args[2]*(args[3]+args[4])
         super(psi_align, self).__init__(*args, **kwargs)

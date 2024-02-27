@@ -79,7 +79,7 @@ void OTExtensionWithMatrix::transfer(int nOTs,
     timeval totalstartv, totalendv;
     gettimeofday(&totalstartv, NULL);
 #endif
-    cout << "\tDoing " << nOTs << " extended OTs as " << role_to_str(ot_role) << endl;
+    // cout << "\tDoing " << nOTs << " extended OTs as " << role_to_str(ot_role) << endl;
 
     // resize to account for extra k OTs that are discarded
     BitVector newReceiverInput(nOTs);
