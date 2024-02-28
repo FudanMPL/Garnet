@@ -1,0 +1,396 @@
+from Compiler.torch import *
+from Compiler.tensor import *
+from Compiler.types import *
+
+def test_is_tensor():
+    x = MultiArray([2, 2], sfix)
+    x.assign_all(1)
+    y = Tensor(x)
+    print_ln('a multiarray is Tensor?')
+    print_ln('yes' if is_tensor(x) else 'no')
+    print_ln('yes' if isinstance(x, Tensor) else 'no')
+    print_ln('a tensor is Tensor?')
+    print_ln('yes' if is_tensor(y) else 'no')
+    print_ln('yes' if isinstance(y, Tensor) else 'no')
+
+def test_numel():
+    x = MultiArray([2, 2, 3], sfix)
+    x.assign_all(1)
+    y = Tensor(x)
+    print_ln('numel: %s', numel(y))
+    x = MultiArray([1, 1, 1], sfix)
+    x.assign_all(1)
+    y = Tensor(x)
+    print_ln('numel: %s', numel(y))
+
+def test_zeros():
+    sizes = [2, 2]
+    x = zeros(sizes)
+    x.print_reveal_nested()
+    sizes = 2
+    x = zeros(sizes)
+    x.print_reveal_nested()
+
+def test_zeros_like():
+    input = MultiArray([2, 2, 3], sfix)
+    input.assign_all(1)
+    input = Tensor(input)
+    x = zeros_like(input)
+    x.print_reveal_nested()
+
+def test_ones():
+    sizes = [2, 2]
+    x = ones(sizes)
+    x.print_reveal_nested()
+    sizes = 2
+    x = ones(sizes)
+    x.print_reveal_nested()
+
+def test_ones_like():
+    input = MultiArray([2, 2, 3], sfix)
+    input.assign_all(2)
+    input = Tensor(input)
+    x = ones_like(input)
+    x.print_reveal_nested()
+
+def test_arange():
+    start, end, step = 2, 7, 2
+    x = arange(start, end, step)
+    x.print_reveal_nested()
+
+def test_linspace():
+    start, end, steps = 2, 7, 6
+    x = linspace(start, end, steps)
+    x.print_reveal_nested()
+
+def test_logspace():
+    start, end, steps, base = 2, 7, 2, 2
+    x = logspace(start, end, steps, base)
+    x.print_reveal_nested()
+
+def test_eye():
+    m = 2
+    x = eye(m)
+    x.print_reveal_nested()
+
+def test_empty():
+    sizes = [2]
+    x = empty(sizes)
+    x.print_reveal_nested()
+    sizes = [2, 3]
+    x = empty(sizes)
+    x.print_reveal_nested()
+
+def test_empty_like():
+    input = MultiArray([2, 2, 3], sfix)
+    input.assign_all(1)
+    input = Tensor(input)
+    x = empty_like(input)
+    x.print_reveal_nested()
+
+def test_empty_strided():
+    sizes = [2, 2, 3]
+    stride = [1, 1, 1]
+    x = empty_strided(sizes, stride)
+    x.print_reveal_nested()
+    sizes = [2, 2, 3]
+    stride = [6, 3, 1]
+    x = empty_strided(sizes, stride)
+    x.print_reveal_nested()
+    sizes = [2]
+    stride = [1]
+    x = empty_strided(sizes, stride)
+    x.print_reveal_nested()
+
+def test_full():
+    sizes = [2, 2]
+    fill_value = 5
+    x = full(sizes, fill_value)
+    x.print_reveal_nested()
+
+def test_full_like():
+    input = MultiArray([2, 2, 3], sfix)
+    input.assign_all(1)
+    input = Tensor(input)
+    fill_value = 5
+    x = full_like(input, fill_value)
+    x.print_reveal_nested()
+
+def test_adjoint():
+    input = zeros(2, 3)
+    x = adjoint(input)
+    x.print_reveal_nested()
+    input = zeros(2, 2, 3)
+    x = adjoint(input)
+    x.print_reveal_nested()
+
+def test_cat():
+    x = eye(2)
+    res = cat(x, x, x)
+    res.print_reveal_nested()
+    res = cat(x, x, x, dim = 1)
+    res.print_reveal_nested()
+    x1 = arange(1, 4)
+    x2 = arange(4, 7)
+    res = cat(x1, x2)
+    res.print_reveal_nested()
+
+def test_chunk():
+    input = zeros(2, 3, 2)
+    input.print_reveal_nested()
+    chunks = 2
+    dim = 2
+    x = chunk(input, chunks, dim)
+    for i in x:
+        i.print_reveal_nested()
+    input = arange(0, 10).reshape(5, 2)
+    input.print_reveal_nested()
+    x = chunk(input, 2)
+    for i in x:
+        i.print_reveal_nested()
+
+def test_dsplit():
+    input = arange(0, 16).reshape(2, 2, 4)
+    x = dsplit(input, 2)
+    for i in x:
+        i.print_reveal_nested()
+    x = dsplit(input, 3, 6)
+    for i in x:
+        i.print_reveal_nested()
+
+def test_column_stack():
+    x1 = arange(1, 4)
+    x2 = arange(4, 7)
+    x = column_stack(x1, x2)
+    x.print_reveal_nested()
+    x1 = arange(0, 5)
+    x2 = reshape(arange(0, 10), [5, 2])
+    x = column_stack(x1, x2, x2)
+    x.print_reveal_nested()
+
+def test_dstack():
+    input1 = arange(1, 4)
+    input2 = arange(4, 7)
+    x = dstack(input1, input2)
+    x.print_reveal_nested()
+    input1 = arange(1, 4).reshape(3, 1)
+    input2 = arange(4, 7).reshape(3, 1)
+    x = dstack(input1, input2)
+    x.print_reveal_nested()
+
+def test_gather():
+    input = empty_strided([2, 2], [2, 1]) # [[0, 1], [2, 3]]
+    dim = 1
+    index = zeros(2, 2, value_type = cint)
+    index[1][0] = 1 # [[0, 0], [1, 0]]
+    x = gather(input, dim, index)
+    x.print_reveal_nested()
+
+def test_hsplit():
+    input = arange(0, 16).reshape(4, 4)
+    x = hsplit(input, 2)
+    for i in x:
+        i.print_reveal_nested()
+    x = hsplit(input, 3, 6)
+    for i in x:
+        i.print_reveal_nested()
+
+def test_hstack():
+    x1 = arange(1, 4) #[1, 2, 3]
+    x2 = arange(4, 7) #[4, 5, 6]
+    x = hstack(x1, x2)
+    x.print_reveal_nested()
+    x1 = Tensor(MultiArray([3, 1], sfix))
+    x1[0][0], x1[1][0], x1[2][0] = 1, 2, 3
+    x2 = Tensor(MultiArray([3, 1], sfix))
+    x2[0][0], x2[1][0], x2[2][0] = 4, 5, 6
+    x = hstack(x1, x2)
+    x.print_reveal_nested()
+
+def test_movedim():
+    input = arange(1, 7).reshape(3, 2, 1)
+    x = movedim(input, 1, 0)
+    print_ln('%s', x.shape)
+    x.print_reveal_nested()
+    x = movedim(input, (1, 2), (0, 1))
+    print_ln('%s', x.shape)
+    x.print_reveal_nested()
+
+def test_narrow():
+    input = arange(1, 10).reshape(3, 3)
+    x = narrow(input, 0, 0, 2)
+    x.print_reveal_nested()
+    x = narrow(input, 1, 1, 2)
+    x.print_reveal_nested()
+
+def test_permute():
+    input = zeros(2, 3, 5)
+    print(input.size())
+    x = permute(input, [2, 0, 1])
+    print(x.size())
+
+def test_reshape():
+    input = arange(0, 4)
+    x = reshape(input, [2, 2])
+    x.print_reveal_nested()
+    input = Tensor(MultiArray([2, 2], sfix))
+    for i in range(numel(input)):
+        input.value.assign_vector(i, i) # [[0, 1], [2, 3]]
+    x = reshape(input, 4)
+    x.print_reveal_nested()
+
+def test_select():
+    sizes = [2, 2, 3]
+    stride = [6, 3, 1]
+    input = empty_strided(sizes, stride) # [[[0, 1, 2], [3, 4, 5]], [[6, 7, 8], [9, 10, 11]]]
+    input.print_reveal_nested()
+    dim = 1
+    index = 1
+    x = select(input, dim, index)
+    x.print_reveal_nested()
+
+def test_squeeze():
+    input = zeros(2, 1, 2, 1, 2)
+    x = squeeze(input)
+    print_ln("new size: %s", x.size())
+    x = squeeze(input, 0)
+    print_ln("new size: %s", x.size())
+
+def test_stack():
+    t1 = arange(1, 10).reshape(3, 3)
+    t2 = arange(10, 91, 10).reshape(3, 3)
+    x = stack(t1, t2, dim = 0)
+    x.print_reveal_nested()
+    x = stack(t1, t2, dim = 1)
+    x.print_reveal_nested()
+    x = stack(t1, t2, dim = 2)
+    x.print_reveal_nested()
+
+def test_tensor_t():
+    input = arange(1, 4)
+    x = tensor_t(input)
+    x.print_reveal_nested()
+    input = arange(1, 7).reshape(2, 3)
+    x = tensor_t(input)
+    x.print_reveal_nested()
+
+def test_take():
+    sizes = [2, 2, 3]
+    stride = [6, 3, 1]
+    input = empty_strided(sizes, stride) # [[[0, 1, 2], [3, 4, 5]], [[6, 7, 8], [9, 10, 11]]]
+    input.value[0][0][0] = 1
+    indexs = [0, 2, 5]
+    x = take(input, indexs)
+    x.print_reveal_nested()
+
+def test_tensor_split():
+    input = arange(0, 8)
+    x = tensor_split(input, 3)
+    for i in x:
+        i.print_reveal_nested()
+    print_ln('-------------')
+    input = arange(0, 7)
+    x = tensor_split(input, 3)
+    for i in x:
+        i.print_reveal_nested()
+    print_ln('-------------')
+    x = tensor_split(input, 1, 6)
+    for i in x:
+        i.print_reveal_nested()
+    print_ln('-------------')
+    input = arange(0, 14).reshape(2, 7)
+    x = tensor_split(input, 3, dim = 1)
+    for i in x:
+        i.print_reveal_nested()
+    print_ln('-------------')
+    x = tensor_split(input, 1, 6, dim = 1)
+    for i in x:
+        i.print_reveal_nested()
+
+def test_tile():
+    input = arange(1, 4)
+    x = tile(input, 2)
+    x.print_reveal_nested()
+    input = arange(1, 5).reshape(2, 2)
+    x = tile(input, 2, 2)
+    x.print_reveal_nested()
+
+def test_transpose():
+    input = arange(0, 6).reshape(2, 3)
+    input.print_reveal_nested()
+    x = transpose(input, 0, 1)
+    x.print_reveal_nested()
+
+def test_unbind():
+    input = arange(1, 10).reshape(3, 3)
+    x = unbind(input)
+    for i in x:
+        i.print_reveal_nested()
+
+def test_unsqueeze():
+    input = arange(1, 5)
+    x = unsqueeze(input, 0)
+    x.print_reveal_nested()
+    x = unsqueeze(input, 1)
+    x.print_reveal_nested()
+
+def test_vsplit():
+    input = arange(0, 16).reshape(4, 4)
+    x = vsplit(input, 2)
+    for i in x:
+        i.print_reveal_nested()
+    x = vsplit(input, 3, 6)
+    for i in x:
+        i.print_reveal_nested()
+
+def test_vstack():
+    x1 = arange(1, 4)
+    x2 = arange(4, 7)
+    x = vstack(x1, x2)
+    x.print_reveal_nested()
+    x1 = reshape(x1, 3, 1)
+    x2 = reshape(x2, 3, 1)
+    x = vstack(x1, x2)
+    x.print_reveal_nested()
+
+
+# test_is_tensor() # isinstance可以判断array和multiarray但不能判断tensor
+# test_numel()
+# test_zeros()
+# test_zeros_like()
+# test_ones()
+# test_ones_like()
+# test_arange() # tensor.py中arange函数改动：res_value.assign_vector(value_type(i), (i - start)/step) 赋值位置由i/step改为(i - start)/step
+# test_linspace() # 和arange一样，只能处理整数
+# test_logspace() #同上
+# test_eye()
+# test_empty()
+# test_empty_like()
+# test_empty_strided()
+# test_full()
+# test_full_like()
+# test_adjoint()
+# test_cat() # tensor.py中 def concat 改动: index把regint放入Array中，即 index=regint(0) 改为 index = Array(1, regint), index[0] = 0 ，循环体中不用update，改为 index[0] += size_pre，否则拼接一维张量时index不会更新，即拼接[1,2,3],[4,5,6]=[4,5,6,0,0,0]
+# test_chunk() # tensor.py中 def chunk 改动1：stride = reduce(lambda x,y:x*y,self.shape[dim+1:]) 前添加if条件判断dim是否为最后一维 if self.shape[dim + 1:]: 否则 else: stride = 1 ; 改动2: prepare阶段添加Array: 'if len(self.shape) == 1: output = [Tensor(Array(new_size[0], sfix), req_grad=self.req_grad) for i in range(new_chunks)] output.append(Tensor(Array(new_size_last[0], sfix), req_grad=self.req_grad)) else: output = [Tensor(MultiArray(new_size, sfix), req_grad=self.req_grad) for i in range(new_chunks)] output.append(Tensor(MultiArray(new_size_last, sfix), req_grad=self.req_grad))';改动3:最后output赋值添加条件判断'if j//new_dim_size == chunks - 1 and chunks != 1: output[j//new_dim_size].value.assign_vector(v,i*dim_size*stride+((j - new_dim_size * (j // new_dim_size)) % dim_size)*stride) else: output[j//new_dim_size].value.assign_vector(v,i*dim_size*stride+(j%dim_size)*stride)'，即若为最后一块j改为j - new_dim_size * (j // new_dim_size)，否则最后一块大小变化导致取余结果错误，顺序不对
+# test_dsplit()
+# test_column_stack()
+# test_dstack()
+# test_gather()
+# test_hsplit()
+# test_hstack()
+# test_movedim()
+# test_narrow()
+# test_permute()
+# test_reshape()
+# test_select()
+# test_squeeze() # tensor.py中 def squeeze 改动1：if dim 改为 if dim is not None，考虑dim=0 改动2：prepare阶段Operation中 other.req_grad 改为 output.req_grad 改动3：del前加 if new_sizes[dim] == 1:，否则维度长度是否为1都会删除，与PyTorch中功能不符
+# test_stack()
+# test_tensor_t()
+# test_take()
+# test_tensor_split()
+# test_tile()
+# test_transpose()
+# test_unbind()
+# test_unsqueeze()
+# test_vsplit()
+# test_vstack()
