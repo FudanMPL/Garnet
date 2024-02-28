@@ -1806,7 +1806,8 @@ class Tensor():
         res_value = Array(size, value_type)
         @for_range(start, end, step)
         def _(i):
-            res_value.assign_vector(value_type(i), i/step)
+            # res_value.assign_vector(value_type(i), i/step)
+            res_value.assign_vector(value_type(i), (i - start)/step)
         res = Tensor(res_value, req_grad=req_grad)  
         return res
     
@@ -2258,10 +2259,11 @@ class Tensor():
         global op_id
         global init_op_id
         if prepare:
-            if dim:
+            if dim is not None:
                 new_sizes = list(self.shape)
                 assert dim < len(self.shape), "Invalid Dimension"
-                del new_sizes[dim]
+                if new_sizes[dim] == 1:
+                    del new_sizes[dim]
             else:
                 new_sizes = [x for x in self.shape if x != 1]
             if len(new_sizes) > 1:
@@ -2271,7 +2273,7 @@ class Tensor():
                 new_value = Array(new_sizes[0], value_type=self.value.value_type)
             output = Tensor(new_value, req_grad=self.req_grad)
             operation = Operation(inputs=[self.name], outputs=[output.name],
-                                  propagate=propagate if self.req_grad or other.req_grad else fake_propagate)
+                                  propagate=propagate if self.req_grad or output.req_grad else fake_propagate)
             gradient_operation.append(operation)
             operation_id = len(gradient_operation)-1
             op_id_store[op_id] = operation_id
@@ -2580,22 +2582,30 @@ class Tensor():
             input1=tensors[operation.inputs[0]]
             input2=tensors[operation.inputs[1]]
             output=tensors[operation.outputs[0]]
-            index=regint(0)    
+            # index=regint(0)    
+            index = Array(1, regint)
+            index[0] = 0
             if not forward:
                 init_op_id += 1
             @for_range(input1.value.length//size_pre)
             def _(i):  
                 #can not convert this to @for_range for the error info of "local variable 'index' referenced before assignment"
                 output.value.assign_vector(input1.value.get_vector(i*size_pre,size_pre),index)
-                index.update(index+size_pre)
+                # index.update(index+size_pre)
+                index[0] += size_pre
                 output.value.assign_vector(input2.value.get_vector(i*size_next,size_next),index)
-                index.update(index+size_next)
+                # index.update(index+size_next)
+                index[0] += size_next
         op_id+=1
         return output
     
     @buildingblock("chunk")
     def chunk(self, chunks, dim=0):
-        stride = reduce(lambda x,y:x*y,self.shape[dim+1:])
+        # stride = reduce(lambda x,y:x*y,self.shape[dim+1:])
+        if self.shape[dim + 1:]:
+            stride = reduce(lambda x,y:x*y,self.shape[dim+1:])
+        else:
+            stride = 1
         prefix_total = self.value.total_size() // stride // self.shape[dim]
         new_dim_size = (self.sizes[dim]+chunks-1) // chunks
         @buildingblock(get_program().globalbuildingblock)
@@ -2626,9 +2636,14 @@ class Tensor():
             # print(new_size_last)
             # print(stride)
             # print(prefix_total)
-            
-            output = [Tensor(MultiArray(new_size, sfix), req_grad=self.req_grad) for i in range(new_chunks)]
-            output.append(Tensor(MultiArray(new_size_last, sfix), req_grad=self.req_grad))
+
+            #添加Array
+            if len(self.shape) == 1:
+                output = [Tensor(Array(new_size[0], sfix), req_grad=self.req_grad) for i in range(new_chunks)]
+                output.append(Tensor(Array(new_size_last[0], sfix), req_grad=self.req_grad))
+            else:
+                output = [Tensor(MultiArray(new_size, sfix), req_grad=self.req_grad) for i in range(new_chunks)]
+                output.append(Tensor(MultiArray(new_size_last, sfix), req_grad=self.req_grad))
 
             operation = Operation(
                 inputs=[self.name], outputs=[out.name for out in output], 
@@ -2646,7 +2661,10 @@ class Tensor():
                 for j in range(self.sizes[dim]):
                     v = self.value.get_vector(i*self.sizes[dim]*stride+j*stride,stride)
                     dim_size = output[j//new_dim_size].value.sizes[dim]
-                    output[j//new_dim_size].value.assign_vector(v,i*dim_size*stride+(j%dim_size)*stride)
+                    if j//new_dim_size == chunks - 1 and chunks != 1:
+                        output[j//new_dim_size].value.assign_vector(v,i*dim_size*stride+((j - new_dim_size * (j // new_dim_size)) % dim_size)*stride)
+                    else:
+                        output[j//new_dim_size].value.assign_vector(v,i*dim_size*stride+(j%dim_size)*stride)
         op_id+=1
         return output
     

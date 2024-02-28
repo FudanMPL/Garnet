@@ -1,27 +1,21 @@
 <template>
   <el-col :span="18" :offset="3">
     <el-button @click="fresh">刷新</el-button>
-    <el-table 
-    :data="tableData" 
-    style="width: 100%" 
-    @row-click="handleRowClick"
-    v-loading="taskTableLoading"
-    max-height="600"
-    >
+    <el-table :data="tableData" style="width: 100%" @row-click="handleRowClick" v-loading="taskTableLoading"
+      max-height="600">
       <el-table-column label="所属服务器" prop="host" width="180">
       </el-table-column>
       <el-table-column label="任务id" prop="id" width="180"> </el-table-column>
       <el-table-column label="任务名" prop="taskName" width="180">
-      </el-table-column
-      ><el-table-column label="参与方数量" prop="pN" width="180">
+      </el-table-column><el-table-column label="参与方数量" prop="pN" width="180">
       </el-table-column>
-  
+      <el-table-column label="状态" prop="status" width="180">
+      </el-table-column>
       <el-table-column label="任务码" prop="prefix" width="180">
       </el-table-column>
       <el-table-column label="描述" prop="description" width="250">
       </el-table-column>
-      <el-table-column label="状态" prop="status" width="180">
-      </el-table-column>
+
       <el-table-column fixed="right" label="操作" width="240" header-align="center">
         <template v-slot="scope">
           <!-- <el-button
@@ -31,42 +25,30 @@
             size="small"
             >参与该任务</el-button
           > -->
-          <el-button
-            link
-            type="primary"
-            @click="handleUploadFile(scope.row.id,scope.row.pN,scope.row.status)"
-            size="small"
-            >指定数据</el-button
-          >
-          <el-button
-            link
-            type="primary"
-            @click="handleRun(scope.row.id,scope.row.status)"
-            size="small"
-            >运行</el-button
-          >
-          <el-button
-            link
-            type="primary"
-            @click="handleResult(scope.row.id, scope.row.status)"
-            size="small"
-            >获取结果</el-button
-          >
-          <el-button link type="primary" size="small" @click = "deleteTaskByID(scope.row.id)">删除</el-button>
+          <el-button link type="primary" @click="handleUploadFile(scope.row.id, scope.row.pN, scope.row.status)"
+            size="small">指定数据</el-button>
+          <el-button link type="primary" @click="handleRun(scope.row.id, scope.row.status)" size="small">运行</el-button>
+          <el-button link type="primary" @click="handleResult(scope.row.id, scope.row.status)"
+            size="small">获取结果</el-button>
+          <el-button link type="primary" size="small" @click="deleteTaskByID(scope.row.id)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
-    <el-dialog
-      v-model="resultDialogVisible"
-      title="执行结果："
-      width="60%"
-      :before-close="resultDialogClose"
-    >
-    <el-col :span="20" :offset="2">
-      <el-table :data="result1Data" style="width: 100%" max-height="400">
-      <el-table-column v-for="i in column" :key="i" :prop="i" label='' width="180" />
-      </el-table>
-    </el-col>
+    <div>
+      <!-- <el-pagination
+      small
+      layout="prev, pager, next"
+      :total="15"
+      @prev-click="handlePrevClick"
+      @next-click="handleNextClick"
+    /> -->
+    </div>
+    <el-dialog v-model="resultDialogVisible" title="执行结果：" width="60%" :before-close="resultDialogClose">
+      <el-col :span="20" :offset="2">
+        <el-table :data="result1Data" style="width: 100%" max-height="400">
+          <el-table-column v-for="i in column" :key="i" :prop="i" label='' width="180" />
+        </el-table>
+      </el-col>
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="resultDialogVisible = false">好的</el-button>
@@ -77,12 +59,7 @@
         </span>
       </template>
     </el-dialog>
-    <el-dialog
-      v-model="feedbackDialogVisible"
-      title="提示"
-      width="30%"
-      :before-close="feedbackDialogClose"
-    >
+    <el-dialog v-model="feedbackDialogVisible" title="提示" width="30%" :before-close="feedbackDialogClose">
       <span class="formatted-text">{{ feedbackMessage }}</span>
       <template #footer>
         <span class="dialog-footer">
@@ -90,90 +67,76 @@
         </span>
       </template>
     </el-dialog>
-    <el-dialog
-    v-model="fileDialogVisible"
-    title="请选择你的文件"
-    width="60%"
-    :before-close="fileDialogHandleClose"
-  >
-    <!-- <div v-for="index in pNnum" :key="index">
+    <el-dialog v-model="fileDialogVisible" title="请选择你的文件" width="60%" :before-close="fileDialogHandleClose">
+      <!-- <div v-for="index in pNnum" :key="index">
       <el-button  type="primary" @click="openFileTable(index-1)">选择运算方{{ index }}的文件</el-button>
     </div> -->
-    <el-table 
-    :data="fileTableData" 
-    style="width: 100%" 
-    highlight-current-row 
-    @current-change="handleCurrentChange">
+      <el-table :data="fileTableData" style="width: 100%" highlight-current-row @current-change="handleCurrentChange">
         <el-table-column prop="id" label="文件id" width="180" />
         <el-table-column prop="fileName" label="文件名" width="180" />
         <el-table-column prop="create_time" label="创建时间" width="240" />
-        <el-table-column prop="update_time" label="更新时间" width="240"/>
+        <el-table-column prop="update_time" label="更新时间" width="240" />
       </el-table>
-    <br>
-    <el-text class="mx-1" type="primary">提示：</el-text>
-    <el-text class="mx-1">如果服务器中没有你的文件，你可以在下方上传你的文件后再进行指定</el-text>
-    <br>
-    <br>
-    <input type="file" ref="fileInput" @change="handleFileChange" />
-    <el-button @click="uploadFile">上传文件</el-button>
-    <template #footer>
-      <span class="dialog-footer">
-        <el-button @click="fileDialogVisible = false">返回</el-button>
-        <el-button type="primary" @click="fileTotask">
-          确认
-        </el-button>
-      </span>
-    </template>
-  </el-dialog>
-  <el-dialog
-    v-model="choosePartDialogVisible"
-    title="请选择你在计算中担任第几方"
-    width="30%"
-  >
-    <el-form  :model="jionTaskData"  label-width="" >
-    <el-form-item  label="计算方">
-      <el-input v-model="jionTaskData.part"  />
-    </el-form-item>
-  </el-form>
-    <template #footer>
-      <span class="dialog-footer">
-        <el-button type="primary" @click="submitTaskPart">
-          确认
-        </el-button>
-      </span>
-    </template>
-  </el-dialog>
+      <br>
+      <el-text class="mx-1" type="primary">提示：</el-text>
+      <el-text class="mx-1">如果服务器中没有你的文件，你可以在下方上传你的文件后再进行指定</el-text>
+      <br>
+      <br>
+      <input type="file" ref="fileInput" @change="handleFileChange" />
+      <el-button @click="uploadFile">上传文件</el-button>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="fileDialogVisible = false">返回</el-button>
+          <el-button type="primary" @click="fileTotask">
+            确认
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
+    <el-dialog v-model="choosePartDialogVisible" title="请选择你在计算中担任第几方" width="30%">
+      <el-form :model="jionTaskData" label-width="">
+        <el-form-item label="计算方">
+          <el-input v-model="jionTaskData.part" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button type="primary" @click="submitTaskPart">
+            确认
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </el-col>
-  
 </template>
 
 <script lang="ts" setup>
-import { userPostData,getAllFiles,userFileToTask } from '../../api/locateCompute.js'
-import { getAlltask,getAllServers } from '../../api/mpC.js'
-import { ref,onMounted,toRefs} from 'vue'
+import { userPostData, getAllFiles, userFileToTask } from '../../api/locateCompute.js'
+import { getAlltask, getAllServers } from '../../api/mpC.js'
+import { ref, onMounted, toRefs } from 'vue'
 import request from '../../utils/request'
 import { getConnectedServer } from '../../api/user.js'
 import axios from 'axios';
 
 //进入页面时刷新任务表
 onMounted(() => {
- // 在组件被挂载到 DOM 后调用的函数
- fresh();
+  // 在组件被挂载到 DOM 后调用的函数
+  fresh();
 });
 
 
 const jionTaskData = ref({
-  serverID:'',
-  prefix:'',
-  part:'',
-  total:'',
+  serverID: '',
+  prefix: '',
+  part: '',
+  total: '',
 })
 const choosePartDialogVisible = ref(false)
 //加入任务的逻辑
 const apiJoinUrl = ref('/task/remote/jion/')
 const testJionUrl = ref('/task/remote/jion/')
-const jionTask = async(id,prefix,host,status)=>{
-  if(status =='等待参与方加入'){
+const jionTask = async (id, prefix, host, status) => {
+  if (status == '等待参与方加入') {
     //打开弹窗 并传输数据
     choosePartDialogVisible.value = true
     jionTaskData.value.prefix = prefix
@@ -183,12 +146,12 @@ const jionTask = async(id,prefix,host,status)=>{
     const result = serveData.data.find(item => item.ip == host);
     jionTaskData.value.serverID = result.id
     //根据host查找 返回ID
-  }else{
-  //已经不能再加入了
+  } else {
+    //已经不能再加入了
   }
 }
-const submitTaskPart = async()=>{
-  jionTaskData.value.total = '/task/remote/join/'+jionTaskData.value.serverID + '/' + jionTaskData.value.prefix + '/' + jionTaskData.value.part;
+const submitTaskPart = async () => {
+  jionTaskData.value.total = '/task/remote/join/' + jionTaskData.value.serverID + '/' + jionTaskData.value.prefix + '/' + jionTaskData.value.part;
   console.log(jionTaskData.value.total)
   await request.get(jionTaskData.value.total)
   choosePartDialogVisible.value = false
@@ -196,15 +159,35 @@ const submitTaskPart = async()=>{
 
 
 
+//分页的逻辑
+
+const dataPagination = ref({
+  currentPage: 1,
+  itemCount: '',
+  nextURL: '',
+  prevURL: '',
+})
+
+// const handlePrevClick =async ( ) => {
+//   if(dataPagination.value.currentPage> 1){
+//     dataPagination.value.currentPage --;
+//     await getAlltask(dataPagination.value.prevURL)
+//   }
+// }
+
+const handleNextClick = () => {
+
+}
+
 //删除任务的逻辑
 const apiDeleteUrl = ref('/task/remote/model/')
 const testDeleteUrl = ref('/task/remote/model/')
-const deleteTaskByID = async(id) =>{
+const deleteTaskByID = async (id) => {
   testDeleteUrl.value = apiDeleteUrl.value + id
   console.log(testDeleteUrl.value)
   await request.delete(testDeleteUrl.value)
   fresh()
-  feedbackMessage.value= '任务'+id+'已被删除！'
+  feedbackMessage.value = '任务' + id + '已被删除！'
   feedbackDialogVisible.value = true
 }
 
@@ -212,10 +195,10 @@ const deleteTaskByID = async(id) =>{
 const tableData = ref([])
 // 定义数据结构，上传的文件
 const filePost = ref({
-  content:'',
+  content: '',
   description: '',
   userID: 1,
-  fileName:''
+  fileName: ''
 })
 
 
@@ -231,45 +214,57 @@ const feedbackDialogClose = () => {
 //运行任务的逻辑
 const apiRunUrl = ref('/task/remote/run/')
 const testRunUrl = ref('/task/remote/run/')
-const handleRun = async(id,status) => {
-  if(status == '本地就绪'){
-  testRunUrl.value = apiRunUrl.value + id
-  try{
-  const res = await request.get(testRunUrl.value)
-  if(res.status==200){
-      feedbackMessage.value = '该任务已成功运行！'
-      fresh()
-      feedbackDialogVisible.value = true
-    }
-  }catch(error)
-  {if (error.response && error.response.status == 425) {
-    // 处理状态码为 425 的异常
-    const res1 = await request.get(testRunUrl.value)
-    if(res1.status==200){
-      feedbackMessage.value = '该任务已成功运行！'
-      fresh()
-      feedbackDialogVisible.value = true
+const handleRun = async (id, status) => {
+  if (status == '本地就绪') {
+    testRunUrl.value = apiRunUrl.value + id
+    try {
+      const res = await request.get(testRunUrl.value)
+      if (res.status == 200) {
+        feedbackMessage.value = '该任务已成功运行！'
+        fresh()
+        feedbackDialogVisible.value = true
+      }
+    } catch (error) {
+      if (error.response && error.response.status == 425) {
+        // 处理状态码为 425 的异常
+        try {
+          const res1 = await request.get(testRunUrl.value)
+          if (res1.status == 200) {
+            feedbackMessage.value = '该任务已成功运行！'
+            fresh()
+            feedbackDialogVisible.value = true
+          }
+        }
+        catch (error) {
+          if (error.response && error.response.status == 425) {
+            feedbackMessage.value = '协调方未就绪，暂时无法运行！'
+            feedbackDialogVisible.value = true
+          }
+          else {
+            feedbackMessage.value = '运行失败！'
+            feedbackDialogVisible.value = true
+          }
+        }
+      }
     }
   }
-  }
-}
-  if(status == '等待数据'){
+  if (status == '等待数据') {
     feedbackMessage.value = '请先为该任务指定数据！'
     feedbackDialogVisible.value = true
   }
-  if(status == '等待参与方加入'){
+  if (status == '等待参与方加入') {
     feedbackMessage.value = '请先等待参与方加入！'
     feedbackDialogVisible.value = true
   }
-  if(status == '就绪'){
+  if (status == '就绪') {
     feedbackMessage.value = '该任务只有发起方可以启动运行！'
     feedbackDialogVisible.value = true
   }
-  if(status == '运行中'){
+  if (status == '运行中') {
     feedbackMessage.value = '该任务已在运行中！'
     feedbackDialogVisible.value = true
   }
-  if(status == '已完成'){
+  if (status == '已完成') {
     feedbackMessage.value = '该任务已运行完毕！'
     feedbackDialogVisible.value = true
   }
@@ -297,21 +292,21 @@ const handleResult = async (id, status) => {
     await transformData(result1)
     resultDialogVisible.value = true
     downloadDisabled.value = false
-  } 
-  if(status == '运行中') {
+  }
+  if (status == '运行中') {
     message.value = '该任务还未已完成！'
     downloadDisabled.value = true
     resultDialogVisible.value = true
   }
-  if((status == '就绪')||(status == '本地就绪')){
-    feedbackMessage.value='该任务还未运行！'
+  if ((status == '就绪') || (status == '本地就绪')) {
+    feedbackMessage.value = '该任务还未运行！'
     feedbackDialogVisible.value = true
   }
-  if(status == '等待数据'){
-    feedbackMessage.value='请先为该任务指定数据！'
+  if (status == '等待数据') {
+    feedbackMessage.value = '请先为该任务指定数据！'
     feedbackDialogVisible.value = true
   }
-  if(status == '等待参与方加入'){
+  if (status == '等待参与方加入') {
     feedbackMessage.value = '请先等待参与方加入！'
     feedbackDialogVisible.value = true
   }
@@ -327,19 +322,20 @@ const pNnum = ref(0)//存储运算方
 //变量定义 分别是选择运算方和指定文件的窗口的变量
 const fileDialogVisible = ref(false)
 const innerVisible = ref(false)
-const handleUploadFile = async(id,pN,status) =>{
-  if((status == '等待参与方加入')||(status == '等待数据')||(status == '就绪')||(status == '本地就绪')){
-  pNnum.value = pN
-  taskData1.value.task = id
-  nowTaskID.value = id
-  const res = await getAllFiles()
-  fileTableData.value = res.data
-  fileDialogVisible.value = true}
-  if((status == '运行中')){
-    feedbackMessage.value='该任务已在运行中！'
+const handleUploadFile = async (id, pN, status) => {
+  if ((status == '等待参与方加入') || (status == '等待数据') || (status == '就绪') || (status == '本地就绪')) {
+    pNnum.value = pN
+    taskData1.value.task = id
+    nowTaskID.value = id
+    const res = await getAllFiles()
+    fileTableData.value = res.data
+    fileDialogVisible.value = true
+  }
+  if ((status == '运行中')) {
+    feedbackMessage.value = '该任务已在运行中！'
     feedbackDialogVisible.value = true
   }
-  if(status == '已完成'){
+  if (status == '已完成') {
     feedbackMessage.value = '该任务已运行完毕！'
     feedbackDialogVisible.value = true
   }
@@ -348,10 +344,10 @@ const handleUploadFile = async(id,pN,status) =>{
 
 
 //变量定义 指定任务数据和临时变量
-const taskData1=ref({
-  index:'',
-  data:'',
-  task:''
+const taskData1 = ref({
+  index: '',
+  data: '',
+  task: ''
 })
 interface TaskDataItem {
   index: string;
@@ -362,26 +358,26 @@ const fileTableData = ref([])
 const addTaskData = ref(true)
 const taskData = ref<TaskDataItem[]>([]);
 //将临时文件加入到最终上传的数据结构中 目前还存在替换的问题
-const addFile = ()=>{
+const addFile = () => {
   innerVisible.value = false
   console.log(taskData.value);
   console.log(taskData1.value)
   taskData.value.forEach((item, index) => {
-  if (item.index == taskData1.value.index) {
-    taskData.value[index] = Object.assign({}, taskData1.value);;
-    addTaskData.value = false
-    console.log('覆盖')
+    if (item.index == taskData1.value.index) {
+      taskData.value[index] = Object.assign({}, taskData1.value);;
+      addTaskData.value = false
+      console.log('覆盖')
+    }
+  });
+  if (addTaskData.value == true) {
+    console.log('添加')
+    taskData.value.push(Object.assign({}, taskData1.value));
+    console.log(taskData.value);
+    console.log(taskData.value.length);
   }
-});
-if(addTaskData.value == true){
-  console.log('添加')
-  taskData.value.push(Object.assign({}, taskData1.value));
-  console.log(taskData.value);
-  console.log(taskData.value.length);
+  addTaskData.value = true
 }
-addTaskData.value = true
-}
-const openFileTable = async(num) => {
+const openFileTable = async (num) => {
   taskData1.value.index = num
   innerVisible.value = true
   const res = await getAllFiles()
@@ -389,10 +385,10 @@ const openFileTable = async(num) => {
 }
 
 const handleCurrentChange = (val) => {//选中文件的逻辑
-  if(val!=null){
-  taskData1.value.data = val.id
-  nowFileID.value = val.id
-}
+  if (val != null) {
+    taskData1.value.data = val.id
+    nowFileID.value = val.id
+  }
 }
 
 
@@ -404,21 +400,21 @@ const feedbackDialogVisible = ref(false)
 const feedbackMessage = ref()
 const nowTaskID = ref()
 const nowFileID = ref()
-const fileTotask = async() => {
-//   if(taskData.value.length == pNnum.value){
-//   await userFileToTask(taskData.value)
-//   fileDialogVisible.value=false
-//   feedbackMessage.value='指定数据成功,稍后可以运行了！'
-//   await sleep(1000);
-//   fresh()
-// }else{feedbackMessage.value='还有数据未指定，请重新指定数据'}
-// feedbackDialogVisible.value = true
+const fileTotask = async () => {
+  //   if(taskData.value.length == pNnum.value){
+  //   await userFileToTask(taskData.value)
+  //   fileDialogVisible.value=false
+  //   feedbackMessage.value='指定数据成功,稍后可以运行了！'
+  //   await sleep(1000);
+  //   fresh()
+  // }else{feedbackMessage.value='还有数据未指定，请重新指定数据'}
+  // feedbackDialogVisible.value = true
   //判断是否选中了数据
   //开始上传数据
   const fileToTaskUrl = 'task/remote/data/'
-  await request.post(fileToTaskUrl+nowTaskID.value,{"data":nowFileID.value})
-  fileDialogVisible.value=false
-  feedbackMessage.value='指定数据成功,稍后可以运行了！'
+  await request.post(fileToTaskUrl + nowTaskID.value, { "data": nowFileID.value })
+  fileDialogVisible.value = false
+  feedbackMessage.value = '指定数据成功,稍后可以运行了！'
   feedbackDialogVisible.value = true
   await sleep(1000);
   fresh()
@@ -428,50 +424,50 @@ const fileTotask = async() => {
 //上传文件的逻辑
 const selectedFile = ref(null);
 const handleFileChange = (event) => {
-      // 获取用户选择的文件
-      selectedFile.value = event.target.files[0];
-    };
+  // 获取用户选择的文件
+  selectedFile.value = event.target.files[0];
+};
 const uploadFile = async () => {
-      if (!selectedFile.value) {
-        alert('请先选择一个文件');
-        return;
-      }
-      // 读取文件内容
-      const fileContent = await readFileContent(selectedFile.value)as string;
-      filePost.value.content = fileContent;
-      // 打印文件内容字符串
-      await userPostData(filePost.value);
-      // 在这里，你可以将文件内容发送到后端服务器
-      // 使用你选择的方式，比如使用 axios 发送 POST 请求
-      feedbackMessage.value = '文件：'+filePost.value.fileName+'已成功上传到服务器，你可以将它指定到你的任务中了！'
-      feedbackDialogVisible.value = true
-      // 清空选择的文件
-      selectedFile.value = null;
-      //刷新文件列表
-      await sleep(500)
-      const res = await getAllFiles()
-      console.log(res.data)
-      fileTableData.value = res.data
+  if (!selectedFile.value) {
+    alert('请先选择一个文件');
+    return;
+  }
+  // 读取文件内容
+  const fileContent = await readFileContent(selectedFile.value) as string;
+  filePost.value.content = fileContent;
+  // 打印文件内容字符串
+  await userPostData(filePost.value);
+  // 在这里，你可以将文件内容发送到后端服务器
+  // 使用你选择的方式，比如使用 axios 发送 POST 请求
+  feedbackMessage.value = '文件：' + filePost.value.fileName + '已成功上传到服务器，你可以将它指定到你的任务中了！'
+  feedbackDialogVisible.value = true
+  // 清空选择的文件
+  selectedFile.value = null;
+  //刷新文件列表
+  await sleep(500)
+  const res = await getAllFiles()
+  console.log(res.data)
+  fileTableData.value = res.data
 
-    };
+};
 const readFileContent = (file) => {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          // 读取文件内容并将其作为字符串传递给 resolve
-          resolve(reader.result);
-        };
-
-        reader.onerror = (error) => {
-          // 如果发生错误，则将错误信息传递给 reject
-          reject(error);
-        };
-
-        // 以文本形式读取文件内容
-        filePost.value.fileName=file.name
-        reader.readAsText(file);
-      });
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      // 读取文件内容并将其作为字符串传递给 resolve
+      resolve(reader.result);
     };
+
+    reader.onerror = (error) => {
+      // 如果发生错误，则将错误信息传递给 reject
+      reject(error);
+    };
+
+    // 以文本形式读取文件内容
+    filePost.value.fileName = file.name
+    reader.readAsText(file);
+  });
+};
 
 const requestArray = ref([]);
 //刷新的逻辑
@@ -479,31 +475,12 @@ const taskTableLoading = ref(false)
 const fresh = async () => {
   tableData.value = ([])
   taskTableLoading.value = true
-  // const res = await getAllServers()//获取所有的信息
-  // // console.log(res.data)
-  // requestArray.value = res.data.map(item => `http://${item.ip}:${item.port}/`);
-  // // console.log(requestArray.value)
-  // // tableData.value = res.data
-  // // const res = await getAlltask()
-  // const taskData = ref()
-  // requestArray.value.forEach(async item => {
-  //       // 处理每个元素的逻辑
-  //       const getTaskURL = 'api/task/remote/model/'
-  //       const realurl = ref()
-  //       realurl.value = item+getTaskURL
-  //       // console.log(realurl.value)
-  //       const res = await axios.get(realurl.value)
-  //       tableData.value = tableData.value.concat(res.data);
-  //       // console.log(res.data)
-  //       // tableData.value.push(res.data);
-        
-  //     });
-  // // console.log(res.data)
-  // // console.log(tableData.value)
-  // // tableData.value = taskData.value
   const res = await getAlltask()
-  tableData.value = res.data
-  
+  //保存对应的内容
+  tableData.value = res.data.results
+  dataPagination.value.itemCount = res.data.count
+  dataPagination.value.nextURL = res.data.next
+  dataPagination.value.prevURL = res.data.previous
   taskTableLoading.value = false
 }
 
@@ -512,41 +489,41 @@ const result1Data = ref([]);
 const result1 = ref();
 const column = ref();
 
-const transformData=(rowData)=>{
+const transformData = (rowData) => {
 
   const lines = rowData.value.trim().split('\n');
-  const data:any= [];
+  const data: any = [];
   let isDataSection = false;
 
   for (const line of lines) {
-        if (line.startsWith('========') ) {
-          isDataSection = !isDataSection;
-        } else if (isDataSection && line.trim() !== '') {
-          const values = (line.trim() as string).split(/\s+/); // 使用类型断言确保 line 是字符串
+    if (line.startsWith('========')) {
+      isDataSection = !isDataSection;
+    } else if (isDataSection && line.trim() !== '') {
+      const values = (line.trim() as string).split(/\s+/); // 使用类型断言确保 line 是字符串
 
-          // const rowData = {
-          //   startPrescriptionNumber: values[0],
-          //   startDate: values[1],
-          //   endPrescriptionNumber: values[2],
-          //   endDate: values[3],
-          //   patientID: values[4],
-          //   exceedingMultiple: values[5]
-          // };
-          const rowData = {};
-          for (let i = 1; i <= values.length;i++){
-            rowData[String(i)] = values[i-1].replace(",", "");
-          }
-          data.push(rowData);
-        }
-
+      // const rowData = {
+      //   startPrescriptionNumber: values[0],
+      //   startDate: values[1],
+      //   endPrescriptionNumber: values[2],
+      //   endDate: values[3],
+      //   patientID: values[4],
+      //   exceedingMultiple: values[5]
+      // };
+      const rowData = {};
+      for (let i = 1; i <= values.length; i++) {
+        rowData[String(i)] = values[i - 1].replace(",", "");
       }
-      column.value = Object.keys(data[0]).length; 
-      result1Data.value = data;
+      data.push(rowData);
+    }
+
+  }
+  column.value = Object.keys(data[0]).length;
+  result1Data.value = data;
 }
 
 const downloadLink = ref();
 
-const downloadResultFile = async() => {
+const downloadResultFile = async () => {
   // const testURL = 'http://10.176.34.171:8000/api'+testResultUrl.value
   // const response = await fetch(testURL);
   // testResultUrl.value = apiResultUrl.value + id
@@ -562,35 +539,36 @@ const downloadResultFile = async() => {
   // downloadLink.value.click();
   // resultDialogVisible.value = false;
   try {
-  const response = await axios.get(testResultUrl.value, {
-    responseType: 'blob' // 指定响应类型为 blob
-  });
 
-  // 获取 Blob 数据
-  const blob = new Blob([response.data]);
+    const response = await request.get(testResultUrl.value, {
+      responseType: 'blob' // 指定响应类型为 blob
+    });
 
-  // 生成 Blob URL
-  const url = window.URL.createObjectURL(blob);
+    // 获取 Blob 数据
+    const blob = new Blob([response.data]);
 
-  // 设置下载链接属性
-  downloadLink.value.href = url;
+    // 生成 Blob URL
+    const url = window.URL.createObjectURL(blob);
 
-  // 设置下载文件名
-  const currentDate = new Date();
-  downloadLink.value.download = '下载数据-' + currentDate + '.txt';
+    // 设置下载链接属性
+    downloadLink.value.href = url;
 
-  // 触发下载操作
-  downloadLink.value.click();
+    // 设置下载文件名
+    const currentDate = new Date();
+    downloadLink.value.download = '下载数据-' + currentDate + '.txt';
 
-  // 清理 Blob URL
-  window.URL.revokeObjectURL(url);
-} catch (error) {
-  // 处理错误
-  console.error('下载文件时发生错误：', error);
-} finally {
-  // 隐藏结果对话框
-  resultDialogVisible.value = false;
-}
+    // 触发下载操作
+    downloadLink.value.click();
+
+    // 清理 Blob URL
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    // 处理错误
+    console.error('下载文件时发生错误：', error);
+  } finally {
+    // 隐藏结果对话框
+    resultDialogVisible.value = false;
+  }
 }
 
 </script>
@@ -599,6 +577,7 @@ const downloadResultFile = async() => {
 .formatted-text {
   white-space: pre-line;
 }
+
 .table-container {
   display: flex;
   justify-content: center;

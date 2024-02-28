@@ -10,6 +10,7 @@ from rest_framework.mixins import (
 )
 from rest_framework import status
 from ..authentication import UserAuthentication
+from ..pagination import PagePagination
 
 
 class UserSets(GenericViewSet, ListModelMixin, DestroyModelMixin, UpdateModelMixin):
@@ -17,6 +18,7 @@ class UserSets(GenericViewSet, ListModelMixin, DestroyModelMixin, UpdateModelMix
     serializer_class = UserModelSerializer
     lookup_field = "username"
     authentication_classes = [UserAuthentication]
+    pagination_class = PagePagination
 
     @extend_schema(
         request=None,

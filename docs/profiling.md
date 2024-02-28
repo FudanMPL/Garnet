@@ -66,8 +66,8 @@ Program requires at most:
 ```
 此外，在Profiling_res文件夹中会自动生成Profiling结果的可视化展示，如下图所示，
 
-<img src="./fig/stack.png" width="320" ></img>
-<img src="./fig/onlinecommunication.png" width="320" ></img>
+<img src="./figs/stack.png" width="320" ></img>
+<img src="./figs/onlinecommunication.png" width="320" ></img>
 
 ### 添加新的安全多方计算协议
 通过编辑在Compiler/cost_config.py文件中，配置协议基础算子的通信开销，可以灵活地添加新的协议。一个新协议的示例如下所示

@@ -1,3 +1,5 @@
 
-s = sint.get_input_from(0)
-print_ln("s = %s", s.reveal())
+s = sint(10, 10)
+
+print_ln("%s",s.reveal())
+

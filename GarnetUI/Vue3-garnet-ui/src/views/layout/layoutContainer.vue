@@ -8,6 +8,20 @@ import {
   CaretBottom
 } from '@element-plus/icons-vue' //crop
 import avatar from '@/assets/default.png'
+import { useUserStore } from '../../stores'
+import { useRouter } from 'vue-router'
+const router = useRouter()
+const useStore = useUserStore()
+const handleCommand = (key) => {
+  if(key=='logout'){
+  useStore.removeToken()
+  useStore.isLogin = false
+  router.push('/login'); 
+  console.log('logout')
+}else{
+  console.log(key)
+}
+}
 </script>
 
 <template>
@@ -93,29 +107,20 @@ import avatar from '@/assets/default.png'
     </el-aside>
     <el-container>
       <el-header>
-        <div class="header-text">安全多方学习框架<strong>Garnet</strong></div>
-        <!-- <el-dropdown placement="bottom-end">
+        <div class="header-text" >安全多方学习框架<strong>Garnet</strong></div>
+        <el-dropdown placement="bottom-end" @command = "handleCommand">
           <span class="el-dropdown__box">
             <el-avatar :src="avatar" />
             <el-icon><CaretBottom /></el-icon>
           </span>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item command="profile" :icon="User"
-                >基本资料</el-dropdown-item
-              >
-              <el-dropdown-item command="avatar" :icon="Crop"
-                >更换头像</el-dropdown-item>
-              
-              <el-dropdown-item command="password" :icon="EditPen"
-                >重置密码</el-dropdown-item
-              >
+          <template #dropdown >
+            <el-dropdown-menu >
               <el-dropdown-item command="logout" :icon="SwitchButton"
                 >退出登录</el-dropdown-item
               >
             </el-dropdown-menu>
           </template>
-        </el-dropdown> -->
+        </el-dropdown>
       </el-header>
       <el-main>
         <router-view></router-view>
@@ -182,6 +187,7 @@ import avatar from '@/assets/default.png'
   font-family: 'SimSun', sans-serif; /* 设置为微软雅黑字体 */
 }
 .header-text {
+  width: 100%; 
   text-align: center; /* 文本水平居中 */
   // display: inline-block; /* 使文字垂直居中生效 */
   font-size: 50px; /* 调整字体大小 */
