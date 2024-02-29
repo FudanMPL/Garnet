@@ -2590,10 +2590,10 @@ class Tensor():
             @for_range(input1.value.length//size_pre)
             def _(i):  
                 #can not convert this to @for_range for the error info of "local variable 'index' referenced before assignment"
-                output.value.assign_vector(input1.value.get_vector(i*size_pre,size_pre),index)
+                output.value.assign_vector(input1.value.get_vector(i*size_pre,size_pre),index[0])
                 # index.update(index+size_pre)
                 index[0] += size_pre
-                output.value.assign_vector(input2.value.get_vector(i*size_next,size_next),index)
+                output.value.assign_vector(input2.value.get_vector(i*size_next,size_next),index[0])
                 # index.update(index+size_next)
                 index[0] += size_next
         op_id+=1
