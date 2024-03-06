@@ -4,21 +4,8 @@ import Compiler.mpc_math
 
 # you can assign public numbers to sint
 
-a = sfix(1)
-b = sfix(2)
-
-def mul(a, b):
-    return a*b
-
-def div(a, b):
-    return a/b
-
-@buildingblock("x")
-def x(a, b):
-    c = mul(a, a)
-    return div(c, b)    
-
-
+a = sint(1)
+b = sint(2)
 
 @buildingblock("test")
 def test(actual, expected):
