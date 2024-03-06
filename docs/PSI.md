@@ -36,7 +36,7 @@ bash Scripts/PSI-Test/run_psi.sh t # run test_psi program in two-party
 ## 运行基于Secret Sharing 的多方PSI
 
 
-该PSI方案支持任意多方（2-N），同样支持纵向数据集对齐。
+该PSI方案支持任意多方（2-N），此外该PSI方案不会泄漏交集的结果。
 
 
 ### 编译虚拟机

@@ -20,6 +20,9 @@ from Compiler import program
 ### MUST also be changed. (+ the documentation)
 ###
 opcodes = dict(
+    # PSI
+    PSI=0x2a0,
+    PSIALIGN=0x2a1,
     # Change domain
     CSD = 0xf8,
     CMD = 0xf9,

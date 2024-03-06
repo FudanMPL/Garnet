@@ -13,23 +13,30 @@
 #include "Conv2dTuple.h"
 #include "MatmulsTuple.h"
 #include "MatmulsmTuple.h"
+#include "Tools/SimpleIndex.h"
+#include "cryptoTools/Common/CuckooIndex.h"
+#include "OT/OTExtension.h"
+#include "OT/OTExtensionWithMatrix.h"
+#include "Tools/octetStream.h"
 
 #include <sodium.h>
 #include <string>
 
+#define RECEIVER_P 0
+
+typedef uint64_t idtype;
+
 template <class T>
-SubProcessor<T>::SubProcessor(ArithmeticProcessor& Proc, typename T::MAC_Check& MC,
-    Preprocessing<T>& DataF, Player& P) :
-    SubProcessor<T>(MC, DataF, P, &Proc)
+SubProcessor<T>::SubProcessor(ArithmeticProcessor &Proc, typename T::MAC_Check &MC,
+                              Preprocessing<T> &DataF, Player &P) : SubProcessor<T>(MC, DataF, P, &Proc)
 {
 }
 
 template <class T>
-SubProcessor<T>::SubProcessor(typename T::MAC_Check& MC,
-    Preprocessing<T>& DataF, Player& P, ArithmeticProcessor* Proc) :
-    shuffler(*this),
-    Proc(Proc), MC(MC), P(P), DataF(DataF), protocol(P), input(*this, MC),
-    bit_prep(bit_usage)
+SubProcessor<T>::SubProcessor(typename T::MAC_Check &MC,
+                              Preprocessing<T> &DataF, Player &P, ArithmeticProcessor *Proc) : shuffler(*this),
+                                                                                               Proc(Proc), MC(MC), P(P), DataF(DataF), protocol(P), input(*this, MC),
+                                                                                               bit_prep(bit_usage)
 {
   DataF.set_proc(this);
   protocol.init(DataF, MC);
@@ -40,48 +47,48 @@ SubProcessor<T>::SubProcessor(typename T::MAC_Check& MC,
     personal_bit_preps[i] = new typename BT::LivePrep(bit_usage, i);
 }
 
-template<class T>
+template <class T>
 SubProcessor<T>::~SubProcessor()
 {
   for (size_t i = 0; i < personal_bit_preps.size(); i++)
-    {
-      auto& x = personal_bit_preps[i];
-      delete x;
-    }
+  {
+    auto &x = personal_bit_preps[i];
+    delete x;
+  }
 #ifdef VERBOSE
   if (not bit_usage.empty())
-    {
-      cerr << "Mixed-circuit preprocessing cost:" << endl;
-      bit_usage.print_cost();
-    }
+  {
+    cerr << "Mixed-circuit preprocessing cost:" << endl;
+    bit_usage.print_cost();
+  }
 #endif
 }
 
-template<class sint, class sgf2n>
-Processor<sint, sgf2n>::Processor(int thread_num,Player& P,
-        typename sgf2n::MAC_Check& MC2,typename sint::MAC_Check& MCp,
-        Machine<sint, sgf2n>& machine,
-        const Program& program)
-: ArithmeticProcessor(machine.opts, thread_num),DataF(machine, &Procp, &Proc2),P(P),
-  MC2(MC2),MCp(MCp),machine(machine),
-  share_thread(DataF.DataFb, P, machine.get_bit_mac_key()),
-  Procb(machine.bit_memories),
-  Proc2(*this,MC2,DataF.DataF2,P),Procp(*this,MCp,DataF.DataFp,P),
-  external_clients(P.my_num()),
-  binary_file_io(Binary_File_IO())
+template <class sint, class sgf2n>
+Processor<sint, sgf2n>::Processor(int thread_num, Player &P,
+                                  typename sgf2n::MAC_Check &MC2, typename sint::MAC_Check &MCp,
+                                  Machine<sint, sgf2n> &machine,
+                                  const Program &program)
+    : ArithmeticProcessor(machine.opts, thread_num), DataF(machine, &Procp, &Proc2), P(P),
+      MC2(MC2), MCp(MCp), machine(machine),
+      share_thread(DataF.DataFb, P, machine.get_bit_mac_key()),
+      Procb(machine.bit_memories),
+      Proc2(*this, MC2, DataF.DataF2, P), Procp(*this, MCp, DataF.DataFp, P),
+      external_clients(P.my_num()),
+      binary_file_io(Binary_File_IO())
 {
 
+  reset(program, 0);
 
-  reset(program,0);
-
-  public_input_filename = get_filename("Programs/Public-Input/",false);
+  public_input_filename = get_filename("Programs/Public-Input/", false);
   public_input.open(public_input_filename);
-  private_input_filename = (get_filename(PREP_DIR "Private-Input-",true));
+  private_input_filename = (get_filename(PREP_DIR "Private-Input-", true));
   private_input.open(private_input_filename.c_str());
-  public_output.open(get_filename(PREP_DIR "Public-Output-",true).c_str(), ios_base::out);
+  public_output.open(get_filename(PREP_DIR "Public-Output-", true).c_str(), ios_base::out);
   binary_output.open(
       get_parameterized_filename(P.my_num(), thread_num,
-          PREP_DIR "Binary-Output"), ios_base::out);
+                                 PREP_DIR "Binary-Output"),
+      ios_base::out);
 
   open_input_file(P.my_num(), thread_num, machine.opts.cmd_private_input_file);
 
@@ -92,8 +99,7 @@ Processor<sint, sgf2n>::Processor(int thread_num,Player& P,
   Procb.out = out;
 }
 
-
-template<class sint, class sgf2n>
+template <class sint, class sgf2n>
 Processor<sint, sgf2n>::~Processor()
 {
 
@@ -104,8 +110,8 @@ Processor<sint, sgf2n>::~Processor()
 #endif
 }
 
-template<class sint, class sgf2n>
-string Processor<sint, sgf2n>::get_filename(const char* prefix, bool use_number)
+template <class sint, class sgf2n>
+string Processor<sint, sgf2n>::get_filename(const char *prefix, bool use_number)
 {
   stringstream filename;
   filename << prefix;
@@ -121,9 +127,8 @@ string Processor<sint, sgf2n>::get_filename(const char* prefix, bool use_number)
   return filename.str();
 }
 
-
-template<class sint, class sgf2n>
-void Processor<sint, sgf2n>::reset(const Program& program,int arg)
+template <class sint, class sgf2n>
+void Processor<sint, sgf2n>::reset(const Program &program, int arg)
 {
   Proc2.get_S().resize(program.num_reg(SGF2N));
   Proc2.get_C().resize(program.num_reg(CGF2N));
@@ -134,7 +139,7 @@ void Processor<sint, sgf2n>::reset(const Program& program,int arg)
   Procb.reset(program);
 }
 
-template<class T>
+template <class T>
 void SubProcessor<T>::check()
 {
   // protocol check before last MAC check
@@ -143,20 +148,20 @@ void SubProcessor<T>::check()
   MC.Check(P);
 }
 
-template<class sint, class sgf2n>
+template <class sint, class sgf2n>
 void Processor<sint, sgf2n>::check()
 {
   Procp.check();
   Proc2.check();
   share_thread.check();
 
-  //cout << num << " : Checking broadcast" << endl;
+  // cout << num << " : Checking broadcast" << endl;
   P.Check_Broadcast();
-  //cout << num << " : Broadcast checked "<< endl;
+  // cout << num << " : Broadcast checked "<< endl;
 }
 
-template<class sint, class sgf2n>
-void Processor<sint, sgf2n>::dabit(const Instruction& instruction)
+template <class sint, class sgf2n>
+void Processor<sint, sgf2n>::dabit(const Instruction &instruction)
 {
   int size = instruction.get_size();
   int unit = sint::bit_type::default_length;
@@ -172,65 +177,65 @@ void Processor<sint, sgf2n>::dabit(const Instruction& instruction)
   }
 }
 
-template<class sint, class sgf2n>
-void Processor<sint, sgf2n>::edabit(const Instruction& instruction, bool strict)
+template <class sint, class sgf2n>
+void Processor<sint, sgf2n>::edabit(const Instruction &instruction, bool strict)
 {
-  auto& regs = instruction.get_start();
+  auto &regs = instruction.get_start();
   int size = instruction.get_size();
   Procp.DataF.get_edabits(strict, size,
-          &Procp.get_S_ref(instruction.get_r(0)), Procb.S, regs);
+                          &Procp.get_S_ref(instruction.get_r(0)), Procb.S, regs);
 }
 
-template<class sint, class sgf2n>
-void Processor<sint, sgf2n>::convcbitvec(const Instruction& instruction)
+template <class sint, class sgf2n>
+void Processor<sint, sgf2n>::convcbitvec(const Instruction &instruction)
 {
   for (size_t i = 0; i < instruction.get_n(); i++)
-    {
-      int i1 = i / GC::Clear::N_BITS;
-      int i2 = i % GC::Clear::N_BITS;
-      Ci[instruction.get_r(0) + i] = Procb.C[instruction.get_r(1) + i1].get_bit(i2);
-    }
+  {
+    int i1 = i / GC::Clear::N_BITS;
+    int i2 = i % GC::Clear::N_BITS;
+    Ci[instruction.get_r(0) + i] = Procb.C[instruction.get_r(1) + i1].get_bit(i2);
+  }
 }
 
-template<class sint, class sgf2n>
-void Processor<sint, sgf2n>::convcintvec(const Instruction& instruction)
+template <class sint, class sgf2n>
+void Processor<sint, sgf2n>::convcintvec(const Instruction &instruction)
 {
   int unit = GC::Clear::N_BITS;
   assert(unit == 64);
   int n_inputs = instruction.get_size();
   int n_bits = instruction.get_start().size();
   for (int i = 0; i < DIV_CEIL(n_inputs, unit); i++)
+  {
+    for (int j = 0; j < DIV_CEIL(n_bits, unit); j++)
     {
-      for (int j = 0; j < DIV_CEIL(n_bits, unit); j++)
-        {
-          square64 square;
-          int n_rows = min(n_inputs - i * unit, unit);
-          int n_cols = min(n_bits - j * unit, unit);
-          for (int k = 0; k < n_rows; k++)
-            square.rows[k] =
-                Integer::convert_unsigned(
-                    Procp.C[instruction.get_r(0) + i * unit + k] >> (j * unit)).get();
-          square.transpose(n_rows, n_cols);
-          for (int k = 0; k < n_cols; k++)
-            Procb.C[instruction.get_start()[k + j * unit] + i] = square.rows[k];
-        }
+      square64 square;
+      int n_rows = min(n_inputs - i * unit, unit);
+      int n_cols = min(n_bits - j * unit, unit);
+      for (int k = 0; k < n_rows; k++)
+        square.rows[k] =
+            Integer::convert_unsigned(
+                Procp.C[instruction.get_r(0) + i * unit + k] >> (j * unit))
+                .get();
+      square.transpose(n_rows, n_cols);
+      for (int k = 0; k < n_cols; k++)
+        Procb.C[instruction.get_start()[k + j * unit] + i] = square.rows[k];
     }
+  }
 }
 
-template<class sint, class sgf2n>
-void Processor<sint, sgf2n>::split(const Instruction& instruction)
+template <class sint, class sgf2n>
+void Processor<sint, sgf2n>::split(const Instruction &instruction)
 {
   int n = instruction.get_n();
-  assert (instruction.get_start().size() % n == 0);
+  assert(instruction.get_start().size() % n == 0);
   int unit = GC::Clear::N_BITS;
   assert(unit == 64);
   int n_inputs = instruction.get_size();
   int n_bits = instruction.get_start().size() / n;
   assert(share_thread.protocol != 0);
   sint::split(Procb.S, instruction.get_start(), n_bits,
-      &read_Sp(instruction.get_r(0)), n_inputs, *share_thread.protocol);
+              &read_Sp(instruction.get_r(0)), n_inputs, *share_thread.protocol);
 }
-
 
 #include "Networking/sockets.h"
 #include "Math/Setup.h"
@@ -239,88 +244,89 @@ void Processor<sint, sgf2n>::split(const Instruction& instruction)
 // RegType and SecrecyType determines how registers are read and the socket stream is packed.
 // If message_type is > 0, send message_type in bytes 0 - 3, to allow an external client to
 //  determine the data structure being sent in a message.
-template<class sint, class sgf2n>
+template <class sint, class sgf2n>
 void Processor<sint, sgf2n>::write_socket(const RegType reg_type,
-    bool send_macs, int socket_id, int message_type,
-    const vector<int>& registers, int size)
+                                          bool send_macs, int socket_id, int message_type,
+                                          const vector<int> &registers, int size)
 {
   int m = registers.size();
   socket_stream.reset_write_head();
 
-  //First 4 bytes is message_type (unless indicate not needed)
-  if (message_type != 0) {
+  // First 4 bytes is message_type (unless indicate not needed)
+  if (message_type != 0)
+  {
     socket_stream.store(message_type);
   }
 
   for (int j = 0; j < size; j++)
+  {
+    for (int i = 0; i < m; i++)
     {
-      for (int i = 0; i < m; i++)
-        {
-          if (reg_type == SINT)
-            {
-              // Send vector of secret shares and optionally macs
-              if (send_macs)
-                get_Sp_ref(registers[i] + j).pack(socket_stream);
-              else
-                get_Sp_ref(registers[i] + j).pack(socket_stream,
-                    sint::get_rec_factor(P.my_num(), P.num_players()));
-            }
-          else if (reg_type == CINT)
-            {
-              // Send vector of clear public field elements
-              get_Cp_ref(registers[i] + j).pack(socket_stream);
-            }
-          else if (reg_type == INT)
-            {
-              // Send vector of 32-bit clear ints
-              socket_stream.store((int&) get_Ci_ref(registers[i] + j));
-            }
-          else
-            {
-              stringstream ss;
-              ss << "Write socket instruction with unknown reg type "
-                  << reg_type << "." << endl;
-              throw Processor_Error(ss.str());
-            }
-        }
+      if (reg_type == SINT)
+      {
+        // Send vector of secret shares and optionally macs
+        if (send_macs)
+          get_Sp_ref(registers[i] + j).pack(socket_stream);
+        else
+          get_Sp_ref(registers[i] + j).pack(socket_stream, sint::get_rec_factor(P.my_num(), P.num_players()));
+      }
+      else if (reg_type == CINT)
+      {
+        // Send vector of clear public field elements
+        get_Cp_ref(registers[i] + j).pack(socket_stream);
+      }
+      else if (reg_type == INT)
+      {
+        // Send vector of 32-bit clear ints
+        socket_stream.store((int &)get_Ci_ref(registers[i] + j));
+      }
+      else
+      {
+        stringstream ss;
+        ss << "Write socket instruction with unknown reg type "
+           << reg_type << "." << endl;
+        throw Processor_Error(ss.str());
+      }
     }
+  }
 
 #ifdef VERBOSE_COMM
   cerr << "send " << socket_stream.get_length() << " to client " << socket_id
        << endl;
 #endif
 
-  try {
+  try
+  {
     socket_stream.Send(external_clients.get_socket(socket_id));
   }
-    catch (bad_value& e) {
-    cerr << "Send error thrown when writing " << m << " values of type " << reg_type << " to socket id " 
-      << socket_id << "." << endl;
+  catch (bad_value &e)
+  {
+    cerr << "Send error thrown when writing " << m << " values of type " << reg_type << " to socket id "
+         << socket_id << "." << endl;
   }
 }
 
-
 // Receive vector of 32-bit clear ints
-template<class sint, class sgf2n>
+template <class sint, class sgf2n>
 void Processor<sint, sgf2n>::read_socket_ints(int client_id,
-    const vector<int>& registers, int size)
+                                              const vector<int> &registers, int size)
 {
   int m = registers.size();
   socket_stream.reset_write_head();
   socket_stream.Receive(external_clients.get_socket(client_id));
   for (int j = 0; j < size; j++)
     for (int i = 0; i < m; i++)
-      {
-        int val;
-        socket_stream.get(val);
-        write_Ci(registers[i] + j, (long) val);
-      }
+    {
+      int val;
+      socket_stream.get(val);
+      write_Ci(registers[i] + j, (long)val);
+    }
 }
 
 // Receive vector of public field elements
-template<class sint, class sgf2n>
+template <class sint, class sgf2n>
 void Processor<sint, sgf2n>::read_socket_vector(int client_id,
-    const vector<int>& registers, int size)
+                                                const vector<int> &registers, int size)
 {
   int m = registers.size();
   socket_stream.reset_write_head();
@@ -332,9 +338,9 @@ void Processor<sint, sgf2n>::read_socket_vector(int client_id,
 }
 
 // Receive vector of field element shares over private channel
-template<class sint, class sgf2n>
+template <class sint, class sgf2n>
 void Processor<sint, sgf2n>::read_socket_private(int client_id,
-    const vector<int>& registers, int size, bool read_macs)
+                                                 const vector<int> &registers, int size, bool read_macs)
 {
   int m = registers.size();
   socket_stream.reset_write_head();
@@ -345,12 +351,12 @@ void Processor<sint, sgf2n>::read_socket_private(int client_id,
       get_Sp_ref(registers[i] + j).unpack(socket_stream, read_macs);
 }
 
-
 // Read share data from a file starting at file_pos until registers filled.
 // file_pos_register is written with new file position (-1 is eof).
 // Tolerent to no file if no shares yet persisted.
-template<class sint, class sgf2n>
-void Processor<sint, sgf2n>::read_shares_from_file(int start_file_posn, int end_file_pos_register, const vector<int>& data_registers) {
+template <class sint, class sgf2n>
+void Processor<sint, sgf2n>::read_shares_from_file(int start_file_posn, int end_file_pos_register, const vector<int> &data_registers)
+{
   if (not sint::real_shares(P))
     return;
 
@@ -359,11 +365,12 @@ void Processor<sint, sgf2n>::read_shares_from_file(int start_file_posn, int end_
 
   unsigned int size = data_registers.size();
 
-  vector< sint > outbuf(size);
+  vector<sint> outbuf(size);
 
   int end_file_posn = start_file_posn;
 
-  try {
+  try
+  {
     binary_file_io.read_from_file(filename, outbuf, start_file_posn, end_file_posn);
 
     for (unsigned int i = 0; i < size; i++)
@@ -371,18 +378,19 @@ void Processor<sint, sgf2n>::read_shares_from_file(int start_file_posn, int end_
       get_Sp_ref(data_registers[i]) = outbuf[i];
     }
 
-    write_Ci(end_file_pos_register, (long)end_file_posn);    
+    write_Ci(end_file_pos_register, (long)end_file_posn);
   }
-  catch (file_missing& e) {
+  catch (file_missing &e)
+  {
     cerr << "Got file missing error, will return -2. " << e.what() << endl;
     write_Ci(end_file_pos_register, (long)-2);
   }
 }
 
 // Append share data in data_registers to end of file. Expects Persistence directory to exist.
-template<class sint, class sgf2n>
+template <class sint, class sgf2n>
 void Processor<sint, sgf2n>::write_shares_to_file(long start_pos,
-    const vector<int>& data_registers)
+                                                  const vector<int> &data_registers)
 {
   if (not sint::real_shares(P))
     return;
@@ -391,7 +399,7 @@ void Processor<sint, sgf2n>::write_shares_to_file(long start_pos,
 
   unsigned int size = data_registers.size();
 
-  vector< sint > inpbuf (size);
+  vector<sint> inpbuf(size);
 
   for (unsigned int i = 0; i < size; i++)
   {
@@ -402,14 +410,14 @@ void Processor<sint, sgf2n>::write_shares_to_file(long start_pos,
 }
 
 template <class T>
-void SubProcessor<T>::POpen(const Instruction& inst)
+void SubProcessor<T>::POpen(const Instruction &inst)
 {
   if (inst.get_n())
     check();
-  auto& reg = inst.get_start();
+  auto &reg = inst.get_start();
   int size = inst.get_size();
   assert(reg.size() % 2 == 0);
-  int sz=reg.size() / 2;
+  int sz = reg.size() / 2;
   MC.init_open(P, sz * size);
   for (auto it = reg.begin() + 1; it < reg.end(); it += 2)
     for (int i = 0; i < size; i++)
@@ -420,96 +428,96 @@ void SubProcessor<T>::POpen(const Instruction& inst)
       C[*it + i] = MC.finalize_open();
 
   if (Proc != 0)
-    {
-      Proc->sent += sz * size;
-      Proc->rounds++;
-    }
+  {
+    Proc->sent += sz * size;
+    Proc->rounds++;
+  }
 }
 
-template<class T>
-void SubProcessor<T>::muls(const vector<int>& reg, int size)
+template <class T>
+void SubProcessor<T>::muls(const vector<int> &reg, int size)
 {
 
-    assert(reg.size() % 3 == 0);
-    int n = reg.size() / 3;
-//    cout << "n/3 * size = " << size * n / 3 << endl;
+  assert(reg.size() % 3 == 0);
+  int n = reg.size() / 3;
+  //    cout << "n/3 * size = " << size * n / 3 << endl;
 
-    SubProcessor<T>& proc = *this;
-    protocol.init_mul();
-    for (int i = 0; i < n; i++)
-        for (int j = 0; j < size; j++)
-        {
-            auto& x = proc.S[reg[3 * i + 1] + j];
-            auto& y = proc.S[reg[3 * i + 2] + j];
-            protocol.prepare_mul(x, y);
-        }
-    protocol.exchange();
-    for (int i = 0; i < n; i++)
-        for (int j = 0; j < size; j++)
-        {
-            proc.S[reg[3 * i] + j] = protocol.finalize_mul();
-        }
+  SubProcessor<T> &proc = *this;
+  protocol.init_mul();
+  for (int i = 0; i < n; i++)
+    for (int j = 0; j < size; j++)
+    {
+      auto &x = proc.S[reg[3 * i + 1] + j];
+      auto &y = proc.S[reg[3 * i + 2] + j];
+      protocol.prepare_mul(x, y);
+    }
+  protocol.exchange();
+  for (int i = 0; i < n; i++)
+    for (int j = 0; j < size; j++)
+    {
+      proc.S[reg[3 * i] + j] = protocol.finalize_mul();
+    }
 
-    protocol.counter += n * size;
+  protocol.counter += n * size;
 }
 
-template<class T>
-void SubProcessor<T>::mulrs(const vector<int>& reg)
+template <class T>
+void SubProcessor<T>::mulrs(const vector<int> &reg)
 {
-    assert(reg.size() % 4 == 0);
-    int n = reg.size() / 4;
+  assert(reg.size() % 4 == 0);
+  int n = reg.size() / 4;
 
-    SubProcessor<T>& proc = *this;
-    protocol.init_mul();
-    for (int i = 0; i < n; i++)
-        for (int j = 0; j < reg[4 * i]; j++)
-        {
-            auto& x = proc.S[reg[4 * i + 2] + j];
-            auto& y = proc.S[reg[4 * i + 3]];
-            protocol.prepare_mul(x, y);
-        }
-    protocol.exchange();
-    for (int i = 0; i < n; i++)
+  SubProcessor<T> &proc = *this;
+  protocol.init_mul();
+  for (int i = 0; i < n; i++)
+    for (int j = 0; j < reg[4 * i]; j++)
     {
-        for (int j = 0; j < reg[4 * i]; j++)
-        {
-            proc.S[reg[4 * i + 1] + j] = protocol.finalize_mul();
-        }
-        protocol.counter += reg[4 * i];
+      auto &x = proc.S[reg[4 * i + 2] + j];
+      auto &y = proc.S[reg[4 * i + 3]];
+      protocol.prepare_mul(x, y);
     }
+  protocol.exchange();
+  for (int i = 0; i < n; i++)
+  {
+    for (int j = 0; j < reg[4 * i]; j++)
+    {
+      proc.S[reg[4 * i + 1] + j] = protocol.finalize_mul();
+    }
+    protocol.counter += reg[4 * i];
+  }
 }
 
-template<class T>
-void SubProcessor<T>::dotprods(const vector<int>& reg, int size)
+template <class T>
+void SubProcessor<T>::dotprods(const vector<int> &reg, int size)
 {
-    protocol.init_dotprod();
-    for (int i = 0; i < size; i++)
+  protocol.init_dotprod();
+  for (int i = 0; i < size; i++)
+  {
+    auto it = reg.begin();
+    while (it != reg.end())
     {
-        auto it = reg.begin();
-        while (it != reg.end())
-        {
-            auto next = it + *it;
-            it += 2;
-            while (it != next)
-            {
-                protocol.prepare_dotprod(S[*it + i], S[*(it + 1) + i]);
-                it += 2;
-            }
-            protocol.next_dotprod();
-        }
+      auto next = it + *it;
+      it += 2;
+      while (it != next)
+      {
+        protocol.prepare_dotprod(S[*it + i], S[*(it + 1) + i]);
+        it += 2;
+      }
+      protocol.next_dotprod();
     }
-    protocol.exchange();
-    for (int i = 0; i < size; i++)
+  }
+  protocol.exchange();
+  for (int i = 0; i < size; i++)
+  {
+    auto it = reg.begin();
+    while (it != reg.end())
     {
-        auto it = reg.begin();
-        while (it != reg.end())
-        {
-            auto next = it + *it;
-            it++;
-            S[*it + i] = protocol.finalize_dotprod((next - it) / 2);
-            it = next;
-        }
+      auto next = it + *it;
+      it++;
+      S[*it + i] = protocol.finalize_dotprod((next - it) / 2);
+      it = next;
     }
+  }
 }
 
 // template<class T>
@@ -539,62 +547,60 @@ void SubProcessor<T>::dotprods(const vector<int>& reg, int size)
 //             *(C + i * dim[2] + j) = protocol.finalize_dotprod(dim[1]);
 // }
 
-template<class T>
-void SubProcessor<T>::matmuls(const vector<T>& source,
-        const Instruction& instruction)
+template <class T>
+void SubProcessor<T>::matmuls(const vector<T> &source,
+                              const Instruction &instruction)
 {
-    protocol.init_dotprod();
-    auto& args = instruction.get_start();
-    vector<MatmulsTuple> tuples;
-    for (size_t i = 0; i < args.size(); i += 6)
-        tuples.push_back(MatmulsTuple(args, i));
-    for (auto& tuple : tuples)
-        tuple.pre(source, S, protocol);
-    protocol.exchange();
-    for (auto& tuple : tuples)
-        tuple.post(S, protocol);
+  protocol.init_dotprod();
+  auto &args = instruction.get_start();
+  vector<MatmulsTuple> tuples;
+  for (size_t i = 0; i < args.size(); i += 6)
+    tuples.push_back(MatmulsTuple(args, i));
+  for (auto &tuple : tuples)
+    tuple.pre(source, S, protocol);
+  protocol.exchange();
+  for (auto &tuple : tuples)
+    tuple.post(S, protocol);
 }
-inline
-MatmulsTuple::MatmulsTuple(const vector<int>& arguments, int start)
+inline MatmulsTuple::MatmulsTuple(const vector<int> &arguments, int start)
 {
-    assert(arguments.size() >= start + 6ul);
-    auto args = arguments.data() + start + 3;
-    c = arguments[start];
-    a = arguments[start + 1];
-    b = arguments[start + 2];
-    dim[0] = args[0];
-    dim[1] = args[1];
-    dim[2] = args[2];
-}
-
-template<class T>
-void MatmulsTuple::pre(const vector<T>& source, vector<T>& S, typename T::Protocol& protocol)
-{
-    auto A = source.begin() + a;
-    auto B = source.begin() + b;
-    auto C = S.begin() + c;
-    assert(A + dim[0] * dim[1] <= source.end());
-    assert(B + dim[1] * dim[2] <= source.end());
-    assert(C + dim[0] * dim[2] <= S.end());
-    for (int i = 0; i < dim[0]; i++)
-        for (int j = 0; j < dim[2]; j++)
-        {
-            for (int k = 0; k < dim[1]; k++)
-                protocol.prepare_dotprod(*(A + i * dim[1] + k),
-                        *(B + k * dim[2] + j));
-            protocol.next_dotprod();
-        }
+  assert(arguments.size() >= start + 6ul);
+  auto args = arguments.data() + start + 3;
+  c = arguments[start];
+  a = arguments[start + 1];
+  b = arguments[start + 2];
+  dim[0] = args[0];
+  dim[1] = args[1];
+  dim[2] = args[2];
 }
 
-template<class T>
-void MatmulsTuple::post( vector<T>& S, typename T::Protocol& protocol)
+template <class T>
+void MatmulsTuple::pre(const vector<T> &source, vector<T> &S, typename T::Protocol &protocol)
 {
-    auto C = S.begin() + c;
-    for (int i = 0; i < dim[0]; i++)
-        for (int j = 0; j < dim[2]; j++)
-            *(C + i * dim[2] + j) = protocol.finalize_dotprod(dim[1]);
+  auto A = source.begin() + a;
+  auto B = source.begin() + b;
+  auto C = S.begin() + c;
+  assert(A + dim[0] * dim[1] <= source.end());
+  assert(B + dim[1] * dim[2] <= source.end());
+  assert(C + dim[0] * dim[2] <= S.end());
+  for (int i = 0; i < dim[0]; i++)
+    for (int j = 0; j < dim[2]; j++)
+    {
+      for (int k = 0; k < dim[1]; k++)
+        protocol.prepare_dotprod(*(A + i * dim[1] + k),
+                                 *(B + k * dim[2] + j));
+      protocol.next_dotprod();
+    }
 }
 
+template <class T>
+void MatmulsTuple::post(vector<T> &S, typename T::Protocol &protocol)
+{
+  auto C = S.begin() + c;
+  for (int i = 0; i < dim[0]; i++)
+    for (int j = 0; j < dim[2]; j++)
+      *(C + i * dim[2] + j) = protocol.finalize_dotprod(dim[1]);
+}
 
 // template<class T>
 // void SubProcessor<T>::matmulsm(const CheckVector<T>& source,
@@ -628,75 +634,73 @@ void MatmulsTuple::post( vector<T>& S, typename T::Protocol& protocol)
 //             *(C + i * dim[2] + j) = protocol.finalize_dotprod(dim[1]);
 // }
 
-template<class T>
-void SubProcessor<T>::matmulsm(const CheckVector<T>& source,
-        const Instruction& instruction)
+template <class T>
+void SubProcessor<T>::matmulsm(const CheckVector<T> &source,
+                               const Instruction &instruction)
 {
-    protocol.init_dotprod();
-    auto& args = instruction.get_start();
-    vector<MatmulsmTuple> tuples;
-    for (size_t i = 0; i < args.size(); i += 12)
-        tuples.push_back(MatmulsmTuple(args, Proc, i));
-    for (auto& tuple : tuples)
-        tuple.pre(source, Proc, protocol);
-    protocol.exchange();
-    for (auto& tuple : tuples)
-        tuple.post(S, protocol);
+  protocol.init_dotprod();
+  auto &args = instruction.get_start();
+  vector<MatmulsmTuple> tuples;
+  for (size_t i = 0; i < args.size(); i += 12)
+    tuples.push_back(MatmulsmTuple(args, Proc, i));
+  for (auto &tuple : tuples)
+    tuple.pre(source, Proc, protocol);
+  protocol.exchange();
+  for (auto &tuple : tuples)
+    tuple.post(S, protocol);
 }
 
-inline
-MatmulsmTuple::MatmulsmTuple(const vector<int>& arguments, ArithmeticProcessor* Proc, int start)
+inline MatmulsmTuple::MatmulsmTuple(const vector<int> &arguments, ArithmeticProcessor *Proc, int start)
 {
-    assert(arguments.size() >= start + 12ul);
-    auto args = arguments.data() + start + 3;
-    c = arguments[start];
-    a = Proc->sync_Ci(arguments[start + 1]);
-    b = Proc->sync_Ci(arguments[start + 2]);
-    // a = arguments[start + 1];
-    // b = arguments[start + 2];
-    dim[0] = args[0];
-    dim[1] = args[1];
-    dim[2] = args[2];
-    dim[3] = args[3];
-    dim[4] = args[4];
-    dim[5] = args[5];
-    dim[6] = args[6];
-    dim[7] = args[7];
-    dim[8] = args[8];
+  assert(arguments.size() >= start + 12ul);
+  auto args = arguments.data() + start + 3;
+  c = arguments[start];
+  a = Proc->sync_Ci(arguments[start + 1]);
+  b = Proc->sync_Ci(arguments[start + 2]);
+  // a = arguments[start + 1];
+  // b = arguments[start + 2];
+  dim[0] = args[0];
+  dim[1] = args[1];
+  dim[2] = args[2];
+  dim[3] = args[3];
+  dim[4] = args[4];
+  dim[5] = args[5];
+  dim[6] = args[6];
+  dim[7] = args[7];
+  dim[8] = args[8];
 }
 
-template<class T>
-void MatmulsmTuple::pre(const vector<T>& source, ArithmeticProcessor* Proc, typename T::Protocol& protocol)
+template <class T>
+void MatmulsmTuple::pre(const vector<T> &source, ArithmeticProcessor *Proc, typename T::Protocol &protocol)
 {
-    assert(Proc);
-    for (int i = 0; i < dim[0]; i++)
+  assert(Proc);
+  for (int i = 0; i < dim[0]; i++)
+  {
+    auto ii = Proc->get_Ci().at(dim[3] + i);
+    for (int j = 0; j < dim[2]; j++)
     {
-        auto ii = Proc->get_Ci().at(dim[3] + i);
-        for (int j = 0; j < dim[2]; j++)
-        {
-            auto jj = Proc->get_Ci().at(dim[6] + j);
-            for (int k = 0; k < dim[1]; k++)
-            {
-                auto kk = Proc->get_Ci().at(dim[4] + k);
-                auto ll = Proc->get_Ci().at(dim[5] + k);
-                protocol.prepare_dotprod(source.at(long (a) + ii * dim[7] + kk),
-                        source.at(long (b) + ll * dim[8] + jj));
-            }
-            protocol.next_dotprod();
-        }
+      auto jj = Proc->get_Ci().at(dim[6] + j);
+      for (int k = 0; k < dim[1]; k++)
+      {
+        auto kk = Proc->get_Ci().at(dim[4] + k);
+        auto ll = Proc->get_Ci().at(dim[5] + k);
+        protocol.prepare_dotprod(source.at(long(a) + ii * dim[7] + kk),
+                                 source.at(long(b) + ll * dim[8] + jj));
+      }
+      protocol.next_dotprod();
     }
+  }
 }
 
-template<class T>
-void MatmulsmTuple::post( vector<T>& S, typename T::Protocol& protocol)
+template <class T>
+void MatmulsmTuple::post(vector<T> &S, typename T::Protocol &protocol)
 {
-    auto C = S.begin() + c;
-    assert(C + dim[0] * dim[2] <= S.end());
-    for (int i = 0; i < dim[0]; i++)
-        for (int j = 0; j < dim[2]; j++)
-            *(C + i * dim[2] + j) = protocol.finalize_dotprod(dim[1]);
+  auto C = S.begin() + c;
+  assert(C + dim[0] * dim[2] <= S.end());
+  for (int i = 0; i < dim[0]; i++)
+    for (int j = 0; j < dim[2]; j++)
+      *(C + i * dim[2] + j) = protocol.finalize_dotprod(dim[1]);
 }
-
 
 // template<class T>
 // void SubProcessor<T>::conv2ds(const Instruction& instruction)
@@ -783,158 +787,480 @@ void MatmulsmTuple::post( vector<T>& S, typename T::Protocol& protocol)
 //     }
 // }
 
-
-template<class T>
-void SubProcessor<T>::conv2ds(const Instruction& instruction)
+template <class T>
+void SubProcessor<T>::conv2ds(const Instruction &instruction)
 {
-    protocol.init_dotprod();
-    auto& args = instruction.get_start();
-    vector<Conv2dTuple> tuples;
-    for (size_t i = 0; i < args.size(); i += 16)
-        tuples.push_back(Conv2dTuple(args, i));
-    for (auto& tuple : tuples)
-        tuple.pre(S, protocol);
-    protocol.exchange();
-    for (auto& tuple : tuples)
-        tuple.post(S, protocol);
+  protocol.init_dotprod();
+  auto &args = instruction.get_start();
+  vector<Conv2dTuple> tuples;
+  for (size_t i = 0; i < args.size(); i += 16)
+    tuples.push_back(Conv2dTuple(args, i));
+  for (auto &tuple : tuples)
+    tuple.pre(S, protocol);
+  protocol.exchange();
+  for (auto &tuple : tuples)
+    tuple.post(S, protocol);
 }
 
-inline
-Conv2dTuple::Conv2dTuple(const vector<int>& arguments, int start)
+inline Conv2dTuple::Conv2dTuple(const vector<int> &arguments, int start)
 {
-    assert(arguments.size() >= start + 15ul);
-    auto args = arguments.data() + start + 3;
-    output_h = args[0], output_w = args[1];
-    inputs_h = args[2], inputs_w = args[3];
-    weights_h = args[4], weights_w = args[5];
-    stride_h = args[6], stride_w = args[7];
-    n_channels_in = args[8];
-    padding_h = args[9];
-    padding_w = args[10];
-    batch_size = args[11];
-    r0 = arguments[start];
-    r1 = arguments[start + 1];
-    r2 = arguments[start + 2];
-    lengths.resize(batch_size, vector<vector<int>>(output_h, vector<int>(output_w)));
-    filter_stride_h = 1;
-    filter_stride_w = 1;
-    if (stride_h < 0)
-    {
-        filter_stride_h = -stride_h;
-        stride_h = 1;
-    }
-    if (stride_w < 0)
-    {
-        filter_stride_w = -stride_w;
-        stride_w = 1;
-    }
+  assert(arguments.size() >= start + 15ul);
+  auto args = arguments.data() + start + 3;
+  output_h = args[0], output_w = args[1];
+  inputs_h = args[2], inputs_w = args[3];
+  weights_h = args[4], weights_w = args[5];
+  stride_h = args[6], stride_w = args[7];
+  n_channels_in = args[8];
+  padding_h = args[9];
+  padding_w = args[10];
+  batch_size = args[11];
+  r0 = arguments[start];
+  r1 = arguments[start + 1];
+  r2 = arguments[start + 2];
+  lengths.resize(batch_size, vector<vector<int>>(output_h, vector<int>(output_w)));
+  filter_stride_h = 1;
+  filter_stride_w = 1;
+  if (stride_h < 0)
+  {
+    filter_stride_h = -stride_h;
+    stride_h = 1;
+  }
+  if (stride_w < 0)
+  {
+    filter_stride_w = -stride_w;
+    stride_w = 1;
+  }
 }
 
-template<class T>
-void Conv2dTuple::pre(vector<T>& S, typename T::Protocol& protocol)
+template <class T>
+void Conv2dTuple::pre(vector<T> &S, typename T::Protocol &protocol)
 {
-    for (int i_batch = 0; i_batch < batch_size; i_batch ++)
-    {
-        size_t base = r1 + i_batch * inputs_w * inputs_h * n_channels_in;
-        assert(base + inputs_w * inputs_h * n_channels_in <= S.size());
-        T* input_base = &S[base];
-        for (int out_y = 0; out_y < output_h; out_y++)
-            for (int out_x = 0; out_x < output_w; out_x++)
+  for (int i_batch = 0; i_batch < batch_size; i_batch++)
+  {
+    size_t base = r1 + i_batch * inputs_w * inputs_h * n_channels_in;
+    assert(base + inputs_w * inputs_h * n_channels_in <= S.size());
+    T *input_base = &S[base];
+    for (int out_y = 0; out_y < output_h; out_y++)
+      for (int out_x = 0; out_x < output_w; out_x++)
+      {
+        int in_x_origin = (out_x * stride_w) - padding_w;
+        int in_y_origin = (out_y * stride_h) - padding_h;
+
+        for (int filter_y = 0; filter_y < weights_h; filter_y++)
+        {
+          int in_y = in_y_origin + filter_y * filter_stride_h;
+          if ((0 <= in_y) and (in_y < inputs_h))
+            for (int filter_x = 0; filter_x < weights_w; filter_x++)
             {
-                int in_x_origin = (out_x * stride_w) - padding_w;
-                int in_y_origin = (out_y * stride_h) - padding_h;
-
-                for (int filter_y = 0; filter_y < weights_h; filter_y++)
-                {
-                    int in_y = in_y_origin + filter_y * filter_stride_h;
-                    if ((0 <= in_y) and (in_y < inputs_h))
-                        for (int filter_x = 0; filter_x < weights_w; filter_x++)
-                        {
-                            int in_x = in_x_origin + filter_x * filter_stride_w;
-                            if ((0 <= in_x) and (in_x < inputs_w))
-                            {
-                                T* pixel_base = &input_base[(in_y * inputs_w
-                                        + in_x) * n_channels_in];
-                                T* weight_base = &S[r2
-                                        + (filter_y * weights_w + filter_x)
-                                                * n_channels_in];
-                                for (int in_c = 0; in_c < n_channels_in; in_c++)
-                                    protocol.prepare_dotprod(pixel_base[in_c],
-                                            weight_base[in_c]);
-                                lengths[i_batch][out_y][out_x] += n_channels_in;
-                            }
-                        }
-                }
-
-                protocol.next_dotprod();
+              int in_x = in_x_origin + filter_x * filter_stride_w;
+              if ((0 <= in_x) and (in_x < inputs_w))
+              {
+                T *pixel_base = &input_base[(in_y * inputs_w + in_x) * n_channels_in];
+                T *weight_base = &S[r2 + (filter_y * weights_w + filter_x) * n_channels_in];
+                for (int in_c = 0; in_c < n_channels_in; in_c++)
+                  protocol.prepare_dotprod(pixel_base[in_c],
+                                           weight_base[in_c]);
+                lengths[i_batch][out_y][out_x] += n_channels_in;
+              }
             }
-    }
+        }
+
+        protocol.next_dotprod();
+      }
+  }
 }
 
-template<class T>
-void Conv2dTuple::post(vector<T>& S, typename T::Protocol& protocol)
+template <class T>
+void Conv2dTuple::post(vector<T> &S, typename T::Protocol &protocol)
 {
-    for (int i_batch = 0; i_batch < batch_size; i_batch ++)
-    {
-        size_t base = r0 + i_batch * output_h * output_w;
-        assert(base + output_h * output_w <= S.size());
-        T* output_base = &S[base];
-        for (int out_y = 0; out_y < output_h; out_y++)
-            for (int out_x = 0; out_x < output_w; out_x++)
-            {
-                output_base[out_y * output_w + out_x] =
-                        protocol.finalize_dotprod(
-                                lengths[i_batch][out_y][out_x]);
-            }
-    }
+  for (int i_batch = 0; i_batch < batch_size; i_batch++)
+  {
+    size_t base = r0 + i_batch * output_h * output_w;
+    assert(base + output_h * output_w <= S.size());
+    T *output_base = &S[base];
+    for (int out_y = 0; out_y < output_h; out_y++)
+      for (int out_x = 0; out_x < output_w; out_x++)
+      {
+        output_base[out_y * output_w + out_x] =
+            protocol.finalize_dotprod(
+                lengths[i_batch][out_y][out_x]);
+      }
+  }
 }
 
-template<class T>
-void SubProcessor<T>::secure_shuffle(const Instruction& instruction)
+template <class T>
+void SubProcessor<T>::secure_shuffle(const Instruction &instruction)
 {
-    typename T::Protocol::Shuffler(S, instruction.get_size(),
-            instruction.get_n(), instruction.get_r(0), instruction.get_r(1),
-            *this);
+  typename T::Protocol::Shuffler(S, instruction.get_size(),
+                                 instruction.get_n(), instruction.get_r(0), instruction.get_r(1),
+                                 *this);
 }
 
-template<class T>
-size_t SubProcessor<T>::generate_secure_shuffle(const Instruction& instruction)
+template <class T>
+size_t SubProcessor<T>::generate_secure_shuffle(const Instruction &instruction)
 {
-    return shuffler.generate(instruction.get_n());
+  return shuffler.generate(instruction.get_n());
 }
 
-template<class T>
-void SubProcessor<T>::apply_shuffle(const Instruction& instruction, int handle)
+template <class T>
+void SubProcessor<T>::apply_shuffle(const Instruction &instruction, int handle)
 {
-    shuffler.apply(S, instruction.get_size(), instruction.get_start()[2],
-            instruction.get_start()[0], instruction.get_start()[1], handle,
-            instruction.get_start()[4]);
+  shuffler.apply(S, instruction.get_size(), instruction.get_start()[2],
+                 instruction.get_start()[0], instruction.get_start()[1], handle,
+                 instruction.get_start()[4]);
 }
 
-template<class T>
+template <class T>
 void SubProcessor<T>::delete_shuffle(int handle)
 {
-    shuffler.del(handle);
+  shuffler.del(handle);
 }
 
-template<class T>
-void SubProcessor<T>::inverse_permutation(const Instruction& instruction) {
-    shuffler.inverse_permutation(S, instruction.get_size(), instruction.get_start()[0],
-                                 instruction.get_start()[1]);
+template <class T>
+void SubProcessor<T>::inverse_permutation(const Instruction &instruction)
+{
+  shuffler.inverse_permutation(S, instruction.get_size(), instruction.get_start()[0],
+                               instruction.get_start()[1]);
 }
 
-template<class T>
-void SubProcessor<T>::input_personal(const vector<int>& args)
+template <class T>
+void SubProcessor<T>::psi(const Instruction &instruction)
+{
+  // octetStream cs;
+  // int r0 = instruction.get_r(0);
+  octetStream cs0, cs, cs2;
+  auto res = C.begin() + (instruction.get_r(0));
+
+  // typename T::clear result;
+  auto &args = instruction.get_start();
+  fstream r;
+  idtype m = args.back();
+  // cout << args.size() << " m: " << m << endl;
+  // for (size_t i = 0; i < args.size(); i++)
+  // {
+  //   cout << args[i] << " ";
+  // }
+  // cout << endl;
+
+  r.open("Player-Data/PSI/ID-P" + to_string(P.my_num()), ios::in);
+  vector<osuCrypto::block> ids;
+  vector<idtype> smallids;
+  idtype r_tmp;
+  for (size_t i = 0; i < m; i++)
+  {
+    r >> r_tmp;
+    smallids.push_back(r_tmp);
+    ids.push_back(osuCrypto::block(r_tmp));
+  }
+  r.close();
+  // for (size_t i = 0; i < m; i++)
+  // {
+  //   cout << ids[i] << " ";
+  // }
+  // cout << endl;
+
+  // ssp 40
+  int ssp = 40;
+  osuCrypto::CuckooParam params = oc::CuckooIndex<>::selectParams(m, ssp, 0, 3);
+  int nbase = 128;
+  size_t l = sizeof(idtype) * 8;
+  int nOTs = l * params.numBins();
+  // PRNG G;
+  // G.ReSeed();
+  OT_ROLE ot_role;
+  // cout << params.numBins() << endl;
+  osuCrypto::CuckooIndex<> cuckoo;
+  SimpleIndex sIdx;
+  if (P.my_num() == RECEIVER_P)
+  {
+    int seed = 0;
+    cs0.store(seed);
+    P.send_to(1 - RECEIVER_P, cs0);
+    osuCrypto::block cuckooSeed(seed);
+    cuckoo.init(params);
+    cuckoo.insert(ids, cuckooSeed);
+    // cuckoo.print();
+    ot_role = RECEIVER;
+  }
+  else
+  {
+    P.receive_player(RECEIVER_P, cs0);
+    int seed;
+    cs0.get(seed);
+    osuCrypto::block cuckooSeed(seed);
+    sIdx.init(params.numBins(), m, ssp, 3);
+    sIdx.insertItems(ids, cuckooSeed);
+    // sIdx.print();
+    ot_role = SENDER;
+  }
+
+  // cout << "begin base ot \n";
+  // base ot
+  timeval baseOTstart, baseOTend;
+  gettimeofday(&baseOTstart, NULL);
+  RealTwoPartyPlayer *rP = new RealTwoPartyPlayer(P.N, 1 - P.my_num(), "machine");
+  BaseOT bot = BaseOT(nbase, 128, rP, INV_ROLE(ot_role));
+  bot.exec_base();
+  gettimeofday(&baseOTend, NULL);
+  double basetime = timeval_diff(&baseOTstart, &baseOTend);
+  // cout << "BaseTime (" << role_to_str(ot_role) << "): " << basetime / 1000000 << endl
+  //      << flush;
+  // Receiver send something to force synchronization
+  // (since Sender finishes baseOTs before Receiver)
+  if (P.my_num() == RECEIVER_P)
+  {
+    bigint a = 3;
+    a.pack(cs0);
+    P.send_to(1 - RECEIVER_P, cs0);
+  }
+  else
+  {
+    P.receive_player(RECEIVER_P, cs0);
+    bigint a;
+    a.unpack(cs0);
+    // cout << a << endl;
+  }
+
+  // convert baseOT selection bits to BitVector
+  // (not already BitVector due to legacy PVW code)
+  BitVector baseReceiverInput = bot.receiver_inputs;
+  baseReceiverInput.resize(nbase);
+
+  OTExtensionWithMatrix *ot_ext = new OTExtensionWithMatrix(rP, ot_role);
+  BitVector receiverInput(nOTs);
+  if (P.my_num() == RECEIVER_P)
+  {
+    idtype idx;
+    for (size_t i = 0; i < params.numBins(); i++)
+    {
+      if (!cuckoo.mBins[i].isEmpty())
+      {
+        idx = smallids[cuckoo.mBins[i].idx()];
+        // cout << idx << " | ";
+        receiverInput.set_word(i, idx);
+        // cout << receiverInput.get_word(i) << endl;
+      }
+    }
+    // cout << receiverInput.str() << endl;
+    // receiverInput.randomize(G);
+  }
+  // cout << receiverInput.str() << flush;
+  // cout << "Running " << nOTs << " OT extensions\n"
+  //      << flush;
+
+  // cout << "Initialize OT Extension\n";
+  timeval OTextstart, OTextend;
+  gettimeofday(&OTextstart, NULL);
+
+  ot_ext->init(baseReceiverInput,
+               bot.sender_inputs, bot.receiver_outputs);
+  ot_ext->transfer(nOTs, receiverInput, 1);
+  // ot_ext.check();
+  bot.extend_length();
+
+  // print
+  // for (int i = 0; i < nOTs; i++)
+  // {
+  //   if (ot_role == SENDER)
+  //   {
+  //     // send both inputs over
+  //     cout << i << " " << bot.sender_inputs[i][0].str() << " | " << bot.sender_inputs[i][1].str() << endl;
+  //   }
+  //   else
+  //   {
+  //     cout << i << " " << receiverInput[i] << ": " << bot.receiver_outputs[i].str() << endl;
+  //   }
+  // }
+  // bot.check();
+
+  gettimeofday(&OTextend, NULL);
+  double totaltime = timeval_diff(&OTextstart, &OTextend);
+  // cout << "Time for OTExt (" << role_to_str(ot_role) << "): " << totaltime / 1000000 << endl
+  //      << flush;
+
+  // caculate oprf
+  idtype num;
+  vector<idtype> inter_ids;
+  if (P.my_num() == RECEIVER_P)
+  {
+    // vector<BitVector> r_fs(params.numBins());
+    // receive oprf result
+    P.receive_player(1 - RECEIVER_P, cs);
+    vector<string> s_fs;
+    idtype mm = m * 3;
+    BitVector f_temp;
+    for (size_t i = 0; i < mm; i++)
+    {
+      f_temp.unpack(cs);
+      s_fs.push_back(f_temp.str());
+      // cout << f_temp.str() << endl;
+    }
+    sort(s_fs.begin(), s_fs.end());
+
+    // compare to find intersection set
+    BitVector key, temp;
+    string strkey;
+    key.resize(sizeof(__m128i) << 3);
+    idtype inter_id;
+    for (unsigned int i = 0; i < params.numBins(); i++)
+    {
+      if (!cuckoo.mBins[i].isEmpty())
+      {
+        // cout << i << ": ";
+        key.assign_zero();
+        // get oprf
+        for (unsigned int j = 0; j < l; j++)
+        {
+          temp.assign_bytes((char *)ot_ext->get_receiver_output(i * l + j), sizeof(__m128i));
+          // cout << temp.str() << endl;
+          key.add(temp);
+        }
+        // r_fs[i] = key;
+        // find same element
+        strkey = key.str();
+        // cout << strkey << endl;
+        bool found = binary_search(s_fs.begin(), s_fs.end(), strkey);
+        if (found)
+        {
+          inter_id = smallids[cuckoo.mBins[i].idx()];
+          // cout << inter_id << ": " << strkey << endl;
+          inter_ids.push_back(inter_id);
+        }
+        // cout << smallids[cuckoo.mBins[i].idx()] << " " << r_fs[i].str() << endl;
+      }
+    }
+    sort(inter_ids.begin(), inter_ids.end());
+    num = inter_ids.size();
+    // proc.Proc->public_file << num << "\n";
+    cs2.store(num);
+    for (const idtype &inter_id : inter_ids)
+    {
+      cs2.store(inter_id);
+      // cout << inter_id << endl;
+      // proc.Proc->public_file << inter_id << "\n";
+      // proc.Proc->public_output << inter_id << "\n";
+    }
+    P.send_to(1 - RECEIVER_P, cs2);
+    // open result to sender
+  }
+  else // sender
+  {
+    BitVector key, temp;
+    idtype id;
+    vector<BitVector> fs;
+    // vector<vector<BitVector>> fkx(params.numBins());
+    key.resize(sizeof(__m128i) << 3);
+    for (unsigned int i = 0; i < params.numBins(); i++)
+    {
+      // cout << "Bin #" << i << endl;
+      array<vector<BitVector>, 2> outs;
+      ot_ext->get_sender_output128i(outs, i * l, l);
+
+      // for (size_t jj = i * params.numBins(); jj < i * l + l; jj++)
+      // {
+      //   cout << outs[0][jj].str() << " " << outs[1][jj].str() << endl;
+      // }
+
+      for (unsigned int k = 0; k < sIdx.mBinSizes[i]; k++)
+      {
+        key.assign_zero();
+        id = smallids[sIdx.mBins(i, k).idx()];
+        // cout << id << " | ";
+        for (unsigned int j = 0; j < l; j++)
+        {
+          // cout << (id & 0x1);
+          temp = outs[id & 0x1][j];
+          id = id >> 1;
+          key.add(temp);
+        }
+        fs.push_back(key);
+        // cout << key.str() << endl;
+        // cout << "|   " << fkx[i][k].str() << endl;
+      }
+    }
+    for (BitVector fk : fs)
+    {
+      fk.pack(cs);
+    }
+    P.send_to(RECEIVER_P, cs);
+    P.receive_player(RECEIVER_P, cs2);
+    idtype inter_id;
+    cs2.get(num);
+    // proc.Proc->public_file << num << "\n";
+    for (size_t i = 0; i < num; i++)
+    {
+      cs2.get(inter_id);
+      inter_ids.push_back(inter_id);
+      // proc.Proc->public_file << inter_id << "\n";
+      // cout << inter_id << endl;
+      // dest[i] = inter_id;
+    }
+  }
+  // proc.Proc->public_file.seekg(0);
+
+  res[0] = num;
+  for (size_t i = 0; i < num; i++)
+  {
+    res[i + 1] = inter_ids[i];
+    // cout << inter_ids[i] << endl;
+  }
+  // delete bot;
+  delete ot_ext;
+
+  if (0)
+  {
+    BitVector receiver_output, sender_output;
+    // char filename[1024];
+    // sprintf(filename, RECEIVER_INPUT, P.my_num());
+    // ofstream outf(filename);
+    // receiverInput.output(outf, false);
+    // outf.close();
+    // sprintf(filename, RECEIVER_OUTPUT, P.my_num());
+    // outf.open(filename);
+    if (ot_role == SENDER)
+    {
+
+      // outf.close();
+
+      // sprintf(filename, SENDER_OUTPUT, P.my_num(), i);
+      // outf.open(filename);
+      for (int j = 0; j < nOTs; j++)
+      {
+        for (int i = 0; i < 2; i++)
+        {
+          sender_output.assign_bytes((char *)ot_ext->get_sender_output(i, j), sizeof(__m128i));
+          cout << sender_output.str() << "  ";
+          // sender_output.output(outf, false);
+        }
+        cout << endl;
+        // outf.close();
+      }
+    }
+    else
+    {
+      for (unsigned int i = 0; i < nOTs; i++)
+      {
+        receiver_output.assign_bytes((char *)ot_ext->get_receiver_output(i), sizeof(__m128i));
+        cout << receiverInput[i] << ": " << receiver_output.str() << endl;
+        // receiver_output.output(outf, false);
+      }
+    }
+  }
+  // return 0;
+}
+
+template <class T>
+void SubProcessor<T>::input_personal(const vector<int> &args)
 {
   input.reset_all(P);
   for (size_t i = 0; i < args.size(); i += 4)
     for (int j = 0; j < args[i]; j++)
-      {
-        if (args[i + 1] == P.my_num())
-          input.add_mine(C[args[i + 3] + j]);
-        else
-          input.add_other(args[i + 1]);
-      }
+    {
+      if (args[i + 1] == P.my_num())
+        input.add_mine(C[args[i + 3] + j]);
+      else
+        input.add_other(args[i + 1]);
+    }
   input.exchange();
   for (size_t i = 0; i < args.size(); i += 4)
     for (int j = 0; j < args[i]; j++)
@@ -951,38 +1277,38 @@ void SubProcessor<T>::input_personal(const vector<int>& args)
  *      a[3] = the memory address of the output vector (cint) (i.e. the register to store the revealed value)
  * // TODO: When would there be multiple sets of arguments? (for ... i < args.size(); i += 4 ... )
  */
-template<class T>
-void SubProcessor<T>::private_output(const vector<int>& args)
+template <class T>
+void SubProcessor<T>::private_output(const vector<int> &args)
 {
   typename T::PrivateOutput output(*this);
   for (size_t i = 0; i < args.size(); i += 4)
     for (int j = 0; j < args[i]; j++)
-      {
-        int player = args[i + 1];
-        output.prepare_sending(S.at(args[i + 3] + j), player);
-      }
+    {
+      int player = args[i + 1];
+      output.prepare_sending(S.at(args[i + 3] + j), player);
+    }
   output.exchange();
   for (size_t i = 0; i < args.size(); i += 4)
     for (int j = 0; j < args[i]; j++)
       C.at(args[i + 2] + j) = output.finalize(args[i + 1]);
 }
 
-template<class T>
-void SubProcessor<T>::send_personal(const vector<int>& args)
+template <class T>
+void SubProcessor<T>::send_personal(const vector<int> &args)
 {
   octetStreams to_send(P), to_receive(P);
   for (size_t i = 0; i < args.size(); i += 5)
     if (args[i + 3] == P.my_num())
-        for (int j = 0; j < args[i]; j++)
-          C[args[i + 4] + j].pack(to_send[args[i + 1]]);
+      for (int j = 0; j < args[i]; j++)
+        C[args[i + 4] + j].pack(to_send[args[i + 1]]);
   P.send_receive_all(to_send, to_receive);
   for (size_t i = 0; i < args.size(); i += 5)
     if (args[i + 1] == P.my_num())
-        for (int j = 0; j < args[i]; j++)
-          C[args[i + 2] + j].unpack(to_receive[args[i + 3]]);
+      for (int j = 0; j < args[i]; j++)
+        C[args[i + 2] + j].unpack(to_receive[args[i + 3]]);
 }
 
-template<class sint, class sgf2n>
+template <class sint, class sgf2n>
 typename sint::clear Processor<sint, sgf2n>::get_inverse2(unsigned m)
 {
   for (unsigned i = inverses2m.size(); i <= m; i++)
@@ -990,40 +1316,41 @@ typename sint::clear Processor<sint, sgf2n>::get_inverse2(unsigned m)
   return inverses2m[m];
 }
 
-template<class sint, class sgf2n>
+template <class sint, class sgf2n>
 long Processor<sint, sgf2n>::sync_Ci(size_t i) const
 {
   return sync(read_Ci(i));
 }
 
-template<class sint, class sgf2n>
+template <class sint, class sgf2n>
 long Processor<sint, sgf2n>::sync(long x) const
 {
   if (not sint::symmetric)
-    {
-      // send number to dealer
-      if (P.my_num() == 0)
-        P.send_long(P.num_players() - 1, x);
-      if (not sint::real_shares(P))
-        return P.receive_long(0);
-    }
+  {
+    // send number to dealer
+    if (P.my_num() == 0)
+      P.send_long(P.num_players() - 1, x);
+    if (not sint::real_shares(P))
+      return P.receive_long(0);
+  }
 
   return x;
 }
 
 #ifdef BIG_DOMAIN_FOR_RING
-template<class sint, class sgf2n>
-void Processor<sint, sgf2n>::start_subprocessor_for_big_domain(){
+template <class sint, class sgf2n>
+void Processor<sint, sgf2n>::start_subprocessor_for_big_domain()
+{
   this->datafp = Preprocessing<BigDomainShare>::get_new(machine, DataF.usage, this->Procp_2);
   this->temp_mcp = new BigDomainShare::MAC_Check({}, 0, 0);
-  this->Procp_2 = new SubProcessor<BigDomainShare>(*this, *temp_mcp, *datafp,P);
-//  this->Procp_2->S.resize(Procp.S.size());
-//  this->Procp_2->C.resize(Procp.C.size());
+  this->Procp_2 = new SubProcessor<BigDomainShare>(*this, *temp_mcp, *datafp, P);
+  //  this->Procp_2->S.resize(Procp.S.size());
+  //  this->Procp_2->C.resize(Procp.C.size());
 };
 
-
-template<class sint, class sgf2n>
-void Processor<sint, sgf2n>::stop_subprocessor_for_big_domain(){
+template <class sint, class sgf2n>
+void Processor<sint, sgf2n>::stop_subprocessor_for_big_domain()
+{
   delete this->Procp_2;
   delete this->datafp;
   delete this->temp_mcp;

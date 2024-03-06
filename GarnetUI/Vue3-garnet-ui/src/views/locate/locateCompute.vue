@@ -165,7 +165,7 @@ const protocolArray = ref([{
 const partyArray:any = ref([]);
 const modelPartyArray:any = ref([]);
 
-const modelArray = ref([{
+const modelArray = ref([{   
   id:'',
   name:''
 }])
@@ -174,11 +174,11 @@ const modelArray = ref([{
 onMounted(async() => {
       
   const res = await getAllProtocol()
-  protocolArray.value=res.data
+  protocolArray.value=res.data.results
   partyArray.value=protocolArray.value.map(item => ({ label: item.name, value: item.id }));
 
   const modelRes = await getAllModel()
-  modelArray.value=modelRes.data
+  modelArray.value=modelRes.data.results
   modelPartyArray.value=modelArray.value.map
   (item => ({ label: item.name, value: item.id }));
 });

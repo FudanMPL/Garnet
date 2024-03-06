@@ -1,3 +1,4 @@
+
 import sorting
 a = sint.Array(3)
 a[0] = 2

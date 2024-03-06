@@ -23,23 +23,23 @@ enum OT_ROLE
 
 OT_ROLE INV_ROLE(OT_ROLE role);
 
-const char* role_to_str(OT_ROLE role);
-void send_if_ot_sender(TwoPartyPlayer* P, vector<octetStream>& os, OT_ROLE role);
-void send_if_ot_receiver(TwoPartyPlayer* P, vector<octetStream>& os, OT_ROLE role);
+const char *role_to_str(OT_ROLE role);
+void send_if_ot_sender(TwoPartyPlayer *P, vector<octetStream> &os, OT_ROLE role);
+void send_if_ot_receiver(TwoPartyPlayer *P, vector<octetStream> &os, OT_ROLE role);
 
 class BaseOT
 {
-    static void hash_with_id(BitVector& bits, long id);
+	static void hash_with_id(BitVector &bits, long id);
 
 public:
 	BitVector receiver_inputs;
-	vector< array<BitVector, 2> > sender_inputs;
+	vector<array<BitVector, 2>> sender_inputs;
 	vector<BitVector> receiver_outputs;
-	TwoPartyPlayer* P;
+	TwoPartyPlayer *P;
 	int nOT, ot_length;
 	OT_ROLE ot_role;
 
-	BaseOT(int nOT, int ot_length, TwoPartyPlayer* player, OT_ROLE role=BOTH)
+	BaseOT(int nOT, int ot_length, TwoPartyPlayer *player, OT_ROLE role = BOTH)
 		: P(player), nOT(nOT), ot_length(ot_length), ot_role(role)
 	{
 		receiver_inputs.resize(nOT);
@@ -56,8 +56,7 @@ public:
 		}
 	}
 
-	BaseOT(TwoPartyPlayer* player, OT_ROLE role) :
-			BaseOT(128, 128, player, role)
+	BaseOT(TwoPartyPlayer *player, OT_ROLE role) : BaseOT(128, 128, player, role)
 	{
 	}
 
@@ -65,7 +64,7 @@ public:
 
 	int length() { return ot_length; }
 
-	void set_receiver_inputs(const BitVector& new_inputs)
+	void set_receiver_inputs(const BitVector &new_inputs)
 	{
 		if ((int)new_inputs.size() != nOT)
 			throw invalid_length("BaseOT");
@@ -80,30 +79,48 @@ public:
 		set_receiver_inputs(new_inputs);
 	}
 
+	void random_sender_inputs(PRNG G)
+	{
+		for (int i = 0; i < nOT; i++)
+		{
+			// sender_inputs[i][0] = BitVector(8 * AES_BLK_SIZE);
+			// sender_inputs[i][1] = BitVector(8 * AES_BLK_SIZE);
+			sender_inputs[i][0].randomize(G);
+			sender_inputs[i][1].randomize(G);
+			// std::cout << sender_inputs[i][0].str() << " " << sender_inputs[i][1].str() << std::endl;
+		}
+	}
+
+	void random_sender_inputs()
+	{
+		PRNG G;
+		G.ReSeed();
+		random_sender_inputs(G);
+	}
+
 	// do the OTs -- generate fresh random choice bits by default
-	virtual void exec_base(bool new_receiver_inputs=true);
+	virtual void exec_base(bool new_receiver_inputs = true);
 	// use PRG to get the next ot_length bits
 	void set_seeds();
 	void extend_length();
 	void check();
 
 protected:
-	vector< array<PRNG, 2> > G_sender;
+	vector<array<PRNG, 2>> G_sender;
 	vector<PRNG> G_receiver;
 
-	bool is_sender() { return (bool) (ot_role & SENDER); }
-	bool is_receiver() { return (bool) (ot_role & RECEIVER); }
+	bool is_sender() { return (bool)(ot_role & SENDER); }
+	bool is_receiver() { return (bool)(ot_role & RECEIVER); }
 
-	template<class T, class U>
-	void exec_base(bool new_receiver_inputs=true);
+	template <class T, class U>
+	void exec_base(bool new_receiver_inputs = true);
 };
 
 class FakeOT : public BaseOT
 {
 public:
-   FakeOT(int nOT, int ot_length, TwoPartyPlayer* player, OT_ROLE role=BOTH) :
-       BaseOT(nOT, ot_length, player, role) {}
-   void exec_base(bool new_receiver_inputs=true);
+	FakeOT(int nOT, int ot_length, TwoPartyPlayer *player, OT_ROLE role = BOTH) : BaseOT(nOT, ot_length, player, role) {}
+	void exec_base(bool new_receiver_inputs = true);
 };
 
 #endif

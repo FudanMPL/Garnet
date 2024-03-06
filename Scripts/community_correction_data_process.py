@@ -12,9 +12,24 @@ TimeInterval_XS_Zxtz = 20 * 24 * 3600  # 刑事-执行通知书距离判决时�
 TimeInterval_Rjbd = 10 * 24 * 3600  # 入矫时间距离执行通知书报警阈值
 
 
-def id_process(date_str):
-    result = re.sub(r'\D', '', date_str)
-    return int(result)
+name_length = 8  # 名字的最长长度
+id_length = 18  # 身份证号的最长长度
+
+
+def id_process(id_str):
+    id_str = id_str[:min(len(id_str), id_length)]
+    l = id_length - len(id_str)
+    for i in range(l):
+        id_str = id_str + "\\x00"
+    return id_str
+
+
+def name_process(name_str):
+    name_str = name_str[:min(len(name_str),name_length)]
+    l = name_length - len(name_str)
+    for i in range(l):
+        name_str = name_str + "\\x00"
+    return name_str
 
 
 def date_process(date):
@@ -22,6 +37,7 @@ def date_process(date):
         return 0
     date = date.replace("-", "")
     return int(date)
+
 
 def convert_to_inttime(date_str):
     # 提取日期部分并删除短划线
@@ -58,10 +74,11 @@ def process(file_path):
     data = data[~data['证件号'].isin(['无', '无身份证号码', 'NULL', None, np.nan])]  # 删除没有身份证的
     data = data.dropna(subset=['证件号'])  # 删除没有身份证的
     data['证件号'] = data['证件号'].astype(str)
-    data['证件号'] = data['证件号'].apply(id_process)  # 删除字母身份证号中的字母
-    data['证件号'] = data['证件号'].astype(int)
+    data['证件号'] = data['证件号'].apply(id_process)
+    data['姓名'] = data['姓名'].apply(name_process)
     data['提前结束天数'] = 0
     data['间隔天数'] = 0
+    data['类型'] = 0
     result = pd.DataFrame(columns=data.columns)
 
     for index, ele in data.iterrows():
@@ -72,9 +89,7 @@ def process(file_path):
         ele['间隔天数'] = (convert_to_seconds(ele['入矫日期']) - convert_to_seconds(ele['判决时间'])) // 24 // 3600
         if convert_to_seconds(ele['入矫日期']) > convert_to_seconds(ele['判决时间']) \
                 and convert_to_seconds(ele['入矫日期']) - convert_to_seconds(ele['判决时间']) > (TimeInterval_XS_Zxtz + TimeInterval_Rjbd):
-            # if ele['矫正期限'] not in ['NULL', "", np.nan] and ele['终止日期'] not in ['NULL', "", np.nan] and ele['矫正级别名称'] != '初期矫正':
-            #     duration = duration_convert_to_seconds(ele['矫正期限'])
-            #     ele['提前结束天数'] = (duration - convert_to_seconds(ele['终止日期']) + convert_to_seconds(ele['判决时间'])) // 24 // 3600
+            ele['类型'] = '未按时报道\\x00'
             result = result.append(ele, ignore_index=True)
             continue
         if ele['矫正期限'] in ['NULL', "", np.nan] or ele['终止日期'] in ['NULL', "", np.nan] or ele['矫正级别名称'] == '初期矫正':
@@ -83,6 +98,7 @@ def process(file_path):
         ele['提前结束天数'] = (duration - convert_to_seconds(ele['终止日期']) + convert_to_seconds(ele['判决时间'])) // 24 // 3600
         if convert_to_seconds(ele['终止日期']) > convert_to_seconds(ele['判决时间'])\
                 and convert_to_seconds(ele['终止日期']) - convert_to_seconds(ele['判决时间']) < duration:
+            ele['类型'] = '违规提前结束'
             result = result.append(ele, ignore_index=True)
             continue
     result['矫正期限'] = result['矫正期限'].apply(duration_convert_to_seconds) // 24 // 3600
@@ -91,7 +107,7 @@ def process(file_path):
     result['终止日期'] = result['终止日期'].apply(date_process)  # 将时间转化为数字
     result['入矫日期'] = result['入矫日期'].apply(date_process)  # 将时间转化为数字
 
-    result = result[['证件号', '判决时间', '矫正期限', '入矫日期', '终止日期']]
+    result = result[['证件号', '姓名', '判决时间', '矫正期限', '入矫日期', '终止日期', '类型']]
     result = result.drop_duplicates()
     result = result.drop_duplicates(subset=['证件号'])
     file = open("./Player-Data/Input-P2-0", 'w')

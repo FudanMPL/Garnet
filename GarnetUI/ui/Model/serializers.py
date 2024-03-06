@@ -102,6 +102,8 @@ class LocalTaskModelSerializer(serializers.ModelSerializer):
 
 
 class RemoteTaskModelSerializer(serializers.ModelSerializer):
+    servername = serializers.SerializerMethodField()
+
     def validate(self, attrs):
         if attrs["part"] > attrs["pN"] - 1:
             raise serializers.ValidationError("序号不能大于总参与方的数量")
@@ -115,9 +117,12 @@ class RemoteTaskModelSerializer(serializers.ModelSerializer):
         task.save()
         return task
 
+    def get_servername(self, obj) -> str:
+        return Servers.objects.get(id=1).servername
+
     class Meta:
         model = RemoteTask
-        fields = "__all__"
+        fields = [f.name for f in model._meta.fields] + ["servername"]
 
 
 class ServerTaskRelationshipModelSerializer(serializers.ModelSerializer):
@@ -161,6 +166,7 @@ class MetadataSerializer(serializers.Serializer):
 class TaskResponseSerializer(serializers.ModelSerializer):
     mpcURL = serializers.SerializerMethodField()
     protocolName = serializers.SerializerMethodField()
+    mpcName = serializers.SerializerMethodField()
 
     def create(self, validated_data):
         return RemoteTask(**validated_data)
@@ -171,6 +177,9 @@ class TaskResponseSerializer(serializers.ModelSerializer):
 
     def get_mpcURL(self, obj) -> str:
         return f"http://{settings.IPADDRESS}:{settings.PORT}{settings.MEDIA_URL}{obj.mpc.file}"
+
+    def get_mpcName(self, obj) -> str:
+        return f"{obj.mpc.name}"
 
     def get_protocolName(self, obj) -> str:
         return f"{obj.protocol.name}"

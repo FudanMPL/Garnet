@@ -28,7 +28,7 @@ export const userCreateTask = ({
     data
   })
 }
-export const getAlltask = () => request.get('/task/remote/model/')
+export const getAlltask = () => request.get('/task/remote/model/?page=1&size=100')
 
 export const getAllFiles = () => request.get('/model/userdata/')
 

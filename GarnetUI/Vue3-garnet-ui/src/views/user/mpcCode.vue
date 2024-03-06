@@ -1,13 +1,23 @@
 <template>
-  <el-button @click="saveCodeToFile">保存代码到本地</el-button>
-  <el-button @click="triggerFileInput">加载本地文件</el-button>
+  <el-button @click="saveCodeToFile">下载MPC代码到本地</el-button>
+  <el-button @click="triggerFileInput">加载本地MPC文件</el-button>
+  <el-button @click="showServeMPC">管理服务器MPC文件</el-button>
   <br>
-  <el-text>
-    在此处可以选择本地文件并上传到服务器：
-  </el-text>
-  <input type="file" ref="fileInput" @change="handleFileChange" />
-  <input type="file" @change="loadFile" ref="fileInput" style="display: none;" />
-  <el-button @click="uploadFile">上传文件</el-button>
+  <br>
+  <div class="form-container">
+  <el-form  :model="filePost" :rules="rules" label-width="0px" ref="data1">
+    <el-form-item prop = "fileName" label="">
+      <el-input v-model="filePost.fileName" class="inputlength" placeholder="请填写文件名"/>
+    </el-form-item>
+  </el-form>
+  <el-form  :model="filePost"  label-width="50px" >
+    <el-form-item prop = "description" label="">
+      <el-input v-model="filePost.description" class="inputlength" placeholder="（可选）请填写文件描述"/>
+    </el-form-item>
+  </el-form>
+  </div>  
+  <input type="file" @change="loadFile" ref="fileInput" style="display: none;" /> 
+  
   <div class="editor-container" @scroll="syncScroll">
     <div class="line-numbers">
       <div v-for="n in numberOfLines" :key="n" class="line-number">{{ n }}</div>
@@ -21,20 +31,81 @@
   </div>
   <br>
   <el-button @click="compileCode">对上述代码进行编译</el-button>
+  <el-button @click="upLoadFile">上传文件</el-button>
   <div class="output-container">
   <pre>{{ compileOutput }}</pre>
   </div>
+  <el-dialog
+    v-model="fileDialogVisible"
+    title="以下是服务器中的MPC文件"
+    width="60%"
+    :before-close="fileDialogHandleClose"
+  >
+    <el-col :span="18" :offset="5">
+    <el-table 
+    :data="fileTableData" 
+    style="width: 100%" 
+    highlight-current-row 
+    max-height="400"
+    >
+        <el-table-column prop="id" label="文件id" width="80" />
+        <el-table-column prop="name" label="文件名" width="180" />
+        <el-table-column prop="description" label="文件描述" width="240"/>
+        <el-table-column fixed="right" label="操作" width="105" header-align="center">
+        <template v-slot="scope">
+          <!-- <el-button
+            link
+            type="primary"
+            @click="loadMPCFile(scope.row.id)"
+            size="small"
+            >读取</el-button
+          > -->
+          <el-button
+            link
+            type="primary"
+            @click="deleteMPCFile(scope.row.id)"
+            size="small"
+            >删除MPC文件</el-button
+          >
+        </template>
+      </el-table-column>
+      </el-table>
+      </el-col>
+  </el-dialog>
+  <el-dialog
+      v-model="feedbackDialogVisible"
+      title="提示"
+      width="30%"
+      :before-close="feedbackDialogClose"
+    >
+      <span class="formatted-text">{{ feedbackMessage }}</span>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="feedbackDialogVisible = false">好的</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </template>
   
   <script lang="ts" setup>
   import { ref, computed } from 'vue';
   import { uploadMpcToServer,compileMpc } from '../../api/user';
+  import { getAllModel } from '../../api/locateCompute';
+  import request from '../../utils/request'
   const code = ref('');
   const numberOfLines = computed(() => code.value.split('\n').length);
+
+  const rules = {
+  fileName:[{required:true,message:'请输入文件名',trigger:'change'}]}
 
   const syncScroll = (event) => {
   // 同步滚动逻辑
 };
+const feedbackDialogVisible = ref(false)
+const feedbackMessage = ref()
+const feedbackDialogClose = () => {
+  feedbackDialogVisible.value = false
+}
 
   const updateLineNumbers = () => {
     // 这里可以添加其他当文本变化时需要执行的代码
@@ -76,15 +147,70 @@
     event.preventDefault();
   };
 
-  
-
+const data1 = ref()
+const upLoadFile = async()=>{
+  filePost.value.content = code.value;
+  await data1.value.validate()
+  try {
+  await uploadMpcToServer(filePost.value);
+  feedbackMessage.value = '上传成功！';
+  feedbackDialogVisible.value = true;
+} catch (error) {
+  if (error.response && error.response.status === 409) {
+    feedbackMessage.value = 'MPC文件重名，请修改文件名！';
+  } else {
+    feedbackMessage.value = '发生错误，请稍后再试！';
+  }
+  feedbackDialogVisible.value = true;
+}
+}
 
 const filePost = ref({
 //   id:1,
   content: '',
   fileName: '',
-  description:'1'
+  description:''
 })
+
+
+const fileTableData = ref([])
+const fileDialogVisible = ref(false)
+const showServeMPC = async() => {
+  //展示对话框
+  fileDialogVisible.value = true
+  //展示所有MPC文件
+  const res = await getAllModel()
+  fileTableData.value = res.data.results
+}
+const apiResultUrl = ref('/model/mpc/')
+const testResultUrl = ref('/model/mpc/')
+const deleteMPCFile = async(id) => {
+  //拼接并删除
+  testResultUrl.value = apiResultUrl.value + id
+  await request.delete(testResultUrl.value)
+  //重新获取所有MPC文件
+  const res = await getAllModel()
+  fileTableData.value = res.data.results
+  //提示
+  feedbackMessage.value='删除成功！'
+  feedbackDialogVisible.value = true
+}
+
+// const loadMPCFile = async(id) => {
+//   //拼接并获取
+//   testResultUrl.value = apiResultUrl.value + id
+//   const res = await request.get(testResultUrl.value)
+//   //将获取的MPC文件内容赋值给code
+//   code.value = res.data.content
+//   //提示
+//   feedbackMessage.value='读取成功！'
+//   feedbackDialogVisible.value = true
+// }
+
+
+const fileDialogHandleClose = () => {
+  fileDialogVisible.value = false
+}
 
 const compileFilePost = ref({
   content: '',
@@ -179,6 +305,7 @@ const loadFile = event => {
     text-align: right;
     user-select: none;
     flex-shrink: 0; /* 防止行号区域缩小 */
+    height: 9000px;
   }
   
   .line-number {
@@ -200,7 +327,7 @@ const loadFile = event => {
   background-color: #f4f4f4;
   padding: 8px;
   margin-top: 20px;
-  height: 100px; 
+  height: 150px; 
    /* 根据需要调整高度 */
   overflow-y: auto; 
   /* 添加滚动条 */
@@ -210,5 +337,18 @@ const loadFile = event => {
   /* 保留空白符和换行 */
   color: #333;
 }
+.inputlength {
+  width: 200px;
+}
+.form-container {
+  display: flex;
+  justify-content: flex-start; /* 或者使用其他的对齐方式 */
+}
+
+/* 可选：如果需要，可以调整每个表单的宽度 */
+.el-form {
+  /* flex: 1; 这会使每个表单占据相等的空间 */
+}
+
   </style>
   

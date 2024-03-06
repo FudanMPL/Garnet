@@ -376,7 +376,7 @@ const taskTableLoading = ref(false)
 const fresh = async () => {
   taskTableLoading.value = true
   const res = await getAllLocatetask()
-  tableData.value = res.data
+  tableData.value = res.data.results
   taskTableLoading.value = false
 }
 

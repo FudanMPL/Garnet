@@ -24,22 +24,20 @@ using namespace std;
 #define EVAL_1 0
 #define EVAL_2 1
 
-
-template<class T>
+template <class T>
 class Fss : public ReplicatedBase, public ProtocolBase<T>
 {
     array<octetStream, 2> os;
     PointerVector<typename T::clear> add_shares;
     typename T::clear dotprod_share;
-    Preprocessing<T>* prep;
-    Fss3Prep<T>* fss3prep;
-    typename T::MAC_Check* MC;
+    Preprocessing<T> *prep;
+    Fss3Prep<T> *fss3prep;
+    typename T::MAC_Check *MC;
 
     template <class U>
     void trunc_pr(const vector<int> &regs, int size, U &proc, true_type);
     template <class U>
     void trunc_pr(const vector<int> &regs, int size, U &proc, false_type);
-
 
 public:
     static const bool uses_triples = false;
@@ -57,8 +55,8 @@ public:
             share[my_num] = value;
     }
 
-    //initialize preprocessing for fss preprocess
-    void init(Preprocessing<T>& prep, typename T::MAC_Check& MC);
+    // initialize preprocessing for fss preprocess
+    void init(Preprocessing<T> &prep, typename T::MAC_Check &MC);
     void init_mul();
     void prepare_mul(const T &x, const T &y, int n = -1);
     void exchange();
@@ -81,19 +79,24 @@ public:
     void stop_exchange();
 
     template <class U>
+    void psi_align(const vector<typename T::clear> &source, const Instruction &instruction, U &proc)
+    {
+        throw not_implemented();
+    }
+
+    template <class U>
     void change_domain(const vector<int> &reg, U &proc);
 
-    //new added function    
+    // new added function
     void distributed_comparison_function(SubProcessor<T> &processor, const Instruction &instruction, int lambda);
 
     void Muliti_Interval_Containment(SubProcessor<T> &processor, const Instruction &instruction, int lambda);
 
-    //new added generate function
+    // new added generate function
     void generate();
 
-    //new added evaluate function
+    // new added evaluate function
     bigint evaluate(typename T::clear x, int lambda);
 };
-
 
 #endif /* PROTOCOLS_Fss_H_ */

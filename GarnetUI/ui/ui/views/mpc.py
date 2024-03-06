@@ -14,13 +14,14 @@ from rest_framework.response import Response
 from pathlib import Path
 from django.conf import settings
 import subprocess
+from ..pagination import PagePagination
 
 
 class MpcSets(ModelViewSet):
     authentication_classes = [UserAuthentication]
     queryset = Mpc.objects.all()
     serializer_class = MpcModelSerializer
-
+    pagination_class = PagePagination
 
 class MpcFormStringView(GenericViewSet):
     serializer_class = NoneSerializer
