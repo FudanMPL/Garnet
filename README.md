@@ -7,6 +7,7 @@
 
 ## 部署
 当前Garnet支持Linux 2014以上以及MacOS  High Sierra之后的操作系统版本。
+Python >= 3.10.0
 
 ### 源码下载
 ```
@@ -17,13 +18,13 @@ git clone git@github.com:FudanMPL/Garnet.git
 
 #### Linux
 ```
-sudo apt-get install automake build-essential cmake git libboost-dev libboost-thread-dev libntl-dev libsodium-dev libssl-dev libtool m4 python3 texinfo yasm
+sudo apt-get install automake build-essential cmake git libboost-dev libboost-thread-dev libntl-dev libsodium-dev libssl-dev libtool m4  texinfo yasm
 ```
 
 #### MacOS
 
 ```
-brew install automake build-essential cmake git libboost-dev libboost-thread-dev libntl-dev libsodium-dev libssl-dev libtool m4 python3 texinfo yasm
+brew install automake build-essential cmake git libboost-dev libboost-thread-dev libntl-dev libsodium-dev libssl-dev libtool m4 texinfo yasm
 ```
 
 ### 编译
