@@ -13,5 +13,5 @@ sed -i "s|IPADDRESS = .*|IPADDRESS = \"$HostAddress\"|" ui/ui/settings.py
 sed -i "s|PORT = .*|PORT = $HostPort|" ui/ui/settings.py
 
 # 修改Vue3-garnet-ui/src/utils/request.js文件
-sed -i "6s|const baseURL = .*|const baseURL = 'http://$HostAddress:$HostPort/'|" Vue3-garnet-ui/src/utils/request.js
+sed -i "6s|const baseURL = .*|const baseURL = 'http://$HostAddress:$HostPort/api/'|" Vue3-garnet-ui/src/utils/request.js
 
