@@ -1,4 +1,4 @@
-![image](https://github.com/FudanMPL/Garnet/assets/37652261/ee4e86a1-0dfb-48f7-856e-4ad9ee805b20)# <center> Garnet（石榴石） 
+# <center> Garnet（石榴石） 
 <div align=center><img width = '130' height ='130' src="Garnet.jpeg"/></div>
 <br><br>
 
