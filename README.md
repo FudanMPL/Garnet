@@ -1,8 +1,8 @@
-# <center> Garnet（石榴石） 
+![image](https://github.com/FudanMPL/Garnet/assets/37652261/ee4e86a1-0dfb-48f7-856e-4ad9ee805b20)# <center> Garnet（石榴石） 
 <div align=center><img width = '130' height ='130' src="Garnet.jpeg"/></div>
 <br><br>
 
-<p align="justify">Garnet（石榴石） 是继SecMML（Queqiao）后，由复旦大学数据安全与治理实验室开发并开源的又一个安全多方学习（MPL：Multi-party Learning）平台，其深度优化并扩展自MP-SPDZ（CCS 2020），并适配安全多方学习的特定功能需求。相较前一个版本SecMML (Queqiao)，Garnet是一个易用性高、通用性强且支持算法丰富的安全多方学习平台。当前，Garnet支持多种安全多方计算协议，例如：半诚实两方场景下的SecureML协议（Garnet新增）、任意多方不诚实大多数+恶意场景下的SPDZ协议等。用户可以使用Python脚本语言调用XGBoost（Garnet新增）模型安全训练功能以及预训练模型的安全微调（Garnet新增）功能。此外，Garnet还支持多场景（任意参与方数，诚实大多数+半诚实，不诚实大多数+半诚实等）下的逻辑回归、神经网络等机器学习模型的安全训练功能。</p>
+<p align="justify">Garnet（石榴石） 是继SecMML（Queqiao）后，由复旦大学数据安全与治理实验室开发并开源的又一个安全多方学习（MPL：Multi-party Learning）平台，其深度优化并扩展自MP-SPDZ（CCS 2020），并适配安全多方学习的特定功能需求。经过多轮迭代，Garnet是一个易用性高、通用性强且支持算法丰富的安全多方学习平台。当前，Garnet支持多种安全多方计算协议，例如：半诚实两方场景下的SecureML协议（Garnet新增）、任意多方不诚实大多数+恶意场景下的SPDZ协议等。用户可以使用Python脚本语言调用XGBoost（Garnet新增）模型安全训练功能以及预训练模型的安全微调（Garnet新增）功能。此外，Garnet还支持多场景（任意参与方数，诚实大多数+半诚实，不诚实大多数+半诚实等）下的逻辑回归、神经网络等机器学习模型的安全训练功能。</p>
 
 
 ## 部署
