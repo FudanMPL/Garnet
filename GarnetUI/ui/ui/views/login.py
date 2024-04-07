@@ -12,6 +12,7 @@ from drf_spectacular.utils import (
     extend_schema,
     OpenApiResponse,
     inline_serializer,
+    OpenApiExample,
 )
 
 
@@ -27,6 +28,11 @@ class LoginView(APIView):
             ),
             status.HTTP_403_FORBIDDEN: OpenApiResponse(description="登陆错误"),
         },
+        examples=[
+            OpenApiExample(
+                "Example 1", value={"username": "DSGLAB", "password": "FUDAN"}
+            )
+        ],
     )
     def post(self, request, *args, **kwargs):
         username = request.data.get("username")

@@ -1,0 +1,59 @@
+
+
+
+
+
+if len(program.args) > 2:
+    row = int(program.args[2]) # 禁毒委总共有多少条数据
+else:
+    row = 12
+
+name_length = 8 # 名字的最长长度
+id_length = 18 # 身份证号的最长长度
+number_length = 25 # 处方单号的最长长度
+
+check_threshold = sfix.get_input_from(0)  # 读入判断规则的阈值
+check_start_date = sint.get_input_from(0) # 读入起始时间
+check_end_date = sint.get_input_from(0) # 读入截止时间
+
+
+
+
+
+table = sint.Matrix(row, id_length + id_length + 2 * number_length + 2)
+
+for i in range(row):
+    for j in range(id_length):
+        table[i][j] = schr.get_input_from(1)
+    # print_ln("%s", (cchr) (table[i].reveal()[0:id_length]))
+    for j in range(id_length, id_length + name_length):
+        table[i][j] = schr.get_input_from(1)
+    # print_ln("%s", (cchr) (table[i].reveal()[id_length:id_length + name_length]))
+    table[i][id_length + name_length] = sfix.get_input_from(1)
+    for j in range(1 + id_length + name_length, 1 + id_length + name_length + number_length):
+        table[i][j] = schr.get_input_from(1)
+    table[i][ 1 + id_length + name_length + number_length] = sint.get_input_from(1)
+    for j in range(2 + id_length + name_length + number_length, 2 + id_length + name_length + 2 * number_length):
+        table[i][j] = schr.get_input_from(1)
+    table[i][2 + id_length + name_length + 2 * number_length] = sint.get_input_from(1)
+
+print_ln("===================== 检测结果 =====================")
+print_ln("患者证件号 患者姓名 累计倍数 起始处方单号 起始日期 结束处方单号 结束日期")
+
+
+for i in range(row):
+    entry = table[i]
+    need_supervised =  (entry[id_length + name_length] >= check_threshold) & (entry[1 + id_length + name_length + number_length] >= check_start_date) & (entry[1 + id_length + name_length + number_length] <= check_end_date) & (entry[2 + id_length + name_length + 2 * number_length] >= check_start_date) & (entry[2 + id_length + name_length + 2 * number_length] <= check_end_date) # 判断是否符合规则
+    entry = entry * need_supervised + (1 - need_supervised) * -1 # 不符合规则的数据置为-1
+    @if_(need_supervised.reveal() >0)
+    def _():
+        plain_text = entry.reveal() # 还原数据
+        id_number = (cchr) (plain_text[0:id_length])
+        name = (cchr) (plain_text[id_length: id_length + name_length])
+        value = (cfix) (plain_text[id_length + name_length])
+        start_number = (cchr)(plain_text[id_length + name_length + 1 : id_length + name_length + 1 + number_length])
+        start_date = plain_text[id_length + name_length + 1 + number_length]
+        end_number = (cchr)(plain_text[id_length + name_length + 1 + number_length + 1 : id_length + name_length + 1 + number_length + 1 + number_length])
+        end_date = plain_text[id_length + name_length + 1 + number_length + 1 + number_length]
+        print_ln("%s, %s, %s, %s, %s, %s, %s", id_number, name, value, start_number, start_date, end_number, end_date)
+print_ln("====================================================")

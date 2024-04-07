@@ -15,6 +15,11 @@ void check_ssl_file(string filename)
                         "You can use `Scripts/setup-ssl.sh <nparties>`.");
 }
 
+bool fileExists(const std::string& filename) {
+    std::ifstream file(filename);
+    return file.good();
+}
+
 void ssl_error(string side, string other, string me)
 {
     cerr << side << "-side handshake with " << other
@@ -96,16 +101,40 @@ CryptoPlayer::CryptoPlayer(const Names& Nms, const string& id_base) :
         senders[i] = new Sender<ssl_socket*>(i < my_num() ? sockets[i] : other_sockets[i]);
         receivers[i] = new Receiver<ssl_socket*>(i < my_num() ? other_sockets[i] : sockets[i]);
     }
+
+
 }
 
 void CryptoPlayer::connect(int i, vector<int>* plaintext_sockets)
 {
+    if (server_names.size() == 0){
+        auto filename =  std::string(SSL_DIR) + "server.name";
+        if (fileExists(filename)) {
+        std::ifstream file(filename);
+        std::string line;
+        while (std::getline(file, line)) {
+            server_names.push_back(line);
+        }
+        file.close();
+        } else {
+            for (int i = 0; i < num_players(); i++)
+            {
+                server_names.push_back("P" + to_string(i));
+            }
+        }
+    }
+
+
     sockets[i] = new ssl_socket(io_service, ctx, plaintext_sockets[0][i],
-            "P" + to_string(i), "P" + to_string(my_num()), i < my_num());
+            server_names[i], server_names[my_num()], i < my_num());
     other_sockets[i] = new ssl_socket(io_service, ctx, plaintext_sockets[1][i],
-            "P" + to_string(i), "P" + to_string(my_num()), i < my_num());
+            server_names[i], server_names[my_num()], i < my_num());
 
 }
+
+
+
+
 
 CryptoPlayer::CryptoPlayer(const Names& Nms, int id_base) :
         CryptoPlayer(Nms, to_string(id_base))

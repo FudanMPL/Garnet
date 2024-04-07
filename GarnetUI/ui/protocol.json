@@ -1,0 +1,34 @@
+[
+    {
+        "model": "Model.Protocol",
+        "pk": 1,
+        "fields": {
+            "name": "sml-party",
+            "description": "半诚实，不诚实大多数"
+        }
+    },
+    {
+        "model": "Model.Protocol",
+        "pk": 2,
+        "fields": {
+            "name": "mascot-party",
+            "description": "恶意，不诚实大多数"
+        }
+    },
+    {
+        "model": "Model.Protocol",
+        "pk": 3,
+        "fields": {
+            "name": "semi2k-party",
+            "description": "2方"
+        }
+    },
+    {
+        "model": "Model.Protocol",
+        "pk": 4,
+        "fields": {
+            "name": "replicated-ring-party",
+            "description": "3方"
+        }
+    }
+]

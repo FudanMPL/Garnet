@@ -10,9 +10,11 @@ import argparse
 
 
 
-def id_process(date_str):
-    result = re.sub(r'[a-zA-Z]', '', date_str)
-    return int(result)
+def id_process(id_str):
+    l = 18 - len(id_str)
+    for i in range(l):
+        id_str = id_str + "\\x00"
+    return id_str
 
 def get_number_code(str):
     str = str[-13:-1]
@@ -22,8 +24,7 @@ def process(file_path):
     data = pd.read_excel(file_path, engine='openpyxl')
     data = data[~data['证件号码'].isin(['无', '无身份证号码', 'NULL', None])]  # 删除没有身份证的
     data['证件号码'] = data['证件号码'].astype(str)
-    data['证件号码'] = data['证件号码'].apply(id_process)  # 删除字母，防止身份证号中出现X
-    data['证件号码'] = data['证件号码'].astype(int)
+    data['证件号码'] = data['证件号码'].apply(id_process)
     data['部门受案号'] = data['部门受案号'].apply(get_number_code)
     data['部门受案号'] = data['部门受案号'].astype(int)
     result = data[['证件号码'] ]
