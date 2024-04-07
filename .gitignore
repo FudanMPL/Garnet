@@ -144,3 +144,6 @@ Compiler/GFA/*.json
 *.json
 
 *.dSYM
+
+#onnx model
+*.onnx

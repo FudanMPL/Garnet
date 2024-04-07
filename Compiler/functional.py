@@ -18,7 +18,7 @@ from typing import List, NamedTuple, Callable, Dict, Optional, Union, Tuple, Any
 approx = False
 
 @buildingblock("relu-forward")
-def relu(input, inplace=False):  
+def relu(input, inplace=False): 
     # Considering that the saved memory overhead has very little impact on MPC computing performance, 
     #the inplace parameter is not considered
     op_id = get_opid()
@@ -38,10 +38,9 @@ def relu(input, inplace=False):
             new_value=MultiArray(list(input.shape) ,input.value.value_type)
             inter=MultiArray(list(input.shape) ,sint)
         output = Tensor(new_value, req_grad=input.req_grad)
-        if input.req_grad:
-            operation = Operation(inputs=[input.name], outputs=[output.name], propagate=propagate,intermediate=[inter])
-        else:
-            operation = Operation(inputs=[input.name], outputs=[output.name], propagate=fake_propagate,intermediate=[inter])
+        operation = Operation(inputs=[input.name], outputs=[output.name],
+                                  propagate=propagate if input.req_grad else fake_propagate,
+                                  intermediate=[inter], name='relu')
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
@@ -604,9 +603,9 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0], 
         new_value=MultiArray(out_shape,input.value.value_type)
         output = Tensor(new_value, req_grad=input.req_grad or weight.req_grad)
         if input.req_grad or weight.req_grad:
-            operation = Operation(inputs=[input.name,weight.name], outputs=[output.name], propagate=propagate)
+            operation = Operation(inputs=[input.name,weight.name], outputs=[output.name], propagate=propagate, name='conv')
         else:
-            operation = Operation(inputs=[input.name,weight.name], outputs=[output.name], propagate=fake_propagate)
+            operation = Operation(inputs=[input.name,weight.name], outputs=[output.name], propagate=fake_propagate, name='conv')
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
@@ -981,10 +980,10 @@ def avg_pool2d(input, kernel_size, stride=None, padding=0,):
         output = Tensor(new_value, req_grad=input.req_grad)
         if input.req_grad:
             operation = Operation(inputs=[input.name], outputs=[output.name], propagate=propagate,
-                                  intermediate=[stride, kernel_size,padding])
+                                  intermediate=[stride, kernel_size,padding], name='avgpool')
         else:
             operation = Operation(inputs=[input.name], outputs=[output.name], propagate=fake_propagate,
-                                  intermediate=[stride, kernel_size,padding])
+                                  intermediate=[stride, kernel_size,padding], name='avgpool')
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
