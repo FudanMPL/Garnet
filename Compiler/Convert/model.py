@@ -12,8 +12,8 @@ from tensor import Tensor
 from Compiler.types import *
 from Compiler.library import *
 
-# from torch.jit import TracerWarning
-from nn import Identity
+from torch.jit import TracerWarning
+from torch.nn.modules.linear import Identity
 
 from Convert.constants import (
     COMPOSITE_LAYERS,
