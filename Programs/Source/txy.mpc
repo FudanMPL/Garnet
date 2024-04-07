@@ -1,0 +1,13 @@
+n = 100
+cnt = 0
+
+A = []
+B = []
+C = []
+for i in range(n):
+    A.append(sfix.get_random(-500,500))
+    B.append(sfix.get_random(-500,500))
+    C.append(sfix(0))
+
+for i in range(n):
+    C[i] = A[i] > B[i]
