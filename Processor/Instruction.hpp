@@ -1189,7 +1189,7 @@ inline void Instruction::execute(Processor<sint, sgf2n> &Proc) const
       Proc.Procp.protocol.psi_align(Proc.Procp.get_C(), *this, Proc.Procp);
       return;
     case PSI:
-      Proc.Procp.psi(*this);
+      Proc.Procp.protocol.psi(Proc.Procp.get_C(), *this, Proc.Procp);
       return;
     case MATMULS:
       Proc.Procp.matmuls(Proc.Procp.get_S(), *this);

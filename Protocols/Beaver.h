@@ -59,6 +59,12 @@ public:
   int get_n_relevant_players() { return 1 + T::threshold(P.num_players()); }
 
   template <class U>
+  void psi(const vector<typename T::clear> &source, const Instruction &instruction, U &proc)
+  {
+    throw not_implemented();
+  }
+
+  template <class U>
   void psi_align(const vector<typename T::clear> &source, const Instruction &instruction, U &proc)
   {
     throw not_implemented();

@@ -79,6 +79,12 @@ public:
     void stop_exchange();
 
     template <class U>
+    void psi(const vector<typename T::clear> &source, const Instruction &instruction, U &proc)
+    {
+        throw not_implemented();
+    }
+
+    template <class U>
     void psi_align(const vector<typename T::clear> &source, const Instruction &instruction, U &proc)
     {
         throw not_implemented();
