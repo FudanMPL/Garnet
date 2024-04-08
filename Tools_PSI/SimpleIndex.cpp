@@ -1,4 +1,4 @@
-#ifdef ENABLE_SIMPLEINDEX
+// #ifdef ENABLE_SIMPLEINDEX
 
 #include "SimpleIndex.h"
 #include <random>
@@ -536,4 +536,4 @@ void SimpleIndex::getMapping(std::vector<std::array<T, 3>> &mMapping)
     }
 }
 
-#endif
+// #endif
