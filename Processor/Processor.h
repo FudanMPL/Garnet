@@ -94,11 +94,15 @@ public:
   void delete_shuffle(int handle);
   void inverse_permutation(const Instruction &instruction);
 
-  void psi(const Instruction &instruction);
-  void psi_align(const vector<typename T::clear> &source, const Instruction &instruction)
-  {
-    throw not_implemented();
-  }
+  // void psi(const vector<typename T::clear> &source, const Instruction &instruction, U &proc)
+  // {
+  //   throw not_implemented();
+  // }
+  
+  // void psi_align(const vector<typename T::clear> &source, const Instruction &instruction)
+  // {
+  //   throw not_implemented();
+  // }
 
   void input_personal(const vector<int> &args);
   void send_personal(const vector<int> &args);

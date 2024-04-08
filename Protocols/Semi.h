@@ -9,6 +9,17 @@
 #include "SPDZ.h"
 #include "Processor/TruncPrTuple.h"
 
+#include "Tools/SimpleIndex.h"
+#include "cryptoTools/Common/CuckooIndex.h"
+#include "OT/OTExtension.h"
+#include "OT/OTExtensionWithMatrix.h"
+#include "Tools/octetStream.h"
+
+#define RECEIVER_P 0
+
+typedef uint64_t idtype;
+
+
 /**
  * Dishonest-majority protocol for computation modulo a power of two
  */
@@ -87,6 +98,332 @@ public:
   {
     for (int i = 0; i < OnlineOptions::singleton.batch_size; i++)
       this->random.push_back(G.get<T>());
+  }
+
+  template <class U>
+  void psi(const vector<typename T::clear> &source, const Instruction &instruction, U &proc)
+  {
+    // octetStream cs;
+    // int r0 = instruction.get_r(0);
+    octetStream cs0, cs, cs2;
+    auto res = proc.C.begin() + (instruction.get_r(0));
+
+    // typename T::clear result;
+    auto &args = instruction.get_start();
+    fstream r;
+    idtype m = args.back();
+    // cout << args.size() << " m: " << m << endl;
+    // for (size_t i = 0; i < args.size(); i++)
+    // {
+    //   cout << args[i] << " ";
+    // }
+    // cout << endl;
+
+    r.open("Player-Data/PSI/ID-P" + to_string(proc.P.my_num()), ios::in);
+    vector<osuCrypto::block> ids;
+    vector<idtype> smallids;
+    idtype r_tmp;
+    for (size_t i = 0; i < m; i++)
+    {
+      r >> r_tmp;
+      smallids.push_back(r_tmp);
+      ids.push_back(osuCrypto::block(r_tmp));
+    }
+    r.close();
+    // for (size_t i = 0; i < m; i++)
+    // {
+    //   cout << ids[i] << " ";
+    // }
+    // cout << endl;
+
+    // ssp 40
+    int ssp = 40;
+    osuCrypto::CuckooParam params = oc::CuckooIndex<>::selectParams(m, ssp, 0, 3);
+    int nbase = 128;
+    size_t l = sizeof(idtype) * 8;
+    int nOTs = l * params.numBins();
+    // PRNG G;
+    // G.ReSeed();
+    OT_ROLE ot_role;
+    // cout << params.numBins() << endl;
+    osuCrypto::CuckooIndex<> cuckoo;
+    SimpleIndex sIdx;
+    if (proc.P.my_num() == RECEIVER_P)
+    {
+      int seed = 0;
+      cs0.store(seed);
+      proc.P.send_to(1 - RECEIVER_P, cs0);
+      osuCrypto::block cuckooSeed(seed);
+      cuckoo.init(params);
+      cuckoo.insert(ids, cuckooSeed);
+      // cuckoo.print();
+      ot_role = RECEIVER;
+    }
+    else
+    {
+      proc.P.receive_player(RECEIVER_P, cs0);
+      int seed;
+      cs0.get(seed);
+      osuCrypto::block cuckooSeed(seed);
+      sIdx.init(params.numBins(), m, ssp, 3);
+      sIdx.insertItems(ids, cuckooSeed);
+      // sIdx.print();
+      ot_role = SENDER;
+    }
+
+    // cout << "begin base ot \n";
+    // base ot
+    timeval baseOTstart, baseOTend;
+    gettimeofday(&baseOTstart, NULL);
+    RealTwoPartyPlayer *rP = new RealTwoPartyPlayer(proc.P.N, 1 - proc.P.my_num(), "machine");
+    BaseOT bot = BaseOT(nbase, 128, rP, INV_ROLE(ot_role));
+    bot.exec_base();
+    gettimeofday(&baseOTend, NULL);
+    double basetime = timeval_diff(&baseOTstart, &baseOTend);
+    // cout << "BaseTime (" << role_to_str(ot_role) << "): " << basetime / 1000000 << endl
+    //      << flush;
+    // Receiver send something to force synchronization
+    // (since Sender finishes baseOTs before Receiver)
+    if (proc.P.my_num() == RECEIVER_P)
+    {
+      bigint a = 3;
+      a.pack(cs0);
+      proc.P.send_to(1 - RECEIVER_P, cs0);
+    }
+    else
+    {
+      proc.P.receive_player(RECEIVER_P, cs0);
+      bigint a;
+      a.unpack(cs0);
+      // cout << a << endl;
+    }
+
+    // convert baseOT selection bits to BitVector
+    // (not already BitVector due to legacy PVW code)
+    BitVector baseReceiverInput = bot.receiver_inputs;
+    baseReceiverInput.resize(nbase);
+
+    OTExtensionWithMatrix *ot_ext = new OTExtensionWithMatrix(rP, ot_role);
+    BitVector receiverInput(nOTs);
+    if (proc.P.my_num() == RECEIVER_P)
+    {
+      idtype idx;
+      for (size_t i = 0; i < params.numBins(); i++)
+      {
+        if (!cuckoo.mBins[i].isEmpty())
+        {
+          idx = smallids[cuckoo.mBins[i].idx()];
+          // cout << idx << " | ";
+          receiverInput.set_word(i, idx);
+          // cout << receiverInput.get_word(i) << endl;
+        }
+      }
+      // cout << receiverInput.str() << endl;
+      // receiverInput.randomize(G);
+    }
+    // cout << receiverInput.str() << flush;
+    // cout << "Running " << nOTs << " OT extensions\n"
+    //      << flush;
+
+    // cout << "Initialize OT Extension\n";
+    timeval OTextstart, OTextend;
+    gettimeofday(&OTextstart, NULL);
+
+    ot_ext->init(baseReceiverInput,
+                 bot.sender_inputs, bot.receiver_outputs);
+    ot_ext->transfer(nOTs, receiverInput, 1);
+    // ot_ext.check();
+    bot.extend_length();
+
+    // print
+    // for (int i = 0; i < nOTs; i++)
+    // {
+    //   if (ot_role == SENDER)
+    //   {
+    //     // send both inputs over
+    //     cout << i << " " << bot.sender_inputs[i][0].str() << " | " << bot.sender_inputs[i][1].str() << endl;
+    //   }
+    //   else
+    //   {
+    //     cout << i << " " << receiverInput[i] << ": " << bot.receiver_outputs[i].str() << endl;
+    //   }
+    // }
+    // bot.check();
+
+    gettimeofday(&OTextend, NULL);
+    double totaltime = timeval_diff(&OTextstart, &OTextend);
+    // cout << "Time for OTExt (" << role_to_str(ot_role) << "): " << totaltime / 1000000 << endl
+    //      << flush;
+
+    // caculate oprf
+    idtype num;
+    vector<idtype> inter_ids;
+    if (proc.P.my_num() == RECEIVER_P)
+    {
+      // vector<BitVector> r_fs(params.numBins());
+      // receive oprf result
+      proc.P.receive_player(1 - RECEIVER_P, cs);
+      vector<string> s_fs;
+      idtype mm = m * 3;
+      BitVector f_temp;
+      for (size_t i = 0; i < mm; i++)
+      {
+        f_temp.unpack(cs);
+        s_fs.push_back(f_temp.str());
+        // cout << f_temp.str() << endl;
+      }
+      sort(s_fs.begin(), s_fs.end());
+
+      // compare to find intersection set
+      BitVector key, temp;
+      string strkey;
+      key.resize(sizeof(__m128i) << 3);
+      idtype inter_id;
+      for (unsigned int i = 0; i < params.numBins(); i++)
+      {
+        if (!cuckoo.mBins[i].isEmpty())
+        {
+          // cout << i << ": ";
+          key.assign_zero();
+          // get oprf
+          for (unsigned int j = 0; j < l; j++)
+          {
+            temp.assign_bytes((char *)ot_ext->get_receiver_output(i * l + j), sizeof(__m128i));
+            // cout << temp.str() << endl;
+            key.add(temp);
+          }
+          // r_fs[i] = key;
+          // find same element
+          strkey = key.str();
+          // cout << strkey << endl;
+          bool found = binary_search(s_fs.begin(), s_fs.end(), strkey);
+          if (found)
+          {
+            inter_id = smallids[cuckoo.mBins[i].idx()];
+            // cout << inter_id << ": " << strkey << endl;
+            inter_ids.push_back(inter_id);
+          }
+          // cout << smallids[cuckoo.mBins[i].idx()] << " " << r_fs[i].str() << endl;
+        }
+      }
+      sort(inter_ids.begin(), inter_ids.end());
+      num = inter_ids.size();
+      // proc.Proc->public_file << num << "\n";
+      cs2.store(num);
+      for (const idtype &inter_id : inter_ids)
+      {
+        cs2.store(inter_id);
+        // cout << inter_id << endl;
+        // proc.Proc->public_file << inter_id << "\n";
+        // proc.Proc->public_output << inter_id << "\n";
+      }
+      proc.P.send_to(1 - RECEIVER_P, cs2);
+      // open result to sender
+    }
+    else // sender
+    {
+      BitVector key, temp;
+      idtype id;
+      vector<BitVector> fs;
+      // vector<vector<BitVector>> fkx(params.numBins());
+      key.resize(sizeof(__m128i) << 3);
+      for (unsigned int i = 0; i < params.numBins(); i++)
+      {
+        // cout << "Bin #" << i << endl;
+        array<vector<BitVector>, 2> outs;
+        ot_ext->get_sender_output128i(outs, i * l, l);
+
+        // for (size_t jj = i * params.numBins(); jj < i * l + l; jj++)
+        // {
+        //   cout << outs[0][jj].str() << " " << outs[1][jj].str() << endl;
+        // }
+
+        for (unsigned int k = 0; k < sIdx.mBinSizes[i]; k++)
+        {
+          key.assign_zero();
+          id = smallids[sIdx.mBins(i, k).idx()];
+          // cout << id << " | ";
+          for (unsigned int j = 0; j < l; j++)
+          {
+            // cout << (id & 0x1);
+            temp = outs[id & 0x1][j];
+            id = id >> 1;
+            key.add(temp);
+          }
+          fs.push_back(key);
+          // cout << key.str() << endl;
+          // cout << "|   " << fkx[i][k].str() << endl;
+        }
+      }
+      for (BitVector fk : fs)
+      {
+        fk.pack(cs);
+      }
+      proc.P.send_to(RECEIVER_P, cs);
+      proc.P.receive_player(RECEIVER_P, cs2);
+      idtype inter_id;
+      cs2.get(num);
+      // proc.Proc->public_file << num << "\n";
+      for (size_t i = 0; i < num; i++)
+      {
+        cs2.get(inter_id);
+        inter_ids.push_back(inter_id);
+        // proc.Proc->public_file << inter_id << "\n";
+        // cout << inter_id << endl;
+        // dest[i] = inter_id;
+      }
+    }
+    // proc.Proc->public_file.seekg(0);
+
+    res[0] = num;
+    for (size_t i = 0; i < num; i++)
+    {
+      res[i + 1] = inter_ids[i];
+      // cout << inter_ids[i] << endl;
+    }
+    // delete bot;
+    delete ot_ext;
+
+    if (0)
+    {
+      BitVector receiver_output, sender_output;
+      // char filename[1024];
+      // sprintf(filename, RECEIVER_INPUT, P.my_num());
+      // ofstream outf(filename);
+      // receiverInput.output(outf, false);
+      // outf.close();
+      // sprintf(filename, RECEIVER_OUTPUT, P.my_num());
+      // outf.open(filename);
+      if (ot_role == SENDER)
+      {
+
+        // outf.close();
+
+        // sprintf(filename, SENDER_OUTPUT, P.my_num(), i);
+        // outf.open(filename);
+        for (int j = 0; j < nOTs; j++)
+        {
+          for (int i = 0; i < 2; i++)
+          {
+            sender_output.assign_bytes((char *)ot_ext->get_sender_output(i, j), sizeof(__m128i));
+            cout << sender_output.str() << "  ";
+            // sender_output.output(outf, false);
+          }
+          cout << endl;
+          // outf.close();
+        }
+      }
+      else
+      {
+        for (unsigned int i = 0; i < nOTs; i++)
+        {
+          receiver_output.assign_bytes((char *)ot_ext->get_receiver_output(i), sizeof(__m128i));
+          cout << receiverInput[i] << ": " << receiver_output.str() << endl;
+          // receiver_output.output(outf, false);
+        }
+      }
+    }
+    // return 0;
   }
 
   template <class U>

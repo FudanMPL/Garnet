@@ -228,6 +228,7 @@ tinier-party.x: $(OT)
 spdz2k-party.x: $(TINIER) $(patsubst %.cpp,%.o,$(wildcard Machines/SPDZ2*.cpp))
 static/spdz2k-party.x: $(patsubst %.cpp,%.o,$(wildcard Machines/SPDZ2*.cpp))
 semi-party.x: $(OT)  $(GC_SEMI)
+semi2k-party.x: CFLAGS+=-DENABLE_SIMPLEINDEX
 semi2k-party.x: $(OT) $(GC_SEMI)
 semi2k-with-conversion-party.x: $(OT) $(GC_SEMI)
 sml-party.x: $(OT) $(GC_SEMI) 
