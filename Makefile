@@ -1,6 +1,6 @@
 include CONFIG
 
-CUDA=-lcudart -L/usr/lib/cuda/lib64
+CUDA=-lcudart -L/usr/local/cuda/lib64
 
 MATH = $(patsubst %.cpp,%.o,$(wildcard Math/*.cpp))
 
@@ -211,7 +211,7 @@ tree-inference.x: Machines/tree-inference.cpp  $(MINI_OT) $(SHAREDLIB)
 
 
 %.x: Machines/%.o $(MINI_OT) $(SHAREDLIB)
-	$(CXX) -o $@ $(CFLAGS) $^ -lcudart -L/usr/lib/cuda/lib64 $(LDLIBS) $(SHAREDLIB)
+	$(CXX) -o $@ $(CFLAGS) $^ -lcudart -L/usr/local/cuda/lib64 $(LDLIBS) $(SHAREDLIB)
 
 %-ecdsa-party.x: ECDSA/%-ecdsa-party.o ECDSA/P256Element.o $(VM)
 	$(CXX) -o $@ $(CFLAGS) $^ $(LDLIBS)
@@ -220,25 +220,44 @@ BUILD_DIR_DPF = build/dpf
 $(BUILD_DIR_DPF):
 	mkdir -p $(BUILD_DIR_DPF)
 $(BUILD_DIR_DPF)/interface.o:
-	nvcc -arch=sm_35 -rdc=true -std=c++11 -O3 -c GPU/dpf/interface.cu -o $(BUILD_DIR_DPF)/interface.o -lcudadevrt -lcudart -I/usr/lib/cuda/include -L/usr/lib/cuda/lib64 -shared -Xcompiler -fPIC -I. -I./deps 
+	nvcc -arch=sm_86 -rdc=true -std=c++11 -O3 -c GPU/dpf/interface.cu -o $(BUILD_DIR_DPF)/interface.o -lcudadevrt -lcudart -I/usr/local/cuda/include -L/usr/local/cuda/lib64 -shared -Xcompiler -fPIC -I. -I./deps 
 $(BUILD_DIR_DPF)/gpu.o:	$(BUILD_DIR_DPF)/interface.o
-	nvcc -arch=sm_35 -dlink -o $(BUILD_DIR_DPF)/gpu.o $(BUILD_DIR_DPF)/interface.o -lcudadevrt -lcudart
+	nvcc -arch=sm_86 -dlink -o $(BUILD_DIR_DPF)/gpu.o $(BUILD_DIR_DPF)/interface.o -lcudadevrt -lcudart
 $(BUILD_DIR_DPF)/test.o: 
 	g++ -c GPU/dpf/test.cpp -o $(BUILD_DIR_DPF)/test.o -I./local/include $(LDLIBS) $(CFLAGS)
 test_gpu_dpf: $(BUILD_DIR_DPF) $(SHAREDLIB) $(BUILD_DIR_DPF)/test.o $(BUILD_DIR_DPF)/gpu.o
-	g++ -g $(BUILD_DIR_DPF)/test.o $(BUILD_DIR_DPF)/gpu.o $(BUILD_DIR_DPF)/interface.o -o $(BUILD_DIR_DPF)/test_gpu -lcudadevrt -lcudart -I/usr/lib/cuda/include -L/usr/lib/cuda/lib64 $(LDLIBS) $(SHAREDLIB) $(CFLAGS)
+	g++ -g $(BUILD_DIR_DPF)/test.o $(BUILD_DIR_DPF)/gpu.o $(BUILD_DIR_DPF)/interface.o -o $(BUILD_DIR_DPF)/test_gpu -lcudadevrt -lcudart -I/usr/local/cuda/include -L/usr/local/cuda/lib64 $(LDLIBS) $(SHAREDLIB) $(CFLAGS)
 
 BUILD_DIR_DYNAMIC_DPF = build/dynamic_dpf
 $(BUILD_DIR_DYNAMIC_DPF):
 	mkdir -p $(BUILD_DIR_DYNAMIC_DPF)
 $(BUILD_DIR_DYNAMIC_DPF)/interface.o:
-	nvcc -arch=sm_35 -rdc=true -std=c++11 -O3 -c GPU/dynamic_dpf/interface.cu -o $(BUILD_DIR_DYNAMIC_DPF)/interface.o -lcudadevrt -lcudart -I/usr/lib/cuda/include -L/usr/lib/cuda/lib64 -shared -Xcompiler -fPIC -I. -I./deps 
+	nvcc -arch=sm_86 -rdc=true -std=c++11 -O3 -c GPU/dynamic_dpf/interface.cu -o $(BUILD_DIR_DYNAMIC_DPF)/interface.o -lcudadevrt -lcudart -I/usr/local/cuda/include -L/usr/local/cuda/lib64 -shared -Xcompiler -fPIC -I. -I./deps 
 $(BUILD_DIR_DYNAMIC_DPF)/gpu.o:	$(BUILD_DIR_DYNAMIC_DPF)/interface.o
-	nvcc -arch=sm_35 -dlink -o $(BUILD_DIR_DYNAMIC_DPF)/gpu.o $(BUILD_DIR_DYNAMIC_DPF)/interface.o -lcudadevrt -lcudart
+	nvcc -arch=sm_86 -dlink -o $(BUILD_DIR_DYNAMIC_DPF)/gpu.o $(BUILD_DIR_DYNAMIC_DPF)/interface.o -lcudadevrt -lcudart
 $(BUILD_DIR_DYNAMIC_DPF)/test.o: 
 	g++ -c GPU/dynamic_dpf/test.cpp -o $(BUILD_DIR_DYNAMIC_DPF)/test.o -I./local/include $(LDLIBS) $(CFLAGS)
 test_gpu_dynamic_dpf: $(BUILD_DIR_DYNAMIC_DPF) $(SHAREDLIB) $(BUILD_DIR_DYNAMIC_DPF)/test.o $(BUILD_DIR_DYNAMIC_DPF)/gpu.o
-	g++ -g $(BUILD_DIR_DYNAMIC_DPF)/test.o $(BUILD_DIR_DYNAMIC_DPF)/gpu.o $(BUILD_DIR_DYNAMIC_DPF)/interface.o -o $(BUILD_DIR_DYNAMIC_DPF)/test_gpu -lcudadevrt -lcudart -I/usr/lib/cuda/include -L/usr/lib/cuda/lib64 $(LDLIBS) $(SHAREDLIB) $(CFLAGS)
+	g++ -g $(BUILD_DIR_DYNAMIC_DPF)/test.o $(BUILD_DIR_DYNAMIC_DPF)/gpu.o $(BUILD_DIR_DYNAMIC_DPF)/interface.o -o $(BUILD_DIR_DYNAMIC_DPF)/test_gpu -lcudadevrt -lcudart -I/usr/local/cuda/include -L/usr/local/cuda/lib64 $(LDLIBS) $(SHAREDLIB) $(CFLAGS)
+
+BUILD_DIR_DCF = build/dcf
+$(BUILD_DIR_DCF):
+	mkdir -p $(BUILD_DIR_DCF)
+$(BUILD_DIR_DCF)/interface.o:
+	nvcc -arch=sm_86 -rdc=true -std=c++11 -O3 -c GPU/dcf/interface.cu -o $(BUILD_DIR_DCF)/interface.o -lcudadevrt -lcudart -I/usr/local/cuda/include -L/usr/local/cuda/lib64 -shared -Xcompiler -fPIC -I. -I./deps 
+$(BUILD_DIR_DCF)/gpu.o:	$(BUILD_DIR_DCF)/interface.o
+	nvcc -arch=sm_86 -dlink -o $(BUILD_DIR_DCF)/gpu.o $(BUILD_DIR_DCF)/interface.o -lcudadevrt -lcudart
+$(BUILD_DIR_DCF)/test.o: 
+	g++ -c GPU/dcf/test.cpp -o $(BUILD_DIR_DCF)/test.o -I./local/include $(LDLIBS) $(CFLAGS)
+test_gpu_dcf: $(BUILD_DIR_DCF) $(SHAREDLIB) $(BUILD_DIR_DCF)/test.o $(BUILD_DIR_DCF)/gpu.o
+	g++ -g $(BUILD_DIR_DCF)/test.o $(BUILD_DIR_DCF)/gpu.o $(BUILD_DIR_DCF)/interface.o -o $(BUILD_DIR_DCF)/test_gpu -lcudadevrt -lcudart -I/usr/local/cuda/include -L/usr/local/cuda/lib64 $(LDLIBS) $(SHAREDLIB) $(CFLAGS)
+
+
+$(BUILD_DIR_DYNAMIC_DPF)/offline.o: 
+	g++ -c GPU/dynamic_dpf/offline.cpp -o $(BUILD_DIR_DYNAMIC_DPF)/offline.o -I./local/include $(LDLIBS) $(CFLAGS)
+offline_dynamic_dpf: $(BUILD_DIR_DYNAMIC_DPF) $(SHAREDLIB) $(BUILD_DIR_DYNAMIC_DPF)/offline.o $(BUILD_DIR_DYNAMIC_DPF)/gpu.o
+	g++ -g $(BUILD_DIR_DYNAMIC_DPF)/offline.o $(BUILD_DIR_DYNAMIC_DPF)/gpu.o $(BUILD_DIR_DYNAMIC_DPF)/interface.o -o $(BUILD_DIR_DYNAMIC_DPF)/offline_gpu -lcudadevrt -lcudart -I/usr/local/cuda/include -L/usr/local/cuda/lib64 $(LDLIBS) $(SHAREDLIB) $(CFLAGS)
+
 
 tree-inference.x:   Machines/tree-inference.cpp
 replicated-bin-party.x: GC/square64.o
@@ -256,7 +275,8 @@ semi-party.x: $(OT)  $(GC_SEMI)
 semi2k-party.x: $(OT) $(GC_SEMI)
 sml-party.x: $(OT) $(GC_SEMI) 
 vss-party.x: $(OT) $(GC_SEMI)
-fss-ring-party.x: GC/square64.o 
+fss-ring-party.x: GC/square64.o $(BUILD_DIR_DYNAMIC_DPF) $(SHAREDLIB) $(BUILD_DIR_DYNAMIC_DPF)/gpu.o
+	g++ -g Machines/fss-ring-party.cpp $(BUILD_DIR_DYNAMIC_DPF)/gpu.o $(BUILD_DIR_DYNAMIC_DPF)/interface.o -o fss-ring-party.x -lcudadevrt -lcudart -I/usr/local/cuda/include -L/usr/local/cuda/lib64 $(LDLIBS) $(SHAREDLIB) $(CFLAGS)
 hemi-party.x: $(FHEOFFLINE) $(GC_SEMI) $(OT)
 temi-party.x: $(FHEOFFLINE) $(GC_SEMI) $(OT)
 soho-party.x: $(FHEOFFLINE) $(GC_SEMI) $(OT)

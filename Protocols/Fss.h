@@ -32,7 +32,7 @@ class Fss : public ReplicatedBase, public ProtocolBase<T>
     PointerVector<typename T::clear> add_shares;
     typename T::clear dotprod_share;
     Preprocessing<T>* prep;
-    Fss3Prep<T>* fss3prep;
+    typename T::LivePrep* fss3prep;
     typename T::MAC_Check* MC;
 
     template <class U>
@@ -42,6 +42,7 @@ class Fss : public ReplicatedBase, public ProtocolBase<T>
 
 
 public:
+    static const bool uses_fss_cw = true;
     static const bool uses_triples = false;
 
     typedef Rep3Shuffler<T> Shuffler;
@@ -57,12 +58,14 @@ public:
             share[my_num] = value;
     }
 
+    void init_fss_prep(SubProcessor<T> &proc);
     //initialize preprocessing for fss preprocess
     void init(Preprocessing<T>& prep, typename T::MAC_Check& MC);
     void init_mul();
     void prepare_mul(const T &x, const T &y, int n = -1);
     void exchange();
     T finalize_mul(int n = -1);
+
     void cisc(SubProcessor<T> &proc, const Instruction &instruction);
     void prepare_reshare(const typename T::clear &share, int n = -1);
 
@@ -84,15 +87,15 @@ public:
     void change_domain(const vector<int> &reg, U &proc);
 
     //new added function    
-    void distributed_comparison_function(SubProcessor<T> &processor, const Instruction &instruction, int lambda);
+    void distributed_comparison_function(SubProcessor<T> &proc, const Instruction &instruction, int lambda);
 
-    void Muliti_Interval_Containment(SubProcessor<T> &processor, const Instruction &instruction, int lambda);
+    void distributed_comparison_function_gpu(SubProcessor<T> &proc, const Instruction &instruction, int lambda);
 
     //new added generate function
     void generate();
 
     //new added evaluate function
-    bigint evaluate(typename T::clear x, int lambda);
+    bigint evaluate(typename T::open_type x, int lambda);
 };
 
 

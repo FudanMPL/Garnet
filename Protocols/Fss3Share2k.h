@@ -6,14 +6,15 @@
 #ifndef PROTOCOLS_FSS3SHARE2K_H_
 #define PROTOCOLS_FSS3SHARE2K_H_
 
-// #include "Fss.h"
-#include "Fss3Share.h"
+#include "Rep3Share.h"
+#include "Protocols/Fss.h"
+#include "Fss3Prep.h"
 #include "ReplicatedInput.h"
 #include "Math/Z2k.h"
 #include "GC/square64.h"
 
 template<int K>
-class Fss3Share2 : public Fss3Share<Z2<K>>
+class Fss3Share2 : public Rep3Share<Z2<K>>
 {
     typedef Z2<K> T;
     typedef Fss3Share2 This;
@@ -25,7 +26,7 @@ public:
     typedef ReplicatedInput<Fss3Share2> Input;
     typedef ReplicatedPO<This> PO;
     typedef SpecificPrivateOutput<This> PrivateOutput;
-    typedef SemiRep3Prep<Fss3Share2> LivePrep;
+    typedef Fss3Prep<Fss3Share2> LivePrep;
     typedef Fss3Share2 Honest;
     typedef SignedZ2<K> clear;
 

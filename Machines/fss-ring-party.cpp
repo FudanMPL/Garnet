@@ -11,7 +11,6 @@
 #include "Protocols/Fss3Prep.hpp"
 #include "Protocols/Fss.h"
 #include "Protocols/Fss.hpp"
-#include "Protocols/Fss3Share.h"
 #include "Protocols/Fss3Share2k.h"
 #include "Processor/RingOptions.h"
 #include "Math/Integer.h"
@@ -20,5 +19,5 @@
 
 int main(int argc, const char** argv)
 {
-    HonestMajorityRingMachine<Fss3Share2, Fss3Share>(argc, argv);
+    HonestMajorityRingMachine<Fss3Share2, Rep3Share>(argc, argv);
 }

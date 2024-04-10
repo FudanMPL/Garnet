@@ -6,8 +6,8 @@ This includes logistic regression. It can be run as
 follows::
 
     sgd = ml.SGD([ml.Dense(n_examples, n_features, 1),
-                  ml.Output(n_examples, approx=True)], n_epochs,
-                 report_loss=True)
+                ml.Output(n_examples, approx=True)], n_epochs,
+                report_loss=True)
     sgd.layers[0].X.input_from(0)
     sgd.layers[1].Y.input_from(1)
     sgd.reset()
@@ -23,9 +23,9 @@ A simple network for MNIST using two dense layers can be trained as
 follows::
 
     sgd = ml.SGD([ml.Dense(60000, 784, 128, activation='relu'),
-                  ml.Dense(60000, 128, 10),
-                  ml.MultiOutput(60000, 10)], n_epochs,
-                 report_loss=True)
+                ml.Dense(60000, 128, 10),
+                ml.MultiOutput(60000, 10)], n_epochs,
+                report_loss=True)
     sgd.layers[0].X.input_from(0)
     sgd.layers[1].Y.input_from(1)
     sgd.reset()
@@ -121,7 +121,7 @@ def approx_sigmoid(x, n=3):
         select = [le[i + 1] - le[i] for i in range(5)]
         outputs = [cfix(10 ** -4),
                    0.02776 * x + 0.145,
-                     * x + 0.5,
+                    0.17 * x + 0.5,
                    0.02776 * x + 0.85498,
                    cfix(1 - 10 ** -4)]
         return sum(a * b for a, b in zip(select, outputs))

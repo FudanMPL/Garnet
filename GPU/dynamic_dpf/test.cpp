@@ -1,11 +1,3 @@
-/*
- * @Author: SkyTu 1336923451@qq.com
- * @Date: 2023-10-24 16:24:02
- * @LastEditors: SkyTu 1336923451@qq.com
- * @LastEditTime: 2023-11-07 10:06:58
- * @FilePath: /txy/Garnet/GPU/test.cpp
- * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
- */
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -15,6 +7,7 @@
 #include <iostream>
 #include <fstream>
 #include <cstring>
+#include <unistd.h>
 #include "gpu.h"
 #include "Math/bigint.h"
 #include "Protocols/Fss3Prep.h"
@@ -32,11 +25,60 @@ void _printBytes(uint8_t b[], int begin, int len) {
     printf("\n");
 }
 
-int main(){
+int main(int argc, const char** argv){
     int lambda = 127;
     int parallel = 1024000;
     int input_length = 64;
     int input_byte = ceil(input_length / 8);
+    int party = 0;
+    string file_name = "";
+    ez::ezOptionParser opt;
+    fstream f;
+
+    opt.add(
+        "64", // Default.
+        0, // Required?
+        1, // Number of args expected.
+        0, // Delimiter if expecting multiple args.
+        "bit length", // Help description.
+        "-bl", // Flag token.
+        "--bit_length" // Flag token.
+    );
+    opt.add(
+        "1", // Default.
+        0, // Required?
+        1, // Number of args expected.
+        0, // Delimiter if expecting multiple args.
+        "party", // Help description.
+        "-p", // Flag token.
+        "--party" // Flag token.
+    );
+    opt.add(
+        "1024000", // Default.
+        0, // Required?
+        1, // Number of args expected.
+        0, // Delimiter if expecting multiple args.
+        "batch_size", // Help description.
+        "-b", // Flag token.
+        "--batch_size" // Flag token.
+    );
+    opt.add(
+        "Player-Data/2-fss/dpf_correction_word", // Default.
+        0, // Required?
+        1, // Number of args expected.
+        0, // Delimiter if expecting multiple args.
+        "file name", // Help description.
+        "-fn", // Flag token.
+        "--file_name" // Flag token.
+    );
+    opt.parse(argc, argv); 
+    opt.get("-p")->getInt(party);
+    opt.get("-bl")->getInt(input_length);
+    opt.get("-b")->getInt(parallel);
+    opt.get("-fn")->getString(file_name);
+    file_name = file_name + "_" + std::to_string(input_length) + "_" + std::to_string(parallel) + "_" + std::to_string(party);
+    std::cout << party << " " << input_length << " " << parallel << std::endl;
+
     clock_t begin, end;
     begin = clock();
     aes_gen_block * cpu_aes_gen_block_array;
@@ -45,7 +87,6 @@ int main(){
     cpu_aes_eval_block_array[0] = new aes_eval_block[parallel];
     cpu_aes_eval_block_array[1] = new aes_eval_block[parallel];
 
-    
     InputByteRelatedValuesGen cpu_values;
     cpu_values.r = (uint8_t*)malloc(parallel * input_byte * sizeof(uint8_t));
     // correction words, scw.shape = [parallel, input_length, input_byte]
@@ -58,6 +99,7 @@ int main(){
     PRNG prng;
     bigint seed[2], r, res0, res1;
     prng.InitSeed();
+    // f.open(file_name, ios::out);
     for(int i = 0; i < parallel; i++){
         // prng.get(r, input_length);
         r = 0;
@@ -81,6 +123,33 @@ int main(){
 
     fss_dpf_generate(cpu_values, cpu_aes_gen_block_array, input_length, parallel);
 
+    bigint scw, output;
+    // // r_share
+    // std::cout << file_name << std::endl;
+    // // seed
+    // std::cout << seed[party] << std::endl;
+
+    
+    // for(int i = 0; i < parallel * input_length; i++){
+    //     bigintFromBytes(scw, &cpu_values.scw[i * LAMBDA_BYTE], LAMBDA_BYTE);
+    //     f << scw << std::endl;
+    // }
+    
+    // for(int i = 0; i < parallel * input_length; i++){
+    //     // std::cout << cpu_values.tcw[0][i] << std::endl;
+    //     f << cpu_values.tcw[0][i] << std::endl;
+    // }
+
+    // for(int i = 0; i < parallel * input_length; i++){
+    //     // std::cout << cpu_values.tcw[1][i] << std::endl;
+    //     f << cpu_values.tcw[1][i] << std::endl;
+    // }
+
+    // for(int i = 0; i < parallel; i++){
+    //     bigintFromBytes(output, &cpu_values.output[i * input_byte], input_byte);
+    //     f << output << std::endl;
+    // }
+
     InputByteRelatedValuesEval cpu_eval_values_0;
     cpu_eval_values_0.result = (uint8_t *)malloc(parallel * input_byte * sizeof(uint8_t));
     fss_dpf_evaluate(cpu_eval_values_0, cpu_values, cpu_aes_eval_block_array[0], 0, input_length, parallel);
@@ -89,18 +158,24 @@ int main(){
     cpu_eval_values_1.result = (uint8_t *)malloc(parallel * input_byte * sizeof(uint8_t));
     fss_dpf_evaluate(cpu_eval_values_1, cpu_values, cpu_aes_eval_block_array[1], 1, input_length, parallel);
 
-
+    int count = 0;
     for(int i = 0; i < parallel; i++){
         bigintFromBytes(res0, &cpu_eval_values_0.result[i * input_byte], input_byte);
         bigintFromBytes(res1, &cpu_eval_values_1.result[i * input_byte], input_byte);
+        // if( i >= 1000 && i < 1010){
+        //     std::cout <<  res0 << " " << res1 << std::endl;
+        // }
+        
         if((res0 - res1)!=1){
-            std::cout << res0 << std::endl;
-            std::cout << res1 << std::endl;
-            std::cout << "Error!" << res0 - res1 << std::endl;
+            count += 1;
+            // std::cout << res0 << std::endl;
+            // std::cout << res1 << std::endl;
+            // std::cout << "Error!" << res0 - res1 << std::endl;
         }
     }
     end = clock();
-    std::cout << "Finished in " << double(end-begin) / CLOCKS_PER_SEC * 1000 << "ms" << std::endl;   
+
+    // std::cout << "Finished in " << double(end-begin) / CLOCKS_PER_SEC * 1000 << "ms" << std::endl << "error number is " << count << std::endl;   
 
     for(int i = 0; i < parallel; i++){
         // prng.get(r, input_length);
@@ -109,5 +184,5 @@ int main(){
     }
 
     // fss_dpf_generate_traverse(cpu_values, cpu_aes_gen_block_array, input_length, 8, parallel);
-
+    
 }   

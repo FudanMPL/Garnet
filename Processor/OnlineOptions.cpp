@@ -80,7 +80,6 @@ OnlineOptions::OnlineOptions(ez::ezOptionParser& opt, int argc,
           "-OF", // Flag token.
           "--output-file" // Flag token.
     );
- 
     opt.add(
             "", // Default.
             0, // Required?

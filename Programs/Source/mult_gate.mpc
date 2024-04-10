@@ -1,0 +1,4 @@
+program.use_edabit(True)
+a = sfix(3.5)
+b = sfix(4.123)
+c = a * b

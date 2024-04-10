@@ -2005,9 +2005,8 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
         Proc2.DataF.get(Proc.Proc2.get_S(), r, start, size);
         return;
       case CISC:
-
-          Procp.protocol.cisc(Procp, *this);
-
+        std::cout << "callign cisc in Instruction.hpp" << std::endl;
+        Procp.protocol.cisc(Proc.Procp, *this);
         return;
       default:
         printf("Case of opcode=0x%x not implemented yet\n",opcode);

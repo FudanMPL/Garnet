@@ -46,7 +46,6 @@ protected:
     vector<array<T, 2>> inverses;
     vector<T> bits;
     vector<vector<InputTuple<T>>> inputs;
-
     vector<dabit<T>> dabits;
 
     int n_bit_rounds;

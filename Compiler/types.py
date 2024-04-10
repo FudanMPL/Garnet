@@ -4398,7 +4398,6 @@ class _fix(_single):
 
     def mul(self, other):
         """ Secret fixed-point multiplication.
-
         :param other: sfix/cfix/sint/cint/regint/int """
         if isinstance(other, (sint, cint, regint, int)):
             return self._new(self.v * other, k=self.k, f=self.f)
@@ -5957,6 +5956,7 @@ class SubMultiArray(_vectorizable):
     def __init__(self, sizes, value_type, address, index, debug=None):
         self.sizes = tuple(sizes)
         self.value_type = _get_type(value_type)
+        self.reduce = True
         if address is not None:
             self.address = address + index * self.total_size()
         else:
@@ -5966,6 +5966,12 @@ class SubMultiArray(_vectorizable):
         if debug:
             library.print_ln_if(self.address + reduce(operator.mul, self.sizes) * self.value_type.n_elements() > program.allocated_mem[self.value_type.reg_type], 'AOF%d:' % len(self.sizes) + self.debug)
 
+    def set_reduce(self):
+        self.reduce = True
+    
+    def unset_reduce(self):
+        self.reduce = False
+    
     def __getitem__(self, index):
         """ Part access.
 
@@ -6294,11 +6300,14 @@ class SubMultiArray(_vectorizable):
     def __mul__(self, other):
         # legacy function
         # Finished: you need to add matmul which is differ from dot because it uses matrix
-        return self.mul(other)
+        if self.reduce and other.reduce:
+            return self.mul(other)
+        else:
+            return self.mul(other, False)
 
-    def mul(self, other, res_params=None):
+    def mul(self, other, reduce = True, res_params=None):
         # legacy function
-        return self.dot(other, res_params)
+        return self.dot(other, reduce = reduce, res_params = res_params)
     
     def matmul(self, other, res=None, n_threads=None):
         
@@ -6321,7 +6330,7 @@ class SubMultiArray(_vectorizable):
         return res
     
     # Finished: you need to add matmul which is differ from dot because it uses matrix and it need to explicitly create space
-    def dot(self, other, res_params=None, n_threads=None, res_matrix=None): 
+    def dot(self, other, reduce = True, res_params=None, n_threads=None, res_matrix=None): 
         """ Matrix-matrix and matrix-vector multiplication.
         Note: i think res_params is not used for now
         :param self: two-dimensional
@@ -6357,12 +6366,13 @@ class SubMultiArray(_vectorizable):
             # res_matrix = MultiArray([self.sizes[0], other.sizes[1]], t)
             try:
                 try:
+                    print("calling direct matrix mul")
                     self.value_type.direct_matrix_mul
                     max_size = _register.maximum_size // res_matrix.sizes[1]
                     @library.multithread(n_threads, self.sizes[0], max_size)
                     def _(base, size):
                         res_matrix.assign_part_vector(
-                            self.get_part(base, size).direct_mul(other), base)
+                            self.get_part(base, size).direct_mul(other, reduce = reduce), base)
                 except AttributeError:
                     assert n_threads is None
                     if max(res_matrix.sizes) > 1000:
@@ -6990,7 +7000,7 @@ class MultiArray(SubMultiArray):
         self.view(*save_sizes)
         
     
-    def mm(self, other, res=None):  # not MP-SPDZ,added by zhou
+    def mm(self, other, reduce = True, res=None):  # not MP-SPDZ,added by zhou
         assert self.value_type == other.value_type, "Invalid Data Type"
         assert len(self.sizes) == 2 and self.sizes[1] == other.sizes[0], "Invalid Dimension"
         if isinstance(other, Array):
@@ -7004,11 +7014,11 @@ class MultiArray(SubMultiArray):
 
         @library.multithread(n_threads, N)
         def _(base, size):
-            res.assign_part_vector(self.direct_mul(other, indices=(regint.inc(size, base=base), regint.inc(self.shape[1]), regint.inc(self.shape[1]), regint.inc(output_col))), base)
+            res.assign_part_vector(self.direct_mul(other, reduce = reduce, indices=(regint.inc(size, base=base), regint.inc(self.shape[1]), regint.inc(self.shape[1]), regint.inc(output_col))), base)
             # res.assign_part_vector(self.get_part(base,size).direct_mul(other),base) # it uses address not create new. These two are the same in time and online or offline round.
         return res
 
-    def single_bmm(self, other, res=None):  # i think single_bmm is a part of mm
+    def single_bmm(self, other, reduce = True, res=None):  # i think single_bmm is a part of mm
         """
         :param self.sizes: (batch, n, m) # batch can be int or *list(int)
         :param other.sizes: (m, p) but it can run accurately when other is a vector: (m)
@@ -7023,7 +7033,7 @@ class MultiArray(SubMultiArray):
         self.view(b*n, m)
         if res is not None:
             res.view(b*n, -1)
-        res = self.mm(other, res)
+        res = self.mm(other, reduce = reduce, res = res)
         self.view(*batch, n, m)
         res.view(*batch, n, -1)
         return res

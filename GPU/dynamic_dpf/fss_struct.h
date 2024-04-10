@@ -16,7 +16,8 @@
 #include <fstream>
 #include <cstring>
 #include <iomanip>
-#include <cuda.h>
+#include <vector>
+// #include <cuda.h>
 
 #ifndef FSS_STRUCT_H_
 #define FSS_STRUCT_H_
@@ -62,12 +63,18 @@ public:
 
 struct InputByteRelatedValuesGen{
     uint8_t * r;
+    uint8_t * r_share_0;
+    uint8_t * r_share_1;
     uint8_t * scw;
     bool * tcw[2];
     uint8_t * output;
 };
 
 struct InputByteRelatedValuesEval{
+    uint8_t * r_share;
+    uint8_t * scw;
+    bool * tcw[2];
+    uint8_t * output;
     uint8_t * result;
 };
 

@@ -20,10 +20,42 @@
 #include <vector>
 #include <iostream>
 #include <string>
-
-//-------------------
 #include <math.h>
 
+template<class T>
+Fss<T>::Fss(Player& P) : ReplicatedBase(P)
+{
+    assert(T::vector_length == 2);
+}
+
+template<class T>
+Fss<T>::Fss(const ReplicatedBase& other) :
+        ReplicatedBase(other)
+{
+}
+
+template<class T>
+void Fss<T>::init_fss_prep(SubProcessor<T> &processor){
+    bigint signal = 0;
+    octetStream cs;
+    if(this->fss3prep == nullptr){
+        std::cout << "fss3prep is nullptr!" << std::endl;
+        if(P.my_num() == GEN){  
+            this->fss3prep->gen_fake_dcf(1, T::clear::MAX_N_BITS);
+            signal = 1;
+            signal.pack(cs);
+            P.send_to(EVAL_1, cs);
+            P.send_to(EVAL_2, cs);
+        }
+        else{
+            P.receive_player(GEN, cs);
+            signal.unpack(cs);
+        }
+        DataPositions usage;
+        this->fss3prep = new typename T::LivePrep(&processor, usage);
+    }
+    return;
+}
 
 
 template<class T>
@@ -33,125 +65,8 @@ void Fss<T>::init(Preprocessing<T>& prep, typename T::MAC_Check& MC)
     this->MC = &MC;
 }
 
-template <class T>
-void Fss<T>::Muliti_Interval_Containment(SubProcessor<T> &proc, const Instruction &instruction, int lambda){
-    PRNG prng;
-    prng.ReSeed();
-    init(proc.DataF, proc.MC);
-    // auto& args = instruction.get_start();
-    // int res_address = args[2], x_base = args[3], spline_base = args[4], length = args[5];
-    // typename T::clear tmp, r_tmp, eval_res[length+1], spline_res[length],z; 
-    // vector<typename T::clear> x_add_r;
-    // bigint dcf[length];
-    // fstream r;
-    // r.open("Player-Data/2-fss/multi_r" + to_string(P.my_num()), ios::in);
-    // r >> r_tmp;
-    // // for(int i = 0; i < args.size(); i+=args[0]){
 
-    // // }
-    // for(int i = 0; i < args.size(); i+=args[0]){
-    //     fstream r;
-    //     octetStream cs[2], reshare_cs, t_cs; //cs0, cs1; 
-        
-    //     r.open("Player-Data/2-fss/multi_r" + to_string(P.my_num()), ios::in);
-    //     r >> r_tmp;
-    //     MC->init_open(P, lambda);
-    //     auto dest = &proc.S[x_base + i][0];
-    //     *dest = *dest + r_tmp;
-    //     MC->prepare_open(proc.S[args[x_base + i]]);
-    //     MC->exchange(P);
-    //     x_add_r = MC->finalize_raw();
-    //     std::cout << "x+r is " << x_add_r << std::endl;
-
-    //     //res0 = 0，后面才存放Eval结果
-    //     if(P.my_num() == EVAL_1 || P.my_num() == EVAL_2){
-    //         auto size = dcf[0].get_mpz_t()->_mp_size;
-    //         eval_res[0] = 0;
-    //         r >> z;
-    //         r_tmp = 0;
-    //         for(int j = 0; j < length; j++){
-    //             tmp = x_add_r - proc.C[spline_base + j];
-    //             dcf[j] = this->evaluate(tmp, lambda);
-    //             size = dcf[j].get_mpz_t()->_mp_size;
-    //             mpn_copyi((mp_limb_t*)eval_res[j+1].get_ptr(), dcf[j].get_mpz_t()->_mp_d, abs(size));
-
-    //             // evaluation
-    //             if(size < 0){
-    //                 eval_res[j+1] = -eval_res[j+1];
-    //             }
-    //             if(lambda == 128){
-    //                 if(j == 0){
-    //                     spline_res[j] = typename T::clear(P.my_num()) * (1  - (x_add_r - proc.C[spline_base+j]).get_bit(lambda)) - eval_res[j] + eval_res[j+1] + z;
-    //                 }
-    //                 else{
-    //                     spline_res[j] = typename T::clear(P.my_num()) * ((x_add_r - proc.C[spline_base+j-1]).get_bit(lambda)  - (x_add_r - proc.C[spline_base+j]).get_bit(lambda)) - eval_res[j] + eval_res[j+1] + z;
-    //                 }
-    //             }
-    //             else{
-    //                 if(j == 0){
-    //                     spline_res[j] = typename T::clear(P.my_num()) * (1  - (x_add_r - proc.C[spline_base+j]).get_bit(lambda - 1)) - eval_res[j] + eval_res[j+1] + z;
-    //                 }
-    //                 else{
-    //                     spline_res[j] = typename T::clear(P.my_num()) * ((x_add_r - proc.C[spline_base+j-1]).get_bit(lambda - 1)  - (x_add_r - proc.C[spline_base+j]).get_bit(lambda - 1)) - eval_res[j] + eval_res[j+1] + z;
-    //                 }
-    //             }
-    //         } 
-
-    //         typename T::clear random_val[length+1];
-    //         P.receive_player(GEN, cs[P.my_num()]);
-    //         std::cout << "recieving! " << std::endl;
-    //         for(int j = 0; j < length+1; j++){
-    //             random_val[j].unpack(cs[P.my_num()]);
-    //             proc.S[res_address + j][0] = typename T::clear(P.my_num()) + spline_res[j] - random_val[j];
-    //         }
-        
-
-    //         r.close();
-    //     }
-
-
-
-    //     else{
-    //         typename T::clear r_sum[length+1], r0[length+1], r1[length+1];
-    //         for(int j = 0; j < length+1; j++){
-    //             bigint r_tmp;
-    //             prng.get(r_tmp, lambda); 
-    //             auto size = r_tmp.get_mpz_t()->_mp_size;
-    //             mpn_copyi((mp_limb_t*)r0[j].get_ptr(), r_tmp.get_mpz_t()->_mp_d, abs(size));
-    //             prng.get(r_tmp, lambda); 
-    //             size = r_tmp.get_mpz_t()->_mp_size;
-    //             mpn_copyi((mp_limb_t*)r1[j].get_ptr(), r_tmp.get_mpz_t()->_mp_d, abs(size));
-                
-    //             r_sum[j] = r0[j] + r1[j];
-    //             proc.S[res_address + j][0] = r_sum[j];
-    //             r0[j].pack(cs[EVAL_1]);
-
-    //             std::cout << "packed random value r0 is " << r0[j] << std::endl;
-    //             r1[j].pack(cs[EVAL_2]);
-    //         }
-    //         P.send_to(EVAL_1, cs[EVAL_1]);
-    //         P.send_to(EVAL_2, cs[EVAL_2]);
-    //         std::cout << "finishing sending!" << std::endl;
-    //     }
-    // }
-    // typename T::clear reshare[length+1], recv_reshare[length+1];
-    // for(int j = 0; j < length+1; j++){
-    //     reshare[j] = proc.S[res_address + j][0];
-    //     reshare[j].pack(reshare_cs);
-    // }
-    
-
-    // P.send_to((P.my_num()+1)%P.num_players(), reshare_cs);
-    // P.receive_player((P.my_num()+2)%P.num_players(), reshare_cs);
-    // for(int j = 0; j < length+1; j++){
-    //     recv_reshare[j].unpack(reshare_cs);
-    //     proc.S[res_address + j][1] = recv_reshare[j];
-    // }
-}
-
-
-
-template <class T>
+template<class T>
 void Fss<T>::distributed_comparison_function(SubProcessor<T> &proc, const Instruction &instruction, int n)
 {
     PRNG prng;
@@ -159,73 +74,57 @@ void Fss<T>::distributed_comparison_function(SubProcessor<T> &proc, const Instru
     init(proc.DataF, proc.MC);
     auto& args = instruction.get_start();
     int dcf_parallel = int(args.size()/args[0]);    
-    typename T::clear result[dcf_parallel], r_tmp[dcf_parallel], dcf_u[dcf_parallel], dcf_v[dcf_parallel];
+    typename T::open_type result[dcf_parallel];
+    bigint res_bool[dcf_parallel], tmp_bool_res;
     fstream r;
-    octetStream cs[2], reshare_cs, t_cs; //cs0, cs1; 
-    r.open("Player-Data/2-fss/r" + to_string(P.my_num()), ios::in);
-    r >> r_tmp[0];
-    r.close();
+    octetStream cs[2], reshare_cs, b_cs; //cs0, cs1; 
     MC->init_open(P, n);
     for(size_t i = 0; i < args.size(); i+= args[i]){ 
+        // reveal x + r
         auto dest = &proc.S[args[i+3]][0];
-        *dest = *dest + r_tmp[0];
+        *dest = *dest + typename T::open_type(this->fss3prep->r_share);
         MC->prepare_open(proc.S[args[i+3]]);   
-        if(P.my_num() == GEN){
-            typename T::clear r_sum, r0 = 0, r1 = 0;
-            r0.randomize(prng, n);
-            r1.randomize(prng, n);
-            r_sum = r0 + r1;
-            proc.S[args[i+2]][0] = r_sum;
-            r0.pack(cs[EVAL_1]);
-            r1.pack(cs[EVAL_2]);
-        }    
-    }
-    if(P.my_num() == GEN){
-        P.send_to(EVAL_1, cs[EVAL_1]);
-        P.send_to(EVAL_2, cs[EVAL_2]);
-    }
-    else{
-        P.receive_player(GEN, cs[P.my_num()]);
     }
     MC->exchange(P);
 
     if(P.my_num() == EVAL_1 || P.my_num() == EVAL_2){
         int cnt = 0;
-        bigint dcf_res_u[dcf_parallel], dcf_res_v[dcf_parallel];
-        typename T::clear tmp[dcf_parallel];
-        for(size_t t = 0; t < args.size(); t+= args[t]){
+        bigint msb_xhat, tmp_cmp, tb[dcf_parallel], res;
+        typename T::open_type tmp[dcf_parallel], tmp_sub = (1LL << (n-1));
+        for(size_t t = 0; t < args.size(); t += args[t]){
             result[cnt] = MC->finalize_raw();
-            dcf_res_u[cnt] = this->evaluate(result[cnt], n);
-            result[cnt] += 1LL<<(n-1);
-            dcf_res_v[cnt] = this->evaluate(result[cnt], n);
-            auto size = dcf_res_u[cnt].get_mpz_t()->_mp_size;
-            mpn_copyi((mp_limb_t*)dcf_u[cnt].get_ptr(), dcf_res_u[cnt].get_mpz_t()->_mp_d, abs(size));
-            if(size < 0)
-                dcf_u[cnt] = -dcf_u[cnt];
-            size = dcf_res_v[cnt].get_mpz_t()->_mp_size;
-            mpn_copyi((mp_limb_t*)dcf_v[cnt].get_ptr(), dcf_res_v[cnt].get_mpz_t()->_mp_d, abs(size));
-            if(size < 0)
-                dcf_v[cnt] = -dcf_v[cnt];
-            if(n == 128){
-                if(result[cnt].get_bit(n)){
-                    r_tmp[cnt] = dcf_v[cnt] - dcf_u[cnt] + P.my_num();
-                }
-                else{
-                    r_tmp[cnt] = dcf_v[cnt] - dcf_u[cnt];
-                }
+            // std::cout << "reveal result is " << result[cnt] << std::endl;            
+            // get_bit begins from 0 to n-1
+            msb_xhat = result[cnt].get_bit(n - 1);
+            if(msb_xhat){
+                result[cnt] = result[cnt] - (1LL << (n-1));
             }
-            else{
-                if(result[cnt].get_bit(n-1)){
-                    r_tmp[cnt] = dcf_v[cnt] - dcf_u[cnt] + P.my_num();
-                }
-                else{
-                    r_tmp[cnt] = dcf_v[cnt] - dcf_u[cnt];
-                }
-            }  
-            tmp[cnt].unpack(cs[P.my_num()]);
-            proc.S[args[t+2]][0] = typename T::clear(P.my_num()) - r_tmp[cnt] - tmp[cnt];
-            cnt += 1;
+            result[cnt] = tmp_sub - result[cnt] - 1;
+            // std::cout << "evaluate is " << result[cnt] << std::endl;
+            tb[cnt] = this->evaluate(result[cnt], n);
+            tb[cnt] = bigint(typename T::open_type(tb[cnt])) ^ bigint(typename T::open_type(this->fss3prep->r_b)) ^ (P.my_num() * msb_xhat);
+            res_bool[cnt] = bigint(typename T::open_type(tb[cnt])).get_ui() % 2;
+            res_bool[cnt] = res_bool[cnt] ^ this->fss3prep->rs_b;
+            res_bool[cnt].pack(b_cs);
         }
+        P.send_to((P.my_num()^1), b_cs);
+        P.receive_player((P.my_num()^1), b_cs);
+        for(size_t t = 0; t < args.size(); t += args[t]){    
+            tmp_bool_res.unpack(b_cs);
+            res_bool[cnt] = res_bool[cnt] ^ tmp_bool_res;
+            // std::cout << "res_bool[cnt] is " << res_bool[cnt] << std::endl;
+            // std::cout << this->fss3prep->u << " " << this->fss3prep->r_in_2 << " " << this->fss3prep->w << " " << this->fss3prep->z << std::endl;
+            if(res_bool[cnt])
+                res = P.my_num() -  this->fss3prep->u -  this->fss3prep->r_in_2 +  this->fss3prep->w;
+            else
+                res =  this->fss3prep->u +  this->fss3prep->w - this->fss3prep->z;
+            // std::cout << bigint(typename T::open_type(res)) << std::endl;
+            proc.S[args[t+2]][0] =  bigint(typename T::open_type(P.my_num()-res));
+        }
+    }
+    else{ 
+        for(size_t i = 0; i < args.size(); i += args[i])
+            proc.S[args[i+2]][0] = 0;
     }
     for(size_t i = 0; i < args.size(); i+= args[i]){
         proc.S[args[i+2]][0].pack(reshare_cs);
@@ -238,6 +137,57 @@ void Fss<T>::distributed_comparison_function(SubProcessor<T> &proc, const Instru
     return;
 }
 
+
+
+template<class T>
+void Fss<T>::distributed_comparison_function_gpu(SubProcessor<T> &proc, const Instruction &instruction, int n)
+{
+    PRNG prng;
+    prng.ReSeed();
+    init(proc.DataF, proc.MC);
+    auto& args = instruction.get_start();
+    int parallel = int(args.size()/args[0]);    
+    int input_byte = int(T::clear::MAX_N_BITS/8);
+    MC->init_open(P, n);
+    bigint r_share_bigint;
+    typename T::clear r_share;
+    int cnt = 0, size = 0;
+    for(size_t i = 0; i < args.size(); i+= args[i]){
+        auto dest = &proc.S[args[i+3]][0];
+        bigintFromBytes(r_share_bigint, &this->fss3prep->fss_dpf_eval_values.r_share[cnt * input_byte], input_byte);
+        size = r_share_bigint.get_mpz_t()->_mp_size;
+        mpn_copyi((mp_limb_t*)r_share.get_ptr(), r_share_bigint.get_mpz_t()->_mp_d, abs(size));
+        *dest = *dest - r_share;
+        MC->prepare_open(proc.S[args[i+3]]);  
+        cnt += 1;
+    }
+    MC->exchange(P);
+    bigint test;
+    if(P.my_num() == EVAL_1 || P.my_num() == EVAL_2){
+        cnt = 0;
+        typename T::clear shift[parallel];
+        typename T::clear zero = 0;
+        bigint x_add_r_bigint;
+        // 存放x+r的数值
+        uint8_t x_add_r[parallel];
+        for(size_t t = 0; t < args.size(); t+= args[t]){
+            shift[cnt] = MC->finalize_raw();
+            size = int(input_byte / 8);
+            mpn_copyi(x_add_r_bigint.get_mpz_t()->_mp_d, (mp_limb_t*)shift[cnt].get_ptr(), size);
+            if(shift[cnt].get() >= zero.get())
+                x_add_r_bigint.get_mpz_t()->_mp_size = -size;
+            else
+                x_add_r_bigint.get_mpz_t()->_mp_size = size;
+            // std::cout << x_add_r_bigint << std::endl;
+            // std::cout << x_add_r_bigint.get_mpz_t()->_mp_size << std::endl;
+            // std::cout << "shift is " << shift[cnt] << std::endl;
+            
+            // fss_dpf_evaluate(this->fss3prep->fss_dpf_eval_values, this->fss3prep->fss_dpf_eval_seeds, P.my_num(), n, parallel, cnt, shift[cnt]);
+            cnt += 1;
+        }
+    }
+}
+
 template <class T>
 void Fss<T>::generate(){
     //判断buffer里面有没有数
@@ -247,71 +197,58 @@ void Fss<T>::generate(){
 
 
 template<class T>
-bigint Fss<T>::evaluate(typename T::clear x, int n){
-    fstream k_in;
+bigint Fss<T>::evaluate(typename T::open_type x, int n){
+    
     PRNG prng;
     prng.ReSeed();
     int b = P.my_num(), xi;
     // Here represents the bytes that bigint will consume, the default number is 16, if the MAX_N_BITS is bigger than 128, then we should change.
     int lambda = 127, lambda_bytes = 16;
-    k_in.open("Player-Data/2-fss/k" + to_string(P.my_num()), ios::in);
+    
     octet seed[lambda_bytes];
     // r is the random value generate by GEN
-    bigint s_hat[2], v_hat[2], s[2], v[2], scw, vcw, convert[2], cw, tmp_bigint, tmp_v, tmp_out;
-    bool t_hat[2], tcw[2], t[2], tmp_t;
-    k_in >> tmp_bigint;
-    bytesFromBigint(&seed[0], tmp_bigint, lambda_bytes);
+    bigint s_hat[2], v_hat[2], s[2], v[2], convert[2], tmp_bigint, tmp_v, tmp_out;
+    bool t_hat[2], t[2], tmp_t;
+    
+    bytesFromBigint(&seed[0], this->fss3prep->seed_bigint, lambda_bytes);
     tmp_t = b;
     tmp_v = 0;
-    // std::cout << "x is " << x << std::endl;
-    for(int i = 0; i < n ; i++){
+    
+    for(int i = 1; i < n-16 ; i++){
         xi = x.get_bit(n - i - 1);
-        // std::cout << "xi is " << xi << std::endl;
-        k_in >> scw >> vcw >> tcw[0] >> tcw[1];
-        // std::cout << "scw, vcw, tcw0, tcw1 are " << scw << " " << vcw << " "<< tcw[0] << " " << tcw[1] << std::endl;
+        
         prng.SetSeed(seed);
         for(int j = 0; j < 2; j++){
+            // prng.get(tmp_out, 2*lambda+2);
+            // mpn_copyi(tmp_out.get_mpz_t()->_mp_d, s_hat[j].get_mpz_t()->_mp_d, s_hat[j].get_mpz_t()->_mp_size);
+            // mpn_copyi(tmp_out.get_mpz_t()->_mp_d + s_hat[j].get_mpz_t()->_mp_size, v_hat[j].get_mpz_t()->_mp_d, v_hat[j].get_mpz_t()->_mp_size);
             prng.get(v_hat[j], lambda);
             prng.get(s_hat[j], lambda);
             t_hat[j] = s_hat[j].get_ui() & 1;
-            s[j] = s_hat[j] ^ (tmp_t * scw);
-            t[j] = t_hat[j] ^ (tmp_t * tcw[j]);
+            s[j] = s_hat[j] ^ (tmp_t * this->fss3prep->scw[i-1]);
+            t[j] = t_hat[j] ^ (tmp_t * this->fss3prep->tcw[j][i-1]);
         }
 
         // std::cout << "v_hat[0], v_hat[1] are " << v_hat[0] << " " << v_hat[1] << std::endl;
         if(n <= 128){
-
             // std::cout << "length is " << lambda-n << std::endl;
             convert[0] = v_hat[0] >> (lambda-n);
             convert[1] = v_hat[1] >> (lambda-n);
         }
+
         // std::cout << "convert[0], convert[1] are " << convert[0] << " " << convert[1] << std::endl;
-        tmp_v = tmp_v + b * (-1) * (convert[xi] + tmp_t * vcw) + (1^b) * (convert[xi] + tmp_t * vcw);
-        // std::cout << "bit length of s[xi] is " << numBits(s[xi]) << std::endl;
+        tmp_v = tmp_v + b * (-1) * (convert[xi] + tmp_t * this->fss3prep->vcw[i-1]) + (1^b) * (convert[xi] + tmp_t * this->fss3prep->vcw[i-1]);
         bytesFromBigint(&seed[0], s[xi], lambda_bytes);
         tmp_t = t[xi];
-        // std::cout << "t[xi] is " << t[xi] << std::endl;
-        // std::cout << "s[xi] is " << s[xi] << std::endl;
+        // std::cout << tmp_v << std::endl;
     }
-    k_in >> cw;
-    k_in.close();
+
     if(n <= 128)
         convert[0] = s[xi] >> (lambda-n);
-    tmp_v = tmp_v + b * (-1) * (convert[0] + tmp_t * cw) + (1^b) * (convert[0] + tmp_t * cw);
+    tmp_v = tmp_v + b * (-1) * (convert[0] + tmp_t * this->fss3prep->final_cw) + (1^b) * (convert[0] + tmp_t * this->fss3prep->final_cw);
+    // std::cout << "final_tmp_v" << tmp_v << std::endl;
     return tmp_v;  
 }
-
-template <class T>
-Fss<T>::Fss(Player &P) : ReplicatedBase(P)
-{
-    assert(T::vector_length == 2);
-}
-
-template <class T>
-Fss<T>::Fss(const ReplicatedBase &other) : ReplicatedBase(other)
-{
-}
-
 
 template <class T>
 void Fss<T>::init_mul()
@@ -422,7 +359,7 @@ void Fss<T>::randoms(T &res, int n_bits)
 template <class T>
 template <class U>
 void Fss<T>::trunc_pr(const vector<int> &regs, int size, U &proc,
-                             false_type)
+                            false_type)
 {
     assert(regs.size() % 4 == 0);
     assert(proc.P.num_players() == 3);
@@ -484,8 +421,7 @@ void Fss<T>::trunc_pr(const vector<int> &regs, int size, U &proc,
             {
                 auto c_dprime = input.finalize(comp_player);
                 auto r_msb = input.finalize(gen_player);
-                S[info.dest_base + i] += ((r_msb + c_dprime)
-                                          << (info.k - info.m));
+                S[info.dest_base + i] += ((r_msb + c_dprime) << (info.k - info.m));
                 prepare_mul(r_msb, c_dprime);
             }
         }
@@ -496,13 +432,13 @@ void Fss<T>::trunc_pr(const vector<int> &regs, int size, U &proc,
         for (int i = 0; i < size; i++)
             if (info.small_gap())
                 S[info.dest_base + i] -= finalize_mul()
-                                         << (info.k - info.m + 1);
+                                        << (info.k - info.m + 1);
 }
 
 template <class T>
 template <class U>
 void Fss<T>::trunc_pr(const vector<int> &regs, int size, U &proc,
-                             true_type)
+                            true_type)
 {
     (void)regs, (void)size, (void)proc;
     throw runtime_error("trunc_pr not implemented");
@@ -511,7 +447,7 @@ void Fss<T>::trunc_pr(const vector<int> &regs, int size, U &proc,
 template <class T>
 template <class U>
 void Fss<T>::trunc_pr(const vector<int> &regs, int size,
-                             U &proc)
+                            U &proc)
 {
     this->trunc_rounds++;
     trunc_pr(regs, size, proc, T::clear::characteristic_two);
@@ -526,59 +462,44 @@ void Fss<T>::change_domain(const vector<int> &regs, U &proc)
 
 template <class T>
 void Fss<T>::cisc(SubProcessor<T> &processor, const Instruction &instruction)
-{
-    
-    // auto& args = instruction.get_start();
-    
+{   
     int r0 = instruction.get_r(0), n = T::clear::MAX_N_BITS;
-    bigint signal = 0;
     string tag((char *)&r0, 4);
-    // std::cout << tag << std::endl;
-
-    // std::cout << "-----------------------" << std::endl; 
+    auto& args = instruction.get_start();
+    int parallel = int(args.size()/args[0]);
     if (tag == string("LTZ\0", 4))
     {
-        octetStream cs;
-        if(P.my_num() == GEN){  
-            // std::cout << "Generating fake dcf " << std::endl;
-            this->fss3prep->gen_fake_dcf(1, n);  
-            signal = 1;
-            signal.pack(cs);
-            P.send_to(EVAL_1, cs);
-            P.send_to(EVAL_2, cs);
-        }
-        // This comparison is designed according to the DRELU protocol in 'Orca: FSS-based Secure Training with GPUs'.
-        else{
-            P.receive_player(GEN, cs);
-            signal.unpack(cs);
-        }
-        if(signal){
+        this->init_fss_prep(processor);
+        if(parallel < 100000){
             processor.protocol.distributed_comparison_function(processor, instruction, n);
-        } 
+        }
+        else{
+            processor.protocol.distributed_comparison_function_gpu(processor, instruction, n);
+        }
+        
     }
-    // else{
-    //     auto& args = instruction.get_start();
-    //     // std::cout << "CISC CALLED!" << std::endl;
-    //     std::cout << "Arguments are: " << std::endl;
-    //     for(auto i : args)
-    //         std::cout << i << std::endl;
+
+    // if (tag == string("LTZ\0", 4))
+    // {
     //     octetStream cs;
-    //     std::cout << "MTS CALLED!" << std::endl;
     //     if(P.my_num() == GEN){  
-    //         std::cout << "Generating fake multi dcf " << std::endl;
-    //         this->fss3prep->gen_fake_multi_spline_dcf(processor, 1, lambda, args[4], args[8]);  
+            
+            
+    //         this->fss3prep->gen_fake_dcf(1, n);            
+
     //         signal = 1;
-    //         signal.pack(cs);
+    //         signal.pack(cs); 
     //         P.send_to(EVAL_1, cs);
     //         P.send_to(EVAL_2, cs);
     //     }
+    //     // This comparison is designed according to the DRELU protocol in 'Orca: FSS-based Secure Training with GPUs'.
     //     else{
     //         P.receive_player(GEN, cs);
     //         signal.unpack(cs);
     //     }
     //     if(signal){
-    //         processor.protocol.Muliti_Interval_Containment(processor, instruction, lambda);
-    //     }
+    //         processor.protocol.distributed_comparison_function(processor, instruction, n);
+    //     } 
     // }
 }
 

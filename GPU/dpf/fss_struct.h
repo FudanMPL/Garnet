@@ -16,7 +16,6 @@
 #include <fstream>
 #include <cstring>
 #include <iomanip>
-#include <cuda.h>
 
 #ifndef FSS_STRUCT_H_
 #define FSS_STRUCT_H_

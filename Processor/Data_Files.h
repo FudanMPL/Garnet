@@ -103,7 +103,6 @@ protected:
 
   map<pair<bool, int>, vector<edabitvec<T>>> edabits;
   map<pair<bool, int>, edabitvec<T>> my_edabits;
-
   bool do_count;
 
   void count(Dtype dtype, int n = 1)
@@ -123,7 +122,6 @@ protected:
 
 public:
   static const bool use_part = false;
-
   template<class U, class V>
   static Preprocessing<T>* get_new(Machine<U, V>& machine, DataPositions& usage,
       SubProcessor<T>* proc);
@@ -378,6 +376,12 @@ inline void Preprocessing<T>::get_one(Dtype dtype, T& a)
   count(dtype);
   get_one_no_count(dtype, a);
 }
+
+// template<class T>
+// inline void Preprocessing<T>::get_cw(Dtype dtype){
+//   count(dtype);
+//   get_cw_no_count(dtype);
+// }
 
 template<class T>
 inline void Preprocessing<T>::get_input(T& a, typename T::open_type& x, int i)

@@ -1276,34 +1276,34 @@ class Tensor():
         key = program.curr_block, str(index)
         if key not in self.sub_cache:
             if util.is_constant(index) and \
-               (index >= self.sizes[0] or index < 0):
+                (index >= self.sizes[0] or index < 0):
                 raise CompilerError('index out of range')
             elif self.check_indices:
                 library.runtime_error_if(index >= self.sizes[0],
-                                         'overflow: %s/%s',
-                                         index, self.sizes)
+                                        'overflow: %s/%s',
+                                        index, self.sizes)
             if len(self.sizes) == 2:
                 new_value = \
                     Array(self.sizes[1], self.value.value_type,
-                          self.value.address + index * self.sizes[1] *
-                          self.value.value_type.n_elements() *
-                          self.value.value_type.mem_size())
+                            self.value.address + index * self.sizes[1] *
+                            self.value.value_type.n_elements() *
+                            self.value.value_type.mem_size())
                 if self.req_grad:
                     new_grad = \
                         Array(self.sizes[1], self.grad.value_type,
-                              self.grad.address + index * self.sizes[1] *
-                              self.grad.value_type.n_elements() *
-                              self.grad.value_type.mem_size())
+                            self.grad.address + index * self.sizes[1] *
+                            self.grad.value_type.n_elements() *
+                            self.grad.value_type.mem_size())
                 else:
                     new_grad = None
             else:
                 new_value = \
                     MultiArray(self.sizes[1:], self.value.value_type,
-                                  self.value.address, index, debug=self.debug)
+                                self.value.address, index, debug=self.debug)
                 if self.req_grad:
                     new_grad = \
                         MultiArray(self.sizes[1:], self.grad.value_type,
-                                      self.grad.address, index, debug=self.debug)
+                                    self.grad.address, index, debug=self.debug)
                 else:
                     new_grad = None
         else:
@@ -1366,7 +1366,6 @@ class Tensor():
             dl_dy,=dl_doutputs
             input1=tensors[operation.inputs[0]]
             input2=tensors[operation.inputs[1]]
-           
             input2_Matrix=Matrix(input2.shape[0],1,input2.value.value_type,address=input2.value.address)
             save1_sizes=input1.shape
             input1.value.view(reduce(operator.mul,save1_sizes[:-1]),save1_sizes[-1])
@@ -1501,7 +1500,8 @@ class Tensor():
             operation = gradient_operation[op_id_store[op_id]]
             inputs, outputs = operation.inputs, operation.outputs
             input1, input2, output = tensors[inputs[0]], tensors[inputs[1]], tensors[outputs[0]]
-            input1.value.single_bmm(input2.value, output.value)
+            print("calling single bmm of tensor")
+            input1.value.single_bmm(input2.value, output.value, input1.value.reduce or input2.value.reduce)
             op_id += 1
         return output
     

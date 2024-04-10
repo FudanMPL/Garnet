@@ -173,7 +173,7 @@ protected:
   gf2n_& operator^=(const gf2n_& x) { *this = *this ^ x; return *this; }
   gf2n_& operator>>=(int i) { *this = *this >> i; return *this; }
   gf2n_& operator<<=(int i) { *this = *this << i; return *this; }
-
+  
   /* Crap RNG */
   void randomize(PRNG& G, int n = -1);
   // compatibility with gfp
