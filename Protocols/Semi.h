@@ -108,6 +108,7 @@ public:
     // }
     // octetStream cs;
     // int r0 = instruction.get_r(0);
+#ifdef ENABLE_PSI
     octetStream cs0, cs, cs2;
     auto res = proc.C.begin() + (instruction.get_r(0));
 
@@ -427,11 +428,15 @@ public:
       }
     }
     // return 0;
+#else
+    throw not_implemented();
+#endif
   }
 
   template <class U>
   void psi_align(const vector<typename T::clear> &source, const Instruction &instruction, U &proc)
   {
+#ifdef ENABLE_PSI
     // cout << "psi_align" << endl;
     typedef uint64_t idtype;
 #define RECEIVER_P 0
@@ -599,6 +604,9 @@ public:
         }
       }
     }
+#else
+    throw not_implemented();
+#endif
   }
 
   template <class U>
