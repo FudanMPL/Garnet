@@ -1,19 +1,17 @@
-from uuid import uuid4
-from rest_framework.response import Response
-from rest_framework.views import APIView
-from rest_framework import status, serializers
-
+from django.conf import settings
+from drf_spectacular.utils import (
+    OpenApiExample,
+    OpenApiResponse,
+    extend_schema,
+    inline_serializer,
+)
+from jose import jwt
 from Model import models
 from Model.serializers import UserModelSerializer
-
-from utils.common import md5, set_expires_time
-
-from drf_spectacular.utils import (
-    extend_schema,
-    OpenApiResponse,
-    inline_serializer,
-    OpenApiExample,
-)
+from rest_framework import serializers, status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from utils.common import md5
 
 
 class LoginView(APIView):
@@ -42,11 +40,10 @@ class LoginView(APIView):
             username=username, password=md5(password)
         ).first()
         if user_obj:
-            # 生成token，存储到数据库
-            token = md5(username + str(uuid4()))
-            models.Token.objects.update_or_create(
-                user=user_obj,
-                defaults={"token": token, "expires_time": set_expires_time()},
+            token = jwt.encode(
+                {"username": username},
+                settings.SECRET_KEY,
+                "HS256",
             )
             return Response(status=status.HTTP_200_OK, data={"token": token})
         else:
