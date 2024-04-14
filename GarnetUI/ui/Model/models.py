@@ -159,15 +159,3 @@ class ServerTaskRelationship(models.Model):
     part = models.IntegerField()
 
 
-class Token(models.Model):
-    """token表"""
-
-    user = models.OneToOneField(
-        to="Users", to_field="id", on_delete=models.CASCADE, verbose_name="用户主键"
-    )
-    token = models.CharField(max_length=64, null=True, verbose_name="token")
-    expires_time = models.CharField(max_length=32, null=True, verbose_name="有效期")
-    create_time = models.DateTimeField(
-        auto_now_add=True, null=True, verbose_name="创建时间"
-    )
-    update_time = models.DateTimeField(auto_now=True, null=True, verbose_name="更新时间")
