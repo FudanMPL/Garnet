@@ -1,27 +1,31 @@
+import subprocess
+import uuid
 from pathlib import Path
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.viewsets import GenericViewSet
-from rest_framework.mixins import ListModelMixin
-from drf_spectacular.utils import extend_schema
-from django_q.tasks import async_task
-from django.conf import settings
 from typing import Dict
-from Model.models import Servers, RemoteTask, ServerTaskRelationship, Protocol, Mpc
-from Model.serializers import (
-    ServersModelSerializer,
-    MetadataSerializer,
-    TaskResponseSerializer,
-    TaskRequestSerializer,
-    JoinedServersSerializer,
-    RemoteTaskModelSerializer,
-    NoneSerializer,
-)
-import utils.common, requests, subprocess, uuid
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
-from utils.common import md5
 from uuid import uuid4
-from ..Rtask import RTask, mpc_compile, downloadAndCompile
+
+import requests
+import utils.common
+from django.conf import settings
+from django_q.tasks import async_task
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
+from Model.models import Mpc, Protocol, RemoteTask, Servers, ServerTaskRelationship
+from Model.serializers import (
+    JoinedServersSerializer,
+    MetadataSerializer,
+    NoneSerializer,
+    RemoteTaskModelSerializer,
+    ServersModelSerializer,
+    TaskRequestSerializer,
+    TaskResponseSerializer,
+)
+from rest_framework import status
+from rest_framework.mixins import ListModelMixin
+from rest_framework.response import Response
+from rest_framework.viewsets import GenericViewSet
+from utils.common import md5
+
+from ..Rtask import RTask, downloadAndCompile, mpc_compile
 
 
 class MetadataView(GenericViewSet):
@@ -118,7 +122,7 @@ class TaskReleaseView(GenericViewSet, ListModelMixin):
             relationship.server = server
             relationship.save()
             if ServerTaskRelationship.objects.filter(task=task).count() >= task.pN:
-                if task.data != None:
+                if task.data is None:
                     task.status = "本地就绪"
                 else:
                     task.status = "等待数据"
@@ -221,7 +225,9 @@ class TaskJoinView(GenericViewSet):
         task = RemoteTask(**dic)
         task.save()
         if not isExist:
-            mpc.file.name = "mpc" + "/" + res.json()["mpcURL"].split("/")[-1].split(".")[0] + ".mpc"
+            mpc.file.name = (
+                "mpc" + "/" + res.json()["mpcURL"].split("/")[-1].split(".")[0] + ".mpc"
+            )
             mpc.save
             path = Path.joinpath(settings.MEDIA_ROOT, mpc.file.name)
             async_task(downloadAndCompile, task, res.json()["mpcURL"], path)
@@ -230,7 +236,10 @@ class TaskJoinView(GenericViewSet):
         s = RemoteTaskModelSerializer(instance=task)
         return Response(data=s.data, status=status.HTTP_200_OK)
 
-    @extend_schema(description="接受参与指定任务的各方服务器元数据", request=JoinedServersSerializer)
+    @extend_schema(
+        description="接受参与指定任务的各方服务器元数据",
+        request=JoinedServersSerializer,
+    )
     def serverReceive(self, request):
         prefix = request.data[-1]
         task = RemoteTask.objects.get(prefix=prefix)
@@ -247,7 +256,7 @@ class TaskJoinView(GenericViewSet):
                         relationship = ServerTaskRelationship.objects.get(
                             task=task.pk, server=server.pk
                         )
-                    except:
+                    except Exception:
                         relationship = ServerTaskRelationship()
                         relationship.server = server
                         relationship.task = task
@@ -256,14 +265,14 @@ class TaskJoinView(GenericViewSet):
                     finally:
                         continue
                 server = link_ssl(s["serverIP"], s["serverPort"])
-            except Exception as err:
+            except Exception:
                 continue
             try:
                 relationship = ServerTaskRelationship.objects.get(
                     task=task.pk, server=server.pk
                 )
                 delete.remove(relationship)
-            except:
+            except Exception:
                 relationship = ServerTaskRelationship()
                 relationship.server = server
                 relationship.task = task
@@ -323,7 +332,12 @@ class ReadyView(GenericViewSet):
                     ready = False
                     t = TaskReleaseView()
                     t.serverSend(None, task.pk)
-                case status.HTTP_425_TOO_EARLY | status.HTTP_408_REQUEST_TIMEOUT | status.HTTP_404_NOT_FOUND | status.HTTP_500_INTERNAL_SERVER_ERROR:
+                case (
+                    status.HTTP_425_TOO_EARLY
+                    | status.HTTP_408_REQUEST_TIMEOUT
+                    | status.HTTP_404_NOT_FOUND
+                    | status.HTTP_500_INTERNAL_SERVER_ERROR
+                ):
                     ready = False
         if ready:
             task.status = "就绪"
@@ -343,7 +357,9 @@ class ReadyView(GenericViewSet):
         ],
         responses={
             status.HTTP_200_OK: OpenApiResponse(description="已就绪"),
-            status.HTTP_204_NO_CONTENT: OpenApiResponse(description="需要更新服务器元数据"),
+            status.HTTP_204_NO_CONTENT: OpenApiResponse(
+                description="需要更新服务器元数据"
+            ),
             status.HTTP_425_TOO_EARLY: OpenApiResponse(description="数据未就绪"),
             status.HTTP_400_BAD_REQUEST: OpenApiResponse(description="任务不存在"),
         },
@@ -359,7 +375,7 @@ class ReadyView(GenericViewSet):
             return Response(
                 {"msg": "servers need update"}, status=status.HTTP_204_NO_CONTENT
             )
-        if task.data == None:
+        if task.data is None:
             return Response({"msg": "not ready"}, status=status.HTTP_425_TOO_EARLY)
         if RemoteTask.objects.filter(status="运行中").count() != 0:
             return Response({"msg": "在忙"}, status=status.HTTP_409_CONFLICT)
