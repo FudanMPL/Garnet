@@ -145,6 +145,10 @@ Compiler/GFA/*.json
 
 *.dSYM
 
+#GarnetUI
+GarnetUI/ui/db.sqlite3 
+GarnetUI/ui/Model/migrations
+
 #GarnetUI loaddata
 !GarnetUI/ui/mpc.json
 !GarnetUI/ui/protocol.json
