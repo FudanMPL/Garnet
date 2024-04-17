@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from django.conf import settings
 from drf_spectacular.utils import (
     OpenApiExample,
@@ -41,7 +43,7 @@ class LoginView(APIView):
         ).first()
         if user_obj:
             token = jwt.encode(
-                {"username": username},
+                {"username": username, "timestamp": datetime.now()},
                 settings.SECRET_KEY,
                 "HS256",
             )

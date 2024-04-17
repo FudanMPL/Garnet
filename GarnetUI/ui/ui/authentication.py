@@ -1,9 +1,10 @@
+from datetime import datetime, timedelta
+
 from django.conf import settings
 from jose import jwt
 from Model import models
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
-
 
 
 class UserAuthentication(BaseAuthentication):
@@ -14,13 +15,23 @@ class UserAuthentication(BaseAuthentication):
             raise AuthenticationFailed(
                 {"code": "403", "data": None, "msg": "缺少token"}
             )
-        username = jwt.decode(
+        data: dict = jwt.decode(
             token,
             settings.SECRET_KEY,
             "HS256",
-        )["username"]
+        )
+        username = data["username"]
+        timestamp: datetime = data["timestamp"]
         user = models.Users.objects.filter(username=username)
         if user:
+            if timestamp < user.update_time:
+                raise AuthenticationFailed(
+                    {"code": "401", "data": None, "msg": "token已失效"}
+                )
+            if timestamp + timedelta(days=settings.TOKEN_EXPIRES) < datetime.now():
+                raise AuthenticationFailed(
+                    {"code": "401", "data": None, "msg": "token已失效"}
+                )
             return user, token
         else:
             # 抛出异常
