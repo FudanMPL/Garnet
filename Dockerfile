@@ -24,7 +24,7 @@ WORKDIR $Ents_HOME
 
 COPY . .
 
-RUN sudo apt install python3-pip
+RUN apt install python3-pip
 
 RUN pip install -r requirements.txt
 
