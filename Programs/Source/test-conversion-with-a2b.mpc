@@ -1,0 +1,12 @@
+program.use_split(3)
+
+size = int(program.args[1])
+print_ln("conversion with a2b size=%s", size)
+
+a0 = sint(10, size)
+
+start_timer(1)
+overflow = a0.__rshift__(32, 34)
+b = a0 - 2 ** 32 * overflow
+stop_timer(1)
+

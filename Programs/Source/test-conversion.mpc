@@ -1,0 +1,11 @@
+size = int(program.args[1])
+print_ln("conversion with change domin size=%s", size)
+
+a0 = sint(10, size)
+change_machine_domain(128)
+
+start_timer(1)
+b = a0.change_domain_from_to(32, 128)
+stop_timer(1)
+
+

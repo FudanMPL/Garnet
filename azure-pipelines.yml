@@ -1,0 +1,33 @@
+# C/C++ with GCC
+# Build your C/C++ project with GCC using make.
+# Add steps that publish test results, save build artifacts, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/apps/c-cpp/gcc
+
+trigger:
+- master
+- to-publish
+
+pool:
+  vmImage: 'ubuntu-20.04'
+
+steps:
+  - script: |
+      bash -c "sudo apt-get update && sudo apt-get install libsodium-dev libntl-dev yasm texinfo libboost-dev libboost-thread-dev python3-gmpy2 python3-networkx python3-sphinx clang"
+  - script: |
+      make boost libote mpir
+  - script:
+      echo USE_NTL=1 >> CONFIG.mine
+  - script:
+      echo MY_CFLAGS += -DFEWER_PRIMES >> CONFIG.mine
+  - script:
+      echo MY_CFLAGS += -DFEWER_RINGS >> CONFIG.mine
+  - script:
+      echo MY_CFLAGS += -DCOMP_SEC=10 >> CONFIG.mine
+  - script:
+      echo CXX = clang++ >> CONFIG.mine
+  - script:
+      make arithmetic rep-bin yao
+  - script:
+      Scripts/setup-ssl.sh 4
+  - script:
+      skip_binary=1 Scripts/test_tutorial.sh -X

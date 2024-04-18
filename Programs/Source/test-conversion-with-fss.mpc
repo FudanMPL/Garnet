@@ -1,0 +1,12 @@
+size = int(program.args[1])
+print_ln("conversion with fss size=%s", size)
+a = sint(10, 1)
+
+start_timer(1)
+for i in range(size):
+    overflow = a < 2 **32
+    b = a - 2 ** 32 * overflow
+stop_timer(1)
+
+
+

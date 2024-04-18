@@ -1,0 +1,79 @@
+program.use_trunc_pr=True
+program.use_split(3)
+import hamada_radixsort, util
+
+attr_lengths = None
+hamada_radixsort.n_threads = 4
+hamada_radixsort.tree_h = 6 # tree height
+
+
+
+
+
+
+dataset = program.args[1]
+
+print_ln("hamada radixsort dataset=%s h=%s", dataset, hamada_radixsort.tree_h)
+
+if dataset == "iris":
+    m = 4
+    n_train = 150
+    hamada_radixsort.label_number = 3
+elif dataset == "cancer":
+    m = 30
+    n_train = 569
+    hamada_radixsort.label_number = 2
+elif dataset == "diagnosis":
+    m = 6
+    n_train = 120
+    hamada_radixsort.label_number = 2
+elif dataset == "adult":
+    m = 14
+    n_train = 48842
+    hamada_radixsort.label_number = 2
+elif dataset == "kohkiloyeh":
+    m = 5
+    n_train = 100
+    hamada_radixsort.label_number = 2
+elif dataset == "tic-tac-toe":
+    m = 9
+    n_train = 958
+    hamada_radixsort.label_number = 2
+elif dataset == "digits":
+    m = 64
+    n_train = 1203
+    hamada_radixsort.label_number = 10
+elif dataset == "wine":
+    m = 13
+    n_train = 178
+    hamada_radixsort.label_number = 4
+elif dataset == "skin-segmentation":
+    m = 3
+    n_train = 245057
+    hamada_radixsort.label_number = 2
+elif dataset == "sepsis_survival":
+    m = 3
+    n_train = 129392
+    hamada_radixsort.label_number = 2
+else:
+    print("please include %s in hamada_radixsort.mpc", dataset)
+
+
+if hamada_radixsort.n_threads == 1:
+    hamada_radixsort.single_thread = True
+
+
+
+
+train = sint.Array(n_train), sint.Matrix(m, n_train)
+
+for x in train:
+    x.input_from(0)
+
+
+trainer = hamada_radixsort.TreeTrainer(
+   train[1], train[0], hamada_radixsort.tree_h, attr_lengths=None,
+   n_threads=hamada_radixsort.n_threads)
+
+
+layers = trainer.train()
