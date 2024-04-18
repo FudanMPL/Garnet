@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
                 vim \
                 gdb \
                 valgrind \
+                python3-pip \
         && rm -rf /var/lib/apt/lists/*
 
 ENV Ents_HOME /usr/src/Ents
@@ -24,8 +25,7 @@ WORKDIR $Ents_HOME
 
 COPY . .
 
-RUN apt update
-RUN apt install python3-pip
+
 
 RUN pip install -r requirements.txt
 
