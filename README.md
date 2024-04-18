@@ -5,9 +5,9 @@ This README file provides instructions for reproducing the experimental results 
 
 
 **RoadMap:**
-You should first download the source code according to [Download Source Code](#download).
-Then, you should set up the testing environment according to [Set Up Environment](#environment).
-Finally, you can evalute the efficiency or accuracy of the frameworks according to [Efficiency Evaluation](#efficiency) and [Accuracy Evaluation](#accuracy), respectively.
+First, You should download the source code according to [Download Source Code](#download).
+Then, you should set up the testing environment using docker according to [Set Up Environment](#environment).
+Finally, after enter the docker contain, you can evalute the efficiency or accuracy of the frameworks according to [Efficiency Evaluation](#efficiency) and [Accuracy Evaluation](#accuracy), respectively.
 
 
 ## Download Source Code
@@ -26,10 +26,18 @@ or download the Ent.zip and unzip it.
 ## Set Up Environment
 <a name="environment"></a>
 
-
 We provide a dockerfile to set up the testing environment.
 
-### 1. Build Docker Image
+### 1. Change Working Directory
+
+Use the following command to change current the working directory to Ents.
+
+```
+cd Ents/ 
+```
+
+
+### 2. Build Docker Image
 
 Use the following command to build the Docker image:
 
@@ -41,7 +49,7 @@ Building the image may take some time.
 
 Ignore the error info if the images are finally build successfully.
 
-### 2. Launch Docker Container 
+### 3. Launch Docker Container 
 
 Launch the Docker container and access its shell using:
 
@@ -75,6 +83,7 @@ Ignore the following error if it appears:
 ```
 Error: Cannot delete qdisc with handle of zero.
 ```
+
 
 
 ### 1. Main Experiment (Table 3 in Section 5.2)
