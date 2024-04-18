@@ -209,7 +209,7 @@ python3 ./compile.py -R 32 hamada_extend iris
 You can replace 'iris' with other datasets (cancer, diagnosis, adult, kohkiloyeh, tic-tac-toe, wine or skin-segmentation) to evaluate on other datasets.
 
 
-### 3. Share Conversion Protocol (Table 4 in Section 5.4)
+### 3. Experiments for Share Conversion Protocol (Table 4 in Section 5.4)
 
 #### (1) ConvertShare
 
@@ -253,7 +253,7 @@ python3 ./compile.py -R 128 test-conversion-with-fss 10
 
 
 
-### 4. Efficiency of Two-Party Ents (Table 6 in Appendix E.2) 
+### 4. Experiment for Two-Party Ents (Table 6 in Appendix E.2) 
 To  evaluate the efficiency of two-party Ents on the 'iris' dataset, execute these commands sequentially:
 
 ```
