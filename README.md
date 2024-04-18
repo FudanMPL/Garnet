@@ -6,7 +6,7 @@ This README file provides instructions for reproducing the experimental results 
 
 **RoadMap:**
 You should first download the source code according to [Download Source Code](#download).
-Then, you should Set Up Environment according to [Set Up Environment](#environment).
+Then, you should set up the testing environment according to [Set Up Environment](#environment).
 Finally, you can evalute the efficiency or accuracy of the frameworks according to [Efficiency Evaluation](#efficiency) and [Accuracy Evaluation](#accuracy), respectively.
 
 
