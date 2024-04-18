@@ -8,12 +8,9 @@ The code for implementing Ents is primarily located in Compiler/ents.py and Prot
 
 ## Set Up Environment
 
-We provide two ways to set up environment, one is using Docker, the other is setting up environment manually. We recommend to use Docker.
+We provide dockerfile to set up environment.
 
-
-### 1. Use Docker
-
-#### (1) build Docker images
+#### 1. build Docker images
 
 ```
 sudo docker build -t ents .
@@ -21,68 +18,11 @@ sudo docker build -t ents .
 
 This step may cost some time
 
-#### (2) build Docker container
+#### 2. start Docker container and enter it
 
 ```
-sudo docker run -it ents bash
+sudo docker run --cap-add=NET_ADMIN -it ents bash
 ```
-
-#### (3) enter Docker container
-
-```
-docker build -t ents .
-```
-
-
-### 2. Build Environment Manually
-
-If you choose to use Docker, ignore this part.
-
-#### system requirement
-
-ubuntu  20.04
-
-python == 3.10.12
-
-#### (1) library install
-
-```
-sudo apt-get install automake build-essential cmake git libboost-dev libboost-thread-dev libntl-dev libsodium-dev libssl-dev libtool m4 python3 texinfo yasm
-```
-
-#### (2) python library install
-
-```
-pip install -r requirements.txt
-```
-
-#### (3) compile virtual machines
-
-
-```
-make clean
-make -j 8 tldr
-make -j 8 replicated-ring-party.x
-make -j 8 semi2k-party.x
-make -j 8 Fake-Offline.x
-make -j 8 malicious-rep-ring-party.x
-```
-
-#### (4) setup certificate
-
-```
-./Scripts/setup-ssl.sh 3
-```
-
-#### (5) setup offline data
-
-```
-./Scripts/setup-online.sh 3 32
-./Scripts/setup-online.sh 3 128
-./Scripts/setup-online.sh 2 32
-./Scripts/setup-online.sh 2 128
-```
-
 
 
 

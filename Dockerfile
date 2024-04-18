@@ -18,6 +18,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
                 vim \
                 gdb \
                 valgrind \
+                iproute2 \
+                sudo \
         && rm -rf /var/lib/apt/lists/*
 
 ENV Ents_HOME /usr/src/Ents
@@ -51,3 +53,5 @@ RUN ./Scripts/setup-online.sh 2 32
 RUN ./Scripts/setup-online.sh 2 128
 
 
+RUN chmod +x ./lan.sh
+RUN chmod +x ./wan.sh
