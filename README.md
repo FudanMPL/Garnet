@@ -47,7 +47,7 @@ sudo docker build -t ents .
 
 Building the image may take some time.
 
-Ignore the error info if the images are finally build successfully.
+Ignore the error info if the image are finally build successfully.
 
 ### 3. Launch Docker Container 
 
