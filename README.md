@@ -17,10 +17,10 @@ Finally, you can evalute the efficiency or accuracy of the frameworks according 
 You can download the source code by 
 
 ```
-git clone https://github.com/FudanMPL/Garnet.git -b Ents
+git clone https://github.com/FudanMPL/Garnet.git Ents -b Ents
 ```
 
-or download the .zip file.
+or download the Ent.zip and unzip it.
 
 
 ## Set Up Environment
