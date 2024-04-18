@@ -3,7 +3,7 @@ FROM ubuntu:23.04
 RUN apt-get update && apt-get install -y --no-install-recommends \
                 automake \
                 build-essential \
-                clang-11 \
+                clang \
 		cmake \
                 git \
                 libboost-dev \
