@@ -43,7 +43,10 @@ class LoginView(APIView):
         ).first()
         if user_obj:
             token = jwt.encode(
-                {"username": username, "timestamp": datetime.now()},
+                {
+                    "username": username,
+                    "timestamp": datetime.now(settings.LOCAL_TZ).timestamp(),
+                },
                 settings.SECRET_KEY,
                 "HS256",
             )

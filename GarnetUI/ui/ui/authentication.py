@@ -15,20 +15,25 @@ class UserAuthentication(BaseAuthentication):
             raise AuthenticationFailed(
                 {"code": "403", "data": None, "msg": "缺少token"}
             )
-        data: dict = jwt.decode(
-            token,
-            settings.SECRET_KEY,
-            "HS256",
-        )
+        try:
+            data: dict = jwt.decode(
+                token,
+                settings.SECRET_KEY,
+                "HS256",
+            )
+        except Exception:
+            raise AuthenticationFailed(
+                {"code": "401", "data": None, "msg": "token无效"}
+            )
         username = data["username"]
-        timestamp: datetime = data["timestamp"]
-        user = models.Users.objects.filter(username=username)
-        if user:
-            if timestamp < user.update_time:
-                raise AuthenticationFailed(
-                    {"code": "401", "data": None, "msg": "token已失效"}
-                )
-            if timestamp + timedelta(days=settings.TOKEN_EXPIRES) < datetime.now():
+        timestamp: datetime = datetime.fromtimestamp(
+            data["timestamp"], tz=settings.LOCAL_TZ
+        )
+        user = models.Users.objects.filter(username=username).first()
+        if user is not None:
+            if timestamp < user.update_time or timestamp + timedelta(
+                days=settings.TOKEN_EXPIRES
+            ) < datetime.now(settings.LOCAL_TZ):
                 raise AuthenticationFailed(
                     {"code": "401", "data": None, "msg": "token已失效"}
                 )
