@@ -4,14 +4,32 @@
 This README file provides instructions for reproducing the experimental results in the paper "Ents: An Efficient Three-party Training Framework for Decision Trees by Communication Optimization" (CCS 2024).
 
 
+**RoadMap:**
+You should first download the source code according to [Download Source Code](#download).
+Then, you should Set Up Environment according to [Set Up Environment](#environment).
+Finally, you can evalute the efficiency or accuracy of the frameworks according to [Efficiency Evaluation](#efficiency) and [Accuracy Evaluation](#accuracy), respectively.
 
+
+## Download Source Code
+<a name="download"></a>
+
+
+You can download the source code by 
+
+```
+git clone https://github.com/FudanMPL/Garnet.git -b Ents
+```
+
+or download the .zip file.
 
 
 ## Set Up Environment
+<a name="environment"></a>
+
 
 We provide a dockerfile to set up the testing environment.
 
-#### 1. Build Docker Image
+### 1. Build Docker Image
 
 Use the following command to build the Docker image:
 
@@ -23,7 +41,7 @@ Building the image may take some time.
 
 Ignore the error info if the images are finally build successfully.
 
-#### 2. Launch Docker Container 
+### 2. Launch Docker Container 
 
 Launch the Docker container and access its shell using:
 
@@ -34,18 +52,20 @@ sudo docker run --cap-add=NET_ADMIN -it ents bash
 
 
 ## Efficiency Evaluation
+<a name="efficiency"></a>
+
 
 ### 0. Network Simulation
 
 
-We conduct efficiency evaluations under two network configurations: LAN and WAN.
+Before evaluating the efficiency of the frameworks, you should simulate the network setting.
 
-To simulate the LAN setting, use the following command
+If you want to evaluate the efficiency of the frameworks in the LAN setting, use the following command
 ```
 ./lan.sh
 ```
 
-To simulate the WAN setting, use the following command 
+If you want to evaluate the efficiency of the frameworks in the WAN setting, use the following command 
 ```
 ./wan.sh
 ```
@@ -224,7 +244,7 @@ python3 ./compile.py -R 128 test-conversion-with-fss 10
 
 
 
-#### 4. Efficiency of Two-Party Ents (Table 6 in Appendix E.2) 
+### 4. Efficiency of Two-Party Ents (Table 6 in Appendix E.2) 
 To  evaluate the efficiency of two-party Ents on the 'iris' dataset, execute these commands sequentially:
 
 ```
@@ -238,9 +258,10 @@ You can replace 'iris' with other datasets (cancer, diagnosis, adult, kohkiloyeh
 
 
 ## Accuracy Evaluation (Table 7 in Appendix F)
+<a name="accuracy"></a>
 
 
-#### (1) Ents
+### 1. Ents
 
 To evaluate the the accuracy of Ents on the 'iris' dataset, execute these commands sequentially:
 
@@ -273,7 +294,7 @@ The accuracy is 48/51 = 0.9411.
 You can replace 'iris' with other datasets (cancer, diagnosis, adult, kohkiloyeh, tic-tac-toe, wine or skin-segmentation) to evaluate on other datasets.
 
 
-#### (2) scikit-learn
+### 2. scikit-learn
 
 To evaluate the the accuracy of scikit-learn on the 'iris' dataset, execute the following command:
 
