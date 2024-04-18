@@ -1,24 +1,31 @@
-# ReadMe for Ents
+# README for Ents
 
 
-The code for implementing Ents is primarily located in Compiler/ents.py and Protocols/replicated.hpp.
+This README file provides instructions for reproducing the experimental results in the paper "Ents: An Efficient Three-party Training Framework for Decision Trees by Communication Optimization" (CCS 2024).
+
 
 
 
 
 ## Set Up Environment
 
-We provide dockerfile to set up environment.
+We provide a dockerfile to set up the testing environment.
 
-#### 1. build Docker images
+#### 1. Build Docker Image
+
+Use the following command to build the Docker image:
 
 ```
 sudo docker build -t ents .
 ```
 
-This step may cost some time
+Building the image may take some time.
 
-#### 2. start Docker container and enter it
+Ignore the error info if the images are finally build successfully.
+
+#### 2. Launch Docker Container 
+
+Launch the Docker container and access its shell using:
 
 ```
 sudo docker run --cap-add=NET_ADMIN -it ents bash
@@ -30,24 +37,31 @@ sudo docker run --cap-add=NET_ADMIN -it ents bash
 
 ### 0. Network Simulation
 
-All the efficiency evaluation are performed under two network setting: LAN and WAN.
 
-To simulate the LAN setting: run the following codes
+We conduct efficiency evaluations under two network configurations: LAN and WAN.
+
+To simulate the LAN setting, use the following command
 ```
 ./lan.sh
 ```
 
-To simulate the WAN setting: run the following codes
+To simulate the WAN setting, use the following command 
 ```
 ./wan.sh
 ```
 
+Ignore the following error if it appears:
+
+```
+Error: Cannot delete qdisc with handle of zero.
+```
 
 
 ### 1. Main Experiment (Table 3 in Section 5.2)
 
 #### (1) Ents
-To verify the efficiency of Ents on a dataset (such as iris), run the following codes
+
+To evaluate the efficiency of Ents on the 'iris' dataset, execute these commands sequentially:
 
 ```
 python3 ./Scripts/data_prepare_for_efficiency.py iris
@@ -55,12 +69,35 @@ python3 ./compile.py -R 32 ents_efficiency iris
 ./Scripts/ring.sh -F ents_efficiency-iris
 ```
 
-iris coule be replaced by cancer, diagnosis, adult, kohkiloyeh, tic-tac-toe, wine or skin-segmentation
+It will output as follows:
+
+```
+Using security parameter 40
+Trying to run 32-bit computation
+ents dataset=iris h=6
+training 0-th layer
+training 1-th layer
+training 2-th layer
+training 3-th layer
+training 4-th layer
+training 5-th layer
+training 6-th layer (leaf layer)
+REWINDING - ONLY FOR BENCHMARKING
+The following benchmarks are excluding preprocessing (offline phase).
+Time = 1.17903 seconds 
+Data sent = 9.46039 MB in ~15931 rounds (party 0; rounds counted double due to multi-threading)
+Global data sent = 34.1352 MB (all parties)
+```
+
+The runtime, communciation rounds and communication size are  1.17903s, 15931 and 34.1352 MB respectively.
+
+You can replace 'iris' with other datasets (cancer, diagnosis, adult, kohkiloyeh, tic-tac-toe, wine or skin-segmentation) to evaluate on other datasets.
 
 
 
-#### (2) Hamada et al.'s framework
-To verify the efficiency of Hamada et al.'s framework on a dataset (such as iris), run the following codes
+#### (2) Hamada et al.'s Framework
+
+To evaluate the efficiency of Hamada et al.'s framework on the 'iris' dataset, execute these commands sequentially:
 
 ```
 python3 ./Scripts/data_prepare_for_efficiency.py iris
@@ -68,11 +105,13 @@ python3 ./compile.py -R 128 hamada iris
 ./Scripts/ring.sh -F hamada-iris
 ```
 
-iris coule be replaced by cancer, diagnosis, adult, kohkiloyeh, tic-tac-toe, wine or skin-segmentation
+You can replace 'iris' with other datasets (cancer, diagnosis, adult, kohkiloyeh, tic-tac-toe, wine or skin-segmentation) to evaluate on other datasets.
 
 
-#### (3) Abspoel et al.'s framework
-To verify the efficiency of Abspoel et al.'s framework on a dataset (such as iris), run the following codes
+#### (3) Abspoel et al.'s Framework
+
+To evaluate the efficiency of Abspoel et al.'s framework on the 'iris' dataset, execute these commands sequentially:
+
 
 ```
 python3 ./Scripts/data_prepare_for_efficiency.py iris
@@ -80,13 +119,19 @@ python3 ./compile.py -R 128 abspoel iris
 ./Scripts/ring.sh -F abspoel-iris
 ```
 
-iris coule be replaced by cancer, diagnosis, adult, kohkiloyeh, tic-tac-toe, wine or skin-segmentation.
-Note that compiling adult and skin-segmentation may need one or two days.
+
+You can replace 'iris' with other datasets (cancer, diagnosis, adult, kohkiloyeh, tic-tac-toe, wine or skin-segmentation) to evaluate on other datasets.
+
+Note: Compiling for 'adult' and 'skin-segmentation' (i.e. runing the follow commands) may take 1-2 days.
+```
+python3 ./compile.py -R 128 abspoel adult (or skin-segmentation)
+```
+
 
 ### 2. Ablation Experiment (Figure 2 in Section 5.3)
 
 #### (1) Ents
-To verify the efficiency of Ents on a dataset (such as iris), run the following codes
+To evaluate the efficiency of Ents on the 'iris' dataset, execute these commands sequentially:
 
 ```
 python3 ./Scripts/data_prepare_for_efficiency.py iris
@@ -94,11 +139,11 @@ python3 ./compile.py -R 32 ents_efficiency iris
 ./Scripts/ring.sh -F ents_efficiency-iris
 ```
 
-iris coule be replaced by cancer, diagnosis, adult, kohkiloyeh, tic-tac-toe, wine or skin-segmentation
+You can replace 'iris' with other datasets (cancer, diagnosis, adult, kohkiloyeh, tic-tac-toe, wine or skin-segmentation) to evaluate on other datasets.
 
 
-#### (2) Hamada et al.'s framework
-To verify the efficiency of Hamada et al.'s framework on a dataset (such as iris), run the following codes
+#### (2) Hamada et al.'s Framework
+To evaluate the efficiency of Hamada et al.'s framework on the 'iris' dataset, execute these commands sequentially:
 
 ```
 python3 ./Scripts/data_prepare_for_efficiency.py iris
@@ -106,11 +151,12 @@ python3 ./compile.py -R 128 hamada iris
 ./Scripts/ring.sh -F hamada-iris
 ```
 
-iris coule be replaced by cancer, diagnosis, adult, kohkiloyeh, tic-tac-toe, wine or skin-segmentation
+You can replace 'iris' with other datasets (cancer, diagnosis, adult, kohkiloyeh, tic-tac-toe, wine or skin-segmentation) to evaluate on other datasets.
 
 
-#### (3) Hamada et al.'s framework-radixsort
-To verify the efficiency of Hamada et al.'s framework-radixsort on a dataset (such as iris), run the following codes
+#### (3) Hamada et al.'s Framework-radixsort
+
+To evaluate the efficiency of Hamada et al.'s framework-radixsort on the 'iris' dataset, execute these commands sequentially:
 
 ```
 python3 ./Scripts/data_prepare_for_efficiency.py iris
@@ -118,11 +164,12 @@ python3 ./compile.py -R 128 hamada_radixsort iris
 ./Scripts/ring.sh -F hamada_radixsort-iris
 ```
 
-iris coule be replaced by cancer, diagnosis, adult, kohkiloyeh, tic-tac-toe, wine or skin-segmentation
+You can replace 'iris' with other datasets (cancer, diagnosis, adult, kohkiloyeh, tic-tac-toe, wine or skin-segmentation) to evaluate on other datasets.
 
 
-#### (4) Hamada et al.'s framework-extend
-To verify the efficiency of Hamada et al.'s framework-extend on a dataset (such as iris), run the following codes
+#### (4) Hamada et al.'s Framework-extend
+
+To evaluate the efficiency of Hamada et al.'s framework-extend on the 'iris' dataset, execute these commands sequentially:
 
 ```
 python3 ./Scripts/data_prepare_for_efficiency.py iris
@@ -130,13 +177,14 @@ python3 ./compile.py -R 32 hamada_extend iris
 ./Scripts/ring.sh -F hamada_extend-iris
 ```
 
-iris coule be replaced by cancer, diagnosis, adult, kohkiloyeh, tic-tac-toe, wine or skin-segmentation
+You can replace 'iris' with other datasets (cancer, diagnosis, adult, kohkiloyeh, tic-tac-toe, wine or skin-segmentation) to evaluate on other datasets.
 
 
 ### 3. Share Conversion Protocol (Table 4 in Section 5.4)
 
 #### (1) ConvertShare
-To verify the efficiency of the protocol Convert with vector of size n (such as 10), run the following codes
+
+To evaluate the efficiency of the protocol ConvertShare with vector of size n (such as 10), execute these commands sequentially:
 
 ```
 python3 ./compile.py -R 128 test-conversion 10
@@ -146,7 +194,8 @@ python3 ./compile.py -R 128 test-conversion 10
 
 
 #### (2) Convert-A2B
-To verify the efficiency of the protocol Convert-A2B with vector of size n (such as 10), run the following codes
+
+To evaluate the efficiency of the protocol Convert-A2B with vector of size n (such as 10), execute these commands sequentially:
 
 ```
 python3 ./compile.py -R 128 test-conversion-with-a2b 10
@@ -154,7 +203,8 @@ python3 ./compile.py -R 128 test-conversion-with-a2b 10
 ```
 
 #### (3) Convert-Dabits
-To verify the efficiency of the protocol Convert-Dabits with vector of size n (such as 10), run the following codes
+
+To evaluate the efficiency of the protocol Convert-Dabits with vector of size n (such as 10), execute these commands sequentially:
 
 ```
 python3 ./compile.py -R 128 test-conversion-with-dabits 10
@@ -162,7 +212,8 @@ python3 ./compile.py -R 128 test-conversion-with-dabits 10
 ```
 
 #### (4) Convert-FSS
-To verify the efficiency of the protocol Convert with vector of size n (such as 10), run the following codes
+
+To evaluate the efficiency of the protocol Convert-FSS with vector of size n (such as 10), execute these commands sequentially:
 
 ```
 ./Fake-Offline.x 3 -e 15,31,63
@@ -173,46 +224,73 @@ python3 ./compile.py -R 128 test-conversion-with-fss 10
 
 
 
-
-#### 4. Table 6 in Appendix E.2
-To verify the efficiency of two-party Ents on a dataset (such as iris), run the following codes
+#### 4. Efficiency of Two-Party Ents (Table 6 in Appendix E.2) 
+To  evaluate the efficiency of two-party Ents on the 'iris' dataset, execute these commands sequentially:
 
 ```
-printf '0 %.0s' {1..10000000} >  Player-Data/Input-P0-0
+python3 ./Scripts/data_prepare_for_efficiency.py iris
 python3 ./compile.py -R 32 ents_two_party iris
 ./Scripts/semi2k.sh -F ents_two_party-iris
 ```
 
-## Accuracy evaluation (Table 7 in Appendix F)
+You can replace 'iris' with other datasets (cancer, diagnosis, adult, kohkiloyeh, tic-tac-toe, wine or skin-segmentation) to evaluate on other datasets.
+
+
+
+## Accuracy Evaluation (Table 7 in Appendix F)
 
 
 #### (1) Ents
 
-To verify the accuracy of Ents on iris, run the following codes:
+To evaluate the the accuracy of Ents on the 'iris' dataset, execute these commands sequentially:
 
 ```
-python3 ./Scripts/data_prepare_for_accuracy iris
+python3 ./Scripts/data_prepare_for_accuracy.py iris
 python3 ./compile.py -R 32 ents_accuracy iris
 ./Scripts/ring.sh -F ents_accuracy-iris
 ```
 
-iris coule be replaced by cancer, diagnosis, adult, kohkiloyeh, tic-tac-toe, wine or skin-segmentation
+It will output as follows
 
-Note that the accuracy may be a little different with the result in Table 7, that is because when multiple split points have the same maximum modified Gini impurity, Ents
-will randomly select one.
+```
+Using security parameter 40
+Trying to run 32-bit computation
+training 0-th layer
+training 1-th layer
+training 2-th layer
+training 3-th layer
+training 4-th layer
+training 5-th layer
+training 6-th layer (leaf layer)
+iris-test for height 6: 48/51
+```
+
+The accuracy is 48/51 = 0.9411.
+
+
+**Note:** The accuracy may vary with each run and might differ from the result in Table 7. That is because when multiple best split points, Ents will randomly select one.
  
+You can replace 'iris' with other datasets (cancer, diagnosis, adult, kohkiloyeh, tic-tac-toe, wine or skin-segmentation) to evaluate on other datasets.
+
 
 #### (2) scikit-learn
 
-To verify the accuracy of scikit-learn on iris, run the following codes:
+To evaluate the the accuracy of scikit-learn on the 'iris' dataset, execute the following command:
+
 
 ```
 python3 ./Scripts/ski-dt.py iris
 ```
 
-iris coule be replaced by cancer, diagnosis, adult, kohkiloyeh, tic-tac-toe, wine or skin-segmentation
+It will output as follows
+
+```
+scikit-learn accuracy on iris: 0.9411764705882353
+```
+
+**Note:** The accuracy may vary with each run and might differ from the result in Table 7. That is because when multiple best split points, scikit-learn will randomly select one.
+ 
+You can replace 'iris' with other datasets (cancer, diagnosis, adult, kohkiloyeh, tic-tac-toe, wine or skin-segmentation) to evaluate on other datasets.
 
 
-Note that the accuracy may be a little different with the result in Table 7, that is because when multiple split points have the same maximum modified Gini impurity, scikit-learn
-will also randomly select one.
  

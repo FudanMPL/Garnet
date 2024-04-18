@@ -53,4 +53,4 @@ y_test = y_test.astype("int")
 accuracy = []
 for j in range(5):
     accuracy.append(decision_tree_classifier(X_train, X_test, y_train, y_test, random_state=random.randint(0, 20)))
-print(f"scikit-learn Accuracy on {dataset}: {sum(accuracy)/5}")
+print(f"scikit-learn accuracy on {dataset}: {sum(accuracy)/5}")
