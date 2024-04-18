@@ -142,7 +142,7 @@ To verify the efficiency of the protocol Convert with vector of size n (such as 
 python3 ./compile.py -R 128 test-conversion 10
 ./Scripts/ring.sh -F test-conversion-10
 ```
-
+ 
 
 
 #### (2) Convert-A2B
