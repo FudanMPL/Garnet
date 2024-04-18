@@ -7,7 +7,7 @@ This README file provides instructions for reproducing the experimental results 
 **RoadMap:**
 First, You should download the source code according to [Download Source Code](#download).
 Then, you should set up the testing environment using docker according to [Set Up Environment](#environment).
-Finally, after enter the docker contain, you can evalute the efficiency or accuracy of the frameworks according to [Efficiency Evaluation](#efficiency) and [Accuracy Evaluation](#accuracy), respectively.
+Finally, after entering the docker contain, you can evalute the efficiency or accuracy of the frameworks according to [Efficiency Evaluation](#efficiency) and [Accuracy Evaluation](#accuracy), respectively.
 
 
 ## Download Source Code
