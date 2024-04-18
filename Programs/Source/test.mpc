@@ -1,3 +1,7 @@
-a = sint(0)
-b = sint(1)
-a > b
+a = sint.get_input_from(0) # 从第0方读入，该函数会自动调用秘密共享的过程
+b = sint.get_input_from(1) # 从第1方读入，该函数会自动调用秘密共享的过程
+comparison_result = a > b # 比较a和b的大小，得到比较的结果
+res = comparison_result * a + (1 - comparison_result) * b # 使用比较结果，计算秘密分享下的较大值
+res_plaintext = res.reveal() # 将秘密分享下的较大值还原成明文
+print_ln("res = %s", res_plaintext) # 打印最终的结果
+
