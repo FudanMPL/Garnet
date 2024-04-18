@@ -384,5 +384,8 @@ deps/simde/simde:
 	git submodule update --init deps/simde || git clone https://github.com/simd-everywhere/simde deps/simde
 
 
-clean:
+clean-deps:
+	-rm -rf local/lib/liblibOTe.* deps/libOTe/out deps/SimplestOT_C
+
+clean: clean-deps
 	-rm -f */*.o *.o */*.d *.d *.x core.* *.a gmon.out */*/*.o static/*.x *.so
