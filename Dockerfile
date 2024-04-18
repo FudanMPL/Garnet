@@ -24,6 +24,8 @@ WORKDIR $Ents_HOME
 
 COPY . .
 
+RUN sudo apt install python3-pip
+
 RUN pip install -r requirements.txt
 
 RUN ./Scripts/setup-ssl.sh 3
