@@ -1,4 +1,4 @@
-FROM python:3.10.3-bullseye
+FROM ubuntu:22.04
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
                 automake \

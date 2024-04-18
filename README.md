@@ -16,7 +16,7 @@ We provide two ways to set up environment, one is using Docker, the other is set
 #### (1) build Docker images
 
 ```
-docker build -t ents .
+sudo docker build -t ents .
 ```
 
 This step may cost some time
@@ -24,7 +24,7 @@ This step may cost some time
 #### (2) build Docker container
 
 ```
-docker build -t ents .
+sudo docker run -it ents bash
 ```
 
 #### (3) enter Docker container
