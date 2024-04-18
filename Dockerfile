@@ -4,6 +4,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
                 automake \
                 build-essential \
                 clang-11 \
+                yasm \
 		cmake \
                 git \
                 libboost-dev \
@@ -25,7 +26,7 @@ WORKDIR $Ents_HOME
 COPY . .
 
 
-RUN make boost
+RUN make clean-deps boost libote
 
 RUN make clean
 RUN make -j 8 tldr
