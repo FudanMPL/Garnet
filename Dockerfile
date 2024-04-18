@@ -1,9 +1,9 @@
-FROM ubuntu:23.04
+FROM python:3.10.3-bullseye as buildenv
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
                 automake \
                 build-essential \
-                clang \
+                clang-11 \
 		cmake \
                 git \
                 libboost-dev \
@@ -17,7 +17,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
                 vim \
                 gdb \
                 valgrind \
-                python3-pip \
         && rm -rf /var/lib/apt/lists/*
 
 ENV Ents_HOME /usr/src/Ents
@@ -25,7 +24,7 @@ WORKDIR $Ents_HOME
 
 COPY . .
 
-
+RUN make boost
 
 RUN pip3 install -r requirements.txt
 
