@@ -2583,7 +2583,7 @@ class mulrs(base.VarArgsInstruction, base.DataInstruction):
 @base.gf2n
 @base.vectorize
 class dotprods(base.VarArgsInstruction, base.DataInstruction,
-               base.DynFormatInstruction):
+            base.DynFormatInstruction):
     """ Dot product of secret registers (vectors).
     Note that the vectorized version works element-wise.
 
@@ -2727,8 +2727,6 @@ class matmulsm(matmul_base):
         for i in range(2):
             assert args[8 + i].size == args[4 + i]
 
-
-
 class conv2ds(base.DataInstruction):
     """ Secret 2D convolution.
 
@@ -2750,7 +2748,7 @@ class conv2ds(base.DataInstruction):
     """
     code = base.opcodes['CONV2DS']
     arg_format = ['sw','s','s','int','int','int','int','int','int','int','int',
-                  'int','int','int','int']
+                'int','int','int','int']
     data_type = 'triple'
     is_vec = lambda self: True
 
@@ -3002,6 +3000,61 @@ class sqrs(base.CISC):
         adds(s[5], s[1], s[4])
         subml(self.args[0], s[5], c[1])
 
+class rfss3_conv2d_relus(base.DataInstruction):
+    """ Secret 2D convolution without truncation and reshare for RFSS3.
+
+    :param: result (sint vector in row-first order)
+    :param: inputs (sint vector in row-first order)
+    :param: weights (sint vector in row-first order)
+    :param: output height (int)
+    :param: output width (int)
+    :param: input height (int)
+    :param: input width (int)
+    :param: weight height (int)
+    :param: weight width (int)
+    :param: stride height (int)
+    :param: stride width (int)
+    :param: number of channels (int)
+    :param: padding height (int)
+    :param: padding width (int)
+    :param: batch size (int)
+    :param: trunc bit length (int)
+    :param: bit length (int)
+    """
+    code = base.opcodes['CONV2DRELURFSS3S']
+    arg_format = ['sw','s','s','int','int','int','int','int','int','int','int',
+                'int','int','int','int','int','int']
+    data_type = 'triple'
+    is_vec = lambda self: True
+
+    def __init__(self, *args, **kwargs):
+        super(rfss3_conv2d_relus, self).__init__(*args, **kwargs)
+        assert args[0].size == args[3] * args[4] * args[14]
+        assert args[1].size == args[5] * args[6] * args[11] * args[14]
+        assert args[2].size == args[7] * args[8] * args[11]
+
+    def get_repeat(self):
+        return self.args[3] * self.args[4] * self.args[7] * self.args[8] * \
+            self.args[11] * self.args[14]
+
+    # def add_usage(self, req_node):
+    #     cost_func = program.get_cost("matmuls")
+    #     if cost_func == -1:
+    #         print("The profiling results could be biased")
+    #         print("Please config the cost of matmuls in cost_config.py")
+    #         return
+    #     config = program.cost_config
+    #     args = self.args
+    #     res = cost_func(config.bit_length, config._security, config.f, config.n_parties, 1 , args[7]*args[8], 1)
+    #     times = args[14] * args[11] * args[3] * args[4]    
+    #     req_node.increment(('online communication', 'bits'), res[0]*times)
+    #     req_node.increment(('offline communication', 'bits'), res[2]*times)
+    #     req_node.increment(('online', 'round'), res[1])
+    #     req_node.increment(('offline', 'round'), res[3])
+    #     super(rfss3_conv2d_relus, self).add_usage(req_node)
+    #     args = self.args
+    #     req_node.increment(('matmul', (1, args[7] * args[8] * args[11],
+    #                                    args[14] * args[3] * args[4])), 1)
 
 # placeholder for documentation
 class cisc:

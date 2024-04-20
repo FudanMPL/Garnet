@@ -89,7 +89,8 @@ public:
   void send_personal(const vector<int>& args);
   void private_output(const vector<int>& args);
 
-
+  //Instructions for RFss3
+  void conv2d_relu_rfss3s(const Instruction& instruction);
 
 
   template<class T2>

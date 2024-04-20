@@ -497,6 +497,12 @@ void BaseInstruction::parse_operands(istream& s, int pos, int file_pos)
         get_vector(num_var_args, start, s);
         break;
 
+      // Instructions for RFSS3
+      case CONV2DRELURFSS3S:
+        get_ints(r, s, 3);
+        get_vector(14, start, s);
+        break;
+        
       default:
         ostringstream os;
         os << "Invalid instruction " << showbase << hex << opcode << " at " << dec
@@ -1332,6 +1338,10 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
       case GPREP:
         Proc2.DataF.get(Proc.Proc2.get_S(), r, start, size);
         return;
+      // add instructions for RFSS3
+      case CONV2DRELURFSS3S:
+        Proc.Procp.protocol.conv2drelurfss3s(Proc.Procp, *this);
+        return;
       case CISC:
         Procp.protocol.cisc(Procp, *this);
         return;
@@ -2004,8 +2014,11 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
       case GPREP:
         Proc2.DataF.get(Proc.Proc2.get_S(), r, start, size);
         return;
+      // add instructions for RFSS3
+      case CONV2DRELURFSS3S:
+        Proc.Procp.protocol.conv2d_relu_rfss3s(Proc.Procp, *this);
+        return;
       case CISC:
-        std::cout << "callign cisc in Instruction.hpp" << std::endl;
         Procp.protocol.cisc(Proc.Procp, *this);
         return;
       default:

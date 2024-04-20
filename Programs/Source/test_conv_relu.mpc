@@ -4,41 +4,78 @@ import tensor as tensor
 import functional as F
 
 program.options_from_args()
-ROW=3
-COL=4
-HEIGHT=4
-LENGTH=10
+BATCH_SIZE = 1
+CHANNEL = 1
+ROW = 2
+COL = 2
+KERNEL_ROW = 2
+KERNEL_COL = 2
 
 @autograd_function
-def test_conv2d():
-    print_ln("test_conv2d:")
-    training_samples = MultiArray([4, 3,5, 5], sfix)
-    for i in range(0,4):
-        for j in range(0,3):
-            for k in range(0,5):
-                for m in range(5):
-                    training_samples[i][j][k][m]=i+j+k+m
+def test_rfss3conv2d_relu():
+    print_ln("test_rfss3conv2d_relu:")
+    training_samples = MultiArray([BATCH_SIZE, CHANNEL, ROW, COL], sfix)
+    for i in range(BATCH_SIZE):
+        for j in range(CHANNEL):
+            for k in range(ROW):
+                for m in range(COL):
+                    training_samples[i][j][k][m] = sfix(1)
 
-
-    training_labels = MultiArray([4, 10], sint)
-    weight_v=MultiArray([1,3,3,3],sfix)
-    for i in range(0,3):
-        for j in range(0,3):
-            for k in range(0,3):
-                weight_v[0][i][j][k] = sfix(i+j+k)
+    weight_v=MultiArray([BATCH_SIZE,CHANNEL,KERNEL_ROW,KERNEL_COL],sfix)
+    for i in range(CHANNEL):
+        for j in range(KERNEL_ROW):
+            for k in range(KERNEL_COL):
+                weight_v[0][i][j][k] = sfix(1)
 
 
     input = Tensor(training_samples, req_grad = True)
-    weight=Tensor(weight_v,req_grad = True )
+    weight=Tensor(weight_v,req_grad = True)
+
+    output=F.rfss3_conv2d_relu(input,weight)
+    tensor.train()
+    tensor.reset_op_id()
+    output=F.rfss3_conv2d_relu(input,weight)
+    # output.backward()    
+    output.value.print_reveal_nested()
+    # weight.grad.print_reveal_nested()
+    # input.grad.print_reveal_nested()
+
+
+@autograd_function
+def test_conv2d_relu():
+    print_ln("test_conv2d:")
+    training_samples = MultiArray([BATCH_SIZE, CHANNEL, ROW, COL], sfix)
+    for i in range(BATCH_SIZE):
+        for j in range(CHANNEL):
+            for k in range(ROW):
+                for m in range(COL):
+                    training_samples[i][j][k][m] = sfix(1)
+
+    weight_v=MultiArray([BATCH_SIZE,CHANNEL,KERNEL_ROW,KERNEL_COL],sfix)
+    for i in range(CHANNEL):
+        for j in range(KERNEL_ROW):
+            for k in range(KERNEL_COL):
+                weight_v[0][i][j][k] = sfix(1)
+
+
+    input = Tensor(training_samples, req_grad = True)
+    weight=Tensor(weight_v,req_grad = True)
 
     output=F.conv2d(input,weight)
+    output=F.relu(output)
     tensor.train()
     tensor.reset_op_id()
     output=F.conv2d(input,weight)
-    output.backward()
+    output=F.relu(output)
+    output.backward()    
     output.value.print_reveal_nested()
     weight.grad.print_reveal_nested()
     input.grad.print_reveal_nested()
 
-test_conv2d()
+test_rfss3conv2d_relu()
+test_conv2d_relu()
 
+a = sfix(-1)
+b = sfix(2)
+print_ln("result is %s", (a*b).reveal())
+print_ln("compile finished!")

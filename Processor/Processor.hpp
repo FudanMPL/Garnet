@@ -684,7 +684,7 @@ void SubProcessor<T>::delete_shuffle(int handle)
 template<class T>
 void SubProcessor<T>::inverse_permutation(const Instruction& instruction) {
     shuffler.inverse_permutation(S, instruction.get_size(), instruction.get_start()[0],
-                                 instruction.get_start()[1]);
+                                instruction.get_start()[1]);
 }
 
 template<class T>

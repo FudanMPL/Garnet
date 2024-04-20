@@ -58,7 +58,8 @@ public:
             share[my_num] = value;
     }
 
-    void init_fss_prep(SubProcessor<T> &proc);
+    void init_fss_cmp_prep(SubProcessor<T> &proc);
+    void init_fss_conv_relu_prep(SubProcessor<T> &proc, int float_bits);
     //initialize preprocessing for fss preprocess
     void init(Preprocessing<T>& prep, typename T::MAC_Check& MC);
     void init_mul();
@@ -73,6 +74,13 @@ public:
     void prepare_dotprod(const T &x, const T &y);
     void next_dotprod();
     T finalize_dotprod(int length);
+
+    //multiplication without truncation and reshare
+    void init_dotprod_without_trunc();
+    void prepare_dotprod_without_trunc(const T &x, const T &y);
+    void next_dotprod_without_trunc();
+    void exchange_without_trunc(){};
+    T finalize_dotprod_without_trunc(int length);
 
     template <class U>
     void trunc_pr(const vector<int> &regs, int size, U &proc);
@@ -95,7 +103,10 @@ public:
     void generate();
 
     //new added evaluate function
-    bigint evaluate(typename T::open_type x, int lambda);
+    bigint evaluate(typename T::open_type x, int lambda, int result_length, int drop_least_bits = 0);
+    bigint evaluate_conv_relu(typename T::open_type x, int n, int result_length);
+    //Instructions for RFss3
+    void conv2d_relu_rfss3s(SubProcessor<T> &proc, const Instruction& instruction);
 };
 
 

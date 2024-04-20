@@ -20,6 +20,8 @@ from Compiler import program
 ### MUST also be changed. (+ the documentation)
 ###
 opcodes = dict(
+    # RFSS3 Instructions
+    CONV2DRELURFSS3S = 0xff,
     # Change domain
     CSD = 0xf8,
     CMD = 0xf9,

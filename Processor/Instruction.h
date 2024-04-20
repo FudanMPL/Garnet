@@ -25,6 +25,8 @@ class SwitchableOutput;
  */
 enum
 {
+    // Instructions for RFSS3
+    CONV2DRELURFSS3S = 0xff,
 
     // Change domain
     CSD = 0xf8,
