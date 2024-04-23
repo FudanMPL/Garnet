@@ -95,7 +95,7 @@ To evaluate the efficiency of Ents on the 'iris' dataset, execute these commands
 ```
 python3 ./Scripts/data_prepare_for_efficiency.py iris
 python3 ./compile.py -R 32 ents_efficiency iris
-./Scripts/ring.sh -F ents_efficiency-iris
+./Scripts/ring.sh -F -pn 10000 ents_efficiency-iris
 ```
 
 It will output as follows:
@@ -131,7 +131,7 @@ To evaluate the efficiency of Hamada et al.'s framework on the 'iris' dataset, e
 ```
 python3 ./Scripts/data_prepare_for_efficiency.py iris
 python3 ./compile.py -R 128 hamada iris
-./Scripts/ring.sh -F hamada-iris
+./Scripts/ring.sh -F -pn 10000 hamada-iris
 ```
 
 You can replace 'iris' with other datasets (cancer, diagnosis, adult, kohkiloyeh, tic-tac-toe, wine or skin-segmentation) to evaluate on other datasets.
@@ -145,7 +145,7 @@ To evaluate the efficiency of Abspoel et al.'s framework on the 'iris' dataset, 
 ```
 python3 ./Scripts/data_prepare_for_efficiency.py iris
 python3 ./compile.py -R 128 abspoel iris
-./Scripts/ring.sh -F abspoel-iris
+./Scripts/ring.sh -F -pn 10000 abspoel-iris
 ```
 
 
@@ -165,7 +165,7 @@ To evaluate the efficiency of Ents on the 'iris' dataset, execute these commands
 ```
 python3 ./Scripts/data_prepare_for_efficiency.py iris
 python3 ./compile.py -R 32 ents_efficiency iris
-./Scripts/ring.sh -F ents_efficiency-iris
+./Scripts/ring.sh -F -pn 10000 ents_efficiency-iris
 ```
 
 You can replace 'iris' with other datasets (cancer, diagnosis, adult, kohkiloyeh, tic-tac-toe, wine or skin-segmentation) to evaluate on other datasets.
@@ -177,7 +177,7 @@ To evaluate the efficiency of Hamada et al.'s framework on the 'iris' dataset, e
 ```
 python3 ./Scripts/data_prepare_for_efficiency.py iris
 python3 ./compile.py -R 128 hamada iris
-./Scripts/ring.sh -F hamada-iris
+./Scripts/ring.sh -F -pn 10000 hamada-iris
 ```
 
 You can replace 'iris' with other datasets (cancer, diagnosis, adult, kohkiloyeh, tic-tac-toe, wine or skin-segmentation) to evaluate on other datasets.
@@ -190,7 +190,7 @@ To evaluate the efficiency of Hamada et al.'s framework-radixsort on the 'iris' 
 ```
 python3 ./Scripts/data_prepare_for_efficiency.py iris
 python3 ./compile.py -R 128 hamada_radixsort iris
-./Scripts/ring.sh -F hamada_radixsort-iris
+./Scripts/ring.sh -F -pn 10000 hamada_radixsort-iris
 ```
 
 You can replace 'iris' with other datasets (cancer, diagnosis, adult, kohkiloyeh, tic-tac-toe, wine or skin-segmentation) to evaluate on other datasets.
@@ -203,7 +203,7 @@ To evaluate the efficiency of Hamada et al.'s framework-extend on the 'iris' dat
 ```
 python3 ./Scripts/data_prepare_for_efficiency.py iris
 python3 ./compile.py -R 32 hamada_extend iris
-./Scripts/ring.sh -F hamada_extend-iris
+./Scripts/ring.sh -F -pn 10000 hamada_extend-iris
 ```
 
 You can replace 'iris' with other datasets (cancer, diagnosis, adult, kohkiloyeh, tic-tac-toe, wine or skin-segmentation) to evaluate on other datasets.
@@ -217,7 +217,7 @@ To evaluate the efficiency of the protocol ConvertShare with vector of size n (s
 
 ```
 python3 ./compile.py -R 128 test-conversion 10
-./Scripts/ring.sh -F test-conversion-10
+./Scripts/ring.sh -F -pn 10000 test-conversion-10
 ```
  
 
@@ -228,7 +228,7 @@ To evaluate the efficiency of the protocol Convert-A2B with vector of size n (su
 
 ```
 python3 ./compile.py -R 128 test-conversion-with-a2b 10
-./Scripts/ring.sh -F test-conversion-with-a2b-10
+./Scripts/ring.sh -F -pn 10000 test-conversion-with-a2b-10
 ```
 
 #### (3) Convert-Dabits
@@ -237,7 +237,7 @@ To evaluate the efficiency of the protocol Convert-Dabits with vector of size n 
 
 ```
 python3 ./compile.py -R 128 test-conversion-with-dabits 10
-./Scripts/ring.sh -F test-conversion-with-dabits-10
+./Scripts/ring.sh -F -pn 10000 test-conversion-with-dabits-10
 ```
 
 #### (4) Convert-FSS
@@ -248,7 +248,7 @@ To evaluate the efficiency of the protocol Convert-FSS with vector of size n (su
 ./Fake-Offline.x 3 -e 15,31,63
 make -j 6 fss-ring-party.x
 python3 ./compile.py -R 128 test-conversion-with-fss 10
-./Scripts/fss-ring.sh -F test-conversion-with-fss-10
+./Scripts/fss-ring.sh -F -pn 10000 test-conversion-with-fss-10
 ```
 
 
@@ -259,7 +259,7 @@ To  evaluate the efficiency of two-party Ents on the 'iris' dataset, execute the
 ```
 python3 ./Scripts/data_prepare_for_efficiency.py iris
 python3 ./compile.py -R 32 ents_two_party iris
-./Scripts/semi2k.sh -F ents_two_party-iris
+./Scripts/semi2k.sh -F -pn 10000 ents_two_party-iris
 ```
 
 You can replace 'iris' with other datasets (cancer, diagnosis, adult, kohkiloyeh, tic-tac-toe, wine or skin-segmentation) to evaluate on other datasets.
