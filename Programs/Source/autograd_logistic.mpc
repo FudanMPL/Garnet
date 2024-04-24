@@ -13,6 +13,8 @@ class LogisticRegression(nn.Module):
         out = F.sigmoid(self.linear(x))
         return out
 
+
+
 x = Tensor([5, 10]).get_input_from(0)
 y = Tensor([5, 2]).get_input_from(0)
 dataloader = dataloader.DataLoader(x, y, batch_size = 1)

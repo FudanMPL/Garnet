@@ -1185,12 +1185,14 @@ inline void Instruction::execute(Processor<sint, sgf2n> &Proc) const
     case GDOTPRODS:
       Proc.Proc2.dotprods(start, size);
       return;
+    #ifdef ENABLE_PSI
     case PSIALIGN:
       Proc.Procp.protocol.psi_align(Proc.Procp.get_C(), *this, Proc.Procp);
       return;
     case PSI:
       Proc.Procp.protocol.psi(Proc.Procp.get_C(), *this, Proc.Procp);
       return;
+    #endif
     case MATMULS:
       Proc.Procp.matmuls(Proc.Procp.get_S(), *this);
       return;
