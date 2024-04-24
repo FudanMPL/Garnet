@@ -16,7 +16,7 @@ print(model)
 
 crossloss = nn.CrossEntropyLoss()
 
-x = MultiArray([1,128,10,10], sfix)
+x = MultiArray([1,32,10,10], sfix)
 y = MultiArray([1,10], sfix)
 
 @for_range(x.total_size())

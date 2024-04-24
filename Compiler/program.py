@@ -508,7 +508,7 @@ class Program(object):
                         print(x)
                         
         end_time = time.time()
-        print('profiling time: ' + str(end_time - start_time)) 
+        print('Profiling time: %.6f (ms)'%((end_time - start_time)*1000)) 
         
         if self.tapes:
             self.update_req(self.curr_tape)

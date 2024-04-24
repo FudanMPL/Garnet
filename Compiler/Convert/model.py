@@ -136,21 +136,27 @@ class ConvertModel(nn.Module):
             self.mapping[op_id] = op_name
 
         # Store initializers as buffers
+        P = get_program()
+        file = open(P.programs_dir + "/Public-Input/%s" % P.name, 'w')
         for tensor in self.onnx_model.graph.initializer:
             buffer_name = get_buffer_name(tensor.name)
-            val = numpy_helper.to_array(tensor)
+            val = numpy_helper.to_array(tensor).flatten()
             
-            for x in val.flatten():
-                get_program().public_input(str(int(x * (1<<cfix.f))))
+            for x in val:
+                file.write(str(int(x * (1<<sfix.f)))+'\n')
+            # for x in val:
+            #     P.public_input(str(int(x * (1<<sfix.f))))
             
             if len(val.shape)==1:
                 buffer_val = Array(val.shape[0], sfix)
             else:
                 buffer_val = MultiArray(val.shape, sfix)
             
-            # buffer_val[:] = cfix._new(public_input(), cfix.f, cfix.k)
-            # for i in range(0, len(v)):
-            #     buffer_val.assign_vector(float(v[i]), i)
+            @for_range_opt(buffer_val.total_size())
+            def _(i):
+                v = sfix._new(public_input(), sfix.f, sfix.k)
+                buffer_val.assign_vector(v, i)
+            # buffer_val.print_reveal_nested()
             self.register_buffer(
                 buffer_name,
                 Tensor(buffer_val),
