@@ -87,6 +87,7 @@ class Parameter(Tensor):
         
         self.shape = data.shape
         TS.tensors[self.name] = self
+        self.subTensor = data.subTensor
         self.set_req_grad(True)
         
     # def __new__(cls, data=None, requires_grad=True):
@@ -114,6 +115,7 @@ class Module():
         self._non_persistent_buffers_set: Set[str] = set()
         self.main = False
         self.prepare = False
+        
 
     def register_buffer(self, name: str, tensor: Optional[Tensor], persistent: bool = True) -> None:
         r"""Adds a buffer to the module.
