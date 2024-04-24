@@ -1,16 +1,16 @@
-from pathlib import Path
-from Model.models import RemoteTask, Mpc
-from typing import Dict
-import os
-from Model.models import (
-    RemoteTask,
-    ServerTaskRelationship,
-    ServerTaskRelationship,
-    Servers,
-)
-import subprocess
-from django.conf import settings
 import datetime
+import os
+import subprocess
+from pathlib import Path
+from typing import Dict
+
+from django.conf import settings
+from Model.models import (
+    Mpc,
+    RemoteTask,
+    Servers,
+    ServerTaskRelationship,
+)
 from utils.common import download
 
 
@@ -30,7 +30,7 @@ class RTask:
     servers: Dict[int, str]
 
     def __init__(self, task: RemoteTask) -> None:
-        if task == None:
+        if task is None:
             return
         self.task = task
         self.part = task.part
@@ -39,11 +39,11 @@ class RTask:
         self.protocol = task.protocol.name
         self.prefix = str(task.prefix)
         # 这个判断并不会执行
-        if task.host == None:
+        if task.host is None:
             return
         self.host = task.host
         self.basePort = task.baseport
-        if task.data != None:
+        if task.data is not None:
             self.data = str(task.data.file.name)
         self.mpc_parameters = str(task.mpc_parameters)
         self.protocol_parameters = str(task.protocol_parameters)

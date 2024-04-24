@@ -1,8 +1,18 @@
-from django import forms
-from rest_framework import serializers
-from Model.models import *
-from utils.common import md5
 from django.conf import settings
+from rest_framework import serializers
+from utils.common import md5
+
+from Model.models import (
+    DataTaskRelationship,
+    LocalTask,
+    Mpc,
+    Protocol,
+    RemoteTask,
+    Servers,
+    ServerTaskRelationship,
+    UserData,
+    Users,
+)
 
 
 class UserModelSerializer(serializers.ModelSerializer):
@@ -111,7 +121,7 @@ class RemoteTaskModelSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         task = RemoteTask(**validated_data)
-        if task.host == None:
+        if task.host is None:
             task.host = settings.IPADDRESS
         task.status = "等待参与方加入"
         task.save()
@@ -149,7 +159,7 @@ class DataTaskRelationshipModelSerializer(serializers.ModelSerializer):
             )
             relationship.data = validated_data["data"]
             relationship.save()
-        except:
+        except Exception:
             relationship = DataTaskRelationship.objects.create(**validated_data)
         return relationship
 

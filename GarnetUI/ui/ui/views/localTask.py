@@ -1,23 +1,24 @@
-from django.conf import settings
+import datetime
 import os
 import subprocess
 from typing import List, Tuple
+
+from django.conf import settings
 from django.http import StreamingHttpResponse
 from django_q.tasks import async_task
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiParameter, extend_schema, OpenApiRequest
-from rest_framework import status
-from rest_framework.response import Response
-import datetime
-
-from rest_framework.views import APIView
-from Model.models import LocalTask, DataTaskRelationship
+from drf_spectacular.utils import OpenApiParameter, extend_schema
+from Model.models import DataTaskRelationship, LocalTask
 from Model.serializers import (
-    LocalTaskModelSerializer,
     DataTaskRelationshipModelSerializer,
+    LocalTaskModelSerializer,
     NoneSerializer,
 )
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework.viewsets import GenericViewSet, ModelViewSet
+
 from ..authentication import UserAuthentication
 from ..pagination import PagePagination
 
@@ -57,7 +58,10 @@ class DataTaskRelationshipSets(GenericViewSet):
     @extend_schema(
         parameters=[
             OpenApiParameter(
-                name="id", type=int, description="任务id", location=OpenApiParameter.PATH
+                name="id",
+                type=int,
+                description="任务id",
+                location=OpenApiParameter.PATH,
             )
         ],
         responses={
@@ -69,7 +73,7 @@ class DataTaskRelationshipSets(GenericViewSet):
     def retrive(self, request, id):
         try:
             task = LocalTask.objects.get(id=id)
-        except:
+        except Exception:
             return Response(status=status.HTTP_400_BAD_REQUEST)
         return Response(
             data=self.serializer_class(
@@ -92,7 +96,7 @@ class LTask:
     id: int
 
     def __init__(self, task: LocalTask) -> None:
-        if task == None:
+        if task is None:
             return
         self.id = task.pk
         self.mpc = os.path.basename(str(task.mpc.file))
