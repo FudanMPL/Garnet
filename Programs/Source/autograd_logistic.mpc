@@ -3,7 +3,6 @@ from tensor import Tensor,autograd_function
 import optimizer as optim
 import dataloader as dataloader
 import functional as F
-program.use_trunc_pr = True
 
 class LogisticRegression(nn.Module):
     def __init__(self, n_inputs, n_outputs):
