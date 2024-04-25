@@ -1,0 +1,84 @@
+# this trains logistic regression in 0/1 distinction
+# see https://github.com/csiro-mlai/mnist-mpc for data preparation
+import ml
+
+
+program.options_from_args()
+
+approx = 3
+n_examples = 60000
+n_features = 28 ** 2
+n_epochs = 1
+batch_size = 64
+n_test = 10000
+n_inner = 128
+
+ml.Layer.back_batch_size = batch_size
+
+
+
+train_y = sfix.Array(n_examples)
+train_x = sfix.Matrix(n_features, n_examples)
+
+test_y = sfix.Array(n_test)
+test_x = sfix.Matrix( n_features, n_test)
+
+train_y.input_from(0)
+train_x.input_from(0)
+test_y.input_from(1)
+test_x.input_from(1)
+
+train_x = train_x.transpose()
+test_x = test_x.transpose()
+
+
+
+layers = [ml.Dense(n_examples, n_features, 128, activation='relu'),
+            ml.Dense(n_examples, 128, 128, activation='relu'),
+            ml.Dense(n_examples, 128, 1),
+          ml.Output(n_examples, approx=approx)]
+
+
+
+
+
+layers[-1].Y.assign(train_y)
+layers[0].X.assign(train_x)
+
+
+sgd = ml.SGD(layers, n_epochs, report_loss=True)
+sgd.reset()
+
+start_timer(1)
+sgd.run(batch_size)
+stop_timer(1)
+
+
+
+n_correct = cfix(0)
+
+res = sgd.eval(test_x).reveal()
+
+
+
+for i in range(n_test):
+    n_correct += test_y[i].reveal() == (res[i] >=0.5)
+
+
+test_y = test_y.reveal()
+
+for i in range(n_test):
+    n_correct += test_y[i] == (res[i] >=0.5)
+
+print_ln('======= 结果 ===========')
+
+
+print_ln('准确率: %s (%s/%s)', n_correct / n_test, n_correct, n_test)
+
+print_ln('序号      真实标签      预测标签')
+
+for i in range(n_test):
+    print_ln('%s:       %s      %s', i, test_y[i], res[i] >=0.5)
+
+
+print_ln('==========================')
