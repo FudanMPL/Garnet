@@ -61,8 +61,8 @@ class RTask:
 
     def rehash(self):
         s = ""
-        for k, v in self.servers.items():
-            s = f"{s} {k} {v}"
+        for k in sorted(self.servers):
+            s = f"{s} {k} {self.servers[k]}"
         subprocess.Popen(
             f"{settings.BASE_DIR}/scripts/rehash.sh {settings.MEDIA_ROOT}/ssl {settings.GARNETPATH} {self.part} {self.serverName} {s}",
             shell=True,

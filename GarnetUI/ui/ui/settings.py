@@ -173,9 +173,9 @@ TOKEN_EXPIRES = 7
 Q_CLUSTER = {
     "name": "ui",
     "workers": 4,
-    "recycle": 500,
-    "timeout": 600,
-    "retry": 600,
+    "recycle": 172800,
+    "timeout": 172800,
+    "retry": 172800,
     "compress": True,
     "cpu_affinity": 1,
     "save_limit": 250,
