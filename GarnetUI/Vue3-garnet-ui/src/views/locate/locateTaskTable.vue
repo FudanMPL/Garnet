@@ -50,14 +50,14 @@
       :before-close="resultDialogClose"
     >
     <el-col :span="20" :offset="2">
-      <!-- <span class="atted-text">{{ message }}</span> -->
+      <span class="formatted-text">{{ readmeMessage }}</span>
       <el-table :data="result1Data" style="width: 100%" max-height="400">
       <el-table-column v-for="i in column" :key="i" :prop="i" label='' width="180" />
       </el-table>
     </el-col>
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="resultDialogVisible = false">好的</el-button>
+          <!-- <el-button @click="resultDialogVisible = false">好的</el-button> -->
           <el-button type="primary" @click="downloadResultFile" :disabled="downloadDisabled">
             下载
           </el-button>
@@ -212,6 +212,7 @@ const testResultUrl = ref('/task/local/results/')
 //结果弹窗的关闭逻辑
 const resultDialogClose = () => {
   resultDialogVisible.value = false
+  readmeMessage.value = ''
 }
 //查询是否已完成的逻辑
 const handleResult = async (id, status) => {
@@ -221,8 +222,8 @@ const handleResult = async (id, status) => {
     message.value = res.data
     result1.value = res.data
     await transformData(result1)
-    console.log(result1Data.value)
-    console.log(column.value)
+    //console.log(result1Data.value)
+    //console.log(column.value)
     resultDialogVisible.value = true
     downloadDisabled.value = false
   } 
@@ -316,6 +317,7 @@ async function sleep(ms) {
 
 const feedbackDialogVisible = ref(false)
 const feedbackMessage = ref()
+const readmeMessage = ref()
 const fileTotask = async() => {
   if(taskData.value.length == pNnum.value){
   await userFileToTask(taskData.value)
@@ -392,7 +394,13 @@ const transformData=(rowData)=>{
   let isDataSection = false;
 
   for (const line of lines) {
-        if (line.startsWith('========') ) {
+    // 如果检测到***开头的 是readme 直接打印出来
+    if (line.startsWith('***')) {
+      // 读取 readme 信息 将line前*号的内容过滤掉
+      // 并且加入到readmeMessage中 而不是替换
+      readmeMessage.value += line.replace(/^\*+/, '') + '\n';
+    }
+        if (line.startsWith('====') ) {
           isDataSection = !isDataSection;
         } else if (isDataSection && line.trim() !== '') {
           const values = (line.trim() as string).split(/\s+/); // 使用类型断言确保 line 是字符串
