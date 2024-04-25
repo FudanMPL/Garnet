@@ -362,6 +362,7 @@ class _int(Tape._no_truth):
     @staticmethod
     def ripple_carry_adder(*args, **kwargs):
         return intbitint.ripple_carry_adder(*args, **kwargs)
+    
 
     def if_else(self, a, b):
         """ MUX on bit in arithmetic circuits.
@@ -373,6 +374,8 @@ class _int(Tape._no_truth):
             f, a, b = a.for_mux(b)
         else:
             f = lambda x: x
+        if program.protocol == "CryptFlow2":
+                return f(self)
         return f(self * (a - b) + b)
 
     def cond_swap(self, a, b):
@@ -748,11 +751,11 @@ class _register(Tape.Register, _number, _structure):
         return sum(cls.conv(b) << i for i,b in enumerate(bits))
 
     @classmethod
-    def malloc(cls, size, creator_tape=None):
+    def malloc(cls, size, creator_tape=None, **kwargs):
         """ Allocate memory (statically).
 
         :param size: compile-time (int) """
-        return program.malloc(size, cls, creator_tape=creator_tape)
+        return program.malloc(size, cls, creator_tape=creator_tape, **kwargs)
 
     @classmethod
     def free(cls, addr):
@@ -775,7 +778,11 @@ class _register(Tape.Register, _number, _structure):
                 else:
                     self[i].load_other(x)
         elif val is not None:
-            self.load_other(val)
+            try:
+                self.load_other(val)
+            except:
+                raise CompilerError(
+                    "cannot convert '%s' to '%s'" % (type(val), type(self)))
 
     def _new_by_number(self, i, size=1):
         res = type(self)(size=size)
@@ -1246,6 +1253,26 @@ class cint(_clear, _int):
 
     def output_if(self, cond):
         cond_print_plain(self.conv(cond), self, cint(0, size=self.size))
+
+
+class cchr(cint):
+    # reg_type = 'c'
+    def __init__(self, val=None, size=None):
+        if isinstance(val,str):
+            assert len(val)==1,"Length not 1"
+            ss = bytearray(val[0], 'utf8')
+            if len(ss) > 4:
+                raise CompilerError('String longer than 4 characters')
+            n = 0
+            for c in reversed(ss.ljust(4)):
+                n <<= 8
+                n += c
+            val=n
+        super().__init__(val, size)
+
+
+
+
 
 
 class cgf2n(_clear, _gf2n):
@@ -2223,6 +2250,19 @@ class _secret(_arithmetic_register, _secret_structure):
     def raw_mod2m(self, m):
         return self - (self.raw_right_shift(m) << m)
 
+class schr(_secret, _int):
+    @vectorized_classmethod
+    def get_input_from(cls, player):
+        """ Secret input.
+
+        :param player: public (regint/cint/int)
+        :param size: vector size (int, default 1)
+        """
+        res = cls()
+        inputmixedstring('int', res, player)
+        return res
+    
+
 
 class sint(_secret, _int):
     """
@@ -2526,12 +2566,12 @@ class sint(_secret, _int):
         self._store_in_mem(address, stms, stmsi)
 
     @classmethod
-    def direct_matrix_mul(cls, A, B, n, m, l, reduce=None, indices=None):
+    def direct_matrix_mul(cls, first_size, second_size, A, B, n, m, l, reduce=None, indices=None):
         if indices is None:
             indices = [regint.inc(i) for i in (n, m, m, l)]
         res = cls(size=indices[0].size * indices[3].size)
-        matmulsm(res, regint(A), regint(B), len(indices[0]), len(indices[1]),
-                 len(indices[3]), *(list(indices) + [m, l]))
+        matmulsm(A, B, first_size, second_size,  res, regint(A), regint(B), len(indices[0]), len(indices[1]),
+                len(indices[3]), *(list(indices) + [m, l]))  
         return res
 
     @vectorize_init
@@ -2915,6 +2955,41 @@ class sint(_secret, _int):
         res = sint()
         prefixsums(res, self)
         return res
+
+
+class schr(sint):
+    __slots__ = []
+    instruction_type = 'modp'
+    clear_type = cchr
+    reg_type = 's'
+
+    PreOp = staticmethod(floatingpoint.PreOpL)
+    PreOR = staticmethod(floatingpoint.PreOR)
+    get_type = staticmethod(lambda n: sint)
+
+    def __init__(self, val=None, size=None):
+        if isinstance(val,str):
+            assert len(val)==1,"Length not 1"
+            ss = bytearray(val[0], 'utf8')
+            if len(ss) > 4:
+                raise CompilerError('String longer than 4 characters')
+            n = 0
+            for c in reversed(ss):
+                n <<= 8
+                n += c
+            val=n
+        super().__init__(val, size)
+    @vectorized_classmethod
+    def get_input_from(cls, player):
+        """ Secret input.
+
+        :param player: public (regint/cint/int)
+        :param size: vector size (int, default 1)
+        """
+        res = cls()
+        inputmixed('string', res, player)
+        return res
+
 
 class sintbit(sint):
     """ :py:class:`sint` holding a bit, supporting binary operations
@@ -3692,6 +3767,9 @@ class cfix(_number, _structure):
     __slots__ = ['value', 'f', 'k']
     reg_type = 'c'
     scalars = (int, float, regint, cint)
+    div_iters = 10
+    all_pos = False
+    div_initial = None
     @classmethod
     def set_precision(cls, f, k = None):
         """ Set the precision of the integer representation. Note that some
@@ -3981,23 +4059,45 @@ class cfix(_number, _structure):
     for op in __le__, __lt__, __ge__, __gt__, __ne__:
         op.__doc__ = __eq__.__doc__
     del op
-
+    @classmethod
+    def exp_fx(cls, x,iter=9):
+        n=1<<iter
+        a=1+x/n
+        for i in range(0,iter):
+            a=a*a
+        return a
+    @classmethod
+    def newton_div(cls, x, y):
+        sign = 1
+        if not cls.all_pos:
+            sign = y > 0
+            sign = 2 *  sign - 1
+            y = y * sign
+        # n = 2 ** (sfix.f / 2)
+        z = 3 * cls.exp_fx(1 - 2 * y)+ 0.003  if cls.div_initial == None  else cls.div_initial # sfix(1 / n, size=y.size)
+        for i in range(cls.div_iters):
+            z = 2 * z - y * z * z
+        return x * z *sign
     @vectorize
     def __truediv__(self, other):
         """ Clear fixed-point division.
 
         :param other: cfix/cint/regint/int """
         other = parse_type(other, self.k, self.f)
+
         if isinstance(other, cfix):
             return cfix._new(library.cint_cint_division(
                 self.v, other.v, self.k, self.f), k=self.k, f=self.f)
         elif isinstance(other, sfix):
             assert self.k == other.k
             assert self.f == other.f
-            return sfix._new(library.FPDiv(self.v, other.v, self.k, self.f,
-                                           other.kappa,
-                                           nearest=sfix.round_nearest),
-                             k=self.k, f=self.f)
+            return cfix.newton_div(self, other)
+            # recip = other.compute_reciprocal()
+            # return self*recip
+            # return sfix._new(library.FPDiv(self.v, other.v, self.k, self.f,
+            #                                other.kappa,
+            #                                nearest=sfix.round_nearest),
+            #                  k=self.k, f=self.f)
         else:
             raise TypeError('Incompatible fixed point types in division')
 
@@ -4438,12 +4538,30 @@ class _fix(_single):
     def __neg__(self):
         """ Secret fixed-point negation. """
         return self._new(-self.v, k=self.k, f=self.f)
-
+    @classmethod
+    def exp_fx(cls, x,iter=9):
+        n=1<<iter
+        a=1+x/n
+        for i in range(0,iter):
+            a=a*a
+        return a
+    @classmethod
+    def newton_div(cls, x, y):
+        sign = 1
+        if not cls.all_pos:
+            sign = y > 0
+            sign = 2 *  sign - 1
+            y = y * sign
+        z = 3 * cls.exp_fx(1 - 2 * y)+ 0.003  if cls.div_initial == None  else cls.div_initial # sfix(1 / n, size=y.size)
+        for i in range(cls.div_iters):    
+            z = 2 * z  - y * z * z
+        return x * z * sign
     @vectorize
     def __truediv__(self, other):
         """ Secret fixed-point division.
 
         :param other: sfix/cfix/sint/cint/regint/int """
+        #Problematic div, low efficiency when div a constant
         if util.is_constant_float(other):
             assert other != 0
             log = math.ceil(math.log(abs(other), 2))
@@ -4458,8 +4576,11 @@ class _fix(_single):
         assert self.k == other.k
         assert self.f == other.f
         if isinstance(other, _fix):
-            v = library.FPDiv(self.v, other.v, self.k, self.f, self.kappa,
-                              nearest=self.round_nearest)
+            # return sfix.newton_div(self, other)
+            recip = other.compute_reciprocal()
+            return self*recip
+            # v = library.FPDiv(self.v, other.v, self.k, self.f, self.kappa,
+            #                   nearest=self.round_nearest)
         elif isinstance(other, cfix):
             v = library.sint_cint_division(self.v, other.v, self.k, self.f,
                                            self.kappa)
@@ -4477,7 +4598,7 @@ class _fix(_single):
     @vectorize
     def compute_reciprocal(self):
         """ Secret fixed-point reciprocal. """
-        return type(self)(library.FPDiv(cint(2) ** self.f, self.v, self.k, self.f, self.kappa, True))
+        return library.Reciprocal(self)
 
     def reveal(self):
         """ Reveal secret fixed-point number.
@@ -4528,7 +4649,9 @@ class sfix(_fix):
     clear_type = cfix
     get_type = staticmethod(lambda n: sint)
     default_type = sint
-
+    div_iters = 9
+    all_pos = False
+    div_initial = None
     def change_domain_from_to(self, k1, k2, bit_length=None):
         temp = self.v.change_domain_from_to(k1, k2, bit_length)
         res = sfix(size=temp.size)
@@ -4560,7 +4683,7 @@ class sfix(_fix):
         else:
             cls.k = k
         try:
-            Program.prog.cost_config.set_precision(f)
+            program.cost_config.set_precision(f)
         except:
             pass
 
@@ -4591,9 +4714,9 @@ class sfix(_fix):
             return r
 
     @classmethod
-    def direct_matrix_mul(cls, A, B, n, m, l, reduce=True, indices=None):
+    def direct_matrix_mul(cls , first_size, second_size, A, B, n, m, l, reduce=True, indices=None):
         # pre-multiplication must be identity
-        tmp = cls.int_type.direct_matrix_mul(A, B, n, m, l, indices=indices)
+        tmp = cls.int_type.direct_matrix_mul(first_size, second_size, A, B, n, m, l, indices=indices)
         res = unreduced_sfix._new(tmp)
         if reduce:
             res = res.reduce_after_mul()
@@ -4658,7 +4781,22 @@ class sfix(_fix):
 
     def prefix_sum(self):
         return self._new(self.v.prefix_sum(), k=self.k, f=self.f)
-
+    
+    def multi_spline(self, splines):
+        "patially right, how to parallel them?" 
+        t = sint.Array(len(splines))
+        for i in range(len(splines)):
+            tmp = sint()
+            comparison.MTS(tmp, self.v, splines[:][i].v, len(splines))
+            t[i] = tmp
+        return t[:]
+    
+    def multi_spline_ltz(self, splines):
+        t = sint.Array(len(splines))
+        for i in range(len(splines)):
+            t[i] = self < splines[:][i]
+        return t[:]
+    
     def change_domain(self, k):
         pass
 
@@ -5462,6 +5600,8 @@ class Array(_vectorizable):
         if self.address is None:
             self.address = self.value_type.malloc(self.length,
                                                   self.creator_tape)
+            # print("Malloc",self.address)
+            # @library.print_ln("%s",self.address)
 
     @property
     def shape(self):
@@ -5537,6 +5677,16 @@ class Array(_vectorizable):
 
         :param index: public (regint/cint/int)
         :param value: convertible for relevant basic type """
+        if isinstance(value,str):
+            assert len(value)==1,"Length not 1"       
+            ss = bytearray(value[0], 'utf8')
+            if len(ss) > 4:
+                raise CompilerError('String longer than 4 characters')
+            n = 0
+            for c in reversed(ss):
+                n <<= 8
+                n += c
+            value=n
         if isinstance(index, slice):
             start, stop, step = self.get_slice(index)
             if step == 1:
@@ -5943,11 +6093,110 @@ class Array(_vectorizable):
     def __str__(self):
         return '%s array of length %s at %s' % (self.value_type, len(self),
                                                 self.address)
+    
+    # def multi_spline(self, splines):
+    #     from . import library as lib
+    #     assert self.value_type == sfix
+    #     res = sfix.Array(len(splines))
+    #     tmp = sfix.Array(len(splines))
+    #     tmp.assign_all(self)
+    #     comparison.MTS(res, tmp, splines, len(splines))
+    #     return res
 
 sint.dynamic_array = Array
 sgf2n.dynamic_array = Array
 
 
+def VecMul(data):
+    def reducer(x, y):
+        b = x*y
+        return b
+    return util.tree_reduce(reducer, data)[0]
+
+
+class sstring(Array):
+    def __init__(self,val=None,length=0, value_type=schr, address=None, debug=None, alloc=True):
+        if val!=None:
+            length=len(val)
+        super(sstring,self).__init__(length, value_type, address=None, debug=None, alloc=True)
+        if isinstance(val,str):
+            s_iter = iter(val)
+            for i in range(length):
+                self[i]=schr(next(s_iter))
+    
+    def __eq__(self,other):
+        if isinstance(other,sstring):
+            # print(self.length,other.length)
+            if self.length==other.length:
+                from Compiler.library import print_ln
+                # print_ln("%s",other.reveal())
+                tmp= ((sint) (self.get_vector())) == ((sint)(other.get_vector()))
+                # tmp=(super().__getitem__(slice(None,None,None))==other.call_parent_getitem(slice(None,None,None)))
+                # print_ln("tmp:%s",tmp.reveal())
+                res=VecMul(tmp)
+                # print_ln("res:%s",res.reveal())
+                return res
+        return sint(0)
+    equal=__eq__
+    
+    def __getitem__(self, index):
+        """ Reading from array.
+
+        :param index: public (regint/cint/int/slice)
+        :return: vector if slice is given, basic type otherwise"""
+        if isinstance(index, slice):
+            start, stop, step = self.get_slice(index)
+            if step == 1:
+                length=stop - start
+                sstring_tmp=sstring(length=length)
+                sstring_tmp[:]=self.get_vector(start, stop - start)
+                return  sstring_tmp
+            else:
+                res_length = (stop - start - 1) // step + 1
+                addresses = regint.inc(res_length, start, step)
+                sstring_tmp=sstring(length=res_length)
+                sstring_tmp[:]=self.get_vector(addresses, res_length)
+                return sstring_tmp
+        sstring_tmp=sstring(length=1)
+        sstring_tmp[:]=self._load(self.get_address(index))
+        return sstring_tmp
+    
+    def __setitem__(self, index, value):
+        """ Writing to array.
+
+        :param index: public (regint/cint/int)
+        :param value: convertible for relevant basic type """
+        if isinstance(value,str):
+            value=list(value)
+            for i in range(len(value)):     
+                ss = bytearray(value[i], 'utf8')
+                if len(ss) > 4:
+                    raise CompilerError('String longer than 4 characters')
+                n = 0
+                for c in reversed(ss):
+                    n <<= 8
+                    n += c
+                value[i]=n
+        if isinstance(index, slice):
+            start, stop, step = self.get_slice(index)
+            if step == 1:
+                return self.assign(value, start)
+            else:
+                res_length = (stop - start - 1) // step + 1
+                addresses = regint.inc(res_length, start, step)
+                return self.assign(value, addresses)
+        self._store(*value, self.get_address(index))
+    def print_reveal_nested(self, end='\n'):
+        """ Reveal and print as list.
+
+        :param end: string to print after (default: line break)
+        """
+        @library.for_range(self.length)
+        def _(i):
+            library.print_cchr(self._load(self.address+i).reveal())
+        library.print_str(end)
+            
+    
 class SubMultiArray(_vectorizable):
     """ Multidimensional array functionality.  Don't construct this
     directly, use :py:class:`MultiArray` instead. """
@@ -6005,11 +6254,11 @@ class SubMultiArray(_vectorizable):
         res.check_indices = self.check_indices
         return res
 
-    @property # added by shenhao,I think this is not a nessaracy addition?
+    @property 
     def shape(self):
         return list(self.sizes)
 
-    @property # added by shenhao,I think this is not a nessaracy addition?
+    @property
     def dim(self):
         return len(self.sizes)
 
@@ -6247,6 +6496,7 @@ class SubMultiArray(_vectorizable):
 
         :param other: container of matching size and type
         :return: container of same shape and type as :py:obj:`self` """
+        print(self.sizes, other.sizes,"-----------------")
         if is_zero(other):
             return self
         assert self.sizes == other.sizes
@@ -6325,8 +6575,8 @@ class SubMultiArray(_vectorizable):
         
         @library.multithread(n_threads, row, max_size)
         def _(base, size):
-            res.assign_part_vector(self.direct_mul(other,indices=(regint.inc(size,base=base),regint.inc(inter), regint.inc(inter),regint.inc(out_col))),base)
-            # res.assign_part_vector(self.get_part(base,size).direct_mul(other),base) # it uses address not create new. These two are the same in time and online or offline round.
+        # res.assign_vector(self.direct_mul(other))
+            res.assign_part_vector(self.get_part(base,size).direct_mul(other),base) # it uses address not create new. These two are the same in time and online or offline round.
         return res
     
     # Finished: you need to add matmul which is differ from dot because it uses matrix and it need to explicitly create space
@@ -6430,7 +6680,7 @@ class SubMultiArray(_vectorizable):
             assert len(other.sizes) == 2
         assert self.sizes[1] == other_sizes[0]
         assert self.value_type == other.value_type
-        return self.value_type.direct_matrix_mul(self.address, other.address,
+        return self.value_type.direct_matrix_mul(self.total_size(), other.total_size(), self.address, other.address,
                                                  self.sizes[0], *other_sizes,
                                                  reduce=reduce, indices=indices)
 
@@ -6454,7 +6704,7 @@ class SubMultiArray(_vectorizable):
         assert len(indices[1]) == len(indices[2])
         indices = list(indices)
         indices[3] *= other.sizes[1]
-        return self.value_type.direct_matrix_mul(
+        return self.value_type.direct_matrix_mul(self.total_size(), other.total_size(),
             self.address, other.address, None, self.sizes[1], 1,
             reduce=reduce, indices=indices)
 
@@ -6477,7 +6727,7 @@ class SubMultiArray(_vectorizable):
         assert len(indices[1]) == len(indices[2])
         indices = list(indices)
         indices[1] *= self.sizes[1]
-        return self.value_type.direct_matrix_mul(
+        return self.value_type.direct_matrix_mul(self.total_size(), other.total_size(),
             self.address, other.address, None, 1, other.sizes[1],
             reduce=reduce, indices=indices)
 
@@ -6513,7 +6763,7 @@ class SubMultiArray(_vectorizable):
             indices = [regint(i), regint.inc(self.sizes[0])]
             indices += [regint.inc(i) for i in other.sizes]
             res[i] += self.direct_trans_mul(other, indices=indices)
-    
+
 
     def mul_trans_to(self, other, res, n_threads=None):
         """
@@ -6781,13 +7031,13 @@ class MultiArray(SubMultiArray):
     def disable_index_checks():
         SubMultiArray.check_indices = False
 
-    def __init__(self, sizes, value_type, debug=None, address=None, alloc=True):
+    def __init__(self, sizes, value_type, debug=None, address=None, alloc=True, index = 0):
         if isinstance(address, Array):
             self.array = address
         else:
             self.array = Array(reduce(operator.mul, sizes), \
                                value_type, address=address, alloc=alloc)
-        SubMultiArray.__init__(self, sizes, value_type, self.array.address, 0, \
+        SubMultiArray.__init__(self, sizes, value_type, self.array.address, index = index, \
                                debug=debug)
         if len(sizes) < 2:
             raise CompilerError('Use Array')
@@ -6853,25 +7103,86 @@ class MultiArray(SubMultiArray):
                 res.assign_vector_by_indices(tmp, *new_indices)
                 # res.print_reveal_nested()
             return
-        @library.for_range(self.sizes[i])
-        def _(j):
-            tmp_indices = indices[:] + (j,)
-            self.permute_singledim(new_perm, tmp_indices, i+1, res)
+        if i == 0:
+            @library.for_range_multithread(1, 1, self.sizes[i])
+            def _(j):
+                tmp_indices = indices[:] + (j,)
+                self.permute_singledim(new_perm, tmp_indices, i+1, res)
+        else:
+            @library.for_range(self.sizes[i])
+            def _(j):
+                tmp_indices = indices[:] + (j,)
+                self.permute_singledim(new_perm, tmp_indices, i+1, res)            
 
+    # def permute(self, new_perm):
+    #     assert len(new_perm) == len(self.sizes)
+    #     i = 0
+    #     indices = ()
+    #     new_sizes = self.tuple_permute(self.sizes, new_perm)
+    #     res = MultiArray(new_sizes, self.value_type)
+    #     self.permute_singledim(new_perm, indices, i, res)
+    #     return res
+    
     def permute(self, new_perm):
         assert len(new_perm) == len(self.sizes)
         i = 0
         indices = ()
         new_sizes = self.tuple_permute(self.sizes, new_perm)
         res = MultiArray(new_sizes, self.value_type)
-        self.permute_singledim(new_perm, indices, i, res)
+        @library.for_range(self.total_size())
+        def _(i):
+            index_store = []
+            new_index = []
+            def mul(x, y):
+                return x*y
+            tmp_i = i
+            for j in range(len(self.sizes)-1):
+                left_size = (reduce(mul, self.sizes[j+1:]))
+                tmp_index = tmp_i// left_size
+                index_store.append(tmp_index)
+                new_index.append(tmp_index)
+                tmp_i = tmp_i%left_size
+            index_store.append(tmp_i)
+            new_index.append(tmp_i)   
+            new_index = self.tuple_permute(new_index, new_perm)   
+            tmp_val = self.get_vector_by_indices(*index_store)
+            res.assign_vector_by_indices(tmp_val, *new_index)
         return res
     
+    
+    
+        
     def permute_without_malloc(self, res , new_perm):
         assert len(new_perm) == len(self.sizes)
         i = 0
         indices = ()
-        self.permute_singledim(new_perm, indices, i, res)
+        # self.permute_singledim(new_perm, indices, i, res)
+        library.break_point()
+        @library.for_range(self.total_size())
+        def _(i):
+            index_store = []
+            new_index = []
+            def mul(x, y):
+                return x*y
+            tmp_i = i
+            for j in range(len(self.sizes)-1):
+                left_size = (reduce(mul, self.sizes[j+1:]))
+                tmp_index = tmp_i// left_size
+                index_store.append(tmp_index)
+                new_index.append(tmp_index)
+                tmp_i = tmp_i%left_size
+            index_store.append(tmp_i)
+            new_index.append(tmp_i)   
+            new_index = self.tuple_permute(new_index, new_perm)   
+            # library.print_ln("%s, %s, %s", index_store[0], index_store[1], index_store[2])              
+            # library.print_ln("%s, %s, %s", new_index[0], new_index[1], new_index[2]) 
+            # library.print_ln("%s, %s, %s", new_perm[0], new_perm[1], new_perm[2]) 
+            # library.print_ln("%s, %s, %s", res.sizes[0], res.sizes[1], res.sizes[2]) 
+        
+            tmp_val = self.get_vector_by_indices(*index_store)
+            res.assign_vector_by_indices(tmp_val, *new_index)
+        library.break_point()
+        return res
         
     def reshape(self, sizes):
         res=MultiArray(self.sizes,self.value_type)
@@ -7011,10 +7322,10 @@ class MultiArray(SubMultiArray):
         if res is None:
             res = MultiArray([self.shape[0], output_col], self.value_type)
 
-        @library.multithread(n_threads, N)
-        def _(base, size):
-            res.assign_part_vector(self.direct_mul(other, reduce = reduce, indices=(regint.inc(size, base=base), regint.inc(self.shape[1]), regint.inc(self.shape[1]), regint.inc(output_col))), base)
-            # res.assign_part_vector(self.get_part(base,size).direct_mul(other),base) # it uses address not create new. These two are the same in time and online or offline round.
+        # @library.for_range_multithread(n_threads, N, N)
+        # def _(i):
+        #     res[i] = self.direct_mul(other, indices=(regint(i), regint.inc(self.sizes[1]), regint.inc(self.sizes[1]), regint.inc(output_col)))
+        res.assign_vector(self.direct_mul(other))
         return res
 
     def single_bmm(self, other, reduce = True, res=None):  # i think single_bmm is a part of mm
@@ -7144,14 +7455,17 @@ class MultiArray(SubMultiArray):
             assert res.sizes == (*batch, n, p), "Invalid Output Dimension"
 
         self.view(b, n, m)
-        n_threads = os.cpu_count()
+        n_threads = 1
         if not is_reduce:
             other.view(b, m, p), res.view(b, n, p)
+            library.break_point()
             @library.for_range_opt_multithread(n_threads, b)
             def _(i):
                 # self[i] is SubMultiArray
-                self[i].matmul(other[i], res[i])
-                # res.assign_part_vector(self[i].direct_mul(other[i]),i)
+                # self[i].matmul(other[i], res[i])
+                res.assign_part_vector(self[i].direct_mul(other[i]),i)
+            library.break_point()
+                
             res.view(*batch, n, p)
         else:
             other.view(b*m, p)
@@ -7181,15 +7495,43 @@ class MultiArray(SubMultiArray):
         if len(self.sizes) == 2 and keepdims == False:
             assert isinstance(res,Array), "when operation comes to two dim and keepdims is False, res must be Array"
         dim = len(self.sizes)-1 if dim == -1 else dim
-        index_groups = self.getIndexGroups_by_dim(dim)
-        for i in range(len(index_groups)):
-            summary = self.value_type(0)
-            for j in index_groups[i]:
-                summary += self.get_vector_by_indices(*j)
-            res.assign_vector(summary, i)
-        if keepdims:
-            keep_sizes = self.sizes[:dim] + (1,) +self.sizes[dim+1:]
-            res.view(*keep_sizes)
+        # index_groups = self.getIndexGroups_by_dim(dim)
+        # for i in range(len(index_groups)):
+        #     summary = self.value_type(0)
+        #     for j in index_groups[i]:
+        #         summary += self.get_vector_by_indices(*j)
+        #     res.assign_vector(summary, i)
+        # if keepdims:
+        #     keep_sizes = self.sizes[:dim] + (1,) +self.sizes[dim+1:]
+        #     res.view(*keep_sizes)
+        if len(self.sizes) > 1:
+            def get_permute(n, dims):
+                perm = list(filter(lambda x: x not in dims, range(n))) + dims
+                return tuple(perm)
+            new_perm = get_permute(len(self.sizes), [dim])
+            target_size = self.tuple_permute(self.shape, new_perm)
+            input_perm = MultiArray(target_size, self.value_type)
+            self.permute_without_malloc(input_perm, new_perm)    
+            stride = reduce(lambda x, y: x * self.sizes[y], [dim], 1)
+            summary = Array(1, input_perm.value_type)
+            @library.for_range(self.total_size()//stride)
+            def _(i):
+                summary.assign_all(0)
+                @library.for_range(stride)
+                def _(j):
+                    summary[:] += input_perm.get_vector(i*stride+j, 1)
+                res.assign_vector(summary[:], i)
+            summary.delete()
+            tmp = 1 / stride
+            @library.multithread(1, res.total_size())
+            def _(base, size):
+                res.assign_vector(res.get_vector(base, size)* tmp, base)
+            if keepdims:
+                keep_sizes = self.sizes[:dim] + (1,) +self.sizes[dim+1:]
+                res.view(*keep_sizes)
+        else:
+            res[:] = sum(self[:]) / self.total_size()
+            
         return res
 
     def element_wise_mul(self, other, res=None):

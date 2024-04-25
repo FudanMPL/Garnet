@@ -12,6 +12,7 @@
 #include "IntInput.h"
 #include "FixInput.h"
 #include "FloatInput.h"
+#include "StrInput.h"
 
 #include "IntInput.hpp"
 
@@ -216,8 +217,7 @@ T InputBase<T>::finalize(int player, int n_bits)
 
 template<class T>
 template<class U>
-void InputBase<T>::prepare(SubProcessor<T>& Proc, int player, const int* params,
-        int size)
+void InputBase<T>::prepare(SubProcessor<T>& Proc, int player, const int* params,int size)
 {
     auto& input = Proc.input;
     assert(Proc.Proc != 0);
@@ -326,7 +326,7 @@ void InputBase<T>::input_mixed(SubProcessor<T>& Proc, const vector<int>& args,
                 cout << "Please input " << U::NAME << "s:" << endl; \
             prepare<U>(Proc, player, &args[i + U::N_DEST + 1], size); \
             break;
-        X(IntInput<typename T::clear>) X(FixInput) X(FloatInput)
+        X(IntInput<typename T::clear>) X(FixInput) X(FloatInput) X(StrInput)
 #undef X
         default:
             throw unknown_input_type(type);
@@ -350,7 +350,7 @@ void InputBase<T>::input_mixed(SubProcessor<T>& Proc, const vector<int>& args,
             player = get_player(Proc, args[i + n_arg_tuple - 1], player_from_reg); \
             finalize<U>(Proc, player, &args[i + 1], size); \
             break;
-        X(IntInput<typename T::clear>) X(FixInput) X(FloatInput)
+        X(IntInput<typename T::clear>) X(FixInput) X(FloatInput) X(StrInput)
 #undef X
         default:
             throw unknown_input_type(type);
@@ -358,5 +358,78 @@ void InputBase<T>::input_mixed(SubProcessor<T>& Proc, const vector<int>& args,
         i += n_arg_tuple;
     }
 }
+
+
+
+
+template<class T>
+void InputBase<T>::input_mixed_string(SubProcessor<T>& Proc, const vector<int>& args,
+    int size, bool player_from_reg)
+{
+    // printf("Enter input_mixed_string static method \n");
+    auto& input = Proc.input;
+    input.reset_all(Proc.P);
+    int last_type = -1;
+
+    for (size_t i = 0; i < args.size();)
+    {
+        int n_arg_tuple;
+        int type = args[i];
+        // printf("type:%d,i:%ld",type,i);
+        int player;
+        switch (type)
+        {
+#undef X
+#define X(U) \
+        case U::TYPE: \
+            n_arg_tuple = U::N_DEST + U::N_PARAM + 2; \
+            player = get_player(Proc, args[i + n_arg_tuple - 1], player_from_reg); \
+            if (type != last_type and Proc.Proc and Proc.Proc->use_stdin()) \
+                cout << "Please input " << U::NAME << "s:" << endl; \
+            prepare<U>(Proc, player, &args[i + U::N_DEST + 1], size); \
+            break;
+        X(IntInput<typename T::clear>) X(FixInput) X(FloatInput) X(StrInput)
+#undef X
+        default:
+            throw unknown_input_type(type);
+        }
+        i += n_arg_tuple;
+        last_type = type;
+    }
+
+    input.exchange();
+
+    for (size_t i = 0; i < args.size();)
+    {
+        int n_arg_tuple;
+        int type = args[i];
+        int player;
+        switch (type)
+        {
+#define X(U) \
+        case U::TYPE: \
+            n_arg_tuple = U::N_DEST + U::N_PARAM + 2; \
+            player = get_player(Proc, args[i + n_arg_tuple - 1], player_from_reg); \
+            finalize<U>(Proc, player, &args[i + 1], size); \
+            break;
+        X(IntInput<typename T::clear>) X(FixInput) X(FloatInput) X(StrInput)
+
+
+
+        
+#undef X
+        default:
+            throw unknown_input_type(type);
+        }
+        i += n_arg_tuple;
+    }
+}
+
+
+
+
+
+
+
 
 #endif

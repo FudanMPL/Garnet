@@ -1,0 +1,90 @@
+
+import nn as nn
+from tensor import Tensor,autograd_function
+import optimizer as optim
+import dataloader as dataloader
+import functional as F
+
+class LeNet(nn.Module):
+    def __init__(self):
+        super(LeNet, self).__init__()
+        self.conv = nn.Sequential(
+            nn.Conv2d(1, 6, 5), # in_channels, out_channels, kernel_size
+            nn.Sigmoid(),
+            nn.MaxPool2d(2, 2), # kernel_size, stride
+            nn.Conv2d(6, 16, 5),
+            nn.Sigmoid(),
+            nn.MaxPool2d(2, 2)
+        )
+        self.fc = nn.Sequential(
+            nn.Linear(16*4*4, 120),
+            nn.Sigmoid(),
+            nn.Linear(120, 84),
+            nn.Sigmoid()
+        )
+        self.fc1 = nn.Linear(84, 10)
+
+    def forward(self, img):
+        feature = self.conv(img)
+        feature = feature.view(img.shape[0], -1)
+        output = self.fc(feature)
+        output = self.fc1(output)
+        return output
+
+
+crossloss = nn.MSELoss()
+
+x = MultiArray([10,1,28,28], sfix)
+y = MultiArray([10,10], sfix)
+
+@for_range(x.total_size())
+def _(i):
+    x.assign_vector(sfix(i/10), i)
+
+y.assign_all(0)
+for i in range(10):
+    y[i][i//3] = 1
+
+
+
+n_bags = 3
+data_list = []
+models = []
+optimizers = []
+params_list = []
+
+for k in range(n_bags):
+    dataload = dataloader.DataLoader(x, y, batch_size = 2, shuffle=True)
+    data_list.append(dataload)
+
+    model = LeNet()
+    optimizer = optim.SGD(model.parameters(), lr = 0.01)
+
+    models.append(model)
+    optimizers.append(optimizer)
+
+    params = list(model.parameters())
+    for i in params:
+        i.assign_all(0.1)
+    model.train(crossloss, dataload)
+
+    
+
+@for_range(10)
+def _(i):
+    losses = []
+    for k in range(0, n_bags):
+        input, label = data_list[k].get_data(0)
+        output = models[k](input)
+        loss = crossloss(output, label)
+        losses.append(loss)
+
+    loss_agg = (losses[0].value[:] + losses[1].value[:] + losses[2].value[:])/3
+    print_ln("loss: %s", loss_agg.reveal())
+
+    for k in range(0, n_bags):
+        #losses[k].value[:] = 0.7 * losses[k].value[:] + 0.3 * loss_agg
+        optimizers[k].zero_grad()
+        losses[k].backward()
+        optimizers[k].step()
+   

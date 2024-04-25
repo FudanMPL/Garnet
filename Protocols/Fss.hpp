@@ -91,6 +91,121 @@ void Fss<T>::init(Preprocessing<T>& prep, typename T::MAC_Check& MC)
     this->MC = &MC;
 }
 
+template <class T>
+void Fss<T>::Muliti_Interval_Containment(SubProcessor<T> &proc, const Instruction &instruction, int lambda){
+    PRNG prng;
+    prng.ReSeed();
+    init(proc.DataF, proc.MC);
+    // auto& args = instruction.get_start();
+    // int res_address = args[2], x_base = args[3], spline_base = args[4], length = args[5];
+    // typename T::clear tmp, r_tmp, eval_res[length+1], spline_res[length],z; 
+    // vector<typename T::clear> x_add_r;
+    // bigint dcf[length];
+    // fstream r;
+    // r.open("Player-Data/2-fss/multi_r" + to_string(P.my_num()), ios::in);
+    // r >> r_tmp;
+    // // for(int i = 0; i < args.size(); i+=args[0]){
+
+    // // }
+    // for(int i = 0; i < args.size(); i+=args[0]){
+    //     fstream r;
+    //     octetStream cs[2], reshare_cs, t_cs; //cs0, cs1; 
+        
+    //     r.open("Player-Data/2-fss/multi_r" + to_string(P.my_num()), ios::in);
+    //     r >> r_tmp;
+    //     MC->init_open(P, lambda);
+    //     auto dest = &proc.S[x_base + i][0];
+    //     *dest = *dest + r_tmp;
+    //     MC->prepare_open(proc.S[args[x_base + i]]);
+    //     MC->exchange(P);
+    //     x_add_r = MC->finalize_raw();
+    //     std::cout << "x+r is " << x_add_r << std::endl;
+
+    //     //res0 = 0，后面才存放Eval结果
+    //     if(P.my_num() == EVAL_1 || P.my_num() == EVAL_2){
+    //         auto size = dcf[0].get_mpz_t()->_mp_size;
+    //         eval_res[0] = 0;
+    //         r >> z;
+    //         r_tmp = 0;
+    //         for(int j = 0; j < length; j++){
+    //             tmp = x_add_r - proc.C[spline_base + j];
+    //             dcf[j] = this->evaluate(tmp, lambda);
+    //             size = dcf[j].get_mpz_t()->_mp_size;
+    //             mpn_copyi((mp_limb_t*)eval_res[j+1].get_ptr(), dcf[j].get_mpz_t()->_mp_d, abs(size));
+
+    //             // evaluation
+    //             if(size < 0){
+    //                 eval_res[j+1] = -eval_res[j+1];
+    //             }
+    //             if(lambda == 128){
+    //                 if(j == 0){
+    //                     spline_res[j] = typename T::clear(P.my_num()) * (1  - (x_add_r - proc.C[spline_base+j]).get_bit(lambda)) - eval_res[j] + eval_res[j+1] + z;
+    //                 }
+    //                 else{
+    //                     spline_res[j] = typename T::clear(P.my_num()) * ((x_add_r - proc.C[spline_base+j-1]).get_bit(lambda)  - (x_add_r - proc.C[spline_base+j]).get_bit(lambda)) - eval_res[j] + eval_res[j+1] + z;
+    //                 }
+    //             }
+    //             else{
+    //                 if(j == 0){
+    //                     spline_res[j] = typename T::clear(P.my_num()) * (1  - (x_add_r - proc.C[spline_base+j]).get_bit(lambda - 1)) - eval_res[j] + eval_res[j+1] + z;
+    //                 }
+    //                 else{
+    //                     spline_res[j] = typename T::clear(P.my_num()) * ((x_add_r - proc.C[spline_base+j-1]).get_bit(lambda - 1)  - (x_add_r - proc.C[spline_base+j]).get_bit(lambda - 1)) - eval_res[j] + eval_res[j+1] + z;
+    //                 }
+    //             }
+    //         } 
+
+    //         typename T::clear random_val[length+1];
+    //         P.receive_player(GEN, cs[P.my_num()]);
+    //         std::cout << "recieving! " << std::endl;
+    //         for(int j = 0; j < length+1; j++){
+    //             random_val[j].unpack(cs[P.my_num()]);
+    //             proc.S[res_address + j][0] = typename T::clear(P.my_num()) + spline_res[j] - random_val[j];
+    //         }
+        
+
+    //         r.close();
+    //     }
+
+
+
+    //     else{
+    //         typename T::clear r_sum[length+1], r0[length+1], r1[length+1];
+    //         for(int j = 0; j < length+1; j++){
+    //             bigint r_tmp;
+    //             prng.get(r_tmp, lambda); 
+    //             auto size = r_tmp.get_mpz_t()->_mp_size;
+    //             mpn_copyi((mp_limb_t*)r0[j].get_ptr(), r_tmp.get_mpz_t()->_mp_d, abs(size));
+    //             prng.get(r_tmp, lambda); 
+    //             size = r_tmp.get_mpz_t()->_mp_size;
+    //             mpn_copyi((mp_limb_t*)r1[j].get_ptr(), r_tmp.get_mpz_t()->_mp_d, abs(size));
+                
+    //             r_sum[j] = r0[j] + r1[j];
+    //             proc.S[res_address + j][0] = r_sum[j];
+    //             r0[j].pack(cs[EVAL_1]);
+
+    //             std::cout << "packed random value r0 is " << r0[j] << std::endl;
+    //             r1[j].pack(cs[EVAL_2]);
+    //         }
+    //         P.send_to(EVAL_1, cs[EVAL_1]);
+    //         P.send_to(EVAL_2, cs[EVAL_2]);
+    //         std::cout << "finishing sending!" << std::endl;
+    //     }
+    // }
+    // typename T::clear reshare[length+1], recv_reshare[length+1];
+    // for(int j = 0; j < length+1; j++){
+    //     reshare[j] = proc.S[res_address + j][0];
+    //     reshare[j].pack(reshare_cs);
+    // }
+    
+
+    // P.send_to((P.my_num()+1)%P.num_players(), reshare_cs);
+    // P.receive_player((P.my_num()+2)%P.num_players(), reshare_cs);
+    // for(int j = 0; j < length+1; j++){
+    //     recv_reshare[j].unpack(reshare_cs);
+    //     proc.S[res_address + j][1] = recv_reshare[j];
+    // }
+}
 
 template<class T>
 void Fss<T>::distributed_comparison_function(SubProcessor<T> &proc, const Instruction &instruction, int n)
@@ -195,12 +310,6 @@ bigint Fss<T>::evaluate(typename T::open_type x, int n, int result_length, int d
     for(int i = 1 + drop_least_bits; i < n; i++){
         xi = x.get_bit(n - i - 1);
         
-        prng.SetSeed(seed);
-        for(int j = 0; j < 2; j++){
-            prng.get(v_hat[j], lambda);
-            prng.get(s_hat[j], lambda);
-            t_hat[j] = s_hat[j].get_ui() & 1;
-            s[j] = s_hat[j] ^ (tmp_t * this->fss3prep->scw[i-1]);
             t[j] = t_hat[j] ^ (tmp_t * this->fss3prep->tcw[j][i-1]);
         }
 

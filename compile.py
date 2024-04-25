@@ -36,6 +36,10 @@ def main(compiler):
         compilation(compiler)
 
 
+import time
 if __name__ == "__main__":
+    start_time = time.time()
     compiler = Compiler()
     main(compiler)
+    end_time = time.time()
+    print('compiling time: ' + str(end_time - start_time)) 

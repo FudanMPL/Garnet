@@ -1,43 +1,5 @@
-def print_inc_reg(res):
-    print_ln("%s:",type(res))
-    print_str("[")
-    for i in range(len(res)-1):
-        print_str('%s, ', res[i].reveal())
-    print_str('%s', res[len(res) - 1].reveal())
-    print_str(']' + '\n')
 
+s = sint(10, 10)
 
+print_ln("%s",s.reveal())
 
-inc_=regint.inc(32,4,2,2,8)
-print_inc_reg(inc_)
-
-
-'''
-A = MultiArray([3, 4,5, 6], sfix)
-for i in range(0,3):
-    for j in range(0,4):
-        for k in range(0,5):
-            for m in range(6):
-                A[i][j][k][m] = sfix(i+j+k+m)
-
-B=MultiArray([3,3,4,4],sfix)
-C=MultiArray([3,3,4,4],sfix)
-batch = Array.create_from(regint.inc(32))
-print_ln("%s",batch)
-
-print_ln("%s,%s,%s",A.address,B.address,C.address)
-B.assign_all(2)
-A.print_reveal_nested()
-B.print_reveal_nested()
-#B.assign_vector(A.get_vector(7,120),4)
-
-#B.assign_part_vector(A.get_part_vector(0),1)
-
-#B.assign_slice_vector(C.get_slice_vector(batch.get_part(1,2)))
-tmp=C.get_slice_vector(batch.get_part(1,2))
-T=Array.create_from(regint.inc(1,2))
-B.assign_slice_vector(T,tmp)
-print_ln("%s",len(tmp))
-B.print_reveal_nested()
-C.print_reveal_nested()
-'''

@@ -1,39 +1,33 @@
 import nn as nn
-from tensor import Tensor,autograd_function
 import optimizer as optim
+import dataloader as dataloader
+import functional as F
+from tensor import Tensor,autograd_function
 
-
-class LinearRegression(nn.Module):
-    """
-    Linear Regressoin Module, the input features and output 
-    features are defaults both 1
-    """
+class LogisticRegression(nn.Module):
     def __init__(self):
-        super().__init__()
-        self.linear = nn.Linear(3,1)
-        
+        super(LogisticRegression, self).__init__()
+        self.linear = nn.Linear(4,1)
+
     def forward(self,x):
         out = self.linear(x)
+        out = F.sigmoid(out)
         return out
 
-x = MultiArray([3,2,3], sfix)
-for i in range(x.total_size()):
-    x.assign_vector(sfix(i), i)
-x.print_reveal_nested()
-input1 = Tensor(x)
+x = Tensor.ones(30, 4)
+y = Tensor.ones(30, 1)
+dataload = dataloader.DataLoader(x, y, batch_size = 2)
 
-
-model = LinearRegression()
-
-list(model.parameters())[0].print_reveal_nested()
+model = LogisticRegression()
 optimizer = optim.SGD(model.parameters(), lr = 0.01)
-model.train(input1)
-for i in range(10):
-
-    y = model(input1)
+mse = nn.MSELoss()
+model.train()
+@for_range(10)
+def _(i):
+    input, label = dataload.get_data(i)
+    output = model(input)
+    loss = mse(output, label)
     optimizer.zero_grad()
-
-    y.backward()
-    list(model.parameters())[0].grad.print_reveal_nested()
+    loss.backward()
+    loss.print_reveal_nested()
     optimizer.step()
-    list(model.parameters())[0].print_reveal_nested()

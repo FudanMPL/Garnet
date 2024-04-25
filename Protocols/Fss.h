@@ -24,8 +24,7 @@ using namespace std;
 #define EVAL_1 0
 #define EVAL_2 1
 
-
-template<class T>
+template <class T>
 class Fss : public ReplicatedBase, public ProtocolBase<T>
 {
     array<octetStream, 2> os;
@@ -39,7 +38,6 @@ class Fss : public ReplicatedBase, public ProtocolBase<T>
     void trunc_pr(const vector<int> &regs, int size, U &proc, true_type);
     template <class U>
     void trunc_pr(const vector<int> &regs, int size, U &proc, false_type);
-
 
 public:
     static const bool uses_fss_cw = true;
@@ -92,6 +90,18 @@ public:
     void stop_exchange();
 
     template <class U>
+    void psi(const vector<typename T::clear> &source, const Instruction &instruction, U &proc)
+    {
+        throw not_implemented();
+    }
+
+    template <class U>
+    void psi_align(const vector<typename T::clear> &source, const Instruction &instruction, U &proc)
+    {
+        throw not_implemented();
+    }
+
+    template <class U>
     void change_domain(const vector<int> &reg, U &proc);
 
     //new added function    
@@ -99,16 +109,14 @@ public:
 
     void distributed_comparison_function_gpu(SubProcessor<T> &proc, const Instruction &instruction, int lambda);
 
-    //new added generate function
+    void Muliti_Interval_Containment(SubProcessor<T> &processor, const Instruction &instruction, int lambda);
+
+    // new added generate function
     void generate();
 
     //new added evaluate function
     bigint evaluate(typename T::open_type x, int lambda, int result_length, int drop_least_bits = 0);
     bigint evaluate_conv_relu(typename T::open_type x, int n, int result_length);
     //Instructions for RFss3
-    void conv2d_rfss3s(SubProcessor<T> &proc, const Instruction& instruction);
     void trunc_relu_rfss3s(SubProcessor<T> &proc, const Instruction& instruction);
 };
-
-
-#endif /* PROTOCOLS_Fss_H_ */

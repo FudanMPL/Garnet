@@ -6,6 +6,8 @@ MATH = $(patsubst %.cpp,%.o,$(wildcard Math/*.cpp))
 
 TOOLS = $(patsubst %.cpp,%.o,$(wildcard Tools/*.cpp))
 
+TOOLS_PSI = $(patsubst %.cpp,%.o,$(wildcard Tools_PSI/*.cpp))
+
 NETWORK = $(patsubst %.cpp,%.o,$(wildcard Networking/*.cpp))
 
 PROCESSOR = $(patsubst %.cpp,%.o,$(wildcard Processor/*.cpp)) 
@@ -262,6 +264,7 @@ offline_dynamic_dpf: $(BUILD_DIR_DYNAMIC_DPF) $(SHAREDLIB) $(BUILD_DIR_DYNAMIC_D
 tree-inference.x:   Machines/tree-inference.cpp
 replicated-bin-party.x: GC/square64.o
 replicated-ring-party.x: GC/square64.o
+rss-with-conversion-party.x: GC/square64.o
 replicated-field-party.x: GC/square64.o
 brain-party.x: GC/square64.o
 malicious-rep-bin-party.x: GC/square64.o
@@ -272,8 +275,11 @@ tinier-party.x: $(OT)
 spdz2k-party.x: $(TINIER) $(patsubst %.cpp,%.o,$(wildcard Machines/SPDZ2*.cpp))
 static/spdz2k-party.x: $(patsubst %.cpp,%.o,$(wildcard Machines/SPDZ2*.cpp))
 semi-party.x: $(OT)  $(GC_SEMI)
-semi2k-party.x: $(OT) $(GC_SEMI)
-sml-party.x: $(OT) $(GC_SEMI) 
+semi2k-party.x: CFLAGS += -D ENABLE_PSI=true
+semi2k-party.x: $(TOOLS_PSI) $(OT) $(GC_SEMI)
+semi2k-with-conversion-party.x: $(OT) $(GC_SEMI)
+sml-party.x:  CFLAGS += -D ENABLE_PSI=true
+sml-party.x: $(TOOLS_PSI) $(OT) $(GC_SEMI) 
 vss-party.x: $(OT) $(GC_SEMI)
 fss-ring-party.x: GC/square64.o $(BUILD_DIR_DYNAMIC_DPF) $(SHAREDLIB) $(BUILD_DIR_DYNAMIC_DPF)/gpu.o
 	g++ -g Machines/fss-ring-party.cpp $(BUILD_DIR_DYNAMIC_DPF)/gpu.o $(BUILD_DIR_DYNAMIC_DPF)/interface.o -o fss-ring-party.x -lcudadevrt -lcudart -I/usr/local/cuda/include -L/usr/local/cuda/lib64 $(LDLIBS) $(SHAREDLIB) $(CFLAGS)
@@ -298,6 +304,7 @@ Player-Online.x: $(SPDZ)
 mama-party.x: $(TINIER)
 ps-rep-ring-party.x: Protocols/MalRepRingOptions.o
 malicious-rep-ring-party.x: Protocols/MalRepRingOptions.o
+mal-rss-with-conversion-party.x: Protocols/MalRepRingOptions.o
 sy-rep-ring-party.x: Protocols/MalRepRingOptions.o
 rep4-ring-party.x: GC/Rep4Secret.o
 no-party.x: Protocols/ShareInterface.o

@@ -77,9 +77,9 @@ public:
     ProtocolBase();
     virtual ~ProtocolBase();
 
-    void muls(const vector<int>& reg, SubProcessor<T>& proc, typename T::MAC_Check& MC,
-            int size);
-    void mulrs(const vector<int>& reg, SubProcessor<T>& proc);
+    void muls(const vector<int> &reg, SubProcessor<T> &proc, typename T::MAC_Check &MC,
+              int size);
+    void mulrs(const vector<int> &reg, SubProcessor<T> &proc);
 
     void multiply(vector<T> &products, vector<pair<T, T>> &multiplicands,
                   int begin, int end, SubProcessor<T> &proc);
@@ -125,9 +125,9 @@ public:
 
     template <int = 0>
     void matmulsm(SubProcessor<T> &proc, CheckVector<T> &source,
-                  const Instruction &instruction, int a, int b)
+                  const Instruction &instruction)
     {
-        proc.matmulsm(source, instruction, a, b);
+        proc.matmulsm(source, instruction);
     }
 
     template <int = 0>
@@ -141,8 +141,10 @@ public:
 
     virtual void check() {}
 
-    virtual void cisc(SubProcessor<T>&, const Instruction&)
-    { throw runtime_error("CISC instuctions not implemented"); }
+    virtual void cisc(SubProcessor<T> &, const Instruction &)
+    {
+        throw runtime_error("CISC instuctions not implemented");
+    }
     virtual vector<int> get_relevant_players();
 };
 
@@ -199,8 +201,19 @@ public:
     void stop_exchange();
 
     template <class U>
-    void change_domain(const vector<int>& regs, int reg_size, U& proc);
+    void psi(const vector<typename T::clear> &source, const Instruction &instruction, U &proc)
+    {
+        throw not_implemented();
+    }
 
+    template <class U>
+    void psi_align(const vector<typename T::clear> &source, const Instruction &instruction, U &proc)
+    {
+        throw not_implemented();
+    }
+
+    template <class U>
+    void change_domain(const vector<int> &regs, int reg_size, U &proc);
 };
 
 #endif /* PROTOCOLS_REPLICATED_H_ */

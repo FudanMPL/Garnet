@@ -1,0 +1,65 @@
+[
+    {
+        "model": "Model.Mpc",
+        "pk": 1,
+        "fields": {
+            "name": "特种病药物转卖医保诈骗监督模型",
+            "file":"mpc/drug_supervision.mpc",
+            "description": "特种病药物转卖医保诈骗监督模型"
+        }
+    },
+    {
+        "model": "Model.Mpc",
+        "pk": 2,
+        "fields": {
+            "name": "社区矫正监督模型",
+            "file":"mpc/correction-supervision.mpc",
+            "description": "社区矫正监督模型"
+        }
+    },
+    {
+        "model": "Model.Mpc",
+        "pk": 3,
+        "fields": {
+            "name": "线性回归模型",
+            "file":"mpc/autograd_linear.mpc",
+            "description": "线性回归模型"
+        }
+    },
+    {
+        "model": "Model.Mpc",
+        "pk": 4,
+        "fields": {
+            "name": "逻辑回归模型",
+            "file":"mpc/autograd_logistic.mpc",
+            "description": "逻辑回归模型"
+        }
+    },
+    {
+        "model": "Model.Mpc",
+        "pk": 5,
+        "fields": {
+            "name": "神经网络模型",
+            "file":"mpc/autograd_lenet.mpc",
+            "description": "神经网络模型"
+        }
+    },
+    {
+        "model": "Model.Mpc",
+        "pk": 6,
+        "fields": {
+            "name": "XGBoost模型",
+            "file":"mpc/xgboost.mpc",
+            "description": "XGBoost模型"
+        }
+    },
+    {
+        "model": "Model.Mpc",
+        "pk": 7,
+        "fields": {
+            "name": "隐私集合求交",
+            "file":"mpc/ss_psi_test.mpc",
+            "description": "隐私集合求交"
+        }
+    }
+]

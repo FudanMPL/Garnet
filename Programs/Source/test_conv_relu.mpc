@@ -28,16 +28,12 @@ def test_rfss3conv2d_relu():
 
 
     input = Tensor(training_samples, req_grad = True)
-    weight=Tensor(weight_v,req_grad = True)
-
-    output=F.rfss3_conv2d_relu(input,weight)
-    tensor.train()
-    tensor.reset_op_id()
-    output=F.rfss3_conv2d_relu(input,weight)
-    # output.backward()    
+    weight=Tensor(weight_v,req_grad = True )
+    output=F.rfss3_conv2d_relu(input,weight,padding=[2,2], groups = 1)
+    output.backward()
     output.value.print_reveal_nested()
-    # weight.grad.print_reveal_nested()
-    # input.grad.print_reveal_nested()
+    weight.grad.print_reveal_nested()
+    input.grad.print_reveal_nested()
 
 
 @autograd_function
@@ -58,18 +54,12 @@ def test_conv2d_relu():
 
 
     input = Tensor(training_samples, req_grad = True)
-    weight=Tensor(weight_v,req_grad = True)
-
-    output=F.conv2d(input,weight)
-    output=F.relu(output)
-    tensor.train()
-    tensor.reset_op_id()
-    output=F.conv2d(input,weight)
-    output=F.relu(output)
-    # output.backward()    
+    weight=Tensor(weight_v,req_grad = True )
+    output=F.conv2d(input,weight,padding=[2,2],groups = 1)
+    output.backward()
     output.value.print_reveal_nested()
-    # weight.grad.print_reveal_nested()
-    # input.grad.print_reveal_nested()
+    weight.grad.print_reveal_nested()
+    input.grad.print_reveal_nested()
 
-test_rfss3conv2d_relu()
-# test_conv2d_relu()
+# test_rfss3conv2d_relu()
+test_conv2d_relu()

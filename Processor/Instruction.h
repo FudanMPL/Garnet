@@ -11,13 +11,16 @@ using namespace std;
 
 #include "Math/bigint.h"
 
-template<class sint, class sgf2n> class Machine;
-template<class sint, class sgf2n> class Processor;
-template<class T> class SubProcessor;
+template <class sint, class sgf2n>
+class Machine;
+template <class sint, class sgf2n>
+class Processor;
+template <class T>
+class SubProcessor;
 class ArithmeticProcessor;
 class SwitchableOutput;
 
-/* 
+/*
  * Opcode constants
  *
  * Whenever these are changed the corresponding dict in Compiler/instructions_base.py
@@ -313,9 +316,9 @@ enum
     RESPSECURESOCKET = 0x1BB
 };
 
-
 // Register types
-enum RegType {
+enum RegType
+{
   INT,
   SBIT,
   CBIT,
@@ -328,42 +331,43 @@ enum RegType {
   MAX_REG_TYPE,
 };
 
-template<class sint, class sgf2n>
-struct TempVars {
+template <class sint, class sgf2n>
+struct TempVars
+{
   typename sgf2n::clear ans2;
   typename sint::clear ansp;
   sint Sansp;
-  bigint aa,aa2;
+  bigint aa, aa2;
   typename sint::open_type rrp, xip;
 };
-
 
 class BaseInstruction
 {
   friend class Program;
-  template<class T> friend class RepRingOnlyEdabitPrep;
+  template <class T>
+  friend class RepRingOnlyEdabitPrep;
 
 protected:
-  int opcode;         // The code
-  int size;           // Vector size
-  int r[4];           // Fixed parameter registers
-  size_t n;             // Possible immediate value
-  vector<int>  start; // Values for a start/stop open
+  int opcode;        // The code
+  int size;          // Vector size
+  int r[4];          // Fixed parameter registers
+  size_t n;          // Possible immediate value
+  vector<int> start; // Values for a start/stop open
 
 public:
-  virtual ~BaseInstruction() {};
+  virtual ~BaseInstruction(){};
 
   int get_r(int i) const { return r[i]; }
   size_t get_n() const { return n; }
-  const vector<int>& get_start() const { return start; }
+  const vector<int> &get_start() const { return start; }
   int get_opcode() const { return opcode; }
   int get_size() const { return size; }
 
   // Reads a single instruction from the istream
-  void parse(istream& s, int inst_pos);
-  void parse_operands(istream& s, int pos, int file_pos);
+  void parse(istream &s, int inst_pos);
+  void parse_operands(istream &s, int pos, int file_pos);
 
-  bool is_gf2n_instruction() const { return ((opcode&0x100)!=0); }
+  bool is_gf2n_instruction() const { return ((opcode & 0x100) != 0); }
   virtual int get_reg_type() const;
 
   bool is_direct_memory_access() const;
@@ -381,39 +385,38 @@ class Instruction : public BaseInstruction
 {
 public:
   // Return whether usage is known
-  bool get_offline_data_usage(DataPositions& usage);
+  bool get_offline_data_usage(DataPositions &usage);
 
-  friend ostream& operator<<(ostream& s,const Instruction& instr);
+  friend ostream &operator<<(ostream &s, const Instruction &instr);
 
   // Execute this instruction, updateing the processor and memory
   // and streams pointing to the triples etc
-  template<class sint, class sgf2n>
-  void execute(Processor<sint, sgf2n>& Proc) const;
+  template <class sint, class sgf2n>
+  void execute(Processor<sint, sgf2n> &Proc) const;
 
-  template<class sint, class sgf2n>
-  void execute_big_domain_instructions(Processor<sint, sgf2n>& Proc) const;
+  template <class sint, class sgf2n>
+  void execute_big_domain_instructions(Processor<sint, sgf2n> &Proc) const;
 
-  template<class cgf2n>
-  void execute_clear_gf2n(vector<cgf2n>& registers, vector<cgf2n>& memory,
-      ArithmeticProcessor& Proc) const;
+  template <class cgf2n>
+  void execute_clear_gf2n(vector<cgf2n> &registers, vector<cgf2n> &memory,
+                          ArithmeticProcessor &Proc) const;
 
-  template<class cgf2n>
-  void gbitdec(vector<cgf2n>& registers) const;
-  template<class cgf2n>
-  void gbitcom(vector<cgf2n>& registers) const;
+  template <class cgf2n>
+  void gbitdec(vector<cgf2n> &registers) const;
+  template <class cgf2n>
+  void gbitcom(vector<cgf2n> &registers) const;
 
-  void execute_regint(ArithmeticProcessor& Proc, vector<Integer>& Mi) const;
+  void execute_regint(ArithmeticProcessor &Proc, vector<Integer> &Mi) const;
 
-  void shuffle(ArithmeticProcessor& Proc) const;
-  void bitdecint(ArithmeticProcessor& Proc) const;
+  void shuffle(ArithmeticProcessor &Proc) const;
+  void bitdecint(ArithmeticProcessor &Proc) const;
 
-  template<class T>
-  void print(SwitchableOutput& out, T* v, T* p = 0, T* s = 0, T* z = 0,
-      T* nan = 0) const;
+  template <class T>
+  void print(SwitchableOutput &out, T *v, T *p = 0, T *s = 0, T *z = 0,
+             T *nan = 0) const;
 
-  template<class T>
-  typename T::clear sanitize(SubProcessor<T>& proc, int reg) const;
+  template <class T>
+  typename T::clear sanitize(SubProcessor<T> &proc, int reg) const;
 };
 
 #endif
-

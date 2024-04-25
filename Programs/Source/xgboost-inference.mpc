@@ -1,7 +1,7 @@
 m = 4 # 特征数
-h = 3 # 树高
+h = 2 # 树高
 tree_number = 3 # 树的数量
-n_threads = 4 # 最大线程数
+n_threads = 1 # 最大线程数
 test_samples = 51 # 测试样本数
 attribute_max_values = [ # 各个特征的最大值，用于在两方同态加密下使用
 100,
@@ -11,8 +11,9 @@ attribute_max_values = [ # 各个特征的最大值，用于在两方同态加�
 ]
 
 
+program.use_split(3)
 program.use_trunc_pr=True
-import xgboost, util, math
+import xgboost_inference, util, math
 
 test = sfix.Array(test_samples), sint.Matrix(m, test_samples)
 
@@ -26,12 +27,12 @@ for x in  test:
 
 
 
-trainer = xgboost.XGBoost(
-    h=h, tree_number=tree_number,  n_threads=n_threads, attribute_number=m, attribute_max_values=attribute_max_values, test_sample_number=test_samples)
+inference = xgboost_inference.XGBoostInference(
+    h=h, tree_number=tree_number,  n_threads=n_threads, attribute_number=m,  test_sample_number=test_samples, attribute_max_values=attribute_max_values)
 
-trainer.input_from(0)
+inference.input_from(0)
 
 
-trainer.test(test[1], test[0])
+inference.test(test[1], test[0])
 
 

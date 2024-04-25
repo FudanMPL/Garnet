@@ -89,6 +89,42 @@ void fss_generate(int beta, bigint y1, int n, int generate_case, int result_leng
     }
     k0 << tmp_t[1]*(-1*(convert[1] - convert[0] - va)) + (1-tmp_t[1])*(convert[1] - convert[0] - va) << " ";
     k1 << tmp_t[1]*(-1*(convert[1] - convert[0] - va)) + (1-tmp_t[1])*(convert[1] - convert[0] - va) << " ";
+    
+
+    std::cout << "a is " << a << std::endl;
+    typename T::clear rin, p_tmp, p_prev, z_0, z = 0;
+    auto size = a.get_mpz_t()->_mp_size;
+    mpn_copyi((mp_limb_t*)rin.get_ptr(), a.get_mpz_t()->_mp_d, abs(size));
+    if(size < 0)
+        rin = -rin;
+    std::cout << "rin in " << rin << std::endl;
+    
+    
+    std::cout << "reading splines: " << std::endl;
+    for(int i = 1; i < length; i++){
+        z = 0;
+        p_prev = processor.C[base+i-1] + rin;
+        p_tmp = processor.C[base+i] + rin;
+        // std::cout << p_prev << " " << p_tmp << " " << processor.C[base+i-1] << " " << p_prev << " " << processor.C[base+i] << " " << p_tmp << std::endl;
+        if(lambda == 128){
+            // std::cout << " p > q " << (p_prev - p_tmp).get_bit(lambda) << " ap > p " << (processor.C[base+i-1] - p_prev).get_bit(lambda)  << " aq > q " << (processor.C[base+i] - p_tmp).get_bit(lambda) << std::endl; 
+            z = (p_prev - p_tmp).get_bit(lambda) + (processor.C[base+i-1] - p_prev).get_bit(lambda) + (processor.C[base+i] - p_tmp).get_bit(lambda);
+        }
+        else{
+            // std::cout << " p > q " << (p_prev - p_tmp).get_bit(lambda-1) << " ap > p " << (processor.C[base+i-1] - p_prev).get_bit(lambda-1)  << " aq > q " << (processor.C[base+i] - p_tmp).get_bit(lambda-1) << std::endl; 
+            z = (p_prev - p_tmp).get_bit(lambda - 1) + (processor.C[base+i-1] - p_prev).get_bit(lambda - 1) + (processor.C[base+i] - p_tmp).get_bit(lambda - 1);
+        }
+
+        prng.get(tmp, lambda);
+        auto size = tmp.get_mpz_t()->_mp_size;
+        mpn_copyi((mp_limb_t*)z_0.get_ptr(), tmp.get_mpz_t()->_mp_d, abs(size));
+        if(size < 0)
+            z_0 = -z_0;
+        // std::cout << "rin in " << rin << std::endl;
+        r0 << z - z_0 << " ";
+        r1 << z_0 << " ";
+        // std::cout << " z is " << z << "z_0 is " << z_0 << std::endl;
+    }
     k0.close();
     k1.close();
 }

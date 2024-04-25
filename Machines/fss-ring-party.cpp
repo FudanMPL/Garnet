@@ -3,10 +3,9 @@
  *
  */
 
-#define BIG_DOMAIN_FOR_RSS
+
 
 #include "Protocols/Rep3Share2k.h"
-#include "Protocols/Rep3Share128.h"
 #include "Protocols/Fss3Prep.h"
 #include "Protocols/Fss3Prep.hpp"
 #include "Protocols/Fss.h"

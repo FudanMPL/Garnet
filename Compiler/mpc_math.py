@@ -402,7 +402,7 @@ def exp2_fx(a, zero_output=False, as19=False):
 
 @types.vectorize
 @instructions_base.sfix_cisc
-def exp_fx(x,iter=9):
+def exp_fx(x,iter=8):
     n=1<<iter
     a=1+x/n
     for i in range(0,iter):
@@ -960,10 +960,69 @@ def InvertSqrt(x, old=False):
 def ltz(x):
     return x<0
 
+# def argmax(x):
+#     len=x.length
+#     len2=(int)(len*(len-1)/2)
+#     temp=type(x[0]).Array(len2)
+#     count=0
+#     for i in range(len-1):
+#         for j in range(i+1,len):
+#             temp[count]=x[i]-x[j]
+#             count=count+1
+#     temp2=ltz(temp.get_vector())
+#     count=0
+#     acc=type(x[0]).Array(len)
+#     for i in range(len-1):
+#         for j in range(i+1,len):
+#             acc[i]=acc[i]+temp2[count]
+#             acc[j]=acc[j]+1-temp2[count]
+#             count=count+1
+#         acc[i]=acc[i]-1
+#     acc[len-1]=acc[len-1]-1
+#     return ltz(acc.get_vector())
+#
+# def max(x):
+#     arg=argmax(x)
+#     return type(x[0]).dot_product(x,arg)
+#
+# def logsum(x):
+#     maximum=max(x)
+#     l=len(x)
+#     for i in range(l):
+#         x[i]=x[i]-maximum
+#     temp=exp_fx(x.get_vector())
+#     acc=0
+#     for i in range(l):
+#         acc=acc+temp[i]
+#     return log_fx(acc,math.e)+maximum
+    
+def argmax_opted(x):
+    len=x.length
+    len2=(int)(len*(len-1)/2)
+    temp=type(x[0]).Array(len2)
+    count=0
+    for i in range(len-1):
+        for j in range(i+1,len):
+            temp[count]=x[i]-x[j]
+            count=count+1
+    temp2=ltz(temp.get_vector())
+    count=0
+    acc=type(x[0]).Array(len)
+    for i in range(len-1):
+        for j in range(i+1,len):
+            acc[i]=acc[i]+temp2[count]
+            acc[j]=acc[j]+1-temp2[count]
+            count=count+1
+        acc[i]=acc[i]-1
+    acc[len-1]=acc[len-1]-1
+    return ltz(acc.get_vector())
 
+def max_opted(x):
+    arg=argmax_opted(x)
+    return type(x[0]).dot_product(x,arg)
 
 def logsum(x):
-    maximum=max(x)
+    maximum=max_opted(x)
     l=len(x)
     for i in range(l):
         x[i]=x[i]-maximum
@@ -973,7 +1032,39 @@ def logsum(x):
         acc=acc+temp[i]
     return log_fx(acc,math.e)+maximum
     
+def argmax(x):
+    len=x.size
+    len2=(int)(len*(len-1)/2)
+    temp_input=type(x[0]).Array(len)
+    temp=type(x[0]).Array(len2)
+    @library.for_range(len-1)
+    def _(i):
+        @library.for_range(i+1, len)
+        def _(j):
+            count = (2*len - 2 - i) * i /2
+            temp[count]=temp_input[i]-temp_input[j]
+            count=count+1
+    temp[:]= temp[:] < 0
+    acc=type(x[0]).Array(len)
+    @library.for_range(len-1)
+    def _(i):
+        @library.for_range(i+1, len)
+        def _(j):
+            count = (2*len - 2 - i) * i /2
+            acc[i]=acc[i]+temp[count]
+            acc[j]=acc[j]+1-temp[count]
+            count=count+1
+        acc[i]=acc[i]-1
+    acc[len-1]=acc[len-1]-1
+    temp.delete()
+    res = acc[:] < 0
+    acc.delete()
+    temp_input.delete()
+    return res
 
+def slow_max(x):
+    arg=argmax(x)
+    return type(x[0]).dot_product(x,arg)
 
 
 

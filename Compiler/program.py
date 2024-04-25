@@ -21,7 +21,7 @@ import Compiler.instructions_base as inst_base
 from Compiler.config import REG_MAX, USER_MEM, COST
 from Compiler.exceptions import CompilerError
 from Compiler.instructions_base import RegType
-
+import time
 from . import allocator as al
 from . import util
 
@@ -51,7 +51,7 @@ class defaults:
     garbled = False
     prime = None
     galois = 40
-    budget = 10000
+    budget = 100
     mixed = False
     edabit = False
     invperm = False
@@ -88,6 +88,8 @@ class Program(object):
         self.name = name
         self.init_names(args)
         self._security = 40
+        
+        self.c_security = 128
         self.prime = None
         self.tapes = []
         self._protect_memory = False
@@ -121,7 +123,11 @@ class Program(object):
         print("Default security parameter:", self.security)
         self.galois_length = int(options.galois)
         self.protocol = options.protocol
+
         self.n_parties = options.n_parties
+        self.cost_config = get_cost_config(self.protocol)
+        self.kappa_s = self.bit_length
+        self.cost_config.init(self)
         self.is_profiling = options.profiling
         if self.verbose:
             print("Galois length:", self.galois_length)
@@ -197,12 +203,8 @@ class Program(object):
         types.program = self
         comparison.program = self
         comparison.set_variant(options)
-        print(self.get_cost("share"))
         
     def get_cost(self, name):
-        if self.cost_config is None:
-            self.cost_config = get_cost_config(self.protocol)
-            self.cost_config.init(self)
         return self.cost_config.get_cost(name)
         
     def get_args(self):
@@ -339,8 +341,25 @@ class Program(object):
             *sum(([x] + list(y) for x, y in zip(thread_numbers, args)), [])
         )
         self.curr_tape.start_new_basicblock(name="post-run_tape")
+        #could rounds of one thread for multithread
+        def aggregator(node_list):
+            if len(node_list) == 0:
+                return self.tapes[0].ReqNum()
+            res = node_list[0]
+            for i in range(1, len(node_list)):
+                tmp_node = node_list[i]
+                for name, count in list(tmp_node.items()):
+                    if name == ('online', 'round') or name == ('offline', 'round'):
+                        continue
+                    res[name] += count
+            return res
+        child = self.tapes[0].ReqChild(aggregator, self.curr_tape.req_node)
         for arg in args:
-            self.curr_tape.req_node.children.append(self.tapes[arg[0]].req_tree)
+            child.nodes.append(self.tapes[arg[0]].req_tree)
+        self.curr_tape.req_node.children.append(child)
+        # count all rounds for multithread
+        # for arg in args:
+        #     self.curr_tape.req_node.children.append(self.tapes[arg[0]].req_tree)        
         return thread_numbers
 
     def join_tape(self, thread_number):
@@ -441,6 +460,7 @@ class Program(object):
                 raise CompilerError("cannot allocate memory " "outside main thread")
         blocks = self.free_mem_blocks[mem_type]
         addr = blocks.pop(size)
+        
         if addr is not None:
             self.saved += size
         else:
@@ -477,18 +497,24 @@ class Program(object):
         #     print(key)
         #     for i in range(0, len(value)):
         #         print(len(value[i])) 
+        start_time = time.time()
+        
         profiling_res = self.curr_tape.req_node.aggregate_profiling()
+        
         if self.is_profiling:
-            plot_cost(profiling_res, self.name)                    
+            plot_cost(profiling_res, self.name, self.protocol)                    
             for key, value in profiling_res.items():
                 print(key)
                 for x in value.pretty():
                     if "online" in x or  "offline" in x:
                         print(x)
+                        
+        end_time = time.time()
+        print('profiling time: ' + str(end_time - start_time)) 
         
         if self.tapes:
             self.update_req(self.curr_tape)
-
+        # self.req_num = self.curr_tape.req_node.aggregate()
         # finalize the memory
         self.finalize_memory()
 
@@ -708,6 +734,7 @@ class Tape:
         self.init_registers()
         self.req_tree = self.ReqNode(name)
         self.req_node = self.req_tree
+        self.req_num = None
         self.basicblocks = []
         self.purged = False
         self.block_counter = 0
@@ -819,7 +846,7 @@ class Tape:
         def expand_cisc(self):
             new_instructions = []
             if self.parent.program.options.keep_cisc is not None:
-                skip = ["LTZ"]
+                skip = [ "Trunc", "LTZ","MTS"]
                 skip += self.parent.program.options.keep_cisc.split(",")
             else:
                 skip = []
@@ -828,7 +855,7 @@ class Tape:
                 new_instructions.extend(new_inst)
                 self.n_rounds += n_rounds
             self.instructions = new_instructions
-
+            
         def __str__(self):
             return self.name
 
@@ -906,7 +933,7 @@ class Tape:
 
         for block in self.basicblocks:
             al.determine_scope(block, options)
-
+        print("Processing basic block",  time.asctime())
         # merge open instructions
         # need to do this if there are several blocks
         if (options.merge_opens and self.merge_opens) or options.dead_code_elimination:
@@ -982,6 +1009,10 @@ class Tape:
         # now remove any empty blocks (must be done after setting jumps)
         self.basicblocks = [x for x in self.basicblocks if len(x.instructions) != 0]
 
+        # for x in self.basicblocks:
+        #     print(x.instructions)
+        
+        
         # allocate registers
         reg_counts = self.count_regs()
         if options.noreallocate:
@@ -1039,9 +1070,8 @@ class Tape:
                             print("%s:%d " % (t, n - usage[t]), end="")
                     print()
             allocator.finalize(options)
-            if self.program.verbose:
-                print("Tape register usage:", dict(allocator.usage))
-
+            # if self.program.verbose:
+            #     print("Tape register usage:", dict(allocator.usage))
         # offline data requirements
         if self.program.verbose:
             print("Compile offline data requirements...")
@@ -1287,13 +1317,21 @@ class Tape:
             return res
 
         def aggregate_profiling(self, *args):
-            if not self.profiled:
-                for block in self.blocks:
-                    self.key = block.label
-                    if  self.buildingblock_cost_store[self.key] == -1:
-                        self.buildingblock_cost_store[self.key] = Tape.ReqNum()
-                    block.add_usage(self)    
-                self.profiled = True
+            # if self.profiled:
+            #     return self.buildingblock_cost_store
+            # if not self.profiled:
+            #     for block in self.blocks:
+            #         self.key = block.label
+            #         if  self.buildingblock_cost_store[self.key] == -1:
+            #             self.buildingblock_cost_store[self.key] = Tape.ReqNum()
+            #         block.add_usage(self)    
+            #     self.profiled = True
+            self.buildingblock_cost_store = defaultdict(lambda: -1)
+            for block in self.blocks:
+                self.key = block.label
+                if  self.buildingblock_cost_store[self.key] == -1:
+                    self.buildingblock_cost_store[self.key] = Tape.ReqNum()
+                block.add_usage(self)    
             def cost_store_add(x, y):
                 tmpRes = y.aggregate_profiling(self.name)    
                 for key, value in tmpRes.items():
@@ -1317,12 +1355,13 @@ class Tape:
             self.blocks.append(block)
 
     class ReqChild(object):
-        __slots__ = ["aggregator", "nodes", "parent"]
+        __slots__ = ["aggregator", "nodes", "parent", "profiled"]
 
         def __init__(self, aggregator, parent):
             self.aggregator = aggregator
             self.nodes = []
             self.parent = parent
+            self.profiled = False
 
         def aggregate(self, name):
             res = self.aggregator([node.aggregate() for node in self.nodes])
