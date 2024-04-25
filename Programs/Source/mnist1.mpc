@@ -1,20 +1,15 @@
-# this trains logistic regression in 0/1 distinction
-# see https://github.com/csiro-mlai/mnist-mpc for data preparation
 import ml
-
-
 program.options_from_args()
 
-approx = 3
-n_examples = 60000
-n_features = 28 ** 2
-n_epochs = 1
+
+n_examples = 60000 # 训练集样本数
+n_features = 784 # 特征维度
+n_epochs = 1 # 迭代次数
 batch_size = 64
-n_test = 10000
+n_test = 10000 # 测试集样本数
+approx = 3 # sigmoid的近似多项式参数
 
 ml.Layer.back_batch_size = batch_size
-
-
 
 train_y = sfix.Array(n_examples)
 train_x = sfix.Matrix(n_features, n_examples)
@@ -22,37 +17,34 @@ train_x = sfix.Matrix(n_features, n_examples)
 test_y = sfix.Array(n_test)
 test_x = sfix.Matrix( n_features, n_test)
 
-train_y.input_from(0)
 train_x.input_from(0)
-test_y.input_from(1)
-test_x.input_from(1)
+train_y.input_from(1)
+
+test_y.input_from(2)
+test_x.input_from(2)
 
 train_x = train_x.transpose()
 test_x = test_x.transpose()
 
 
-
 layers = [ml.Dense(n_examples, n_features, 1),
-          ml.Output(n_examples, approx=approx)]
+          ml.Output(n_examples, approx=approx)] # 创建逻辑回归模型
 
-layers[1].input_from(2)
 
 layers[1].Y.assign(train_y)
 layers[0].X.assign(train_x)
 
-
-sgd = ml.SGD(layers, n_epochs, report_loss=True)
+sgd = ml.SGD(layers, n_epochs, report_loss=True) # 创建优化器
 sgd.reset()
 
 start_timer(1)
-sgd.run(batch_size)
+sgd.run(batch_size) # 开始训练
 stop_timer(1)
-
 
 
 n_correct = cfix(0)
 
-res = sgd.eval(test_x).reveal()
+res = sgd.eval(test_x).reveal() # 预测并还原
 
 test_y = test_y.reveal()
 
