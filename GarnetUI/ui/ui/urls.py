@@ -182,6 +182,10 @@ urlpatterns = [
     # endregion
     # endregion
     path("admin/", admin.site.urls),
-    path("api/register/", user.UserCreateSets.as_view({"post": "create"})),
-    path("api/login/", login.LoginView.as_view()),
+    path(
+        "api/register/",
+        user.UserCreateSets.as_view({"post": "create"}),
+        name="register",
+    ),
+    path("api/login/", login.LoginView.as_view(), name="login"),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
