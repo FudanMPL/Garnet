@@ -21,26 +21,26 @@
         "model": "Model.Mpc",
         "pk": 3,
         "fields": {
-            "name": "线性回归模型",
-            "file":"mpc/autograd_linear.mpc",
-            "description": "线性回归模型"
+            "name": "Mnist逻辑回归模型",
+            "file":"mpc/mnist1.mpc",
+            "description": "逻辑回归模型"
         }
     },
     {
         "model": "Model.Mpc",
         "pk": 4,
         "fields": {
-            "name": "逻辑回归模型",
-            "file":"mpc/autograd_logistic.mpc",
-            "description": "逻辑回归模型"
+            "name": "Mnist线性回归模型",
+            "file":"mpc/mnist2.mpc",
+            "description": "线性回归模型"
         }
     },
     {
         "model": "Model.Mpc",
         "pk": 5,
         "fields": {
-            "name": "神经网络模型",
-            "file":"mpc/autograd_lenet.mpc",
+            "name": "Mnist神经网络模型",
+            "file":"mpc/mnist3.mpc",
             "description": "神经网络模型"
         }
     },
