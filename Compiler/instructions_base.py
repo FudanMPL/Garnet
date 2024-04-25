@@ -21,7 +21,9 @@ from Compiler import program
 ###
 opcodes = dict(
     # RFSS3 Instructions
-    CONV2DRELURFSS3S = 0xff,
+    CONV2DRFSS3S = 0xff,
+    TRUNCRELURFSS3S = 0x1fe,
+    FSS_CMP = 0x1ff,
     # Change domain
     CSD = 0xf8,
     CMD = 0xf9,

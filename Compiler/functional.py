@@ -46,6 +46,9 @@ def relu(input, inplace=False):  # todo
         operation = gradient_operation[op_id_store[op_id]]
         input = tensors[operation.inputs[0]]
         output = tensors[operation.outputs[0]]
+        # print("input size is ", input.sizes)
+        # for i in range(len(input.sizes)):
+        #     output.value[i] = (0 < input.value[:][i]).if_else(input.value[:][i], 0) 
         output.value[:] = (0 < input.value[:]).if_else(input.value[:], 0) 
         set_opid(op_id+1)  # record the input and output of the op
     return output
@@ -268,7 +271,7 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0]):
         batch_repeat = regint.Matrix(N, inputs_h * inputs_w) # 128,6*6
         batch_repeat.assign_vector(batch.get(
             regint.inc(input_size, 0, 1, 1, N)) *
-                                   reduce(operator.mul, input_value.sizes[1:]))
+                                    reduce(operator.mul, input_value.sizes[1:]))
         @for_range_opt_multithread(n_threads, [n_channels_in, n_channels_out])
         def _(i, j):
             a = regint.inc(input_size, input_value.address + i, n_channels_in, N,
@@ -433,10 +436,10 @@ def rfss3_conv2d_relu(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padd
                 reduce(operator.mul, nabla_Y.sizes[1:])
             nabla_outputs = sfix.load_mem(rep_out + b).v
             res = sint(size = weights_h * weights_w)
-            rfss3_conv2d_relus(res, inputs, nabla_outputs, weights_h, weights_w, inputs_h,
+            rfss3_conv2ds(res, inputs, nabla_outputs, weights_h, weights_w, inputs_h,
                     inputs_w, output_h, output_w, -stride_h, -stride_w, N,
                     padding_h, padding_w, 1, sfix.f, sfix.k) 
-            reduced = unreduced_sfix._new(res).reduce_after_mul()
+            reduced = unreduced_sfix._new(res)
             weight.grad.assign_vector_by_indices(reduced, j, i,None, None)
         
         nabla_X=input.grad.permute([0,2,3,1])  
@@ -465,13 +468,13 @@ def rfss3_conv2d_relu(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padd
                                     [N, n_channels_in])
         def _(i, j):
             res = sint(size = (padded_w * padded_h))
-            rfss3_conv2d_relus(res, nabla_Y[i].get_vector().v,
+            rfss3_conv2ds(res, nabla_Y[i].get_vector().v,
                     reverse_weights[j].get_vector().v,
                     padded_h, padded_w, output_h, output_w,
                     weights_h, weights_w, 1, 1, n_channels_out,
                     weights_h - 1, weights_w - 1, 1, sfix.f, sfix.k)
             input.grad.assign_vector_by_indices(
-                unreduced_sfix._new(res).reduce_after_mul(),i, j,None, None)
+                unreduced_sfix._new(res),i, j,None, None)
         if padding_h or padding_w:
             @for_range_opt_multithread(n_threads, N)
             def _(i):
@@ -490,12 +493,15 @@ def rfss3_conv2d_relu(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padd
         assert len(input.shape)==4 and len(weight.shape)==4,"Invalid Dimension input and weight"
         out_shape=[input.shape[0],weight.shape[0],(input.shape[2]+2*padding[0]-weight.shape[2])//stride[0]+1,
                 (input.shape[3]+2*padding[1]-weight.shape[3])//stride[1]+1] #out_shape.size:[Batch_size,out_channel,H_out,W_out]
+        # 新增中间参数
+        intermediate_value = MultiArray(out_shape, input.value.value_type)
+        intermediate = Tensor(intermediate_value, req_grad=input.req_grad)
         new_value=MultiArray(out_shape,input.value.value_type)
         output = Tensor(new_value, req_grad=input.req_grad)
         if input.req_grad:
-            operation = Operation(inputs=[input.name,weight.name], outputs=[output.name], propagate=propagate)
+            operation = Operation(inputs=[input.name,weight.name], outputs=[intermediate.name,output.name], propagate=propagate)
         else:
-            operation = Operation(inputs=[input.name,weight.name], outputs=[output.name], propagate=fake_propagate)
+            operation = Operation(inputs=[input.name,weight.name], outputs=[intermediate.name,output.name], propagate=fake_propagate)
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
@@ -504,6 +510,7 @@ def rfss3_conv2d_relu(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padd
         stride_h, stride_w = stride
         padding_h, padding_w = padding
         operation = gradient_operation[op_id_store[op_id]]
+        intermediate = tensors[operation.intermediate[0]]
         output= tensors[operation.outputs[0]] 
         _, _,weights_h, weights_w= weight.shape
         N,  n_channels_in,inputs_h, inputs_w = input.shape
@@ -526,7 +533,7 @@ def rfss3_conv2d_relu(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padd
             inputs = input_value.get_vector(i*size_,size_).v
             weights = weight_value.get_part_vector(j).v
             res = sint(size = output_h * output_w * part_size)
-            rfss3_conv2d_relus(res, inputs, weights, output_h, output_w,
+            rfss3_conv2ds(res, inputs, weights, output_h, output_w,
                     inputs_h, inputs_w, weights_h, weights_w,
                     stride_h, stride_w, n_channels_in, padding_h, padding_w,
                     part_size, sfix.f, sfix.k)
@@ -540,11 +547,12 @@ def rfss3_conv2d_relu(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padd
         @multithread(n_threads, n_outputs,
                      1000 if sfix.round_nearest else 10 ** 6)                                                                                
         def _(base, n_per_thread):
-            res = sfix().unreduced(sint.load_mem(unreduced.address + base,
-                            size=n_per_thread),sfix)
-            res.store_in_mem(output.value.address + base)
-        
+            res = sint.load_mem(unreduced.address + base,
+                            size=n_per_thread)
+            
+        rfss3_trunc_relu(unreduced[:], unreduced[:], unreduced[:].size, sfix.f, sfix.k)
         set_opid(op_id+1)  # record the input and output of the op
+        
     return output
 
 def conv_transpose2d(input, weight, bias=None, stride=1, padding=0, outputpadding=0):

@@ -2570,8 +2570,8 @@ class sint(_secret, _int):
         :return: 0/1 (sintbit) """
         res = sintbit()
         comparison.LTZ(res, self - other,
-                       (bit_length or program.bit_length) + 1,
-                       security or program.security)
+                    (bit_length or program.bit_length) + 1,
+                    security or program.security)
         return res
 
     @read_mem_value
@@ -2599,7 +2599,7 @@ class sint(_secret, _int):
     @vectorize
     def __eq__(self, other, bit_length=None, security=None):
         return floatingpoint.EQZ(self - other, bit_length or program.bit_length,
-                                 security or program.security)
+                                security or program.security)
 
     @read_mem_value
     @type_comp
@@ -2666,7 +2666,7 @@ class sint(_secret, _int):
         :param bit_length: bit length of input (default: global bit length)
         """
         return floatingpoint.Pow2(self, bit_length or program.bit_length, \
-                                      security or program.security)
+                                    security or program.security)
 
     def __lshift__(self, other, bit_length=None, security=None):
         """ Secret left shift.
@@ -4650,11 +4650,11 @@ class sfix(_fix):
 
     def secure_shuffle(self, *args, **kwargs):
         return self._new(self.v.secure_shuffle(*args, **kwargs),
-                         k=self.k, f=self.f)
+                        k=self.k, f=self.f)
 
     def secure_permute(self, *args, **kwargs):
         return self._new(self.v.secure_permute(*args, **kwargs),
-                         k=self.k, f=self.f)
+                        k=self.k, f=self.f)
 
     def prefix_sum(self):
         return self._new(self.v.prefix_sum(), k=self.k, f=self.f)
@@ -6366,7 +6366,6 @@ class SubMultiArray(_vectorizable):
             # res_matrix = MultiArray([self.sizes[0], other.sizes[1]], t)
             try:
                 try:
-                    print("calling direct matrix mul")
                     self.value_type.direct_matrix_mul
                     max_size = _register.maximum_size // res_matrix.sizes[1]
                     @library.multithread(n_threads, self.sizes[0], max_size)
@@ -6419,9 +6418,9 @@ class SubMultiArray(_vectorizable):
             B = sfix.Matrix(4, 5)
             C = sfix.Matrix(3, 5)
             C.assign_vector(A.direct_mul(B, indices=(regint.inc(3, 0, 3),
-                                                     regint.inc(4),
-                                                     regint.inc(4),
-                                                     regint.inc(5)))
+                                                    regint.inc(4),
+                                                    regint.inc(4),
+                                                    regint.inc(5)))
         """
         assert len(self.sizes) == 2
         if isinstance(other, Array):

@@ -2,18 +2,17 @@ from tensor import Tensor,reset_gloabal_store,untrain,autograd_function
 import tensor as tensor
 
 import functional as F
-
+program.use_fss_cmp = True
 program.options_from_args()
-BATCH_SIZE = 1
-CHANNEL = 1
-ROW = 2
-COL = 2
+BATCH_SIZE = 10
+CHANNEL = 3
+ROW = 8
+COL = 8
 KERNEL_ROW = 2
 KERNEL_COL = 2
 
 @autograd_function
 def test_rfss3conv2d_relu():
-    print_ln("test_rfss3conv2d_relu:")
     training_samples = MultiArray([BATCH_SIZE, CHANNEL, ROW, COL], sfix)
     for i in range(BATCH_SIZE):
         for j in range(CHANNEL):
@@ -67,15 +66,10 @@ def test_conv2d_relu():
     tensor.reset_op_id()
     output=F.conv2d(input,weight)
     output=F.relu(output)
-    output.backward()    
+    # output.backward()    
     output.value.print_reveal_nested()
-    weight.grad.print_reveal_nested()
-    input.grad.print_reveal_nested()
+    # weight.grad.print_reveal_nested()
+    # input.grad.print_reveal_nested()
 
 test_rfss3conv2d_relu()
-test_conv2d_relu()
-
-a = sfix(-1)
-b = sfix(2)
-print_ln("result is %s", (a*b).reveal())
-print_ln("compile finished!")
+# test_conv2d_relu()

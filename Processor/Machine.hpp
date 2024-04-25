@@ -241,7 +241,6 @@ template<class sint, class sgf2n>
 void Machine<sint, sgf2n>::fill_buffers(int thread_number, int tape_number,
     Preprocessing<sint>* prep,
     Preprocessing<typename sint::bit_type>* bit_prep){
-  std::cout << "calling fill buffers in Machine.hpp" << std::endl;
   auto usage = progs[tape_number].get_offline_data_used();
   if (sint::expensive and prep != 0 and OnlineOptions::singleton.bucket_size == 3)
     {

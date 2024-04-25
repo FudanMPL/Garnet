@@ -59,7 +59,7 @@ public:
     }
 
     void init_fss_cmp_prep(SubProcessor<T> &proc);
-    void init_fss_conv_relu_prep(SubProcessor<T> &proc, int float_bits);
+    void init_fss_conv_relu_prep(SubProcessor<T> &proc, int float_bits, int case_num=1);
     //initialize preprocessing for fss preprocess
     void init(Preprocessing<T>& prep, typename T::MAC_Check& MC);
     void init_mul();
@@ -67,7 +67,7 @@ public:
     void exchange();
     T finalize_mul(int n = -1);
 
-    void cisc(SubProcessor<T> &proc, const Instruction &instruction);
+    void fss_cmp(SubProcessor<T> &proc, const Instruction &instruction);
     void prepare_reshare(const typename T::clear &share, int n = -1);
 
     void init_dotprod();
@@ -106,7 +106,8 @@ public:
     bigint evaluate(typename T::open_type x, int lambda, int result_length, int drop_least_bits = 0);
     bigint evaluate_conv_relu(typename T::open_type x, int n, int result_length);
     //Instructions for RFss3
-    void conv2d_relu_rfss3s(SubProcessor<T> &proc, const Instruction& instruction);
+    void conv2d_rfss3s(SubProcessor<T> &proc, const Instruction& instruction);
+    void trunc_relu_rfss3s(SubProcessor<T> &proc, const Instruction& instruction);
 };
 
 

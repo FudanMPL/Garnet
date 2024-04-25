@@ -41,9 +41,9 @@ public:
     vector<bigint> full_vcw;
     vector<bigint> full_scw;
     // dcf values
-    bigint r_b, r_share, final_cw, u, r_in_2, w, z;
+    bigint r_b, r_share, final_cw, u, r_in_2, w, z, rr_share, rr_share_tmp;
     // conv_relu values
-    bigint r_select_share, r_mask_share, r_drelu_share, u_select_share, o_select_share, p_select_share, v_select_share, w_select_share, reverse_u_select_share, reverse_1_u_select_share, full_final_cw, reshare_value[2];
+    bigint r_select_share, r_mask_share, r_drelu_share, u_select_share, o_select_share, p_select_share, v_select_share, w_select_share, reverse_u_select_share, reverse_1_u_select_share, full_final_cw, reshare_value, reshare_value_tmp;
     bool rs_b;
     int dpf_cnt;
     

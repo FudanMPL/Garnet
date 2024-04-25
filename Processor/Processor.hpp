@@ -651,6 +651,7 @@ void SubProcessor<T>::conv2ds(const Instruction& instruction)
                                 lengths[i_batch][out_y][out_x]);
             }
     }
+    std::cout << "calling conv2ds in processor.hpp" << std::endl;
 }
 
 template<class T>

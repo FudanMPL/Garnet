@@ -498,11 +498,19 @@ void BaseInstruction::parse_operands(istream& s, int pos, int file_pos)
         break;
 
       // Instructions for RFSS3
-      case CONV2DRELURFSS3S:
+      case CONV2DRFSS3S:
         get_ints(r, s, 3);
         get_vector(14, start, s);
         break;
         
+      case TRUNCRELUFSS3S:
+        get_vector(5, start, s);
+        break;
+      case FSS_CMP:
+        // num_var_args = get_int(s);
+        get_vector(5, start, s);
+        break;
+
       default:
         ostringstream os;
         os << "Invalid instruction " << showbase << hex << opcode << " at " << dec
@@ -1339,7 +1347,7 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
         Proc2.DataF.get(Proc.Proc2.get_S(), r, start, size);
         return;
       // add instructions for RFSS3
-      case CONV2DRELURFSS3S:
+      case CONV2DRFSS3S:
         Proc.Procp.protocol.conv2drelurfss3s(Proc.Procp, *this);
         return;
       case CISC:
@@ -2015,8 +2023,14 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
         Proc2.DataF.get(Proc.Proc2.get_S(), r, start, size);
         return;
       // add instructions for RFSS3
-      case CONV2DRELURFSS3S:
-        Proc.Procp.protocol.conv2d_relu_rfss3s(Proc.Procp, *this);
+      case CONV2DRFSS3S:
+        Proc.Procp.protocol.conv2d_rfss3s(Proc.Procp, *this);
+        return;
+      case TRUNCRELUFSS3S:
+        Proc.Procp.protocol.trunc_relu_rfss3s(Proc.Procp, *this);
+        return;
+      case FSS_CMP:
+        Proc.Procp.protocol.fss_cmp(Proc.Procp, *this);
         return;
       case CISC:
         Procp.protocol.cisc(Proc.Procp, *this);

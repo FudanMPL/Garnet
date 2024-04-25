@@ -326,7 +326,6 @@ class Compiler:
         If options.merge_opens is set to True, will attempt to merge any
         parallelisable open instructions."""
         print("Compiling file", self.prog.infile)
-
         with open(self.prog.infile, "r") as f:
             changed = False
             if self.options.flow_optimization:

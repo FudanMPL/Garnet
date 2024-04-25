@@ -1,8 +1,10 @@
 # program.use_trunc_pr = True
+program.use_fss_cmp = True
+
 import Compiler.mpc_math
 import random
 import ml
-n = 1000
+n = 100
 cnt = 0
 
 # c = sfix(0.5)
@@ -21,13 +23,13 @@ for i in range(n):
     # a[i] = 2
     # b[i] = 1
 
+c[:] = a[:] > b[:]
 
 for i in range(n):
-    c[i] = (a[i] > b[i])
+    # c[i] = (a[i] > b[i])
     clear_a = a[i].reveal()
     clear_b = b[i].reveal()
     d = (clear_a > clear_b)
-    print_ln("d is %s\n------------------------" , d)    
     if c[i].reveal() != d:
         print_ln("a is %s, b is %s", a[i].reveal(), b[i].reveal())
         print_ln("c is %s , d is %s, a-b is %s", c[i].reveal(), d, (a[i]-b[i]).reveal()) 

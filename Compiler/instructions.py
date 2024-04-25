@@ -2727,6 +2727,24 @@ class matmulsm(matmul_base):
         for i in range(2):
             assert args[8 + i].size == args[4 + i]
 
+class fsscmp(base.Instruction):
+    """ Secret comparison with function secret sharing
+
+    :param: result (sint vector in row-first order)
+    :param: inputs (sint vector in row-first order)
+    :param: length (int)
+    :param: bit length of inputs (int)
+    :param: number of float point bits (int)
+    """
+    __slots__ = []
+    code = base.opcodes['FSS_CMP']
+    arg_format = ['sw','s','int','int','int']
+    data_type = 'triple'
+    
+    def __init__(self, *args, **kwargs):
+        super(fsscmp, self).__init__(*args, **kwargs)
+        print(args[0].size, args[1].size, args[2], args[3], args[4])
+        
 class conv2ds(base.DataInstruction):
     """ Secret 2D convolution.
 
@@ -2780,6 +2798,19 @@ class conv2ds(base.DataInstruction):
         args = self.args
         req_node.increment(('matmul', (1, args[7] * args[8] * args[11],
                                        args[14] * args[3] * args[4])), 1)
+
+@base.vectorize
+class rfss3_trunc_relu(base.VarArgsInstruction):
+    """ Truncation with relu after unreshared multiplication
+    :param: result (sint vector in row-first order)
+    :param: inputs (sint vector in row-first order)
+    :param: parallel (int)
+    :param: int bit length (sint)
+    :param: float bit length (int)
+    """
+    __slots__ = []
+    code = base.opcodes['TRUNCRELURFSS3S']
+    arg_format = tools.cycle(['sw', 's', 'int', 'int', 'int'])
 
 @base.vectorize
 class trunc_pr(base.VarArgsInstruction):
@@ -3000,7 +3031,8 @@ class sqrs(base.CISC):
         adds(s[5], s[1], s[4])
         subml(self.args[0], s[5], c[1])
 
-class rfss3_conv2d_relus(base.DataInstruction):
+
+class rfss3_conv2ds(base.DataInstruction):
     """ Secret 2D convolution without truncation and reshare for RFSS3.
 
     :param: result (sint vector in row-first order)
@@ -3021,14 +3053,14 @@ class rfss3_conv2d_relus(base.DataInstruction):
     :param: trunc bit length (int)
     :param: bit length (int)
     """
-    code = base.opcodes['CONV2DRELURFSS3S']
+    code = base.opcodes['CONV2DRFSS3S']
     arg_format = ['sw','s','s','int','int','int','int','int','int','int','int',
                 'int','int','int','int','int','int']
     data_type = 'triple'
     is_vec = lambda self: True
 
     def __init__(self, *args, **kwargs):
-        super(rfss3_conv2d_relus, self).__init__(*args, **kwargs)
+        super(rfss3_conv2ds, self).__init__(*args, **kwargs)
         assert args[0].size == args[3] * args[4] * args[14]
         assert args[1].size == args[5] * args[6] * args[11] * args[14]
         assert args[2].size == args[7] * args[8] * args[11]
@@ -3037,24 +3069,24 @@ class rfss3_conv2d_relus(base.DataInstruction):
         return self.args[3] * self.args[4] * self.args[7] * self.args[8] * \
             self.args[11] * self.args[14]
 
-    # def add_usage(self, req_node):
-    #     cost_func = program.get_cost("matmuls")
-    #     if cost_func == -1:
-    #         print("The profiling results could be biased")
-    #         print("Please config the cost of matmuls in cost_config.py")
-    #         return
-    #     config = program.cost_config
-    #     args = self.args
-    #     res = cost_func(config.bit_length, config._security, config.f, config.n_parties, 1 , args[7]*args[8], 1)
-    #     times = args[14] * args[11] * args[3] * args[4]    
-    #     req_node.increment(('online communication', 'bits'), res[0]*times)
-    #     req_node.increment(('offline communication', 'bits'), res[2]*times)
-    #     req_node.increment(('online', 'round'), res[1])
-    #     req_node.increment(('offline', 'round'), res[3])
-    #     super(rfss3_conv2d_relus, self).add_usage(req_node)
-    #     args = self.args
-    #     req_node.increment(('matmul', (1, args[7] * args[8] * args[11],
-    #                                    args[14] * args[3] * args[4])), 1)
+    def add_usage(self, req_node):
+        cost_func = program.get_cost("matmuls")
+        if cost_func == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of matmuls in cost_config.py")
+            return
+        config = program.cost_config
+        args = self.args
+        res = cost_func(config.bit_length, config._security, config.f, config.n_parties, 1 , args[7]*args[8], 1)
+        times = args[14] * args[11] * args[3] * args[4]    
+        req_node.increment(('online communication', 'bits'), res[0]*times)
+        req_node.increment(('offline communication', 'bits'), res[2]*times)
+        req_node.increment(('online', 'round'), res[1])
+        req_node.increment(('offline', 'round'), res[3])
+        super(rfss3_conv2ds, self).add_usage(req_node)
+        args = self.args
+        req_node.increment(('matmul', (1, args[7] * args[8] * args[11],
+                                       args[14] * args[3] * args[4])), 1)
 
 # placeholder for documentation
 class cisc:

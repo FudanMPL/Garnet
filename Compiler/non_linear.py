@@ -189,5 +189,5 @@ class Ring(Masking):
         else:
             return super(Ring, self).trunc_round_nearest(a, k, m, signed)
 
-    def ltz(self, a, k, kappa=None):
+    def ltz(self, a, k, kappa=None):            
         return LtzRing(a, k)

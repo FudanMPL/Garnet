@@ -170,6 +170,8 @@ class Program(object):
             gc.inputbvec,
             gc.reveal,
         ]
+        self.use_fss_cmp = False
+        """ Setting whether to use function secret sharing comparison. """
         self.use_trunc_pr = False
         """ Setting whether to use special probabilistic truncation. """
         self.use_dabit = options.mixed
@@ -552,6 +554,14 @@ class Program(object):
         res = self.tape_counter
         self.tape_counter += 1
         return res
+    
+    def use_fss_cmp(self, change=None):
+        if change is None:
+            if not self._use_fss_cmp:
+                self.relevant_opts.add("use_fss_cmp")
+            return self._use_fss_cmp
+        else:
+            self._use_fss_cmp = change
 
     @property
     def use_trunc_pr(self):
@@ -637,6 +647,8 @@ class Program(object):
 
     def options_from_args(self):
         """Set a number of options from the command-line arguments."""
+        if "fss_cmp" in self.args:
+            self.use_fss_cmp = True
         if "trunc_pr" in self.args:
             self.use_trunc_pr = True
         if "signed_trunc_pr" in self.args:

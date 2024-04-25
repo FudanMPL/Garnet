@@ -76,14 +76,18 @@ def require_ring_size(k, op):
         raise CompilerError(msg)
     program.curr_tape.require_bit_length(k)
 
-@instructions_base.cisc
 def LTZ(s, a, k, kappa):
+    from .types import sfix, sint
     """
     s = (a ?< 0)
 
     k: bit length of a
     """
-    movs(s, program.non_linear.ltz(a, k, kappa))
+    if program.use_fss_cmp:
+        fsscmp(s, a, s.size, k, sfix.f)
+
+    else:
+        movs(s, program.non_linear.ltz(a, k, kappa))
 
 def LtzRing(a, k):
     from .types import sint, _bitint

@@ -33,8 +33,6 @@ void fss_generate(int beta, bigint y1, int n, int generate_case, int result_leng
     prng.ReSeed();
     prng.get(tmp, lambda);
     prng.get(tmp1, lambda);
-    std::cout << "seed[0] is " << tmp << std::endl;
-    std::cout << "seed[1] is " << tmp1 <<  std::endl;
     bytesFromBigint(&seed[0][0], tmp, lambda_bytes);
     bytesFromBigint(&seed[1][0], tmp1, lambda_bytes);
     k0 << tmp << " ";
@@ -131,6 +129,8 @@ void Fss3Prep<T>::init_offline_values(SubProcessor<T>* proc, int init_case)
     if(init_case == 0){
         std::cout << "init dcf offline values" << std::endl;
         r_in.open("Player-Data/2-fss/r" + to_string(proc->P.my_num()), ios::in);
+        if(proc->P.my_num()!=2)
+            r_in >> this->rr_share;
         r_in >> this->r_share;
         r_in >> this->r_b;
         r_in >> this->rs_b;
@@ -161,9 +161,8 @@ void Fss3Prep<T>::init_offline_values(SubProcessor<T>* proc, int init_case)
     }
     if(init_case == 1){    
         if(proc->P.my_num()!=2){
-            std::cout << "init conv relu offline values" << std::endl;
             r_in.open("Player-Data/2-fss/r_conv_relu_" + to_string(proc->P.my_num()), ios::in);
-            r_in >> this->reshare_value[proc->P.my_num()];
+            r_in >> this->reshare_value;
             r_in >> this->r_mask_share;
             r_in >> this->r_drelu_share;
             r_in >> this->r_select_share;
@@ -179,7 +178,6 @@ void Fss3Prep<T>::init_offline_values(SubProcessor<T>* proc, int init_case)
             int tree_height;
             k_in >> tree_height;
             k_in >> this->full_seed_bigint;
-            std::cout << "seed_bigint is " << this->full_seed_bigint << std::endl;
             for(int i = 0; i < tree_height; i++){
                 k_in >> tmp;
                 this->full_scw.push_back(tmp);
@@ -216,19 +214,26 @@ void Fss3Prep<T>::gen_fake_dcf(int beta, int n)
 
     // set max_val = 1<<n
     bigint max_val = 1;
-    max_val = max_val << n;
+    max_val = (max_val << n);
 
     // x1 = 2^n - r_in
     x1 = max_val - r_in;
 
     // get msb of x1
     msbx1 = (x1 >> (n-1));
-    std::cout << "msbx1 is " << msbx1 << std::endl;
 
     if(msbx1)
         y1 = x1 - (max_val >> 1);
     else
         y1 = x1;
+
+    // generate random values for reshare
+    prng.get(tmp, n);
+    r0 << tmp << " ";
+    this->rr_share = tmp;
+    prng.get(tmp, n);
+    r1 << tmp << " ";
+    this->rr_share_tmp = tmp;
 
     // initialize alpha
     prng.get(tmp, n);
@@ -288,11 +293,13 @@ void Fss3Prep<T>::gen_fake_conv_relu(int beta, int n, int float_bits){
 
     // generate random values for reshare
     prng.get(tmp, n);
+    // tmp = 0;
     r0 << tmp << " ";
-    this->reshare_value[0] = tmp;
+    this->reshare_value = tmp;
     prng.get(tmp, n);
+    // tmp = 0;
     r1 << tmp << " ";
-    this->reshare_value[1] = tmp;
+    this->reshare_value_tmp = tmp;
 
     // initialize r_mask and r_out
     prng.get(r_mask, n);
@@ -306,19 +313,15 @@ void Fss3Prep<T>::gen_fake_conv_relu(int beta, int n, int float_bits){
     x1 = max_val - r_mask;
     // get msb of x1
     msbx1 = (x1 >> (n-1));
-    std::cout << "r_mask is " << r_mask << std::endl;
 
     if(msbx1)
         y1 = x1 - (max_val >> 1);
     else
         y1 = x1;
-    std::cout << "y1 is " << y1 << std::endl;
     fss_generate(beta, y1, n, 1, 1, 0);
-
-    r_bit_mask_sum = ((r_mask - ((r_mask >> (n-2))<<(n-2)))>>float_bits);
-    std::cout << "r_mask is " << r_mask << std::endl;
-    std::cout << "r_bit_mask_sum is " << r_bit_mask_sum << std::endl;
+    
     r_bit_mask_msb = (r_mask >> (n-1));
+    r_bit_mask_sum = ((((r_mask >> (float_bits))<<(float_bits)) - (r_bit_mask_msb << (n-1)))>>float_bits);
     
     // initialize offline values for select protocol
     prng.get(tmp, n);
@@ -358,12 +361,11 @@ void Fss3Prep<T>::gen_fake_conv_relu(int beta, int n, int float_bits){
     r0 << p_select_share - tmp << " ";
     r1 << tmp << " ";
 
-    
     v_select_share = r_select * r_bit_mask_sum;
     prng.get(tmp, n);
     r0 << v_select_share - tmp << " ";
     r1 << tmp << " ";
-    w_select_share = r_select * p_select_share;
+    w_select_share = r_select * r_bit_mask_msb;
     prng.get(tmp, n);
     r0 << (w_select_share - tmp) << " ";
     r1 << tmp << " ";
