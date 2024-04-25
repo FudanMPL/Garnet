@@ -68,7 +68,7 @@ print_ln('准确率: %s (%s/%s)', n_correct / n_test, n_correct, n_test)
 print_ln('序号      真实标签      预测标签')
 
 for i in range(n_test):
-    print_ln('%s:       %s      %s', i, test_y[i], res[i])
+    print_ln('%s       %s      %s', i, test_y[i], res[i])
 
 
 print_ln('==========================')
