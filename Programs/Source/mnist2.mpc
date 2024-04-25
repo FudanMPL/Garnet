@@ -22,10 +22,11 @@ train_x = sfix.Matrix(n_features, n_examples)
 test_y = sfix.Array(n_test)
 test_x = sfix.Matrix( n_features, n_test)
 
-train_y.input_from(0)
 train_x.input_from(0)
-test_y.input_from(1)
-test_x.input_from(1)
+train_y.input_from(1)
+
+test_y.input_from(2)
+test_x.input_from(2)
 
 train_x = train_x.transpose()
 test_x = test_x.transpose()
