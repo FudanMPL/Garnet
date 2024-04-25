@@ -228,7 +228,7 @@ class TaskJoinView(GenericViewSet):
             mpc.file.name = (
                 "mpc" + "/" + res.json()["mpcURL"].split("/")[-1].split(".")[0] + ".mpc"
             )
-            mpc.save
+            mpc.save()
             path = Path.joinpath(settings.MEDIA_ROOT, mpc.file.name)
             async_task(downloadAndCompile, task, res.json()["mpcURL"], path)
         elif mpc.status != "compiled" and mpc.status != "compiling":
