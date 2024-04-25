@@ -30,14 +30,29 @@
             "name": "replicated-ring-party",
             "description": "3方"
         }
-    }
-    ,
+    },
     {
         "model": "Model.Protocol",
         "pk": 5,
         "fields": {
             "name": "shamir-party",
             "description": "Shamir秘密共享协议"
+        }
+    },
+    {
+        "model": "Model.Protocol",
+        "pk": 5,
+        "fields": {
+            "name": "shamir-party",
+            "description": "Shamir秘密共享协议"
+        }
+    },
+    {
+        "model": "Model.Protocol",
+        "pk": 6,
+        "fields": {
+            "name": "rss-with-conversion-party",
+            "description": "rss转换"
         }
     }
 ]
