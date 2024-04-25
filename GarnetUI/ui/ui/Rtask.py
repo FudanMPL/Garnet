@@ -80,7 +80,7 @@ class RTask:
         inputPrefix = settings.GARNETPATH + "/Input/" + self.prefix
         outputPrefix = settings.GARNETPATH + "/Output/" + self.prefix
         subprocess.Popen(
-            f"{settings.BASE_DIR}/scripts/run.sh {settings.GARNETPATH} ./{self.protocol}.x {os.path.splitext(self.mpc)[0]} -h {self.host} -pn {self.basePort} -p {self.part} -IF {inputPrefix} -OF {outputPrefix}",
+            f"{settings.BASE_DIR}/scripts/run.sh {settings.GARNETPATH} ./{self.protocol}.x {os.path.splitext(self.mpc)[0]} -h {self.host} -pn {self.basePort} -p {self.part} -IF {inputPrefix} -OF {outputPrefix} { self.protocol_parameters if self.protocol_parameters else ''}",
             shell=True,
         ).wait()
         self.task.status = "已完成"

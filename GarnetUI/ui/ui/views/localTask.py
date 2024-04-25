@@ -125,6 +125,10 @@ class LTask:
             ).wait()
 
     def compile(self):
+        if self.task.mpc.status == "compiled":
+            return
+        self.task.mpc.status = "compiled"
+        self.task.mpc.save()
         return subprocess.Popen(
             f"{settings.BASE_DIR}/scripts/run.sh {settings.GARNETPATH} ./compile.py {self.mpc_parameters if self.mpc_parameters else ''} {settings.MEDIA_ROOT}/mpc/{self.mpc}",
             shell=True,
@@ -157,7 +161,7 @@ class LTask:
             outputPrefix = settings.GARNETPATH + "/Output/" + self.prefix
             threads.append(
                 subprocess.Popen(
-                    f"{settings.BASE_DIR}/scripts/run.sh {settings.GARNETPATH} ./{self.protocol}.x {os.path.splitext(self.mpc)[0]} -h localhost -p {i}  -IF {inputPrefix} -pn 7012 -OF  {outputPrefix} ",
+                    f"{settings.BASE_DIR}/scripts/run.sh {settings.GARNETPATH} ./{self.protocol}.x {os.path.splitext(self.mpc)[0]} -h localhost -p {i}  -IF {inputPrefix} -pn 7012 -OF  {outputPrefix} { self.protocol_parameters if self.protocol_parameters else ''}",
                     shell=True,
                 )
             )
