@@ -215,7 +215,7 @@ class TaskJoinView(GenericViewSet):
         dic["part"] = part
         dic["protocol"] = Protocol.objects.get(name=res.json()["protocolName"])
         name = res.json()["mpcName"]
-        [mpc, isExist] = Mpc.objects.get_or_create(name=name)
+        [mpc, created] = Mpc.objects.get_or_create(name=name)
         dic["mpc"] = mpc
         dic["status"] = "等待数据"
         dic.pop("mpcURL")
@@ -224,7 +224,7 @@ class TaskJoinView(GenericViewSet):
         dic.pop("mpcName")
         task = RemoteTask(**dic)
         task.save()
-        if not isExist:
+        if created:
             mpc.file.name = (
                 "mpc" + "/" + res.json()["mpcURL"].split("/")[-1].split(".")[0] + ".mpc"
             )
