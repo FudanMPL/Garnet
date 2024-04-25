@@ -497,8 +497,9 @@ const transformData=(rowData)=>{
 const lines = rowData.value.trim().split('\n');
 const data:any= [];
 let isDataSection = false;
-
+let i=0
 for (const line of lines) {
+  i++
   // 如果检测到***开头的 是readme 直接打印出来
   if (line.startsWith('***')) {
     // 读取 readme 信息 将line前*号的内容过滤掉
@@ -510,14 +511,13 @@ for (const line of lines) {
       } else if (isDataSection && line.trim() !== '') {
         const values = (line.trim() as string).split(/\s+/); // 使用类型断言确保 line 是字符串
         const rowData = {};
-        
         for (let i = 1; i <= values.length;i++){
           rowData[String(i)] = values[i-1].replace(",", "");
-        }
-
-        
+        }        
         data.push(rowData);
-        if(i>=101){break;}
+        if (i>=105){
+          break;
+        }
       }
 
     }

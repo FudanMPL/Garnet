@@ -150,6 +150,7 @@ GarnetUI/ui/db.sqlite3
 GarnetUI/ui/Model/migrations
 GarnetUI/.venv/*
 GarnetUI/ui/uploads/data
+GarnetUI/ui/uploads/ssl
 
 #GarnetUI loaddata
 !GarnetUI/ui/mpc.json
