@@ -59,4 +59,9 @@ for i in range(n_test):
     n_correct += test_y[i].reveal() == (res[i] >=0.5)
 
 
-print_ln('acc: %s (%s/%s)', n_correct / n_test, n_correct, n_test)
+print_ln('======= Result ===========')
+
+
+print_ln('accuracy: %s (%s/%s)', n_correct / n_test, n_correct, n_test)
+
+print_ln('==========================')
