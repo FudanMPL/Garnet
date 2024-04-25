@@ -71,10 +71,8 @@ for i in range(n_test):
     n_correct += test_y[i] == (res[i] >=0.5)
 
 
-print_ln('***')
-print_ln('准确率: %s (%s/%s)', n_correct / n_test, n_correct, n_test)
+print_ln('***准确率: %s (%s/%s)', n_correct / n_test, n_correct, n_test)
 
-print_ln('***')
 
 print_ln('======= 结果 ===========')
 
