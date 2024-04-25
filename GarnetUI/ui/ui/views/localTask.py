@@ -154,7 +154,8 @@ class LTask:
         pre.append(self.protocolCompile())
         pre.append(self.ssl())
         for p in pre:
-            p.wait()
+            if p is not None:
+                p.wait()
         threads = []
         for i in range(0, self.pN):
             inputPrefix = settings.GARNETPATH + "/Input/" + self.prefix
