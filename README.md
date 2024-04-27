@@ -6,7 +6,7 @@
 
 
 ## 部署
-当前Garnet支持Linux 2014以上以及MacOS  High Sierra之后的操作系统版本。
+当前Garnet支持Ubuntu 20.04以及MacOS  High Sierra之后的操作系统版本。
 
 且Python版本需要 >= 3.10.0。
 
