@@ -315,6 +315,7 @@ void InputBase<T>::input_mixed(SubProcessor<T>& Proc, const vector<int>& args,
         int n_arg_tuple;
         int type = args[i];
         int player;
+        
         switch (type)
         {
 #undef X
@@ -322,6 +323,7 @@ void InputBase<T>::input_mixed(SubProcessor<T>& Proc, const vector<int>& args,
         case U::TYPE: \
             n_arg_tuple = U::N_DEST + U::N_PARAM + 2; \
             player = get_player(Proc, args[i + n_arg_tuple - 1], player_from_reg); \
+            std::cout<<"player: "<<player<<std::endl;\
             if (type != last_type and Proc.Proc and Proc.Proc->use_stdin()) \
                 cout << "Please input " << U::NAME << "s:" << endl; \
             prepare<U>(Proc, player, &args[i + U::N_DEST + 1], size); \

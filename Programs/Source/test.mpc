@@ -1,5 +1,14 @@
 
-s = sint(10, 10)
+a = sint(10)
+k=10
+b=sint(20)
+d=a+k
+c=a+b
+x = sfix(10)
 
-print_ln("%s",s.reveal())
+e=sint.get_input_from(2)
 
+reveal_val = (x).reveal()
+
+print_ln("%s",c.reveal())
+print_ln("%s",e.reveal())

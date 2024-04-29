@@ -216,6 +216,11 @@ tree-inference.x: Machines/tree-inference.cpp  $(MINI_OT) $(SHAREDLIB)
 	$(CXX) -o $@ $(CFLAGS) $^ $(LDLIBS)
 
 
+knn-party.x: Machines/knn-party.cpp  $(MINI_OT) $(SHAREDLIB)
+	$(CXX)  -o $@ $(CFLAGS) $^ $(LDLIBS)  -fsanitize=address -g $(SHAREDLIB)
+
+
+knn-party.x:   Machines/knn-party.cpp
 tree-inference.x:   Machines/tree-inference.cpp
 replicated-bin-party.x: GC/square64.o
 replicated-ring-party.x: GC/square64.o
@@ -233,6 +238,7 @@ semi-party.x: $(OT)  $(GC_SEMI)
 semi2k-party.x: CFLAGS += -D ENABLE_PSI=true
 semi2k-party.x: $(TOOLS_PSI) $(OT) $(GC_SEMI)
 semi2k-with-conversion-party.x: $(OT) $(GC_SEMI)
+# aby2-party.x: GC/square64.o $(OT) $(GC_SEMI)
 sml-party.x:  CFLAGS += -D ENABLE_PSI=true
 sml-party.x: $(TOOLS_PSI) $(OT) $(GC_SEMI) 
 vss-party.x: $(OT) $(GC_SEMI)
