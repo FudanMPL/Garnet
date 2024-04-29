@@ -1408,6 +1408,63 @@ def std_of_multiarray(self, dim, keepdim=False):
     # record the input and output of the op
     return output
 
+
+def chunk_by_sections(self, sections, dim=0):
+    # stride = reduce(lambda x,y:x*y,self.shape[dim+1:])
+    if self.shape[dim + 1:]:
+        stride = reduce(lambda x,y:x*y,self.shape[dim+1:])
+    else:
+        stride = 1
+    prefix_total = self.value.total_size() // stride // self.shape[dim]
+    
+    @buildingblock(get_program().globalbuildingblock)
+    def propagate(dl_doutputs,operation):
+        input=tensors[operation.inputs[0]]
+        dl_dy = [dld for dld in dl_doutputs]
+        @for_range(prefix_total)
+        def _(i):
+            base = 0
+            for j in range(len(output)):
+                dim_size = dl_dy[j].sizes[dim]
+                for k in range(dim_size):
+                    v = dl_dy[j].get_vector(i*dim_size*stride+k*stride,stride)
+                    input.grad.assign_vector(v,i*self.sizes[dim]*stride+(base+k)*stride)
+                base+=output[j].value.sizes[dim]
+        return             
+    global op_id
+    global init_op_id
+    if prepare:
+
+        new_sizes = [(self.sizes[:dim] + (i,) + self.sizes[dim+1:]) for i in sections]
+
+        #添加Array
+        if len(self.shape) == 1:
+            pass
+        else:
+            output = [Tensor(MultiArray(new_size, sfix), req_grad=self.req_grad) for new_size in new_sizes]
+
+        operation = Operation(
+            inputs=[self.name], outputs=[out.name for out in output], 
+            propagate=propagate if self.req_grad else fake_propagate, )
+        
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation)-1
+        op_id_store[op_id] = operation_id
+    if not prepare or not forward:
+        operation=gradient_operation[op_id_store[op_id]]
+        input=tensors[operation.inputs[0]]
+        output=[tensors[operation.outputs[i]] for i in range(len(operation.outputs))]
+        @for_range(prefix_total)
+        def _(i):
+            base = 0
+            for j in range(len(output)):
+                dim_size = output[j].value.sizes[dim]
+                for k in range(dim_size):
+                    v = self.value.get_vector(i*self.sizes[dim]*stride+(base+k)*stride,stride)
+                    output[j].value.assign_vector(v,i*dim_size*stride+k*stride)
+                base+=output[j].value.sizes[dim]
+    op_id+=1
+    return output
 class Tensor():
     check_indices = True
     def __init__(self, value, value_type=sfix, name=None, req_grad=False, grad=None):
@@ -2667,6 +2724,14 @@ class Tensor():
                         output[j//new_dim_size].value.assign_vector(v,i*dim_size*stride+(j%dim_size)*stride)
         op_id+=1
         return output
+    
+    @buildingblock("split")
+    def split(self, split_size_or_sections, dim=0):
+        if isinstance(split_size_or_sections, int):
+            chunks = math.ceil(self.value.sizes[dim]/split_size_or_sections)
+            return self.chunk(chunks, dim)
+        else:
+            return chunk_by_sections(self, split_size_or_sections, dim)
     
     @buildingblock("expand")
     def expand(self, sizes):
