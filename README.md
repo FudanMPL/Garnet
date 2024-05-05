@@ -28,9 +28,11 @@ sudo apt-get install automake build-essential cmake git libboost-dev libboost-th
 brew install automake build-essential cmake git libboost-dev libboost-thread-dev libntl-dev libsodium-dev libssl-dev libtool m4 texinfo yasm
 ```
 
-### 编译
+### 初始编译（必须步骤）
 
 ```
+make clean-deps boost libote
+make clean
 make -j 8 tldr
 ```
 
