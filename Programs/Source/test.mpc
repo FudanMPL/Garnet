@@ -12,3 +12,5 @@ reveal_val = (x).reveal()
 
 print_ln("%s",c.reveal())
 print_ln("%s",e.reveal())
+reveal_val = (a).reveal()
+reveal_val = (b).reveal()

@@ -35,6 +35,7 @@ inline void ReplicatedInput<T>::add_mine(const typename T::open_type& input, int
     my_share[0].randomize(protocol.shared_prngs[0], n_bits);
     my_share[1] = input - my_share[0];
     my_share[1].pack(os[1], n_bits);
+    cout<<typeid(my_share).name()<<" "<<typeid(my_share[0]).name()<<endl;
     std::cout<<my_share[0]<<" , "<<my_share[1]<<std::endl;
     this->values_input++;
 }
@@ -42,7 +43,6 @@ inline void ReplicatedInput<T>::add_mine(const typename T::open_type& input, int
 template<class T>
 void ReplicatedInput<T>::add_other(int player, int)
 {
-    std::cout<<" add_other :"<<player<<std::endl;
     expect[player] = true;
 }
 
@@ -61,22 +61,17 @@ void ReplicatedInput<T>::exchange()
     if (send)
         if (receive)
         {
-            std::cout<<"pass_around    UserID: "<<P.my_num()<<" P.get_player(1):"<<P.get_player(1)<<std::endl;
             P.pass_around(os[1], dest, -1);
         }
             
         else
         {
-            for(auto itm:expect)std::cout<<itm<<' ';
-             std::cout<<"send_to    UserID: "<<P.my_num()<<" P.get_player(1):"<<P.get_player(1)<<std::endl;
              P.send_to(P.get_player(-1), os[1]);
         }
             
     else
         if (receive)
         {
-            for(auto itm:expect)std::cout<<itm<<' ';
-            std::cout<<"receive_player    UserID: "<<P.my_num()<<" P.get_player(1):"<<P.get_player(1)<<std::endl;
             P.receive_player(P.get_player(1), dest);
         }
             
@@ -93,15 +88,11 @@ inline void ReplicatedInput<T>::finalize_other(int player, T& target,
         t.unpack(o, n_bits);
         target[0] = t;
         target[1] = 0;
-        std::cout<<target[0]<<" , "<<target[1]<<std::endl;
-        std::cout<<"finalize_other   player my_num: "<<player<<this->my_num<<std::endl;
     }
     else
     {
         target[0] = 0;
         target[1].randomize(protocol.shared_prngs[1], n_bits);
-        std::cout<<target[0]<<" , "<<target[1]<<std::endl;
-        std::cout<<"finalize_other   player my_num: "<<player<<this->my_num<<std::endl;
     }
 }
 

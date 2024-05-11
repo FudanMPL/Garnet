@@ -216,11 +216,10 @@ tree-inference.x: Machines/tree-inference.cpp  $(MINI_OT) $(SHAREDLIB)
 	$(CXX) -o $@ $(CFLAGS) $^ $(LDLIBS)
 
 
-knn-party.x: Machines/knn-party.cpp  $(MINI_OT) $(SHAREDLIB)
-	$(CXX)  -o $@ $(CFLAGS) $^ $(LDLIBS)  -fsanitize=address -g $(SHAREDLIB)
+knn-party.x: Machines/knn-party.cpp  $(MINI_OT) $(SHAREDLIB) $(MATH)
+	$(CXX)  -o $@ $(CFLAGS) $^ $(LDLIBS)  $(SHAREDLIB)
 
 
-knn-party.x:   Machines/knn-party.cpp
 tree-inference.x:   Machines/tree-inference.cpp
 replicated-bin-party.x: GC/square64.o
 replicated-ring-party.x: GC/square64.o
@@ -399,3 +398,5 @@ deps/simde/simde:
 
 clean:
 	-rm -f */*.o *.o */*.d *.d *.x core.* *.a gmon.out */*/*.o static/*.x *.so
+c:
+	-rm -f *.x 

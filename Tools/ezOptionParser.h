@@ -998,7 +998,7 @@ void OptionGroup::clearArgs() {
 };
 /* ################################################################### */
 void OptionGroup::getInt(int & out) {
-  std::cout<<"1   getInt(int & out)"<<std::endl;
+  // std::cout<<"1   getInt(int & out)"<<std::endl;
   if (!isSet) {
     if (defaults.empty())
       out = 0;
@@ -1777,7 +1777,7 @@ OptionGroup * ezOptionParser::get(const char * name) {
   if (optionGroupIds.count(name)) {
     return groups[optionGroupIds[name]];
   }
-  std::cout<<"Warning!!"<<std::endl;
+  // std::cout<<"Warning!!"<<std::endl;
   return 0;
 };
 /* ################################################################### */
