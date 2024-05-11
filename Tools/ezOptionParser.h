@@ -998,7 +998,6 @@ void OptionGroup::clearArgs() {
 };
 /* ################################################################### */
 void OptionGroup::getInt(int & out) {
-  // std::cout<<"1   getInt(int & out)"<<std::endl;
   if (!isSet) {
     if (defaults.empty())
       out = 0;

@@ -35,8 +35,6 @@ inline void ReplicatedInput<T>::add_mine(const typename T::open_type& input, int
     my_share[0].randomize(protocol.shared_prngs[0], n_bits);
     my_share[1] = input - my_share[0];
     my_share[1].pack(os[1], n_bits);
-    cout<<typeid(my_share).name()<<" "<<typeid(my_share[0]).name()<<endl;
-    std::cout<<my_share[0]<<" , "<<my_share[1]<<std::endl;
     this->values_input++;
 }
 
@@ -60,20 +58,13 @@ void ReplicatedInput<T>::exchange()
     auto& dest =  InputBase<T>::os[P.get_player(1)];
     if (send)
         if (receive)
-        {
             P.pass_around(os[1], dest, -1);
-        }
-            
         else
-        {
-             P.send_to(P.get_player(-1), os[1]);
-        }
-            
+            P.send_to(P.get_player(-1), os[1]);
+
     else
         if (receive)
-        {
             P.receive_player(P.get_player(1), dest);
-        }
             
 }
 

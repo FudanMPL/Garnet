@@ -151,20 +151,6 @@ public:
 	bool operator==(const Z2<K>& other) const;
 	bool operator!=(const Z2<K>& other) const { return not (*this == other); }
 
-	//  序列化
-    // friend std::ostream& operator<<(std::ostream& os, const Z2<K>& obj) {
-    //     obj.output(os,true);
-    //     return os;
-    // }
-
-    // // 反序列化
-    // friend std::istream& operator>>(std::istream& i, const Z2<K>& x) {
-	//     i >> x;
-	// 	return i;
-    // }
-
-
-
 	void add(octetStream& os) { *this += (os.consume(size())); }
 	void vss_add(octetStream& os, const Player& P, int sender){
 		octet* adr = os.consume(size());
