@@ -92,12 +92,35 @@ public:
   size_t generate_secure_shuffle(const Instruction &instruction);
   void apply_shuffle(const Instruction &instruction, int handle);
   void delete_shuffle(int handle);
-  void inverse_permutation(const Instruction& instruction);
+  void inverse_permutation(const Instruction &instruction);
 
-  void input_personal(const vector<int>& args);
-  void send_personal(const vector<int>& args);
-  void private_output(const vector<int>& args);
+  // void psi(const vector<typename T::clear> &source, const Instruction &instruction, U &proc)
+  // {
+  //   throw not_implemented();
+  // }
+  
+  // void psi_align(const vector<typename T::clear> &source, const Instruction &instruction)
+  // {
+  //   throw not_implemented();
+  // }
 
+  void input_personal(const vector<int> &args);
+  void send_personal(const vector<int> &args);
+  void private_output(const vector<int> &args);
+
+#ifdef BIG_DOMAIN_USE_RSS
+  template <class T2>
+  void assign_S(CheckVector<T2> &s2)
+  {
+    int size = s2.size();
+    S.resize(size);
+    // only work when T is Rep3Share and one of the domain size is smaller than 2^32
+    for (int i = 0; i < size; i++)
+    {
+      S[i].v[0] = s2.at(i).v[0].get_limb(0);
+      S[i].v[1] = s2.at(i).v[1].get_limb(0);
+    }
+  }
 
 #endif
 

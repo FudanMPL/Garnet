@@ -2922,7 +2922,71 @@ class fsscmp(base.Instruction):
     def __init__(self, *args, **kwargs):
         super(fsscmp, self).__init__(*args, **kwargs)
         print(args[0].size, args[1].size, args[2], args[3], args[4])
-        
+
+class rfss3_conv2d_relu_truncs(base.DataInstruction, base.VarArgsInstruction, base.Mergeable):
+    """ Secret 2D convolution.
+
+    :param: result (sint vector in row-first order)
+    :param: inputs (sint vector in row-first order)
+    :param: weights (sint vector in row-first order)
+    :param: output height (int)
+    :param: output width (int)
+    :param: input height (int)
+    :param: input width (int)
+    :param: weight height (int)
+    :param: weight width (int)
+    :param: stride height (int)
+    :param: stride width (int)
+    :param: number of channels (int)
+    :param: padding height (int)
+    :param: padding width (int)
+    :param: batch size (int)
+    :param: whether the first conv instruction in a group convolution
+    :param: int length (int)
+    :param: float length (int)
+    """
+    code = base.opcodes['CONV2DRELUTRUNCRFSS3S']
+    arg_format = ['sw','s','s','int','int','int','int','int',
+                                'int','int','int','int','int','int','int','int','int','int']
+    data_type = 'triple'
+    is_vec = lambda self: True
+
+    def __init__(self, *args, **kwargs):
+        super(rfss3_conv2d_relu_truncs, self).__init__(*args, **kwargs)
+        assert args[0].size == args[3] * args[4] * args[14]
+        assert args[1].size == args[5] * args[6] * args[11] * args[14]
+        assert args[2].size == args[7] * args[8] * args[11]
+
+    def get_repeat(self):
+        args = self.args
+        return sum(args[i+3] * args[i+4] * args[i+7] * args[i+8] * \
+            args[i+11] * args[i+14] for i in range(0, len(args), 18))
+
+    def add_usage(self, req_node):
+        cost_func = program.get_cost("matmuls")
+        if cost_func == -1:
+            print("The profiling results could be biased")
+            print("Please config the cost of matmuls in cost_config.py")
+            return
+        config = program.cost_config
+        args = self.args
+        online_round = 0
+        offline_round = 0
+        for i in range(0, len(self.args), 18):
+            args = self.args[i:i + 18]
+            res = cost_func(config.bit_length, config._security, config.computation_security, config.f, config.n_parties, args[14] * args[3] * args[4] , args[7] * args[8] * args[11], 1 )
+            req_node.increment(('online communication', 'bits'), res[0])
+            req_node.increment(('offline communication', 'bits'), res[2])
+            online_round = max(online_round, res[1])
+            offline_round = max(offline_round, res[3])
+        req_node.increment(('online', 'round'), online_round)
+        req_node.increment(('offline', 'round'), offline_round)
+        super(rfss3_conv2d_relu_truncs, self).add_usage(req_node)
+        args = self.args
+        for i in range(0, len(self.args), 18):
+            args = self.args[i:i + 17]
+            req_node.increment(('matmul', (1, args[7] * args[8] * args[11],
+                                           args[14] * args[3] * args[4])), 1)
 class conv2ds(base.DataInstruction, base.VarArgsInstruction, base.Mergeable):
     """ Secret 2D convolution.
 
@@ -2944,8 +3008,8 @@ class conv2ds(base.DataInstruction, base.VarArgsInstruction, base.Mergeable):
     :param: whether the first conv instruction in a group convolution
     """
     code = base.opcodes['CONV2DS']
-    arg_format = ['sw','s','s','int','int','int','int','int','int','int','int',
-                'int','int','int','int']
+    arg_format = itertools.cycle(['sw','s','s','int','int','int','int','int',
+                                  'int','int','int','int','int','int','int','int'])
     data_type = 'triple'
     is_vec = lambda self: True
 
@@ -2987,19 +3051,6 @@ class conv2ds(base.DataInstruction, base.VarArgsInstruction, base.Mergeable):
             args = self.args[i:i + 15]
             req_node.increment(('matmul', (1, args[7] * args[8] * args[11],
                                            args[14] * args[3] * args[4])), 1)
-
-@base.vectorize
-class rfss3_trunc_relu(base.VarArgsInstruction):
-    """ Truncation with relu after unreshared multiplication
-    :param: result (sint vector in row-first order)
-    :param: inputs (sint vector in row-first order)
-    :param: parallel (int)
-    :param: int bit length (sint)
-    :param: float bit length (int)
-    """
-    __slots__ = []
-    code = base.opcodes['TRUNCRELURFSS3S']
-    arg_format = tools.cycle(['sw', 's', 'int', 'int', 'int'])
 
 @base.vectorize
 class trunc_pr(base.VarArgsInstruction):
@@ -3220,45 +3271,6 @@ class sqrs(base.CISC):
         adds(s[5], s[1], s[4])
         subml(self.args[0], s[5], c[1])
 
-
-class rfss3_conv2ds(base.DataInstruction):
-    """ Secret 2D convolution.
-
-    :param: result (sint vector in row-first order)
-    :param: inputs (sint vector in row-first order)
-    :param: weights (sint vector in row-first order)
-    :param: output height (int)
-    :param: output width (int)
-    :param: input height (int)
-    :param: input width (int)
-    :param: weight height (int)
-    :param: weight width (int)
-    :param: stride height (int)
-    :param: stride width (int)
-    :param: number of channels (int)
-    :param: padding height (int)
-    :param: padding width (int)
-    :param: batch size (int)
-    :param: whether the first conv instruction in a group convolution
-    :param: int length (int)
-    :param: float length (int)
-    """
-    code = base.opcodes['CONV2DRFSS3S']
-    arg_format = itertools.cycle(['sw','s','s','int','int','int','int','int','int','int',
-                                'int','int','int','int','int','int','int','int','int'])
-    data_type = 'triple'
-    is_vec = lambda self: True
-
-    def __init__(self, *args, **kwargs):
-        super(rfss3_conv2ds, self).__init__(*args, **kwargs)
-        assert args[0].size == args[3] * args[4] * args[14]
-        assert args[1].size == args[5] * args[6] * args[11] * args[14]
-        assert args[2].size == args[7] * args[8] * args[11]
-
-    def get_repeat(self):
-        args = self.args
-        return sum(args[i+3] * args[i+4] * args[i+7] * args[i+8] * \
-            args[i+11] * args[i+14] for i in range(0, len(args), 18))
 
 
 # placeholder for documentation

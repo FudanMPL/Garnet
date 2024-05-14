@@ -7,6 +7,7 @@
 #define PROCESSOR_CONV2DTUPLE_H_
 
 #include <vector>
+#include <Processor/Processor.h>
 using namespace std;
 
 class Conv2dTuple
@@ -30,7 +31,12 @@ public:
     Conv2dTuple(const vector<int>& args, int start);
 
     template<class T>
+    void rfss3_conv2d_trunc_relu_all(SubProcessor<T> &proc, int k, int f, Player &P);
+
+
+    template<class T>
     void pre(vector<T>& S, typename T::Protocol& protocol);
+
     template<class T>
     void post(vector<T>& S, typename T::Protocol& protocol);
 

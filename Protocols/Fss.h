@@ -12,7 +12,7 @@
 #include <map>
 #include <string>
 using namespace std;
-
+#include "Processor/Conv2dTuple.h"
 #include "Protocols/Fss3Prep.h"
 #include "Tools/octetStream.h"
 #include "Tools/random.h"
@@ -57,7 +57,7 @@ public:
     }
 
     void init_fss_cmp_prep(SubProcessor<T> &proc);
-    void init_fss_conv_relu_prep(SubProcessor<T> &proc, int float_bits, int case_num=1);
+    void init_fss_conv_relu_prep(SubProcessor<T> &proc, int float_bits);
     //initialize preprocessing for fss preprocess
     void init(Preprocessing<T>& prep, typename T::MAC_Check& MC);
     void init_mul();
@@ -118,5 +118,9 @@ public:
     bigint evaluate(typename T::open_type x, int lambda, int result_length, int drop_least_bits = 0);
     bigint evaluate_conv_relu(typename T::open_type x, int n, int result_length);
     //Instructions for RFss3
-    void trunc_relu_rfss3s(SubProcessor<T> &proc, const Instruction& instruction);
+    void rfss3s_conv2d_relu_truncs(SubProcessor<T> &proc, const Instruction& instruction);    
+
+    void relu_truncs(SubProcessor<T> &proc, const vector<Conv2dTuple> &tuples, int n, int f);
 };
+
+#endif /* PROTOCOLS_Fss_H_ */

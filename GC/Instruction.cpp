@@ -73,7 +73,6 @@ unsigned Instruction::get_mem(RegType reg_type) const
 void Instruction::parse(istream& s, int pos)
 {
     BaseInstruction::parse(s, pos);
-
     switch(opcode)
     {
 #define X(NAME, CODE) case NAME: \

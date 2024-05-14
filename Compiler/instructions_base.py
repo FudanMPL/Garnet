@@ -21,8 +21,7 @@ from Compiler import program
 ###
 opcodes = dict(
     # RFSS3 Instructions
-    CONV2DRFSS3S = 0xff,
-    TRUNCRELURFSS3S = 0x1fe,
+    CONV2DRELUTRUNCRFSS3S = 0x1fe,
     FSS_CMP = 0x1ff,
     # PSI
     PSI=0x2a0,

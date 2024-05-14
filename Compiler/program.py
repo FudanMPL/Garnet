@@ -51,7 +51,7 @@ class defaults:
     garbled = False
     prime = None
     galois = 40
-    budget = 100
+    budget = 100000
     mixed = False
     edabit = False
     invperm = False
@@ -1009,8 +1009,8 @@ class Tape:
         # now remove any empty blocks (must be done after setting jumps)
         self.basicblocks = [x for x in self.basicblocks if len(x.instructions) != 0]
 
-        # for x in self.basicblocks:
-        #     print(x.instructions)
+        for x in self.basicblocks:
+            print(x.instructions)
         
         
         # allocate registers

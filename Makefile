@@ -17,6 +17,7 @@ FHEOBJS = $(patsubst %.cpp,%.o,$(wildcard FHEOffline/*.cpp FHE/*.cpp)) Protocols
 GC = $(patsubst %.cpp,%.o,$(wildcard GC/*.cpp)) $(PROCESSOR)
 GC_SEMI = GC/SemiPrep.o GC/square64.o GC/Semi.o
 
+# CFLAGS +=  -fsanitize=address -g
 
 OT = $(patsubst %.cpp,%.o,$(wildcard OT/*.cpp)) $(LIBSIMPLEOT)
 OT_EXE = ot.x ot-offline.x

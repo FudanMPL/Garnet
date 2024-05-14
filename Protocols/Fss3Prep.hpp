@@ -89,75 +89,14 @@ void fss_generate(int beta, bigint y1, int n, int generate_case, int result_leng
     }
     k0 << tmp_t[1]*(-1*(convert[1] - convert[0] - va)) + (1-tmp_t[1])*(convert[1] - convert[0] - va) << " ";
     k1 << tmp_t[1]*(-1*(convert[1] - convert[0] - va)) + (1-tmp_t[1])*(convert[1] - convert[0] - va) << " ";
-    
-
-    std::cout << "a is " << a << std::endl;
-    typename T::clear rin, p_tmp, p_prev, z_0, z = 0;
-    auto size = a.get_mpz_t()->_mp_size;
-    mpn_copyi((mp_limb_t*)rin.get_ptr(), a.get_mpz_t()->_mp_d, abs(size));
-    if(size < 0)
-        rin = -rin;
-    std::cout << "rin in " << rin << std::endl;
-    
-    
-    std::cout << "reading splines: " << std::endl;
-    for(int i = 1; i < length; i++){
-        z = 0;
-        p_prev = processor.C[base+i-1] + rin;
-        p_tmp = processor.C[base+i] + rin;
-        // std::cout << p_prev << " " << p_tmp << " " << processor.C[base+i-1] << " " << p_prev << " " << processor.C[base+i] << " " << p_tmp << std::endl;
-        if(lambda == 128){
-            // std::cout << " p > q " << (p_prev - p_tmp).get_bit(lambda) << " ap > p " << (processor.C[base+i-1] - p_prev).get_bit(lambda)  << " aq > q " << (processor.C[base+i] - p_tmp).get_bit(lambda) << std::endl; 
-            z = (p_prev - p_tmp).get_bit(lambda) + (processor.C[base+i-1] - p_prev).get_bit(lambda) + (processor.C[base+i] - p_tmp).get_bit(lambda);
-        }
-        else{
-            // std::cout << " p > q " << (p_prev - p_tmp).get_bit(lambda-1) << " ap > p " << (processor.C[base+i-1] - p_prev).get_bit(lambda-1)  << " aq > q " << (processor.C[base+i] - p_tmp).get_bit(lambda-1) << std::endl; 
-            z = (p_prev - p_tmp).get_bit(lambda - 1) + (processor.C[base+i-1] - p_prev).get_bit(lambda - 1) + (processor.C[base+i] - p_tmp).get_bit(lambda - 1);
-        }
-
-        prng.get(tmp, lambda);
-        auto size = tmp.get_mpz_t()->_mp_size;
-        mpn_copyi((mp_limb_t*)z_0.get_ptr(), tmp.get_mpz_t()->_mp_d, abs(size));
-        if(size < 0)
-            z_0 = -z_0;
-        // std::cout << "rin in " << rin << std::endl;
-        r0 << z - z_0 << " ";
-        r1 << z_0 << " ";
-        // std::cout << " z is " << z << "z_0 is " << z_0 << std::endl;
-    }
     k0.close();
     k1.close();
 }
 
-// template<class T>
-// void Fss3Prep<T>::gen_dpf_correction_word(Player& P, int gen_num){
-//     octetStream cs;
-//     int eval_num_0 = (gen_num + 1) % 3;
-//     int eval_num_1 = (gen_num + 2) % 3;
-//     std::cout << "Entered Fss3Prep gen_dpf_correction_word" << std::endl;
-//     if(P.my_num()== gen_num){
-//         vector<bigint> test;
-//         test.push_back(bigint(0));
-//         this->get_correction_word_no_count(DATA_DPF);
-//         test[0].pack(cs);
-//         P.send_to(eval_num_0, cs);
-//         test[0].pack(cs);
-//         P.send_to(eval_num_1, cs);
-//     }
-//     else{
-//         P.receive_player(gen_num, cs);
-//         vector <bigint> test(100,1);
-//         test[0].unpack(cs);
-//         // this->fss_dpf_eval_values.r_share.unpack(cs)
-//         std::cout << "Fss3Prep.hpp recieved!" << std::endl;
-//         std::cout << test.size() << std::endl;
-//     }
-//     return;
-// }
 
 template<class T>
 void Fss3Prep<T>::init_offline_values(SubProcessor<T>* proc, int init_case)
-{
+{   
     fstream r_in;
     bool t0, t1, tmp_bool;
     fstream k_in;
@@ -195,7 +134,7 @@ void Fss3Prep<T>::init_offline_values(SubProcessor<T>* proc, int init_case)
             k_in.close();
         }
     }
-    if(init_case == 1){    
+    else if(init_case == 1){    
         if(proc->P.my_num()!=2){
             r_in.open("Player-Data/2-fss/r_conv_relu_" + to_string(proc->P.my_num()), ios::in);
             r_in >> this->reshare_value;
@@ -229,6 +168,7 @@ void Fss3Prep<T>::init_offline_values(SubProcessor<T>* proc, int init_case)
         }
     }
 }
+
 
 template<class T>
 void Fss3Prep<T>::gen_fake_dcf(int beta, int n)
@@ -339,6 +279,7 @@ void Fss3Prep<T>::gen_fake_conv_relu(int beta, int n, int float_bits){
 
     // initialize r_mask and r_out
     prng.get(r_mask, n);
+    // r_mask = 0;
     prng.get(r_select, 1);
     
     // generate offline values for dcf

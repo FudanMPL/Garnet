@@ -158,7 +158,7 @@ void Machine<sint, sgf2n>::prepare(const string& progname_str)
 #ifdef VERBOSE
   progs[0].print_offline_cost();
 #endif
-
+  std::cout << "calling prepare in Machine.hpp, thread number is: " << nthreads << std::endl;
   /* Set up the threads */
   tinfo.resize(nthreads);
   threads.resize(nthreads);

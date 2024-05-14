@@ -209,6 +209,5 @@ int OnlineMachine::run()
         throw;
     }
 #endif
-
     return 0;
 }
