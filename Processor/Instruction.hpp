@@ -350,7 +350,6 @@ inline void BaseInstruction::parse_operands(istream &s, int pos, int file_pos)
   // RFSS3
   case CONV2DRELUTRUNCRFSS3S:
     num_var_args = get_int(s);
-    // r[0] = get_int(s);
     std::cout << "num_var_args in Instrunction.hpp is " << num_var_args << std::endl;
     std::cout << "r[0] in Instrunction.hpp is " << r[0] << std::endl;
     get_vector(num_var_args, start, s);
@@ -795,7 +794,7 @@ inline unsigned BaseInstruction::get_max_reg(int reg_type) const
   case CONV2DRELUTRUNCRFSS3S:
   {
     unsigned res = 0;
-    for (size_t i = 0; i < start.size(); i += 18)
+    for (size_t i = 0; i < start.size(); i += 19)
     {
       unsigned tmp = start[i] + start[i + 3] * start[i + 4] * start.at(i + 14);
       res = max(res, tmp);
@@ -1230,7 +1229,6 @@ inline void Instruction::execute(Processor<sint, sgf2n> &Proc) const
       return;
     // RFSS3 
     case CONV2DRELUTRUNCRFSS3S:
-      std::cout << "executing CONV2DRELUTRUNCRFSS3S " << std::endl;
       Proc.Procp.protocol.rfss3s_conv2d_relu_truncs(Proc.Procp, *this);
       return;
     case FSS_CMP:

@@ -603,12 +603,11 @@ void Conv2dTuple::rfss3_conv2d_trunc_relu_all(SubProcessor<T> &proc, int k, int 
 }
 
 template <class T>
-void Fss<T>::relu_truncs(SubProcessor<T> &proc, const vector<Conv2dTuple> &tuples, int n, int f)
+void Fss<T>::relu_truncs(SubProcessor<T> &proc, const vector<Conv2dTuple> &tuples, const vector<int> &comparison_destination_values, int n, int f)
 {
-    std::cout << "calling relu_truncs in Fss.hpp " << std::endl;
     // this->init_fss_conv_relu_prep(proc, f);
     int batch_size = tuples[0].batch_size, output_h = tuples[0].output_h, output_w = tuples[0].output_w;
-    int r0, mat_size = batch_size * output_h * output_w; 
+    int r0, comp0, mat_size = batch_size * output_h * output_w; 
     for (auto tuple : tuples)
     {
         assert(batch_size == tuple.batch_size);
@@ -627,7 +626,6 @@ void Fss<T>::relu_truncs(SubProcessor<T> &proc, const vector<Conv2dTuple> &tuple
             {
                 proc.S[j+r0][0] = proc.S[j+r0][0]+this->fss3prep->r_mask_share;
                 proc.S[j+r0][0].pack(cs);
-                
             }
         }
         P.send_to((P.my_num() ^ 1), cs);
@@ -699,10 +697,19 @@ void Fss<T>::relu_truncs(SubProcessor<T> &proc, const vector<Conv2dTuple> &tuple
         P.receive_player((P.my_num()^1), reshare_cs);
         for (size_t i = 0; i < tuples.size(); i++){
             r0 = tuples[i].r0;
+            comp0 = comparison_destination_values[i];
             for (int j = 0; j < mat_size; j++)
             {
                 this->fss3prep->reshare_value_tmp.unpack(reshare_cs);
                 proc.S[r0+j][(P.my_num())] = proc.S[r0+j][(P.my_num())]+this->fss3prep->reshare_value_tmp;
+                if(P.my_num() == GEN)
+                {
+                    proc.S[comp0+j][(P.my_num())] = 0;
+                }
+                else{
+                    proc.S[comp0+j][(P.my_num())] = select_bit[i*mat_size+j];
+                    std::cout << "select_bit is " << select_bit[i*mat_size+j]<< std::endl;
+                }
             }
         }
     }
@@ -726,11 +733,9 @@ void Fss<T>::rfss3s_conv2d_relu_truncs(SubProcessor<T> &proc, const Instruction 
     std::cout << "calling rfss3s_conv2d_relu_truncs" << std::endl;
     // octetStream cs;
     auto &args = instruction.get_start();
-    for(int i = 0; i < args.size(); i++){
-        std::cout << args[i] << " ";
-    }
     proc.protocol.init_dotprod_without_trunc();
     vector<Conv2dTuple> tuples;
+    vector<int>comparison_destination_values;
     int n = 1+args[16]+2 * args[17], k = args[16], f = args[17];
     if (this->fss3prep == nullptr)
     {
@@ -752,19 +757,17 @@ void Fss<T>::rfss3s_conv2d_relu_truncs(SubProcessor<T> &proc, const Instruction 
         // this->fss3prep->init_offline_values(&proc, 1);
     }
     
-    for (size_t i = 0; i < args.size(); i += 18)
+    for (size_t i = 0; i < args.size(); i += 19)
     {
         tuples.push_back(Conv2dTuple(args, i));
+        comparison_destination_values.push_back(args[i+18]);
         assert(n == 1+args[i+16]+2 * args[i+17]);
     }
     for (size_t i = 0; i < tuples.size(); i++)
     {
         tuples[i].rfss3_conv2d_trunc_relu_all(proc, k, f, P);
     }
-    std::cout << std::endl << "------------" << std::endl;
-    std::cout << tuples.size() << std::endl;
-    std::cout << args.size() << std::endl;
-    relu_truncs(proc, tuples, n, f);
+    relu_truncs(proc, tuples, comparison_destination_values, n, f);
     return;
 }
 

@@ -120,7 +120,7 @@ public:
     //Instructions for RFss3
     void rfss3s_conv2d_relu_truncs(SubProcessor<T> &proc, const Instruction& instruction);    
 
-    void relu_truncs(SubProcessor<T> &proc, const vector<Conv2dTuple> &tuples, int n, int f);
+    void relu_truncs(SubProcessor<T> &proc, const vector<Conv2dTuple> &tuples, const vector<int> &comparison_destination_values, int n, int f);
 };
 
 #endif /* PROTOCOLS_Fss_H_ */

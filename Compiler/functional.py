@@ -257,7 +257,7 @@ def softmax(input,dim=-1):
         output = tensors[operation.outputs[0]]
         output.value.print_reveal_nested()
         if isinstance(input.value, MultiArray):
-            # dl_dx = softmax(x)*(   dl_dy    -    (dl_dy*softmax(x)).sum(dim=-1)  )
+            # dl_dx = softmax(x)*(dl_dy-(dl_dy*softmax(x)).sum(dim=-1))
             inter_sum=operation.intermediate[2]
             inter_inital0=operation.intermediate[3]
             inter_broadcast_sub=operation.intermediate[4]
@@ -703,19 +703,27 @@ def rfss3_conv2d_relu(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padd
         _,  n_channels_out,output_h, output_w = output.shape
         input_value=input.value.permute([0,2,3,1])
         weight_value=weight.value.permute([0,2,3,1]) 
-        nabla_Y=output.grad.permute([0,2,3,1])
-
+        nabla_Y=output.grad.permute([0,2,3,1]) 
+        relu_res = operation.intermediate[0].permute([0,2,3,1])
+        print("nabla_Y is -------------") 
+        # input.value = input.value[:] * relu_res[:]
+        print_ln("nabla_Y is %s",nabla_Y[0][0][0][0].reveal())
+        nabla_Y[:] = nabla_Y[:] * (1-relu_res[:])
+        print_ln("nabla_Y*relu_res is %s",nabla_Y[0][0][0][0].reveal())
         stride_h, stride_w = stride
         padding_h, padding_w = padding
+        
         print("padding:",padding)
         print("conv backward")
         print(input.shape)
+        print(output.shape)
         print(weight.shape)
+
 
         n_threads=8 if input.numel() > 2**20 else 1
         if weight.req_grad:
             batch=Array.create_from(regint.inc(N))
-            input_size = inputs_h * inputs_w * N #why have no channel_in? 128*36
+            input_size = inputs_h * inputs_w * N # why have no channel_in? 128*36
             batch_repeat = regint.Matrix(N, inputs_h * inputs_w) # 128,6*6
             batch_repeat.assign_vector( batch.get(
                 regint.inc(input_size, 0, 1, 1, N)) * reduce(operator.mul, input_value.sizes[1:]) )
@@ -836,10 +844,15 @@ def rfss3_conv2d_relu(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padd
                 (input.shape[3]+2*padding[1]-weight.shape[3])//stride[1]+1] #out_shape.size:[Batch_size,out_channel,H_out,W_out]
         new_value=MultiArray(out_shape,input.value.value_type)
         output = Tensor(new_value, req_grad=input.req_grad or weight.req_grad)
-        if input.req_grad or weight.req_grad:
-            operation = Operation(inputs=[input.name,weight.name], outputs=[output.name], propagate=propagate)
+        print("initializing new value for relu result")
+        if isinstance(output.value,Array):
+            inter=Array(output.shape[0],sint)
         else:
-            operation = Operation(inputs=[input.name,weight.name], outputs=[output.name], propagate=fake_propagate)
+            inter=MultiArray(list(output.shape) ,sint)
+        if input.req_grad or weight.req_grad:
+            operation = Operation(inputs=[input.name,weight.name], outputs=[output.name], propagate=propagate, intermediate=[inter])
+        else:
+            operation = Operation(inputs=[input.name,weight.name], outputs=[output.name], propagate=fake_propagate, intermediate=[inter])
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
@@ -849,12 +862,16 @@ def rfss3_conv2d_relu(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padd
         padding_h, padding_w = padding
         operation = gradient_operation[op_id_store[op_id]]
         output= tensors[operation.outputs[0]] 
+        relu_output = operation.intermediate[0]
         _, _,weights_h, weights_w= weight.shape
         N,  n_channels_in, inputs_h, inputs_w = input.shape
         _,  n_channels_out, output_h, output_w = output.shape #B C H W
         print("conv-forward")
         print("in_channel shape is ", n_channels_in)
         print("out_channel shape is ", n_channels_out)
+        print(input.shape)
+        print(output.shape)
+        print(relu_output.shape)
         input.value.view(N, groups, int(n_channels_in/groups), inputs_h, inputs_w) # N G C/G H W
         input_value = MultiArray([groups, N, inputs_h, inputs_w, int(n_channels_in/groups)], input.value.value_type) # G B H W C/G
         input.value.permute_without_malloc(input_value, [1,0,3,4,2]) # # G B H W C/G
@@ -862,6 +879,7 @@ def rfss3_conv2d_relu(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padd
         weight.value.permute_without_malloc(weight_value, [0,2,3,1]) # N, H, W, C/G
         output_value = MultiArray([output.sizes[0], output.sizes[2], output.sizes[3], output.sizes[1]], output.value.value_type)
         output.value.permute_without_malloc(output_value, [0,2,3,1]) # B, H, W, N
+        relu_output.permute_without_malloc(relu_output, [0,2,3,1]) # B, H, W, N
         n_channels_in_group = int(n_channels_in / groups)
         n_threads=8 if input.numel() > 2**20 else 1
         if not forward:
@@ -871,39 +889,48 @@ def rfss3_conv2d_relu(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padd
             n_parts -= 1
         # print('Convolution in %d parts' % n_parts)
         unreduced = MultiArray(output_value.sizes, sint, address=output_value.address)
+        cmp = MultiArray(output_value.sizes, sint, address=relu_output.address)
         part_size =N // n_parts
         size_=part_size*reduce(operator.mul,input.value.sizes[2:])
         @for_range_multithread(n_threads, 1, [groups, 1]) #N
         def _(i, j):
             inputs = input_value.get_vector(i*size_,size_).v # B H W C/G
             weights = weight_value.get_part_vector(i*int(n_channels_out/groups)+j).v # N WH WW C/G
+            relu_res = sint(size = output_h * output_w * part_size) # B, OUT_W, OUT_H
             res = sint(size = output_h * output_w * part_size) # B, OUT_W, OUT_H
+            
             rfss3_conv2d_relu_truncs(res, inputs, weights, output_h, output_w,
                     inputs_h, inputs_w, weights_h, weights_w,
                     stride_h, stride_w, n_channels_in_group, padding_h, padding_w,
-                    part_size,1,sfix.k, sfix.f)        
+                    part_size,1,sfix.k, sfix.f, relu_res)        
             if bias:
                 res += bias.value.expand_to_vector(i*int(n_channels_out/groups)+j, res.size).v
             addresses = regint.inc(res.size,
                                     unreduced[0].address + i*int(n_channels_out/groups)+j,
                                     n_channels_out)
+            relu_addresses = regint.inc(relu_res.size,
+                                    cmp[0].address + i*int(n_channels_out/groups)+j,
+                                    n_channels_out)
+            relu_res.store_in_mem(relu_addresses)
             res.store_in_mem(addresses)
         @for_range_multithread(n_threads, 1, [groups, int(n_channels_out/groups)-1]) #N
         def _(i, j):
             inputs = input_value.get_vector(i*size_,size_).v # B H W C/G
             weights = weight_value.get_part_vector(i*int(n_channels_out/groups)+j+1).v # N WH WW C/G
+            relu_res = sint(size = output_h * output_w * part_size) # B, OUT_W, OUT_H
             res = sint(size = output_h * output_w * part_size) # B, OUT_W, OUT_H
             rfss3_conv2d_relu_truncs(res, inputs, weights, output_h, output_w,
                     inputs_h, inputs_w, weights_h, weights_w,
                     stride_h, stride_w, n_channels_in_group, padding_h, padding_w,
-                    part_size,-1, sfix.k, sfix.f)        
+                    part_size,-1, sfix.k, sfix.f, relu_res)        
             if bias:
                 res += bias.value.expand_to_vector(i*int(n_channels_out/groups)+j+1, res.size).v
             addresses = regint.inc(res.size,
                                     unreduced[0].address + i*int(n_channels_out/groups)+j+1,
                                     n_channels_out)
+            relu_address = regint.inc(relu_res.size, cmp[0].address + i*int(n_channels_out/groups)+j+1, n_channels_out)
+            relu_res.store_in_mem(relu_address)
             res.store_in_mem(addresses)
-            
         n_outputs = N * reduce(operator.mul, output_value.sizes[1:])
         @multithread(n_threads, n_outputs,
                      1000 if sfix.round_nearest else 10 ** 6)                                                                                
@@ -911,6 +938,7 @@ def rfss3_conv2d_relu(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padd
             res = sfix().unreduced(sint.load_mem(unreduced.address + base,
                             size=n_per_thread),sfix)
             res.store_in_mem(output_value.address + base) #B H W N
+        relu_output.permute_without_malloc(relu_output, [0,3,1,2])
         output_value.permute_without_malloc(output.value, [0,3,1,2])
         input.value.view(N, n_channels_in, inputs_h, inputs_w)
         input_value.delete()
