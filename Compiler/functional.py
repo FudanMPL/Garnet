@@ -946,6 +946,7 @@ def rfss3_conv2d_relu(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padd
         weight_value.delete()
         
     set_opid(op_id+1)  # record the input and output of the op
+    print_ln("conv2d_relu output is %s",output.value[0][0][0][0].reveal())
     return output
 
 def conv_transpose2d(input, weight, bias=None, stride=1, padding=0, outputpadding=0):
