@@ -16,7 +16,7 @@ from Compiler import graph_visualization
 # from Compiler.GC.types import sbitintis_train
 from functools import reduce
 from typing import List, NamedTuple, Callable, Dict, Optional, Union, Tuple, Any
-from ml import approx_sigmoid, argmax
+from Compiler.ml import approx_sigmoid, argmax
 _name = 1
 
 
@@ -1697,7 +1697,7 @@ class Tensor():
             return res
         if isinstance(index, int) and index < 0:
             index += self.sizes[0]
-        key = program.curr_block, str(index)
+        key = get_program().curr_block, str(index)
         if key not in self.sub_cache:
             if util.is_constant(index) and \
                (index >= self.sizes[0] or index < 0):
@@ -2624,6 +2624,8 @@ class Tensor():
                 target_size[dim] += self.value.shape[dim]
                 new_value = MultiArray(target_size, self.value.value_type)
             output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
+            # print("concat input: ", self.shape, other.shape)
+            # print("concat output: ", output.shape)
             if self.req_grad or other.req_grad:
                 operation = Operation(inputs=[self.name, other.name], outputs=[output.name], propagate=propagate)
             else:
@@ -2729,9 +2731,9 @@ class Tensor():
     def split(self, split_size_or_sections, dim=0):
         if isinstance(split_size_or_sections, int):
             chunks = math.ceil(self.value.sizes[dim]/split_size_or_sections)
-            return self.chunk(chunks, dim)
+            return tuple(self.chunk(chunks, dim))
         else:
-            return chunk_by_sections(self, split_size_or_sections, dim)
+            return tuple(chunk_by_sections(self, split_size_or_sections, dim))
     
     @buildingblock("expand")
     def expand(self, sizes):

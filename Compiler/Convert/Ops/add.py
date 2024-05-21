@@ -1,7 +1,7 @@
 import warnings
 
 import torch
-import nn as nn
+import Compiler.nn as nn
 
 from onnx2pytorch.utils import is_constant, get_selection
 from onnx2pytorch.operations.base import Operator
@@ -20,6 +20,18 @@ class Add(Operator):
         super().__init__()
 
     def forward(self, *input):
+        inp = [it for it in input]
+        res = []
+        for it in inp:
+            if isinstance(it, list) or isinstance(it, tuple):
+                for sub in it:
+                    inp.append(sub)
+            else:
+                res.append(it)
+        out = res[0]
+        for it in res[1:]:
+            out += it
+        return out
         if self.input_indices:
             out = self.out * 0
             for inp, idx in zip(input, self.input_indices):

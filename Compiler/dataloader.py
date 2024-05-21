@@ -1,6 +1,6 @@
 from typing import Any, Callable, Iterable, TypeVar, Generic, List, Optional, Union
-from tensor import *
-import tensor as TS
+from Compiler.tensor import *
+import Compiler.tensor as TS
 
 
 class DataLoader():
