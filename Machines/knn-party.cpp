@@ -15,7 +15,8 @@
 
 using namespace std;
 void test_Z2();
-const int K=64;
+const int K=64;//环大小
+const int k_const=5;//knn里面的k值 
 
  Z2<K>random_z2("10000000000");
 int playerno;
@@ -24,9 +25,15 @@ RealTwoPartyPlayer* player;
 void parse_argv(int argc, const char** argv);
 void gen_fake_dcf(int beta, int n);
 bigint evaluate(Z2<K> x, int n,int playerID);
-void mul_vector_additive( vector<Z2<K>>v1 , vector<Z2<K>>v2 , vector<Z2<K>>&res);
+void mul_vector_additive( vector<Z2<K>>v1 , vector<Z2<K>>v2 , vector<Z2<K>>&res , bool double_res);
+void mul_additive(Z2<K>x1,Z2<K>x2,Z2<K>&res);
 void SS_vec( vector<Z2<K>>X , vector<Z2<K>>Y , vector<Z2<K>>&res);
-
+void SS_vec( vector<Z2<K>>&shares,const vector<int>compare_idx_vec,const vector<Z2<K>>compare_res);
+void SS_scalar(vector<Z2<K>>&shares,int first_idx,int second_idx);
+void SS_scalar(vector<array<Z2<K>,2>>&shares,int first_idx,int second_idx);
+void SS_vec( vector<array<Z2<K>,2>>&shares,const vector<int>compare_idx_vec,const vector<Z2<K>>compare_res);
+Z2<K> secure_compare(Z2<K>x1,Z2<K>x2);
+void secure_frequency(vector<Z2<K>>&shares_selected_k,vector<Z2<K>>label_list,vector<Z2<K>>&label_list_count);
 class Sample{
 public:
     vector<int> features;
@@ -53,7 +60,7 @@ public:
     vector<vector<aby2_share>>m_train_aby2_share_vec;
     vector<vector<aby2_share>>m_test_aby2_share_vec;
 
-    vector< Z2<K> >m_ESD_vec;
+    vector< array<Z2<K>,2> >m_ESD_vec;
 
     vector<vector< Z2<K> > >m_Train_Triples_0;  //P0 : num_train_data * num_features 个随机数，用于aby2 share
     vector<vector< Z2<K> > >m_Train_Triples_1;  //P1 : num_train_data * num_features 个随机数，用于aby2 share
@@ -61,6 +68,7 @@ public:
     vector< Z2<K> > m_Test_Triples_P0;
     vector< Z2<K> > m_Test_Triples_P1;
     Z2<K> reveal_one_num_to(Z2<K> x,int playerID);
+    SignedZ2<K> reveal_one_num_to(SignedZ2<K> x,int playerID);
     void generate_triples_save_file();
     void load_triples();
 
@@ -80,6 +88,10 @@ public:
     Z2<K> compute_ESD_two_sample(int idx_of_sample,int idx_of_test);
     void compute_ESD_for_one_query(int idx_of_test);
     void compare_in_vec(vector<Z2<K>>&shares,vector<Z2<K>>&compare_res);
+    void compare_in_vec(vector<Z2<K>>&shares,const vector<int>compare_idx,vector<Z2<K>>&compare_res);
+    void compare_in_vec(vector<array<Z2<K>,2>>&shares,const vector<int>compare_idx,vector<Z2<K>>&compare_res);
+    void top_1_optimized(vector<array<Z2<K>,2>>&shares,int size_now,int start_idx);
+    Z2<K> secure_compare(Z2<K>x1,Z2<K>x2);
 
     vector<octetStream>data_send;
     vector<octetStream> data_receive;
@@ -377,6 +389,23 @@ Z2<K> KNN_party::reveal_one_num_to(Z2<K> x,int playerID)
         return x;
     }
 }
+SignedZ2<K> KNN_party::reveal_one_num_to(SignedZ2<K> x,int playerID)
+{
+    octetStream os;
+    if(playerno==playerID)
+    {
+        m_player->receive(os);
+        SignedZ2<K>tmp;
+        tmp.unpack(os);
+        return tmp+x;
+    }
+    else
+    {
+        x.pack(os);
+        m_player->send(os);
+        return x;
+    }
+}
 
 void KNN_party::run()
 {
@@ -387,55 +416,83 @@ void KNN_party::run()
     // rand_seed_set_up();
     // generate_triples_save_file();//这个函数必须独立运行，不能和后续load_triple一起使用。
     // cout<<"\n generate_triples_save_file success!"<<endl;
-    // load_triples();
-    //  aby2_share_data();
-
-    vector<Z2<K>>X,Y;
-    for(int i=0;i<10;i++)
-    {
-        X.push_back(Z2<K>(std::rand() % 100));
-        Y.push_back(Z2<K>(0));
-    }
-    vector<Z2<K>>compare_res(5);
-    vector<Z2<K>>compare_res_align(10);
 
 
-
-
+    load_triples();
+    aby2_share_data();
+    vector<Z2<K>>shared_label_list;
+    shared_label_list.push_back(Z2<K>(0));
+    shared_label_list.push_back(Z2<K>(10));
+    vector<aray<Z2<K>,2>>shared_label_list_count(shared_label_list.size());
+    
+  /*test code*/
+    // vector<Z2<K>>X,Y;
+    // for(int i=0;i<10;i++)
+    // {
+    //     X.push_back(Z2<K>(std::rand() % 100));
+    //     Y.push_back(Z2<K>(0));
+    // }
+    // X[0]=Z2<K>(23);
+    //  X[1]=Z2<K>(22);
+    // //  X[9]=Z2<K>(-1);
     if(playerno==0)
     {        
         timer.start(m_player->total_comm());
 
-        vector<Z2<K>>res(4);
-
-        // aby2_share_reveal(0,true);
-        // aby2_share_reveal(0,false);
-
+        additive_share_data_vec(shared_label_list_count,shared_label_list);
+        
         // gen_fake_dcf(1,K);
-        // compute_ESD_for_one_query(0);
-
-
-        vector<Z2<K>>share_X(X.size());
-        vector<Z2<K>>share_Y(Y.size());
-        vector<Z2<K>>share_Z(X.size());
-
-        additive_share_data_vec(share_X,X);
-        // additive_share_data_vec(share_Y);
-        for(int i=0;i<X.size();i++)
-            std::cout<< reveal_one_num_to(share_X[i],0)<<" " ;
-        std::cout<<endl;
-
-        compare_in_vec(share_X,compare_res);
-        for(int i=0;i<compare_res.size();i++)
-            std::cout<< reveal_one_num_to(compare_res[i],0)<<" " ;
-        std::cout<<endl;
-
-        for(int i=0;i<5;i++){
-            compare_res_align[2*i]=compare_res[i];
-            compare_res_align[2*i+1]=compare_res[i];
+        compute_ESD_for_one_query(0);
+        /*test code for m_ESD_vec*/
+        for(int i=0;i<num_train_data;i++)
+            std::cout<< reveal_one_num_to(m_ESD_vec[i][0],0)<<"   " <<reveal_one_num_to(m_ESD_vec[i][1],0)<<endl;
+        for(int i=0;i<k_const;i++)
+        {
+            top_1_optimized(m_ESD_vec,num_train_data-i,0);
         }
-        mul_vector_additive(share_X,compare_res_align,share_Y);
-        SS_vec(share_X,share_Y,share_Z);
+        vector<Z2<K>>shares_selected_k;
+        
+
+        // for(int i=0;i<num_train_data;i++)
+        //     std::cout<< reveal_one_num_to(m_ESD_vec[i][0],1)<<"   " <<reveal_one_num_to(m_ESD_vec[i][1],1)<<endl;
+
+        for(int i=0;i<k_const;i++)shares_selected_k.push_back(m_ESD_vec[m_ESD_vec.size()-1-i][1]);
+
+
+        secure_frequency(shares_selected_k,shared_label_list,shared_label_list_count);
+        for(int i=0;i<shared_label_list_count.size()-1;i++)
+            SS_scalar(shares_selected_k,i,shared_label_list_count.size()-1);
+        std::cout<<"\n最终结果: "<< reveal_one_num_to(shared_label_list_count[shared_label_list_count.size()-1],0)<<endl;        
+
+        // vector<Z2<K>>share_X(X.size());
+        // additive_share_data_vec(share_X,X);
+        // // cout<< reveal_one_num_to(Z2<K>(evaluate(share_X[9]+alpha_share,K,0)),0)<<" "<<endl ;
+        // for(int i=0;i<(int)X.size();i++)
+        //     std::cout<< reveal_one_num_to(share_X[i],0)<<" " ;
+        // std::cout<<endl;     
+        // secure_compare(share_X[0],share_X[1]);
+        // secure_compare(share_X[1],share_X[0]);
+        // secure_compare(share_X[0],share_X[2]);
+        // secure_compare(share_X[0],share_X[3]);
+        // secure_compare(share_X[0],share_X[0]);
+        // top_1_optimized(share_X,share_X.size(),0);
+        // top_1_optimized(share_X,share_X.size()-1,0);
+
+        //  for(int i=0;i<(int)X.size();i++)
+        //     cout<< reveal_one_num_to(share_X[i],0)<<" " ;
+        // cout<<endl;
+
+        // compare_in_vec(share_X,compare_res);
+        // for(int i=0;i<compare_res.size();i++)
+        //     std::cout<< reveal_one_num_to(compare_res[i],0)<<" " ;
+        // std::cout<<endl;
+
+        // for(int i=0;i<5;i++){
+        //     compare_res_align[2*i]=compare_res[i];
+        //     compare_res_align[2*i+1]=compare_res[i];
+        // }
+        // mul_vector_additive(share_X,compare_res_align,share_Y);
+        // SS_vec(share_X,share_Y,share_Z);
 
 
 
@@ -447,10 +504,6 @@ void KNN_party::run()
 
         // mul_vector_additive(share_X,share_Y,share_Z);
 
-        for(int i=0;i<X.size();i++)
-            cout<< reveal_one_num_to(share_Z[i],0)<<" " ;
-        cout<<endl;
-
         timer.stop(m_player->total_comm());
         std::cout << "Client total time = " << timer.elapsed() << " seconds" << std::endl;
         std::cout << "Client Data sent = " << timer.mb_sent() << " MB"<<std::endl;
@@ -459,58 +512,80 @@ void KNN_party::run()
     {
         timer.start(m_player->total_comm());
 
-        // aby2_share_reveal(0,true);
-        // aby2_share_reveal(0,false);
-        // compute_ESD_for_one_query(0);
-        // vector<Z2<K>>res(4);
-        // res[0]=Z2<K>(evaluate(-5,K,1));
-        // res[1]=Z2<K>(evaluate(5,K,1));
-        // res[2]=Z2<K>(evaluate(3,K,1));
-        // res[3]=Z2<K>(evaluate(0,K,1));
-        // for(int i=0;i<4;i++)
-        // {
-        //     cout<< reveal_one_num_to(res[i],0)<<" " ;
-        // }
-        
-        vector<Z2<K>>share_X(X.size());
-        vector<Z2<K>>share_Y(Y.size());
-        vector<Z2<K>>share_Z(X.size());
+        additive_share_data_vec(shared_label_list_count);
 
-        additive_share_data_vec(share_X);
-        
-        // additive_share_data_vec(share_Y,Y);
+        compute_ESD_for_one_query(0);
+        for(int i=0;i<num_train_data;i++)
+            std::cout<< reveal_one_num_to(m_ESD_vec[i][0],0)<<"   " <<reveal_one_num_to(m_ESD_vec[i][1],0)<<endl;
 
-        for(int i=0;i<X.size();i++)
-            reveal_one_num_to(share_X[i],0);
-
-         compare_in_vec(share_X,compare_res);
-
-         for(int i=0;i<compare_res.size();i++)
-            reveal_one_num_to(compare_res[i],0);
-        
-        for(int i=0;i<5;i++){
-            compare_res_align[2*i]=compare_res[i];
-            compare_res_align[2*i+1]=compare_res[i];
+        for(int i=0;i<k_const;i++)
+        {
+            top_1_optimized(m_ESD_vec,num_train_data-i,0);
         }
 
-        mul_vector_additive(share_X,compare_res_align,share_Y);
-
-        SS_vec(share_X,share_Y,share_Z);
-
-
-
+        // for(int i=0;i<num_train_data;i++)
+        //     std::cout<< reveal_one_num_to(m_ESD_vec[i][0],1)<<"   " <<reveal_one_num_to(m_ESD_vec[i][1],1)<<endl;
+        
+        vector<Z2<K>>shares_selected_k;
         
 
+        // for(int i=0;i<num_train_data;i++)
+        //     std::cout<< reveal_one_num_to(m_ESD_vec[i][0],1)<<"   " <<reveal_one_num_to(m_ESD_vec[i][1],1)<<endl;
+
+        for(int i=0;i<k_const;i++)shares_selected_k.push_back(m_ESD_vec[m_ESD_vec.size()-1-i][1]);
+
+
+        secure_frequency(shares_selected_k,shared_label_list,shared_label_list_count);
+        for(int i=0;i<shared_label_list_count.size()-1;i--)
+            SS_scalar(shares_selected_k,i,shared_label_list_count.size()-1);
+        std::cout<<"\n最终结果: "<< reveal_one_num_to(shared_label_list_count[shared_label_list_count.size()-1],0)<<endl;
+
+
+        // aby2_share_reveal(0,true);
+        // aby2_share_reveal(0,false);
+        
+       
+        
+        // vector<Z2<K>>share_X(X.size());
+       
+
+        // additive_share_data_vec(share_X);
+        // // cout<< reveal_one_num_to(Z2<K>(evaluate(Z2<K>(-1)+alpha_share,K,1)),0)<<" "<<endl ;
+        
+
+        // for(int i=0;i<(int)X.size();i++)
+        //     reveal_one_num_to(share_X[i],0);
+        // secure_compare(share_X[0],share_X[1]);
+        // secure_compare(share_X[1],share_X[0]);
+        // secure_compare(share_X[0],share_X[2]);
+        // secure_compare(share_X[0],share_X[3]);
+        // secure_compare(share_X[0],share_X[0]);
+
+        // top_1_optimized(share_X,share_X.size(),0);
+        // top_1_optimized(share_X,share_X.size()-1,0);
+
+        //  for(int i=0;i<(int)X.size();i++)
+        //     reveal_one_num_to(share_X[i],0);
+
+
+        //  compare_in_vec(share_X,compare_res);
+
+        //  for(int i=0;i<compare_res.size();i++)
+        //     reveal_one_num_to(compare_res[i],0);
+        
+        // for(int i=0;i<5;i++){
+        //     compare_res_align[2*i]=compare_res[i];
+        //     compare_res_align[2*i+1]=compare_res[i];
+        // }
+
+        // mul_vector_additive(share_X,compare_res_align,share_Y);
+
+        // SS_vec(share_X,share_Y,share_Z);
 
         // for(int i=0;i<X.size();i++)
         //     reveal_one_num_to(share_Y[i],0);
 
         // mul_vector_additive(share_X,share_Y,share_Z);
-
-        
-
-        for(int i=0;i<X.size();i++)
-            reveal_one_num_to(share_Z[i],0);
 
         
         timer.stop(m_player->total_comm());
@@ -520,7 +595,284 @@ void KNN_party::run()
 
 }
 
-void KNN_party::compare_in_vec(vector<Z2<K>>&shares,vector<Z2<K>>&compare_res)
+Z2<K> KNN_party::secure_compare(Z2<K>x1,Z2<K>x2)
+{
+    // cout<<x1<<" "<<x2<<endl;
+    bigint r_tmp;
+    fstream r;
+    r.open("Player-Data/2-fss/r" + to_string(this->playerno), ios::in);
+    r >> r_tmp;
+    r.close();
+    SignedZ2<K>alpha_share=(SignedZ2<K>)r_tmp;
+    SignedZ2<K>revealed=SignedZ2<K>(x1)-SignedZ2<K>(x2)+alpha_share;
+    
+    octetStream send_os,receive_os;
+    revealed.pack(send_os);
+    player->send(send_os);
+    player->receive(receive_os);
+    SignedZ2<K>ttmp;
+    ttmp.unpack(receive_os);
+    revealed+=ttmp;
+
+    bigint dcf_res_u, dcf_res_v, dcf_res, dcf_res_reveal;
+    SignedZ2<K> dcf_u,dcf_v;
+    dcf_res_u = evaluate(revealed, K,this->playerno);
+    revealed += 1LL<<(K-1);
+    dcf_res_v = evaluate(revealed, K,this->playerno);
+    auto size = dcf_res_u.get_mpz_t()->_mp_size;
+    mpn_copyi((mp_limb_t*)dcf_u.get_ptr(), dcf_res_u.get_mpz_t()->_mp_d, abs(size));
+    if(size < 0)
+        dcf_u = -dcf_u;
+    size = dcf_res_v.get_mpz_t()->_mp_size;
+    mpn_copyi((mp_limb_t*)dcf_v.get_ptr(), dcf_res_v.get_mpz_t()->_mp_d, abs(size));
+    if(size < 0)
+        dcf_v = -dcf_v;
+    if(revealed.get_bit(K-1)){
+        r_tmp = dcf_v - dcf_u + this->playerno;
+    }
+    else{
+        r_tmp = dcf_v - dcf_u;
+    }
+    SignedZ2<K>res=SignedZ2<K>(this->playerno)-r_tmp;
+    std::cout<<"revealed SC:"<<reveal_one_num_to(Z2<K>(res),0)<<std::endl;
+    return Z2<K>(res);
+
+}
+
+void KNN_party::compare_in_vec(vector<Z2<K>>&shares,const vector<int>compare_idx_vec,vector<Z2<K>>&compare_res)
+{
+    assert(compare_idx_vec.size()&&compare_idx_vec.size()==compare_res.size());
+    bigint r_tmp;
+    fstream r;
+    r.open("Player-Data/2-fss/r" + to_string(this->playerno), ios::in);
+    r >> r_tmp;
+    r.close();
+    SignedZ2<K>alpha_share=(SignedZ2<K>)r_tmp;
+    // cout<<"\n bigint:"<<r_tmp<<"  Z2<K>: " << alpha_share<<endl;
+    int size_res=compare_idx_vec.size()/2;
+    vector<SignedZ2<K>>compare_res_t(compare_res.size());
+    for(int i=0;i<size_res;i++)
+    {
+        compare_res_t[i]=SignedZ2<K>(shares[compare_idx_vec[2*i+1]])-SignedZ2<K>(shares[compare_idx_vec[2*i]])+alpha_share;
+        //  cout<<reveal_one_num_to(shares[compare_idx_vec[2*i]],0)<<" "<<reveal_one_num_to(shares[compare_idx_vec[2*i+1]],0)<<endl;
+    }
+    // cout<<endl;
+       
+    vector<SignedZ2<K>>tmp_res(size_res);
+
+    octetStream send_os,receive_os;
+    for(int i=0;i<size_res;i++)compare_res_t[i].pack(send_os);
+    player->send(send_os);
+    player->receive(receive_os);
+    for(int i=0;i<size_res;i++)
+    {
+        SignedZ2<K>ttmp;
+        ttmp.unpack(receive_os);
+        tmp_res[i]=compare_res_t[i]+ttmp;
+    }
+
+    for(int i=0;i<size_res;i++)
+    {
+        bigint dcf_res_u, dcf_res_v, dcf_res, dcf_res_reveal;
+        SignedZ2<K> dcf_u,dcf_v;
+        dcf_res_u = evaluate(tmp_res[i], K,this->playerno);
+        tmp_res[i] += 1LL<<(K-1);
+        dcf_res_v = evaluate(tmp_res[i], K,this->playerno);
+        auto size = dcf_res_u.get_mpz_t()->_mp_size;
+        mpn_copyi((mp_limb_t*)dcf_u.get_ptr(), dcf_res_u.get_mpz_t()->_mp_d, abs(size));
+        if(size < 0)
+            dcf_u = -dcf_u;
+        size = dcf_res_v.get_mpz_t()->_mp_size;
+        mpn_copyi((mp_limb_t*)dcf_v.get_ptr(), dcf_res_v.get_mpz_t()->_mp_d, abs(size));
+        if(size < 0)
+            dcf_v = -dcf_v;
+        if(tmp_res[i].get_bit(K-1)){
+            r_tmp = dcf_v - dcf_u + this->playerno;
+        }
+        else{
+            r_tmp = dcf_v - dcf_u;
+        }
+        compare_res[2*i]=SignedZ2<K>(this->playerno)-r_tmp;
+
+        // compare_res[2*i]=evaluate(tmp_res[i],K,this->playerno);
+        compare_res[2*i+1]=compare_res[2*i];//重复一次   
+    }
+
+}
+void KNN_party::compare_in_vec(vector<array<Z2<K>,2>>&shares,const vector<int>compare_idx_vec,vector<Z2<K>>&compare_res)
+{
+    assert(compare_idx_vec.size()&&compare_idx_vec.size()==compare_res.size());
+    bigint r_tmp;
+    fstream r;
+    r.open("Player-Data/2-fss/r" + to_string(this->playerno), ios::in);
+    r >> r_tmp;
+    r.close();
+    SignedZ2<K>alpha_share=(SignedZ2<K>)r_tmp;
+    // cout<<"\n bigint:"<<r_tmp<<"  Z2<K>: " << alpha_share<<endl;
+    int size_res=compare_idx_vec.size()/2;
+    vector<SignedZ2<K>>compare_res_t(compare_res.size());
+    for(int i=0;i<size_res;i++)
+    {
+        compare_res_t[i]=SignedZ2<K>(shares[compare_idx_vec[2*i+1]][0])-SignedZ2<K>(shares[compare_idx_vec[2*i]][0])+alpha_share;
+        //  cout<<reveal_one_num_to(shares[compare_idx_vec[2*i]],0)<<" "<<reveal_one_num_to(shares[compare_idx_vec[2*i+1]],0)<<endl;
+    }
+    // cout<<endl;
+       
+    vector<SignedZ2<K>>tmp_res(size_res);
+
+    octetStream send_os,receive_os;
+    for(int i=0;i<size_res;i++)compare_res_t[i].pack(send_os);
+    player->send(send_os);
+    player->receive(receive_os);
+    for(int i=0;i<size_res;i++)
+    {
+        SignedZ2<K>ttmp;
+        ttmp.unpack(receive_os);
+        tmp_res[i]=compare_res_t[i]+ttmp;
+    }
+
+    for(int i=0;i<size_res;i++)
+    {
+        bigint dcf_res_u, dcf_res_v, dcf_res, dcf_res_reveal;
+        SignedZ2<K> dcf_u,dcf_v;
+        dcf_res_u = evaluate(tmp_res[i], K,this->playerno);
+        tmp_res[i] += 1LL<<(K-1);
+        dcf_res_v = evaluate(tmp_res[i], K,this->playerno);
+        auto size = dcf_res_u.get_mpz_t()->_mp_size;
+        mpn_copyi((mp_limb_t*)dcf_u.get_ptr(), dcf_res_u.get_mpz_t()->_mp_d, abs(size));
+        if(size < 0)
+            dcf_u = -dcf_u;
+        size = dcf_res_v.get_mpz_t()->_mp_size;
+        mpn_copyi((mp_limb_t*)dcf_v.get_ptr(), dcf_res_v.get_mpz_t()->_mp_d, abs(size));
+        if(size < 0)
+            dcf_v = -dcf_v;
+        if(tmp_res[i].get_bit(K-1)){
+            r_tmp = dcf_v - dcf_u + this->playerno;
+        }
+        else{
+            r_tmp = dcf_v - dcf_u;
+        }
+        compare_res[2*i]=SignedZ2<K>(this->playerno)-r_tmp;
+
+        // compare_res[2*i]=evaluate(tmp_res[i],K,this->playerno);
+        compare_res[2*i+1]=compare_res[2*i];//重复一次   
+    }
+
+}
+void KNN_party::top_1_optimized(vector<array<Z2<K>,2>>&shares,int size_now,int start_idx)
+{
+    if(size_now<2)return;
+    int n=size_now;
+    int itera_num=0;
+    while(n/2){
+        n=n/2;
+        itera_num++;
+    };
+    vector<int>compare_idx_vec;
+    int offset=1;
+    for(int i=0;i<itera_num;i++)
+    {
+        compare_idx_vec.clear();
+        int tmp_idx=start_idx+ offset-1;
+        while(tmp_idx< (1<<itera_num) )
+        {
+            compare_idx_vec.push_back(tmp_idx);
+            tmp_idx+=offset;
+        }
+        vector<Z2<K>>compare_res(compare_idx_vec.size());
+        compare_in_vec(shares,compare_idx_vec,compare_res);
+        // cout<<"比较结果："<<endl;
+        // for(int i=0;i<(int)compare_res.size();i++)
+        //     cout<< reveal_one_num_to(compare_res[i],0)<<" " ;
+        // cout<<endl;
+        // for(int i=0;i<(int)compare_res.size();i++)
+        //     cout<< reveal_one_num_to(shares[compare_idx_vec[i]],0)<<" " ;
+        // cout<<endl;
+        SS_vec(shares,compare_idx_vec,compare_res);
+        // for(int i=0;i<(int)shares.size();i++)
+        //     cout<< reveal_one_num_to(shares[i],0)<<" " ;
+        // cout<<endl;
+        offset=offset<<1;
+    }
+    // if(n>=2)
+    //     top_1_optimized(shares,n,start_idx+(1<<itera_num)-1);
+    if(n)
+    {
+        for(int i=size_now-2;i>=(1<<itera_num)-1;i--)
+            SS_scalar(shares,i,size_now-1);
+    }
+    
+
+     
+}
+void SS_scalar(vector<array<Z2<K>,2>>&shares,int first_idx,int second_idx)
+{
+    Z2<K>u=secure_compare(shares[first_idx][0],shares[second_idx][0]);
+    Z2<K>y1,y2;
+    mul_additive(u,shares[first_idx][0],y1);
+    mul_additive(u,shares[second_idx][0],y2);
+    shares[first_idx][0]=shares[first_idx][0]-y1+y2;
+    shares[second_idx][0]=shares[second_idx][0]+y1-y2;
+
+    mul_additive(u,shares[first_idx][1],y1);
+    mul_additive(u,shares[second_idx][1],y2);
+    shares[first_idx][1]=shares[first_idx][1]-y1+y2;
+    shares[second_idx][1]=shares[second_idx][1]+y1-y2;
+}
+void SS_scalar(vector<Z2<K>>&shares,int first_idx,int second_idx)
+{
+    Z2<K>u=secure_compare(shares[first_idx],shares[second_idx]);
+    Z2<K>y1,y2;
+    mul_additive(u,shares[first_idx],y1);
+    mul_additive(u,shares[second_idx],y2);
+    shares[first_idx]=shares[first_idx]-y1+y2;
+    shares[second_idx]=shares[second_idx]+y1-y2;
+
+}
+void SS_vec( vector<Z2<K>>&shares,const vector<int>compare_idx_vec,const vector<Z2<K>>compare_res)
+{
+    assert(compare_idx_vec.size()&&compare_idx_vec.size()==compare_res.size());
+    int size_of_cur_cmp=compare_idx_vec.size();
+    vector<Z2<K>>tmp_ss;
+    for(int i=0;i<size_of_cur_cmp;i++)tmp_ss.push_back(shares[compare_idx_vec[i]]);
+    vector<Z2<K>>tmp_res(size_of_cur_cmp);
+    mul_vector_additive(tmp_ss,compare_res,tmp_res,false);
+    for(int i=0;i<size_of_cur_cmp/2;i++)
+    {
+        tmp_ss[2*i]=tmp_ss[2*i]-tmp_res[2*i]+tmp_res[2*i+1];
+        tmp_ss[2*i+1]=tmp_ss[2*i+1] + tmp_res[2*i]-tmp_res[2*i+1];
+    }
+    for(int i=0;i<size_of_cur_cmp;i++)shares[compare_idx_vec[i]]=tmp_ss[i];
+}
+
+
+void SS_vec( vector<array<Z2<K>,2>>&shares,const vector<int>compare_idx_vec,const vector<Z2<K>>compare_res)
+{
+    assert(compare_idx_vec.size()&&compare_idx_vec.size()==compare_res.size());
+    int size_of_cur_cmp=compare_idx_vec.size();
+    vector<Z2<K>>tmp_ss;
+    for(int i=0;i<size_of_cur_cmp;i++)tmp_ss.push_back(shares[compare_idx_vec[i]][0]);
+    for(int i=0;i<size_of_cur_cmp;i++)tmp_ss.push_back(shares[compare_idx_vec[i]][1]);
+    vector<Z2<K>>tmp_res(size_of_cur_cmp*2);//前半部分存储x乘法值，后半部分存储label的乘法值
+    mul_vector_additive(tmp_ss,compare_res,tmp_res,true);
+    for(int i=0;i<size_of_cur_cmp/2;i++)
+    {
+        tmp_ss[2*i]=tmp_ss[2*i]-tmp_res[2*i]+tmp_res[2*i+1];
+        tmp_ss[2*i+1]=tmp_ss[2*i+1] + tmp_res[2*i]-tmp_res[2*i+1];
+    }
+    for(int i=0;i<size_of_cur_cmp;i++)shares[compare_idx_vec[i]][0]=tmp_ss[i];
+
+    for(int i=0;i<size_of_cur_cmp/2;i++)//tmp_ss存储shares中根据compare_idx_vec整合起来的值，tmp_res存储比较的结果,两个都是双倍比较结果长度
+    {
+        tmp_ss[2*i+size_of_cur_cmp]=tmp_ss[2*i+size_of_cur_cmp]-tmp_res[2*i+size_of_cur_cmp]+tmp_res[2*i+1+size_of_cur_cmp];
+        tmp_ss[2*i+1+size_of_cur_cmp]=tmp_ss[2*i+1+size_of_cur_cmp] + tmp_res[2*i+size_of_cur_cmp]-tmp_res[2*i+1+size_of_cur_cmp];
+    }
+    for(int i=0;i<size_of_cur_cmp;i++)shares[compare_idx_vec[i]][1]=tmp_ss[i+size_of_cur_cmp];
+}
+
+
+
+void KNN_party::compare_in_vec(vector<Z2<K>>&shares,vector<Z2<K>>&compare_res)//错误的实现，不要用
 {
     bigint r_tmp;
     fstream r;
@@ -550,13 +902,24 @@ void KNN_party::compare_in_vec(vector<Z2<K>>&shares,vector<Z2<K>>&compare_res)
 
 
 
+
 void KNN_party::compute_ESD_for_one_query(int idx_of_test)
 {
     m_ESD_vec.resize(num_train_data);
     for(int i=0;i<num_train_data;i++)
     {
-        m_ESD_vec[i]=compute_ESD_two_sample(i,idx_of_test);
+        m_ESD_vec[i][0]=compute_ESD_two_sample(i,idx_of_test);
+        if(playerno==0)
+        {
+            m_ESD_vec[i][1]=Z2<K>(m_sample[i]->label) -m_Train_Triples_1[i][0];
+        }
+        else
+        {
+            m_ESD_vec[i][1]=m_Train_Triples_1[i][0];
+        }
     }
+    
+
 }
 
 void KNN_party::read_meta_and_P0_sample_P1_query()
@@ -747,7 +1110,7 @@ void KNN_party::additive_share_data_vec(vector<Z2<K>>&shares,vector<Z2<K>>data_v
     octetStream os;
     PRNG prng;
     prng.ReSeed();
-    for(int i=0;i<data_vec.size();i++)
+    for(int i=0;i<(int)data_vec.size();i++)
     {
         shares[i].randomize(prng);
         shares[i].pack(os);
@@ -760,7 +1123,8 @@ void KNN_party::additive_share_data_vec(vector<Z2<K>>&shares)
 {
     octetStream os;
     player->receive(os);
-    for(int i=0;i<shares.size();i++)
+    int size_of_share=shares.size();
+    for(int i=0;i<size_of_share;i++)
         shares[i].unpack(os);
 }
 
@@ -833,27 +1197,30 @@ void test_Z2()
     cout<<b<<endl;
      std::vector<Z2<64>> tt(10);
     for (int i = 0; i < 10; i++) tt[i] = Z2<64>(i); // 仅初始化10个元素
+    SignedZ2<K>c=a-b;
+    cout<<SignedZ2<K>(a)<<endl;
+    cout<<c<<endl;
 
-    std::ofstream f1("test_file_0", std::ios::binary);
-    for (auto& element : tt) {
-        // f1.write(reinterpret_cast<char*>(&element), sizeof(Z2<64>));
-        f1<<(bigint)element<<" ";
-    }
-    f1.close();
+    // std::ofstream f1("test_file_0", std::ios::binary);
+    // for (auto& element : tt) {
+    //     // f1.write(reinterpret_cast<char*>(&element), sizeof(Z2<64>));
+    //     f1<<(bigint)element<<" ";
+    // }
+    // f1.close();
 
-    std::vector<Z2<K>> vec(10); // 只需要10个元素
-    std::ifstream f2("test_file_0", std::ios::binary);
-    bigint tmp;
-    for (auto& element : vec) {
-        // f2.read(reinterpret_cast<char*>(&element), sizeof(Z2<64>));
-        f2>>tmp;
-        element=tmp;
-    }
-    f2.close();
+    // std::vector<Z2<K>> vec(10); // 只需要10个元素
+    // std::ifstream f2("test_file_0", std::ios::binary);
+    // bigint tmp;
+    // for (auto& element : vec) {
+    //     // f2.read(reinterpret_cast<char*>(&element), sizeof(Z2<64>));
+    //     f2>>tmp;
+    //     element=tmp;
+    // }
+    // f2.close();
 
-    for (int i = 0; i < 10; i++)
-        std::cout << vec[i] << "   ";
-    std::cout << std::endl;
+    // for (int i = 0; i < 10; i++)
+    //     std::cout << vec[i] << "   ";
+    // std::cout << std::endl;
 
     cout<<endl;
 
@@ -930,7 +1297,7 @@ void gen_fake_dcf(int beta, int n)
     //We can optimize keep into one bit here
     // generate the correlated word!
     for(int i = 0; i < n - 1; i++){
-        keep = bigint(a >> n - i - 1).get_ui() & 1;
+        keep = bigint(a >>( n - i - 1)).get_ui() & 1;
         lose = 1^keep;
         for(int j = 0; j < 2; j++){     
             prng.SetSeed(seed[j]);
@@ -1036,36 +1403,115 @@ bigint evaluate(Z2<K> x, int n,int playerID)
 }
 
 
-void mul_vector_additive( vector<Z2<K>>v1 , vector<Z2<K>>v2 , vector<Z2<K>>&res)
+void mul_additive(Z2<K>x1,Z2<K>x2,Z2<K>&res)
 {
-    assert(v1.size()==v2.size());
     Z2<K>a(0),b(0),c(0);
     octetStream send_os,receive_os;
-    for(int i=0;i<v1.size();i++)
-    {
-        (v1[i]-a).pack(send_os);
-        (v2[i]-b).pack(send_os);
-    }
+    (x1-a).pack(send_os);
+    (x2-b).pack(send_os);
     player->send(send_os);
     player->receive(receive_os);
-    vector<Z2<K>>tmp(v1.size()*2);
-    for(int i=0;i<v1.size();i++)
-    {
-        tmp[2*i].unpack(receive_os);
-        tmp[2*i+1].unpack(receive_os);
-        tmp[2*i]=tmp[2*i]+v1[i]-a;
-        tmp[2*i+1]= tmp[2*i+1]+v2[i]-b;
-    }
-    for(int i=0;i<v1.size();i++)
-    {   
-        Z2<K>e=tmp[2*i];
-        Z2<K>f=tmp[2*i+1];
-        Z2<K>r=f*a+e*b+c;;
-        if(player->my_num())
-            r=r+e*f;
-        res[i]=r;
-    }
+    Z2<K>tmp_e,tmp_f;
+    tmp_e.unpack(receive_os);
+    tmp_f.unpack(receive_os);
+
+    Z2<K>e=tmp_e+x1-a;
+    Z2<K>f=tmp_f+x2-b;
+    Z2<K>r=f*a+e*b+c;;
+    if(player->my_num())
+        r=r+e*f;
+    res=r;
 }
+
+void mul_vector_additive( vector<Z2<K>>v1 , vector<Z2<K>>v2 , vector<Z2<K>>&res , bool double_res)
+{
+    if(double_res)
+    {
+        assert(v1.size()==v2.size()*2&&v1.size()==res.size());
+        Z2<K>a(0),b(0),c(0);
+        octetStream send_os,receive_os;
+        int half_size=v2.size();
+        for(int i=0;i<half_size;i++)
+        {
+            (v1[i]-a).pack(send_os);
+            (v2[i]-b).pack(send_os);
+        }
+        for(int i=0;i<half_size;i++)
+        {
+            (v1[i+half_size]-a).pack(send_os);
+            (v2[i]-b).pack(send_os);
+        }
+        player->send(send_os);
+        player->receive(receive_os);
+        vector<Z2<K>>tmp(v1.size()*2);
+        for(int i=0;i<half_size;i++)
+        {
+            tmp[2*i].unpack(receive_os);
+            tmp[2*i+1].unpack(receive_os);
+            tmp[2*i]=tmp[2*i]+v1[i]-a;
+            tmp[2*i+1]= tmp[2*i+1]+v2[i]-b;
+        }
+        for(int i=0;i<half_size;i++)
+        {   
+            Z2<K>e=tmp[2*i];
+            Z2<K>f=tmp[2*i+1];
+            Z2<K>r=f*a+e*b+c;;
+            if(player->my_num())
+                r=r+e*f;
+            res[i]=r;
+        }
+
+        for(int i=0;i<half_size;i++)
+        {
+            tmp[2*i].unpack(receive_os);
+            tmp[2*i+1].unpack(receive_os);
+            tmp[2*i]=tmp[2*i]+v1[i+half_size]-a;
+            tmp[2*i+1]= tmp[2*i+1]+v2[i]-b;
+        }
+        for(int i=0;i<half_size;i++)
+        {   
+            Z2<K>e=tmp[2*i];
+            Z2<K>f=tmp[2*i+1];
+            Z2<K>r=f*a+e*b+c;;
+            if(player->my_num())
+                r=r+e*f;
+            res[i+half_size]=r;
+        }
+
+
+    }
+    else{
+        assert(v1.size()==v2.size());
+        Z2<K>a(0),b(0),c(0);
+        octetStream send_os,receive_os;
+        for(int i=0;i<(int)v1.size();i++)
+        {
+            (v1[i]-a).pack(send_os);
+            (v2[i]-b).pack(send_os);
+        }
+        player->send(send_os);
+        player->receive(receive_os);
+        vector<Z2<K>>tmp(v1.size()*2);
+        for(int i=0;i<(int)v1.size();i++)
+        {
+            tmp[2*i].unpack(receive_os);
+            tmp[2*i+1].unpack(receive_os);
+            tmp[2*i]=tmp[2*i]+v1[i]-a;
+            tmp[2*i+1]= tmp[2*i+1]+v2[i]-b;
+        }
+        for(int i=0;i<(int)v1.size();i++)
+        {   
+            Z2<K>e=tmp[2*i];
+            Z2<K>f=tmp[2*i+1];
+            Z2<K>r=f*a+e*b+c;;
+            if(player->my_num())
+                r=r+e*f;
+            res[i]=r;
+        }
+    }
+    
+}
+
 
 void SS_vec( vector<Z2<K>>X , vector<Z2<K>>v2 , vector<Z2<K>>&res)
 {
@@ -1075,4 +1521,65 @@ void SS_vec( vector<Z2<K>>X , vector<Z2<K>>v2 , vector<Z2<K>>&res)
         res[2*i]=X[2*i]-v2[2*i]+v2[2*i+1];
         res[2*i+1]=v2[2*i]+X[2*i+1]-v2[2*i+1];
     }
+}
+
+Z2<K> secure_compare(Z2<K>x1,Z2<K>x2)
+{
+    // cout<<x1<<" "<<x2<<endl;
+    bigint r_tmp;
+    fstream r;
+    r.open("Player-Data/2-fss/r" + to_string(player->my_num()), ios::in);
+    r >> r_tmp;
+    r.close();
+    SignedZ2<K>alpha_share=(SignedZ2<K>)r_tmp;
+    SignedZ2<K>revealed=SignedZ2<K>(x2)-SignedZ2<K>(x1)+alpha_share;
+    
+    octetStream send_os,receive_os;
+    revealed.pack(send_os);
+    player->send(send_os);
+    player->receive(receive_os);
+    SignedZ2<K>ttmp;
+    ttmp.unpack(receive_os);
+    revealed+=ttmp;
+
+    bigint dcf_res_u, dcf_res_v, dcf_res, dcf_res_reveal;
+    SignedZ2<K> dcf_u,dcf_v;
+    dcf_res_u = evaluate(revealed, K,player->my_num());
+    revealed += 1LL<<(K-1);
+    dcf_res_v = evaluate(revealed, K,player->my_num());
+    auto size = dcf_res_u.get_mpz_t()->_mp_size;
+    mpn_copyi((mp_limb_t*)dcf_u.get_ptr(), dcf_res_u.get_mpz_t()->_mp_d, abs(size));
+    if(size < 0)
+        dcf_u = -dcf_u;
+    size = dcf_res_v.get_mpz_t()->_mp_size;
+    mpn_copyi((mp_limb_t*)dcf_v.get_ptr(), dcf_res_v.get_mpz_t()->_mp_d, abs(size));
+    if(size < 0)
+        dcf_v = -dcf_v;
+    if(revealed.get_bit(K-1)){
+        r_tmp = dcf_v - dcf_u + player->my_num();
+    }
+    else{
+        r_tmp = dcf_v - dcf_u;
+    }
+    SignedZ2<K>res=SignedZ2<K>(player->my_num())-r_tmp;
+    return Z2<K>(res);
+
+}
+void secure_frequency(vector<Z2<K>>&shares_selected_k,vector<Z2<K>>label_list,vector<Z2<K>>&label_list_count)
+{
+    // std::assert(shares_selected_k.size()==k_const);
+    for(int i=0;i<label_list.size();i++)
+    {
+        Z2<K>tmp(0);
+        for(int j=0;j<k_const;j++)
+        {
+            Z2<K>u1=secure_compare(label_list[i],shares_selected_k[j]);
+            Z2<K>u2=secure_compare(shares_selected_k[j],label_list[i]);
+            Z2<K>tmp_res;
+            mul_additive(u1,u2,tmp_res);
+            tmp+=tmp_res;
+        }
+        label_list[i]=tmp;
+    }
+    
 }

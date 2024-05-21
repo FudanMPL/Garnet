@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+mak#!/usr/bin/env bash
 
 HERE=$(cd `dirname $0`; pwd)
 SPDZROOT=$HERE/..

@@ -1,16 +1,16 @@
+@buildingblock("test")
+def test(actual, expected):
 
-a = sint(10)
-k=10
-b=sint(20)
-d=a+k
-c=a+b
-x = sfix(10)
+    # you can reveal a number in order to print it
 
-e=sint.get_input_from(2)
+    actual = actual.reveal()
+    print_ln('expected %s, got %s', expected, actual)
 
-reveal_val = (x).reveal()
 
-print_ln("%s",c.reveal())
-print_ln("%s",e.reveal())
-reveal_val = (a).reveal()
-reveal_val = (b).reveal()
+
+a = sint(1)
+b = sint(2)
+c=a>b
+d=a<b
+test(a > b, 1)
+test(a < b, 1)
