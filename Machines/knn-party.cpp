@@ -16,9 +16,8 @@
 using namespace std;
 void test_Z2();
 const int K=64;//环大小
-const int k_const=5;//knn里面的k值 
+const int k_const=8;//knn里面的k值 
 
- Z2<K>random_z2("10000000000");
 int playerno;
 ez::ezOptionParser opt;
 RealTwoPartyPlayer* player;
@@ -29,11 +28,11 @@ void mul_vector_additive( vector<Z2<K>>v1 , vector<Z2<K>>v2 , vector<Z2<K>>&res 
 void mul_additive(Z2<K>x1,Z2<K>x2,Z2<K>&res);
 void SS_vec( vector<Z2<K>>X , vector<Z2<K>>Y , vector<Z2<K>>&res);
 void SS_vec( vector<Z2<K>>&shares,const vector<int>compare_idx_vec,const vector<Z2<K>>compare_res);
-void SS_scalar(vector<Z2<K>>&shares,int first_idx,int second_idx);
-void SS_scalar(vector<array<Z2<K>,2>>&shares,int first_idx,int second_idx);
+void SS_scalar(vector<Z2<K>>&shares,int first_idx,int second_idx,bool min_then_max=true);
+void SS_scalar(vector<array<Z2<K>,2>>&shares,int first_idx,int second_idx,bool min_then_max=true);
 void SS_vec( vector<array<Z2<K>,2>>&shares,const vector<int>compare_idx_vec,const vector<Z2<K>>compare_res);
-Z2<K> secure_compare(Z2<K>x1,Z2<K>x2);
-void secure_frequency(vector<Z2<K>>&shares_selected_k,vector<Z2<K>>label_list,vector<Z2<K>>&label_list_count);
+Z2<K> secure_compare(Z2<K>x1,Z2<K>x2,bool greater_than=true);//默认为x1>x2-->1 x1>x2-->0  x1=x2-->0
+void secure_frequency(vector<Z2<K>>&shares_selected_k,vector<Z2<K>>label_list,vector<array<Z2<K>,2>>&label_list_count);
 class Sample{
 public:
     vector<int> features;
@@ -65,7 +64,7 @@ public:
     vector<vector< Z2<K> > >m_Train_Triples_0;  //P0 : num_train_data * num_features 个随机数，用于aby2 share
     vector<vector< Z2<K> > >m_Train_Triples_1;  //P1 : num_train_data * num_features 个随机数，用于aby2 share
     vector<vector< Z2<K> >>m_Test_Triples; // num_train_data * num_features  个三元组第三个值：[(\delta_x - \delta_y)*(\delta_x - \delta_y)]
-    vector< Z2<K> > m_Test_Triples_P0;
+    vector< Z2<K> > m_Test_Triples_P0;   
     vector< Z2<K> > m_Test_Triples_P1;
     Z2<K> reveal_one_num_to(Z2<K> x,int playerID);
     SignedZ2<K> reveal_one_num_to(SignedZ2<K> x,int playerID);
@@ -91,7 +90,7 @@ public:
     void compare_in_vec(vector<Z2<K>>&shares,const vector<int>compare_idx,vector<Z2<K>>&compare_res);
     void compare_in_vec(vector<array<Z2<K>,2>>&shares,const vector<int>compare_idx,vector<Z2<K>>&compare_res);
     void top_1_optimized(vector<array<Z2<K>,2>>&shares,int size_now,int start_idx);
-    Z2<K> secure_compare(Z2<K>x1,Z2<K>x2);
+    Z2<K> secure_compare(Z2<K>x1,Z2<K>x2,bool greater_than=true);//默认为x1>x2-->1 x1>x2-->0  x1=x2-->0
 
     vector<octetStream>data_send;
     vector<octetStream> data_receive;
@@ -100,6 +99,8 @@ public:
     
     void load_triples(string file_path);
    
+   void secure_frequency(vector<Z2<K>>&shares_selected_k,vector<Z2<K>>label_list, vector<array<Z2<K>,2>>&label_list_count_array);
+
    
     // void get_input_from(int palyerno,bool has_label,string file_path);//输入数据、、
     // vector<aby2> share_data_aby2();
@@ -420,10 +421,12 @@ void KNN_party::run()
 
     load_triples();
     aby2_share_data();
-    vector<Z2<K>>shared_label_list;
-    shared_label_list.push_back(Z2<K>(0));
-    shared_label_list.push_back(Z2<K>(10));
-    vector<aray<Z2<K>,2>>shared_label_list_count(shared_label_list.size());
+    vector<Z2<K>>label_list;
+    label_list.push_back(Z2<K>(0));
+    label_list.push_back(Z2<K>(10));
+    vector<Z2<K>>shared_label_list(label_list.size());
+    vector<array<Z2<K>,2>>shared_label_list_count_array(label_list.size());
+    int label_size= label_list.size();
     
   /*test code*/
     // vector<Z2<K>>X,Y;
@@ -434,39 +437,71 @@ void KNN_party::run()
     // }
     // X[0]=Z2<K>(23);
     //  X[1]=Z2<K>(22);
-    // //  X[9]=Z2<K>(-1);
+    // // //  X[9]=Z2<K>(-1);
+    // int idx;
+    // cin>>idx;
     if(playerno==0)
     {        
         timer.start(m_player->total_comm());
 
-        additive_share_data_vec(shared_label_list_count,shared_label_list);
-        
-        // gen_fake_dcf(1,K);
-        compute_ESD_for_one_query(0);
-        /*test code for m_ESD_vec*/
-        for(int i=0;i<num_train_data;i++)
-            std::cout<< reveal_one_num_to(m_ESD_vec[i][0],0)<<"   " <<reveal_one_num_to(m_ESD_vec[i][1],0)<<endl;
-        for(int i=0;i<k_const;i++)
+        additive_share_data_vec(shared_label_list,label_list);
+
+        for(int idx=0;idx<num_test_data;idx++)
         {
-            top_1_optimized(m_ESD_vec,num_train_data-i,0);
+            compute_ESD_for_one_query(idx);
+            for(int i=0;i<k_const;i++)
+                top_1_optimized(m_ESD_vec,num_train_data-i,0);
+            vector<Z2<K>>shares_selected_k;
+            for(int i=0;i<k_const;i++)shares_selected_k.push_back(m_ESD_vec[m_ESD_vec.size()-1-i][1]);
+            this->secure_frequency(shares_selected_k,shared_label_list,shared_label_list_count_array);
+             for(int i=0;i< label_size-1;i++)
+            SS_scalar(shared_label_list_count_array,i,label_size-1);
+            reveal_one_num_to(shared_label_list_count_array[label_size-1][1],1); 
+
         }
-        vector<Z2<K>>shares_selected_k;
+
+
+
+        
+        // // gen_fake_dcf(1,K);
+        // compute_ESD_for_one_query(idx);
+        // /*test code for m_ESD_vec*/
+        // // for(int i=0;i<num_train_data;i++)
+        // //     std::cout<< reveal_one_num_to(m_ESD_vec[i][0],0)<<"   " <<reveal_one_num_to(m_ESD_vec[i][1],0)<<endl;
+        // for(int i=0;i<k_const;i++)
+        // {
+        //     top_1_optimized(m_ESD_vec,num_train_data-i,0);
+        // }
+        // vector<Z2<K>>shares_selected_k;
         
 
-        // for(int i=0;i<num_train_data;i++)
-        //     std::cout<< reveal_one_num_to(m_ESD_vec[i][0],1)<<"   " <<reveal_one_num_to(m_ESD_vec[i][1],1)<<endl;
+        // // for(int i=0;i<num_train_data;i++)
+        // //     std::cout<< reveal_one_num_to(m_ESD_vec[i][0],1)<<"   " <<reveal_one_num_to(m_ESD_vec[i][1],1)<<endl;
 
-        for(int i=0;i<k_const;i++)shares_selected_k.push_back(m_ESD_vec[m_ESD_vec.size()-1-i][1]);
+        // for(int i=0;i<k_const;i++)shares_selected_k.push_back(m_ESD_vec[m_ESD_vec.size()-1-i][1]);
+
+        // // for(int i=0;i<shares_selected_k.size();i++)
+        // //     std::cout<< reveal_one_num_to(shares_selected_k[i],0)<<endl;
 
 
-        secure_frequency(shares_selected_k,shared_label_list,shared_label_list_count);
-        for(int i=0;i<shared_label_list_count.size()-1;i++)
-            SS_scalar(shares_selected_k,i,shared_label_list_count.size()-1);
-        std::cout<<"\n最终结果: "<< reveal_one_num_to(shared_label_list_count[shared_label_list_count.size()-1],0)<<endl;        
+        // this->secure_frequency(shares_selected_k,shared_label_list,shared_label_list_count_array);
+        
+
+        // // for(int i=0;i<label_size;i++)
+        // //     std::cout<< reveal_one_num_to(shared_label_list_count_array[i][0],0)<<"   " <<reveal_one_num_to(shared_label_list_count_array[i][1],0)<<endl;
+
+        // for(int i=0;i< label_size-1;i++)
+        //     SS_scalar(shared_label_list_count_array,i,label_size-1);
+
+        // for(int i=0;i<label_size;i++)
+        //     std::cout<< reveal_one_num_to(shared_label_list_count_array[i][0],0)<<"   " <<reveal_one_num_to(shared_label_list_count_array[i][1],0)<<endl;
+        // std::cout<<"\n最终结果: "<< reveal_one_num_to(shared_label_list_count_array[label_size-1][1],1); 
+        // std::cout<<"=="<<m_test[idx]->label<<endl;
+
 
         // vector<Z2<K>>share_X(X.size());
         // additive_share_data_vec(share_X,X);
-        // // cout<< reveal_one_num_to(Z2<K>(evaluate(share_X[9]+alpha_share,K,0)),0)<<" "<<endl ;
+        // cout<< reveal_one_num_to(Z2<K>(evaluate(share_X[9]+alpha_share,K,0)),0)<<" "<<endl ;
         // for(int i=0;i<(int)X.size();i++)
         //     std::cout<< reveal_one_num_to(share_X[i],0)<<" " ;
         // std::cout<<endl;     
@@ -512,33 +547,74 @@ void KNN_party::run()
     {
         timer.start(m_player->total_comm());
 
-        additive_share_data_vec(shared_label_list_count);
+        additive_share_data_vec(shared_label_list);
+        int cnt=0;
 
-        compute_ESD_for_one_query(0);
-        for(int i=0;i<num_train_data;i++)
-            std::cout<< reveal_one_num_to(m_ESD_vec[i][0],0)<<"   " <<reveal_one_num_to(m_ESD_vec[i][1],0)<<endl;
-
-        for(int i=0;i<k_const;i++)
+        // this->secure_compare(shared_label_list[0],shared_label_list[0]);
+         for(int idx=0;idx<num_test_data;idx++)
         {
-            top_1_optimized(m_ESD_vec,num_train_data-i,0);
+            compute_ESD_for_one_query(idx);
+            // cout<<__LINE__<<endl;
+            for(int i=0;i<k_const;i++)
+                top_1_optimized(m_ESD_vec,num_train_data-i,0);
+            // cout<<__LINE__<<endl;
+            vector<Z2<K>>shares_selected_k;
+            for(int i=0;i<k_const;i++)shares_selected_k.push_back(m_ESD_vec[m_ESD_vec.size()-1-i][1]);
+            this->secure_frequency(shares_selected_k,shared_label_list,shared_label_list_count_array);
+            for(int i=0;i< label_size-1;i++)
+                SS_scalar(shared_label_list_count_array,i,label_size-1);
+            Z2<K>label_res=reveal_one_num_to(shared_label_list_count_array[label_size-1][1],1); 
+            // cout<<__LINE__<<endl;
+            if(Z2<K>(m_test[idx]->label)==label_res)
+            {
+                // cout<<"=";
+                cnt++;
+            }
+            // else{
+            //     cout<<"idx="<<idx<<"  ";
+
+            // }
+            
+
+
         }
+        cout<<"\n预测准确率："<<double(cnt)/(double)num_test_data<<endl;
 
-        // for(int i=0;i<num_train_data;i++)
-        //     std::cout<< reveal_one_num_to(m_ESD_vec[i][0],1)<<"   " <<reveal_one_num_to(m_ESD_vec[i][1],1)<<endl;
+
+        // compute_ESD_for_one_query(idx);
+        // // for(int i=0;i<num_train_data;i++)
+        // //     std::cout<< reveal_one_num_to(m_ESD_vec[i][0],0)<<"   " <<reveal_one_num_to(m_ESD_vec[i][1],0)<<endl;
+
+        // for(int i=0;i<k_const;i++)
+        // {
+        //     top_1_optimized(m_ESD_vec,num_train_data-i,0);
+        // }
+
+        // // for(int i=0;i<num_train_data;i++)
+        // //     std::cout<< reveal_one_num_to(m_ESD_vec[i][0],1)<<"   " <<reveal_one_num_to(m_ESD_vec[i][1],1)<<endl;
         
-        vector<Z2<K>>shares_selected_k;
+        // vector<Z2<K>>shares_selected_k;
         
 
-        // for(int i=0;i<num_train_data;i++)
-        //     std::cout<< reveal_one_num_to(m_ESD_vec[i][0],1)<<"   " <<reveal_one_num_to(m_ESD_vec[i][1],1)<<endl;
+        // // for(int i=0;i<num_train_data;i++)
+        // //     std::cout<< reveal_one_num_to(m_ESD_vec[i][0],1)<<"   " <<reveal_one_num_to(m_ESD_vec[i][1],1)<<endl;
 
-        for(int i=0;i<k_const;i++)shares_selected_k.push_back(m_ESD_vec[m_ESD_vec.size()-1-i][1]);
+        // for(int i=0;i<k_const;i++)shares_selected_k.push_back(m_ESD_vec[m_ESD_vec.size()-1-i][1]);
 
+        // // for(int i=0;i<shares_selected_k.size();i++)
+        // //     std::cout<< reveal_one_num_to(shares_selected_k[i],0)<<endl;
 
-        secure_frequency(shares_selected_k,shared_label_list,shared_label_list_count);
-        for(int i=0;i<shared_label_list_count.size()-1;i--)
-            SS_scalar(shares_selected_k,i,shared_label_list_count.size()-1);
-        std::cout<<"\n最终结果: "<< reveal_one_num_to(shared_label_list_count[shared_label_list_count.size()-1],0)<<endl;
+        // this->secure_frequency(shares_selected_k,shared_label_list,shared_label_list_count_array);
+        
+        // // for(int i=0;i<label_size;i++)
+        // //     std::cout<< reveal_one_num_to(shared_label_list_count_array[i][0],0)<<"   " <<reveal_one_num_to(shared_label_list_count_array[i][1],0)<<endl;
+
+        // for(int i=0;i< label_size-1;i++)
+        //     SS_scalar(shared_label_list_count_array,i,label_size-1);
+        // for(int i=0;i<label_size;i++)
+        //     std::cout<< reveal_one_num_to(shared_label_list_count_array[i][0],0)<<"   " <<reveal_one_num_to(shared_label_list_count_array[i][1],0)<<endl;
+        // std::cout<<"\n最终结果: "<< reveal_one_num_to(shared_label_list_count_array[label_size-1][1],1); 
+        // std::cout<<"=="<<m_test[idx]->label<<endl;
 
 
         // aby2_share_reveal(0,true);
@@ -595,7 +671,30 @@ void KNN_party::run()
 
 }
 
-Z2<K> KNN_party::secure_compare(Z2<K>x1,Z2<K>x2)
+void KNN_party::secure_frequency(vector<Z2<K>>&shares_selected_k,vector<Z2<K>>label_list, vector<array<Z2<K>,2>>&label_list_count_array)
+{
+    // std::assert(shares_selected_k.size()==k_const);
+    // cout<<"label_list.size():"<<label_list.size()<<endl;
+    for(int i=0;i<label_list.size();i++)
+    {
+        Z2<K>tmp(0);
+        for(int j=0;j<k_const;j++)
+        {
+            Z2<K>u1=Z2<K>(this->playerno)-this->secure_compare(label_list[i],shares_selected_k[j]);
+            Z2<K>u2=Z2<K>(this->playerno)-this->secure_compare(shares_selected_k[j],label_list[i]);
+            Z2<K>tmp_res;
+            mul_additive(u1,u2,tmp_res);
+            tmp+=tmp_res;
+            // cout<<u1<<"====="<<u2<<"==="<<tmp_res<<endl;
+        }
+        label_list_count_array[i][0]=tmp;
+        label_list_count_array[i][1]=label_list[i];
+    }
+    
+}
+
+
+Z2<K> KNN_party::secure_compare(Z2<K>x1,Z2<K>x2,bool greater_than)//x1>x2-->1   x1<x2-->0   x1==x2-->0
 {
     // cout<<x1<<" "<<x2<<endl;
     bigint r_tmp;
@@ -604,7 +703,10 @@ Z2<K> KNN_party::secure_compare(Z2<K>x1,Z2<K>x2)
     r >> r_tmp;
     r.close();
     SignedZ2<K>alpha_share=(SignedZ2<K>)r_tmp;
-    SignedZ2<K>revealed=SignedZ2<K>(x1)-SignedZ2<K>(x2)+alpha_share;
+    SignedZ2<K>revealed=SignedZ2<K>(x2)-SignedZ2<K>(x1)+alpha_share;
+    if(greater_than==false){
+        revealed=SignedZ2<K>(x1)-SignedZ2<K>(x2)+alpha_share;
+    }
     
     octetStream send_os,receive_os;
     revealed.pack(send_os);
@@ -634,10 +736,14 @@ Z2<K> KNN_party::secure_compare(Z2<K>x1,Z2<K>x2)
         r_tmp = dcf_v - dcf_u;
     }
     SignedZ2<K>res=SignedZ2<K>(this->playerno)-r_tmp;
-    std::cout<<"revealed SC:"<<reveal_one_num_to(Z2<K>(res),0)<<std::endl;
+    // std::cout<<"revealed secure_compare result :"<<reveal_one_num_to(Z2<K>(res),0)<<std::endl;
     return Z2<K>(res);
 
 }
+
+
+
+
 
 void KNN_party::compare_in_vec(vector<Z2<K>>&shares,const vector<int>compare_idx_vec,vector<Z2<K>>&compare_res)
 {
@@ -713,7 +819,7 @@ void KNN_party::compare_in_vec(vector<array<Z2<K>,2>>&shares,const vector<int>co
     vector<SignedZ2<K>>compare_res_t(compare_res.size());
     for(int i=0;i<size_res;i++)
     {
-        compare_res_t[i]=SignedZ2<K>(shares[compare_idx_vec[2*i+1]][0])-SignedZ2<K>(shares[compare_idx_vec[2*i]][0])+alpha_share;
+        compare_res_t[i]=SignedZ2<K>(shares[compare_idx_vec[2*i]][0])-SignedZ2<K>(shares[compare_idx_vec[2*i+1]][0])+alpha_share;
         //  cout<<reveal_one_num_to(shares[compare_idx_vec[2*i]],0)<<" "<<reveal_one_num_to(shares[compare_idx_vec[2*i+1]],0)<<endl;
     }
     // cout<<endl;
@@ -799,15 +905,15 @@ void KNN_party::top_1_optimized(vector<array<Z2<K>,2>>&shares,int size_now,int s
     if(n)
     {
         for(int i=size_now-2;i>=(1<<itera_num)-1;i--)
-            SS_scalar(shares,i,size_now-1);
+            SS_scalar(shares,i,size_now-1,false);
     }
     
 
      
 }
-void SS_scalar(vector<array<Z2<K>,2>>&shares,int first_idx,int second_idx)
+void SS_scalar(vector<array<Z2<K>,2>>&shares,int first_idx,int second_idx,bool min_then_max)
 {
-    Z2<K>u=secure_compare(shares[first_idx][0],shares[second_idx][0]);
+    Z2<K>u=secure_compare(shares[first_idx][0],shares[second_idx][0],min_then_max);
     Z2<K>y1,y2;
     mul_additive(u,shares[first_idx][0],y1);
     mul_additive(u,shares[second_idx][0],y2);
@@ -819,9 +925,9 @@ void SS_scalar(vector<array<Z2<K>,2>>&shares,int first_idx,int second_idx)
     shares[first_idx][1]=shares[first_idx][1]-y1+y2;
     shares[second_idx][1]=shares[second_idx][1]+y1-y2;
 }
-void SS_scalar(vector<Z2<K>>&shares,int first_idx,int second_idx)
+void SS_scalar(vector<Z2<K>>&shares,int first_idx,int second_idx,bool min_then_max)
 {
-    Z2<K>u=secure_compare(shares[first_idx],shares[second_idx]);
+    Z2<K>u=secure_compare(shares[first_idx],shares[second_idx],min_then_max);
     Z2<K>y1,y2;
     mul_additive(u,shares[first_idx],y1);
     mul_additive(u,shares[second_idx],y2);
@@ -1523,7 +1629,7 @@ void SS_vec( vector<Z2<K>>X , vector<Z2<K>>v2 , vector<Z2<K>>&res)
     }
 }
 
-Z2<K> secure_compare(Z2<K>x1,Z2<K>x2)
+Z2<K> secure_compare(Z2<K>x1,Z2<K>x2,bool greater_than)
 {
     // cout<<x1<<" "<<x2<<endl;
     bigint r_tmp;
@@ -1533,6 +1639,9 @@ Z2<K> secure_compare(Z2<K>x1,Z2<K>x2)
     r.close();
     SignedZ2<K>alpha_share=(SignedZ2<K>)r_tmp;
     SignedZ2<K>revealed=SignedZ2<K>(x2)-SignedZ2<K>(x1)+alpha_share;
+    if(greater_than==false){
+        revealed=SignedZ2<K>(x1)-SignedZ2<K>(x2)+alpha_share;
+    }
     
     octetStream send_os,receive_os;
     revealed.pack(send_os);
@@ -1565,9 +1674,10 @@ Z2<K> secure_compare(Z2<K>x1,Z2<K>x2)
     return Z2<K>(res);
 
 }
-void secure_frequency(vector<Z2<K>>&shares_selected_k,vector<Z2<K>>label_list,vector<Z2<K>>&label_list_count)
+void secure_frequency(vector<Z2<K>>&shares_selected_k,vector<Z2<K>>label_list, vector<array<Z2<K>,2>>&label_list_count_array)
 {
     // std::assert(shares_selected_k.size()==k_const);
+    // cout<<"label_list.size():"<<label_list.size()<<endl;
     for(int i=0;i<label_list.size();i++)
     {
         Z2<K>tmp(0);
@@ -1575,11 +1685,14 @@ void secure_frequency(vector<Z2<K>>&shares_selected_k,vector<Z2<K>>label_list,ve
         {
             Z2<K>u1=secure_compare(label_list[i],shares_selected_k[j]);
             Z2<K>u2=secure_compare(shares_selected_k[j],label_list[i]);
+            
             Z2<K>tmp_res;
             mul_additive(u1,u2,tmp_res);
             tmp+=tmp_res;
+            // cout<<u1<<"====="<<u2<<"==="<<tmp_res<<endl;
         }
-        label_list[i]=tmp;
+        label_list_count_array[i][0]=tmp;
+        label_list_count_array[i][1]=label_list[i];
     }
     
 }
