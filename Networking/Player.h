@@ -509,6 +509,7 @@ public:
 // for different threads, separate statistics
 class VirtualTwoPartyPlayer : public TwoPartyPlayer
 {
+  
   Player& P;
   int other_player;
   NamedCommStats& comm_stats;
@@ -516,6 +517,7 @@ class VirtualTwoPartyPlayer : public TwoPartyPlayer
   mutable Lock lock;
 
 public:
+  mutable int VirtualTwoPartyPlayer_Round;
   VirtualTwoPartyPlayer(Player& P, int other_player);
 
   // emulate RealTwoPartyPlayer
