@@ -241,9 +241,7 @@ Data sent = 0.000688 MB in ~10 rounds (party 0)
 Global data sent = 0.001424 MB (all parties)
 ```
 
-The runtime and communication size are  0.00636278 seconds and 0.000656 MB (Time1 = 0.00636278 seconds (0.000656 MB)). 
-Note that the reported communication rounds (10 rounds) are larger than the real required communication rounds (1 rounds) due to the not accurate communcation rounds count method.
-
+The runtime and communication size are 0.00636278 seconds and 0.000656 MB, respectively (referred to as Time1). All subsequent evaluations in this section utilize Time1. It is important to note that the reported number of communication rounds (10 rounds) exceeds the actual required rounds (1 round) due to inaccuracies in the communication round counting method.
 
 #### (2) Convert-A2B
 
