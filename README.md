@@ -7,7 +7,6 @@ We thank all anonymous reviewers for their insightful comments, which have signi
 
 
 **System Requirements:** 
-
 Unless specified differently, the evaluations in this README file can be conducted on a machine with 4 cores and 64 GB of RAM.
 
 
