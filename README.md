@@ -350,7 +350,7 @@ You can replace 'iris' with other datasets (cancer, diagnosis, adult, kohkiloyeh
 
 ### 1. Handshake Error
 
-If you encounter the following error message, you may resolve it by running c_rehash ./Player-Data or by waiting some time before re-running the process.
+If you encounter the following error message, you may resolve it by running ```c_rehash ./Player-Data``` or by waiting some time before re-running the process.
 
 ```
 Using security parameter 40
