@@ -379,7 +379,7 @@ fi; }
 
 ### 2. Binding Error
 
-If you encounter the following error message, please terminate the process occupying port 10000 and try running the evluation again.  Additionally, note that all evaluations specified in the readme file utilize port 10000, and therefore cannot be executed simultaneously.
+If you encounter the following error message, please terminate the process occupying port 10000 and try running the evluation again.  Additionally, note that all evaluations specified in this readme file utilize port 10000, and therefore cannot be executed simultaneously.
 
 
 ```
