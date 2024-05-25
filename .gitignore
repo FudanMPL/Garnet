@@ -1,0 +1,166 @@
+# Offline data, runtime logs #
+##############################
+Player-Data
+Player-Data/*
+Prep-Data/*
+logs/*
+Language-Definition/main.pdf
+keys/*
+Data/*
+build/*
+.idea/*
+Compiler/DL/data*
+# Personal CONFIG file #
+##############################
+CONFIG.mine
+config_mine.py
+
+# Temporary files #
+###################
+*.bak
+*.orig
+*.rej
+*.tmp
+callgrind.out.*
+HOSTS*
+*.csv
+*.txt
+*.png
+# Vim
+.*.swp
+tags
+
+# Eclipse #
+###########
+.project
+.cproject
+.settings
+.pydevproject
+
+# VS Code IDE #
+###############
+.vscode/**
+
+# Temporary files #
+###################
+*.bak
+*.orig
+*.rej
+*.tmp
+callgrind.out.*
+
+# Compiled source #
+###################
+Programs/Bytecode/*
+Programs/Schedules/*
+Programs/Public-Input/*
+Programs/Profiling-data/*.json
+Programs/Profiling-data/*.png
+*.com
+*.class
+*.dll
+*.exe
+*.x
+*.o
+*.so
+*.pyc
+*.bc
+*.sch
+*.a
+*.static
+*.d
+local/
+*.map
+*.gch
+
+# Packages #
+############
+# it's better to unpack these files and commit the raw source
+# git has its own built in compression methods
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Latex #
+#########
+*.aux
+*.lof
+*.log
+*.lot
+*.fls
+*.out
+*.toc
+*.fmt
+*.bbl
+*.bcf
+*.blg
+
+
+# Logs and databases #
+######################
+*.log
+*.sql
+*.sqlite
+*.data
+Persistence/*
+
+# OS generated files #
+######################
+*~
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+**/*.x.dSYM/**
+
+# Sphinx build
+_build/
+
+# environment
+.env
+
+# temp doc files
+doc/readme.md
+doc/xml
+Compiler/profiling_res/*.pdf
+*.pdf
+
+#ignore model and data
+Compiler/DL/data/*
+Compiler/DL/AvgFeature-All/*
+Compiler/DL/checkpoint/*
+
+#GFA temp
+Compiler/GFA/*.json
+*.json
+
+*.dSYM
+
+#GarnetUI
+GarnetUI/ui/db.sqlite3 
+GarnetUI/ui/Model/migrations
+GarnetUI/.venv/*
+GarnetUI/ui/uploads/data
+
+#GarnetUI loaddata
+!GarnetUI/ui/mpc.json
+!GarnetUI/ui/protocol.json
+
+#GarnetUI node packge
+!GarnetUI/Vue3-garnet-ui/.prettierrc.json
+!GarnetUI/Vue3-garnet-ui/package-lock.json
+!GarnetUI/Vue3-garnet-ui/package.json
+
+#GarnetUI Input Output
+Input/*
+!Input/.gitkeep
+Output/*
+!Output/.gitkeep
