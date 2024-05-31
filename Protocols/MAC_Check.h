@@ -93,6 +93,39 @@ public:
   size_t report_size(ReportType type);
 };
 
+/* 新增vss-field*/
+template<class T>
+class TreeVssField_Sum
+{
+  static const char* mc_timer_names[];
+
+  void start(vector<T>& values, const Player& P);
+  void finish(vector<T>& values, const Player& P);
+
+protected:
+  int base_player;
+  int opening_sum;
+  int max_broadcast;
+  octetStream os;
+
+  void ReceiveValues(vector<T>& values, const Player& P, int sender);
+  virtual void AddToValues(vector<T>& values) { (void)values; }
+
+public:
+  vector<octetStream> oss;
+  vector<Timer> timers;
+  vector<Timer> player_timers;
+
+  TreeVssField_Sum(int opening_sum = 10, int max_broadcast = 10, int base_player = 0);
+  virtual ~TreeVssField_Sum();
+
+  void run(vector<T>& values, const Player& P);
+  T run(const T& value, const Player& P);
+
+  octetStream& get_buffer() { return os; }
+
+  size_t report_size(ReportType type);
+};
 
 template<class U>
 class Tree_MAC_Check : public TreeSum<typename U::open_type>, public MAC_Check_Base<U>
@@ -452,7 +485,7 @@ void add_Vss_openings(vector<T>& values, const Player& P, int sum_players, int l
   vector<int> senders;
   senders.reserve(P.num_players());
 
-  for (int relative_sender = positive_modulo(P.my_num() - send_player, P.num_players()) + sum_players;
+  for (int relative_sender = positive_modulo(P.my_num() - send_player, P.num_players()) + sum_players; //正模
       relative_sender < last_sum_players; relative_sender += sum_players)
     {
       int sender = positive_modulo(send_player + relative_sender, P.num_players());
@@ -471,7 +504,7 @@ void add_Vss_openings(vector<T>& values, const Player& P, int sum_players, int l
       MC.timers[SUM].start();
       for (unsigned int i=0; i<values.size(); i++)
         {
-          values[i].vss_add(oss[j], P, j);
+          values[i].vss_add(oss[j], P, j); // j 是 sender ，value[i]+ P.inv[sender] * value
         }
       MC.timers[SUM].stop();
     }
@@ -505,7 +538,7 @@ void TreeVss_Sum<T>::start(vector<T>& values, const Player& P)
         {
           // if receiving, add the values
           timers[RECV_ADD].start();
-          add_Vss_openings<T>(values, P, sum_players, last_sum_players, base_player, *this);
+          add_Vss_openings<T>(values, P, sum_players, last_sum_players, base_player, *this); // 累加获得values
           timers[RECV_ADD].stop();
         }
     }
@@ -558,6 +591,180 @@ void TreeVss_Sum<T>::finish(vector<T>& values, const Player& P)
 
 template<class T>
 void TreeVss_Sum<T>::ReceiveValues(vector<T>& values, const Player& P, int sender)
+{
+  timers[RECV_SUM].start();
+  P.receive_player(sender, os);
+  timers[RECV_SUM].stop();
+  for (unsigned int i = 0; i < values.size(); i++)
+    values[i].unpack(os);
+  AddToValues(values);
+}
+
+
+/* 新增vss-field */
+
+template<class T>
+TreeVssField_Sum<T>::TreeVssField_Sum(int opening_sum, int max_broadcast, int base_player) :
+    base_player(base_player), opening_sum(opening_sum), max_broadcast(max_broadcast)
+{
+  timers.resize(MAX_TIMER);
+}
+
+template<class T>
+TreeVssField_Sum<T>::~TreeVssField_Sum()
+{
+#ifdef TREESUM_TIMINGS
+  for (unsigned int i = 0; i < timers.size(); i++)
+    if (timers[i].elapsed() > 0)
+      cerr << T::type_string() << " " << mc_timer_names[i] << ": "
+        << timers[i].elapsed() << endl;
+
+  for (unsigned int i = 0; i < player_timers.size(); i++)
+    if (player_timers[i].elapsed() > 0)
+      cerr << T::type_string() << " waiting for " << i << ": "
+        << player_timers[i].elapsed() << endl;
+#endif
+}
+
+template<class T>
+void TreeVssField_Sum<T>::run(vector<T>& values, const Player& P)
+{
+  start(values, P);
+  finish(values, P);
+}
+
+template<class T>
+T TreeVssField_Sum<T>::run(const T& value, const Player& P)
+{
+  vector<T> values = {value};
+  run(values, P);
+  return values[0];
+}
+
+template<class T>
+size_t TreeVssField_Sum<T>::report_size(ReportType type)
+{
+  if (type == CAPACITY)
+    return os.get_max_length();
+  else
+    return os.get_length();
+}
+
+template<class T>
+void add_Vss_Field_openings(vector<T>& values, const Player& P, int sum_players, int last_sum_players, int send_player, TreeVssField_Sum<T>& MC)
+{
+  MC.player_timers.resize(P.num_players());
+  vector<octetStream>& oss = MC.oss;
+  oss.resize(P.num_players());
+  vector<int> senders;
+  senders.reserve(P.num_players()); //分配n的内存空间
+
+  for (int relative_sender = positive_modulo(P.my_num() - send_player, P.num_players()) + sum_players; //正模
+      relative_sender < last_sum_players; relative_sender += sum_players) // 循环条件是relative_sender < last_sum_players
+    {
+      int sender = positive_modulo(send_player + relative_sender, P.num_players());
+      senders.push_back(sender);
+    } // 计算一组发送者的编号，预计需更改
+
+  for (int j = 0; j < (int)senders.size(); j++)
+    P.request_receive(senders[j], oss[j]);
+
+  for (int j = 0; j < (int)senders.size(); j++)
+    {
+      int sender = senders[j];
+      MC.player_timers[sender].start();
+      P.wait_receive(sender, oss[j]);
+      MC.player_timers[sender].stop();
+      MC.timers[SUM].start();
+      for (unsigned int i=0; i<values.size(); i++)
+        {
+          values[i].vss_add(oss[j], P, j); // j 是 sender ，value[i]+ P.inv[sender] * value
+        }
+      MC.timers[SUM].stop();
+    }
+}
+
+template<class T>
+void TreeVssField_Sum<T>::start(vector<T>& values, const Player& P)
+{
+  os.reset_write_head();
+  int sum_players = P.num_players();
+  int my_relative_num = positive_modulo(P.my_num() - base_player, P.num_players());
+  while (true)
+    {
+      // summing phase
+      int last_sum_players = sum_players;
+      sum_players = (sum_players - 2 + opening_sum) / opening_sum;
+      if (sum_players == 0)
+        break;
+      if (my_relative_num >= sum_players && my_relative_num < last_sum_players)
+        {
+          // send to the player up the tree
+          for (unsigned int i=0; i<values.size(); i++)
+            { values[i].pack(os); }
+          int receiver = positive_modulo(base_player + my_relative_num % sum_players, P.num_players());
+          timers[SEND].start();
+          P.send_to(receiver,os);
+          timers[SEND].stop();
+        }
+
+      if (my_relative_num < sum_players)
+        {
+          // if receiving, add the values
+          timers[RECV_ADD].start();
+          add_Vss_Field_openings<T>(values, P, sum_players, last_sum_players, base_player, *this); // 累加获得values
+          timers[RECV_ADD].stop();
+        }
+    }
+
+  if (P.my_num() == base_player)
+    {
+      // send from the root player
+      os.reset_write_head();
+      size_t n = values.size();
+      for (unsigned int i=0; i<n; i++)
+        { values[i].pack(os); }
+      timers[BCAST].start();
+      for (int i = 1; i < max_broadcast && i < P.num_players(); i++)
+        {
+          P.send_to((base_player + i) % P.num_players(), os);
+        }
+      timers[BCAST].stop();
+      AddToValues(values);
+    }
+  else if (my_relative_num * max_broadcast < P.num_players())
+    {
+      // send if there are children
+      int sender = (base_player + my_relative_num / max_broadcast) % P.num_players();
+      ReceiveValues(values, P, sender);
+      timers[BCAST].start();
+      for (int i = 0; i < max_broadcast; i++)
+        {
+          int relative_receiver = (my_relative_num * max_broadcast + i);
+          if (relative_receiver < P.num_players())
+            {
+              int receiver = (base_player + relative_receiver) % P.num_players();
+              P.send_to(receiver, os);
+            }
+        }
+      timers[BCAST].stop();
+    }
+}
+
+template<class T>
+void TreeVssField_Sum<T>::finish(vector<T>& values, const Player& P)
+{
+  int my_relative_num = positive_modulo(P.my_num() - base_player, P.num_players());
+  if (my_relative_num * max_broadcast >= P.num_players())
+    {
+      // receiving at the leafs
+      int sender = (base_player + my_relative_num / max_broadcast) % P.num_players();
+      ReceiveValues(values, P, sender);
+    }
+}
+
+template<class T>
+void TreeVssField_Sum<T>::ReceiveValues(vector<T>& values, const Player& P, int sender)
 {
   timers[RECV_SUM].start();
   P.receive_player(sender, os);

@@ -122,6 +122,16 @@ class Names
   Names(const Names& other);
   ~Names();
 
+
+
+
+
+
+
+
+
+
+
   int num_players() const { return nplayers; }
   int my_num() const { return player_no; }
   const string get_name(int i) const { return names[i]; }
@@ -235,6 +245,7 @@ public:
    * Get number of players
    */
   int num_players() const { return nplayers; }
+
   /**
    * Get my player number
    */

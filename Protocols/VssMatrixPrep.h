@@ -148,34 +148,34 @@ public:
             int Loops = DIV_CEIL(n_rows * n_inner * n_cols, nTriplesPerLoop);
             // cout << "Loops: " << Loops << endl;
             // native generating
-            for (int r = 0; r < n_rows; r++)
-            {
-                for (int c = 0; c < n_cols; c++)
-                {
-                    for (int k = 0; k < n_inner; k++)
-                    {
-                        prep->triple_generator->generateMyTriples(
-                            A[i][{r, k}], B[i][{k, c}]);
-                        prep->triple_generator->unlock();
-                        for (auto x : prep->triple_generator->plainTriples)
-                        {
-                            C[i][{r, c}] += x[2];
-                        }
-                    }
-                }
-            }
-            A[i] = toVSSMatrixTriples(n_rows, n_inner, A[i]);
-            B[i] = toVSSMatrixTriples(n_inner, n_cols, B[i]);
-            C[i] = toVSSMatrixTriples(n_rows, n_cols, C[i]);
-            // vectorisze generating
-            // for (int k = 0; k < Loops; k++)
+            // for (int r = 0; r < n_rows; r++)
             // {
-            //     C[i] = prep->triple_generator->generateMatrixTriples(k, n_rows, n_inner, n_cols, A[i], B[i], C[i]);
-            //     A[i] = toVSSMatrixTriples(n_rows, n_inner, A[i]);
-            //     B[i] = toVSSMatrixTriples(n_inner, n_cols, B[i]);
-            //     C[i] = toVSSMatrixTriples(n_rows, n_cols, C[i]);
-            //     prep->triple_generator->unlock();
+            //     for (int c = 0; c < n_cols; c++)
+            //     {
+            //         for (int k = 0; k < n_inner; k++)
+            //         {
+            //             prep->triple_generator->generateMyTriples(
+            //                 A[i][{r, k}], B[i][{k, c}]);
+            //             prep->triple_generator->unlock();
+            //             for (auto x : prep->triple_generator->plainTriples)
+            //             {
+            //                 C[i][{r, c}] += x[2];
+            //             }
+            //         }
+            //     }
             // }
+            // A[i] = toVSSMatrixTriples(n_rows, n_inner, A[i]);
+            // B[i] = toVSSMatrixTriples(n_inner, n_cols, B[i]);
+            // C[i] = toVSSMatrixTriples(n_rows, n_cols, C[i]);
+            // vectorisze generating
+            for (int k = 0; k < Loops; k++)
+            {
+                C[i] = prep->triple_generator->generateMatrixTriples(k, n_rows, n_inner, n_cols, A[i], B[i], C[i]);
+                A[i] = toVSSMatrixTriples(n_rows, n_inner, A[i]);
+                B[i] = toVSSMatrixTriples(n_inner, n_cols, B[i]);
+                C[i] = toVSSMatrixTriples(n_rows, n_cols, C[i]);
+                prep->triple_generator->unlock();
+            }
 
             // cout << "========== matTriple debug A =========" << endl;
             // for (int j = 0; j < n_rows; j++)

@@ -1,0 +1,1 @@
+print_ln('result: %s', sint(123).reveal())

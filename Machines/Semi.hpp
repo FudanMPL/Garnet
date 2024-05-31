@@ -7,6 +7,7 @@
 #include "Math/gf2n.h"
 #include "Protocols/SemiMC.h"
 #include "Protocols/VssMC.h"
+#include "Protocols/VssFieldMC.h"
 #include "Protocols/SemiPrep.h"
 
 #include "Processor/Data_Files.hpp"
@@ -16,6 +17,7 @@
 #include "Protocols/SemiPrep.hpp"
 #include "Protocols/SemiInput.hpp"
 #include "Protocols/VssInput.hpp"
+#include "Protocols/VssFieldInput.hpp"
 #include "Protocols/MAC_Check_Base.hpp"
 #include "Protocols/MAC_Check.hpp"
 #include "Protocols/SemiMC.hpp"

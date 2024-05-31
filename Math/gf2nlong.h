@@ -155,6 +155,19 @@ class gf2n_long : public gf2n_<int128>
   template<class T>
   gf2n_long(IntBase<T> g) : super(g.get()) {}
 
+  void vss_add(octetStream& os, const Player& P, int sender){
+		octet* adr = os.consume(size());
+		mp_limb_t value = *((unsigned long*) adr);
+		if(sender < P.my_num())
+		{
+			*this += gf2n_long(P.inv[sender] * value);
+		}
+		else
+		{
+			*this += gf2n_long(P.inv[sender + 1] * value);
+		}
+	}
+
   friend ostream& operator<<(ostream& s,const gf2n_long& x)
     { s << hex << x.get() << dec;
       return s;
