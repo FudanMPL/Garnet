@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-import nn as nn
+import Compiler.nn as nn
 from onnx import numpy_helper
 
 from onnx2pytorch.operations import (

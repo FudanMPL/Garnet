@@ -1,4 +1,4 @@
-import nn as nn
+import Compiler.nn as nn
 
 from onnx2pytorch.operations import (
     BatchNormWrapper,

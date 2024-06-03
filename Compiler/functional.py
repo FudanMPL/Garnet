@@ -1,5 +1,5 @@
 # from tensor import get_opid, Tensor, get_prepare, Operation, tensors, gradient_operation, op_id_store,fake_propagate, set_opid,dl_d
-from tensor import *
+from Compiler.tensor import *
 from glob import glob
 import math
 import re

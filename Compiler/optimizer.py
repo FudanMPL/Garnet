@@ -1,8 +1,8 @@
 import warnings
 from typing import Any, Callable, Dict, List, Tuple
 from collections import OrderedDict, defaultdict, abc as container_abcs
-from tensor import *
-import tensor as TS
+from Compiler.tensor import *
+import Compiler.tensor as TS
 from copy import deepcopy
 from itertools import chain
 class _RequiredParameter:

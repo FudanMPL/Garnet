@@ -7,21 +7,22 @@ import numpy as np
 import onnx
 import torch
 from onnx import numpy_helper
-import nn as nn
-from tensor import Tensor
+import Compiler.nn as nn
+from Compiler.functional import *
+from Compiler.tensor import Tensor
 from Compiler.types import *
 from Compiler.library import *
 
 from torch.jit import TracerWarning
 from torch.nn.modules.linear import Identity
 
-from Convert.constants import (
+from Compiler.Convert.constants import (
     COMPOSITE_LAYERS,
     MULTIOUTPUT_LAYERS,
     STANDARD_LAYERS,
 )
 from onnx2pytorch.convert.debug import debug_model_conversion
-from Convert.operations import (
+from Compiler.Convert.operations import (
     convert_operations,
     get_buffer_name,
     get_init_parameter,
@@ -224,7 +225,7 @@ class ConvertModel(nn.Module):
                 ]
 
             in_activations = [in_act for in_act in in_activations if in_act is not None]
-            print(in_activations)
+            print(op)
             # store activations for next layer
             if isinstance(op, Loop):
                 outputs = op((self,), activations, *in_activations)

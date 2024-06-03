@@ -16,7 +16,7 @@ from Compiler import graph_visualization
 # from Compiler.GC.types import sbitintis_train
 from functools import reduce
 from typing import List, NamedTuple, Callable, Dict, Optional, Union, Tuple, Any
-from ml import approx_sigmoid, argmax
+from Compiler.ml import approx_sigmoid, argmax
 _name = 1
 
 
@@ -1640,7 +1640,7 @@ class Tensor():
             return res
         if isinstance(index, int) and index < 0:
             index += self.sizes[0]
-        key = program.curr_block, str(index)
+        key = get_program().curr_block, str(index)
         if key not in self.sub_cache:
             if util.is_constant(index) and \
                (index >= self.sizes[0] or index < 0):

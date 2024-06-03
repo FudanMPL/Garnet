@@ -69,8 +69,8 @@ class Cost(object):
     def init(cls, program):
         for arg in program.args:
                 m = re.match('f([0-9]+)$', arg)
-        if m:
-                cls.f = int(m.group(1))
+                if m:
+                        cls.f = int(m.group(1))
         if program.options.ring:
             cls.bit_length = program.bit_length+1
         else:

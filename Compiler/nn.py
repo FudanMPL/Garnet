@@ -1,9 +1,9 @@
-import tensor as TS
+import Compiler.tensor as TS
 import warnings
 import functools
 from collections import OrderedDict, namedtuple
 from typing import Union, Tuple, Any, Callable, Iterable,Iterator, Set, Optional, overload, TypeVar, Mapping, Dict, List
-from tensor import Tensor
+from Compiler.tensor import Tensor
 import math
 import re
 from itertools import islice, repeat, chain
