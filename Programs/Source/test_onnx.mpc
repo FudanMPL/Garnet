@@ -11,8 +11,12 @@ print_ln('conv!!\n')
 
 model = ConvertModel(onnx_model)
 print(model)
-print_ln('conv!!\n')
+
+crossloss = nn.CrossEntropyLoss()
+
 x = MultiArray([1,32,10,10], sfix)
+y = MultiArray([1,10], sfix)
+
 @for_range(x.total_size())
 def _(i):
     x.assign_vector(sfix(i/10), i)

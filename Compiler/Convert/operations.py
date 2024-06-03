@@ -6,6 +6,8 @@ import onnx
 import torch
 import Compiler.nn as nn
 from Compiler.tensor import *
+import Compiler.nn as nn
+from Compiler.tensor import *
 import Compiler.functional as F
 from onnx import numpy_helper 
 from torch.nn.modules.linear import Identity
@@ -76,14 +78,15 @@ def convert_operations(onnx_graph, opset_version, batch_dim=0, enable_pruning=Tr
     iterator: (op_id, op_name, op)
     """
     weights = {tensor.name: tensor for tensor in onnx_graph.initializer}
-
+    # print("opweights: ", weights)
     for i, node in enumerate(onnx_graph.node):
         # extract only useful inputs
         params = [weights[par_name] for par_name in node.input if par_name in weights]
-
+        print("node: ", node.op_type)
+        # print("opparams: ", params)
         if node.op_type == "Add":
-            # op = Add(feature_dim=batch_dim + 1)  # 0 for CV models and 1 for NLP
-            op = OperatorWrapper(Tensor.__add__)
+            op = add.Add(feature_dim=batch_dim + 1)  # 0 for CV models and 1 for NLP
+            # op = OperatorWrapper(Tensor.__add__)
         elif node.op_type == "And":
             op = OperatorWrapper(torch.logical_and)
         elif node.op_type == "AveragePool":
@@ -97,13 +100,17 @@ def convert_operations(onnx_graph, opset_version, batch_dim=0, enable_pruning=Tr
         elif node.op_type == "Clip":
             op = Clip(**extract_attributes(node))
         elif node.op_type == "Concat":
-            op = partial(torch.cat, **extract_attributes(node))
+            # op = partial(torch.cat, **extract_attributes(node))
+            op = partial(F.cat, **extract_attributes(node))
+            # op = OperatorWrapper(Tensor.concat)
         elif node.op_type == "Constant":
             op = Constant(**extract_attributes(node))
         elif node.op_type == "ConstantOfShape":
             op = ConstantOfShape(**extract_attributes(node))
         elif node.op_type == "Conv":
             op = convert_layer(node, "Conv", params)
+            # kwargs = extract_attributes(node)
+            # op = conv.Conv2d(**kwargs)
         elif node.op_type == "ConvTranspose":
             op = convert_layer(node, "ConvTranspose", params)
         elif node.op_type == "Div":
@@ -252,7 +259,7 @@ def convert_operations(onnx_graph, opset_version, batch_dim=0, enable_pruning=Tr
             # the number_of_splits becomes the number of node outputs
             if "split_size_or_sections" not in kwargs:
                 kwargs["number_of_splits"] = len(node.output)
-            op = Split(enable_pruning, **kwargs)
+            op = split.Split(enable_pruning, **kwargs)
         elif node.op_type == "Sqrt":
             op = OperatorWrapper(torch.sqrt)
         elif node.op_type == "Squeeze":
@@ -275,6 +282,10 @@ def convert_operations(onnx_graph, opset_version, batch_dim=0, enable_pruning=Tr
             op = Upsample(**extract_attributes(node))
         elif node.op_type == "Where":
             op = Where()
+        elif node.op_type == "Enlarge":
+            kwargs = extract_attributes(node)
+            print(kwargs)
+            op = OperatorWrapper(F.enlarge)
         else:
             op = getattr(torch, node.op_type.lower(), None)
             if op is None:

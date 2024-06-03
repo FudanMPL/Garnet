@@ -139,7 +139,7 @@ Compiler/DL/data/*
 Compiler/DL/AvgFeature-All/*
 Compiler/DL/checkpoint/*
 
-#GFA temp
+# GFA temp file
 Compiler/GFA/*.json
 *.json
 
@@ -153,3 +153,11 @@ Compiler/GFA/*.json
 !GarnetUI/Vue3-garnet-ui/.prettierrc.json
 !GarnetUI/Vue3-garnet-ui/package-lock.json
 !GarnetUI/Vue3-garnet-ui/package.json
+
+# graph optimize temp dir
+MPLTS/build
+MPLTS/python/build
+MPLTS/python/dist
+MPLTS/python/taso.egg-info
+!MPLTS/CMakeLists.txt
+!MPLTS/requirements.txt

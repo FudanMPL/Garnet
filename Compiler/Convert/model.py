@@ -12,6 +12,7 @@ from Compiler.functional import *
 from Compiler.tensor import Tensor
 from Compiler.types import *
 from Compiler.library import *
+import Compiler.functional as F
 
 from torch.jit import TracerWarning
 from torch.nn.modules.linear import Identity
@@ -130,28 +131,35 @@ class ConvertModel(nn.Module):
             batch_dim,
             enable_pruning,
         ):
-            print("setattr: " + str(op_name)+str(op))
+            # print("setattr: " + str(op_name)+str(op))
             setattr(self, op_name, op)
             if isinstance(op, Loop) and debug:
                 raise NotImplementedError("debug-mode with Loop node not implemented.")
             self.mapping[op_id] = op_name
 
         # Store initializers as buffers
+        P = get_program()
+        param_type = sfix
+        file = open(P.programs_dir + "/Public-Input/%s" % P.name, 'w')
         for tensor in self.onnx_model.graph.initializer:
             buffer_name = get_buffer_name(tensor.name)
             val = numpy_helper.to_array(tensor)
             
             for x in val.flatten():
-                get_program().public_input(str(int(x * (1<<cfix.f))))
+                file.write(str(int(x * (1<<param_type.f)))+'\n')
+            # for x in val:
+            #     P.public_input(str(int(x * (1<<sfix.f))))
             
             if len(val.shape)==1:
-                buffer_val = Array(val.shape[0], sfix)
+                buffer_val = Array(val.shape[0], param_type)
             else:
-                buffer_val = MultiArray(val.shape, sfix)
-            
-            # buffer_val[:] = cfix._new(public_input(), cfix.f, cfix.k)
-            # for i in range(0, len(v)):
-            #     buffer_val.assign_vector(float(v[i]), i)
+                buffer_val = MultiArray(val.shape, param_type)
+            print("buffer shape: ", buffer_val.shape)
+            @for_range_opt(buffer_val.total_size())
+            def _(i):
+                v = param_type._new(public_input(), param_type.f, param_type.k)
+                buffer_val.assign_vector(v, i)
+            # buffer_val.print_reveal_nested()
             self.register_buffer(
                 buffer_name,
                 Tensor(buffer_val),
@@ -197,10 +205,11 @@ class ConvertModel(nn.Module):
             ]
 
             # getting correct layer
-            print(out_op_name)
+            # print(out_op_name)
             op = getattr(self, out_op_name)
-            print(op)
-            print(type(op))
+            # print("operation: ", op)
+            # print("operation type: ", type(op))
+            
             # if first layer choose input as in_activations
             # if not in_op_names and len(node.input) == 1:
             #    in_activations = input
@@ -208,14 +217,14 @@ class ConvertModel(nn.Module):
                 isinstance(op, COMPOSITE_LAYERS)
                 and any(isinstance(x, STANDARD_LAYERS) for x in op.modules())
             ):
-                print("STAND")
+                # print("STAND")
                 in_activations = [
                     activations[in_op_id]
                     for in_op_id in node.input
                     if in_op_id in activations
                 ]
             else:
-                print("NOSTAND")
+                # print("NOSTAND")
                 in_activations = [
                     activations[in_op_id] if in_op_id in activations
                     # if in_op_id not in activations neither in parameters then
@@ -225,13 +234,14 @@ class ConvertModel(nn.Module):
                 ]
 
             in_activations = [in_act for in_act in in_activations if in_act is not None]
-            print(op)
+            # print("operation input: ", in_activations)
             # store activations for next layer
             if isinstance(op, Loop):
                 outputs = op((self,), activations, *in_activations)
                 for out_op_id, output in zip(node.output, outputs):
                     activations[out_op_id] = output
-            elif isinstance(op, partial) and op.func == torch.cat:
+            elif isinstance(op, partial) and op.func == F.cat:
+                print("my cat input", in_activations)
                 activations[out_op_id] = op(in_activations)
             elif isinstance(op, Identity):
                 # After batch norm fusion the batch norm parameters
@@ -241,8 +251,10 @@ class ConvertModel(nn.Module):
                 isinstance(op, COMPOSITE_LAYERS)
                 and any(isinstance(x, MULTIOUTPUT_LAYERS) for x in op.modules())
             ):
+                print("MULTIOUTPUT op: ", op, )
                 for out_op_id, output in zip(node.output, op(*in_activations)):
                     activations[out_op_id] = output
+                    print("MULTIOUTPUT size: ", output.shape)
             else:
                 activations[out_op_id] = op(*in_activations)
 
@@ -267,5 +279,5 @@ class ConvertModel(nn.Module):
         outputs = [activations[x] for x in self.output_names]
         if len(outputs) == 1:
             outputs = outputs[0]
-        print(outputs)
+        # print(outputs)
         return outputs

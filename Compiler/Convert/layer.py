@@ -34,6 +34,7 @@ def load_params(layer, weight, bias):
 
 def convert_layer(node, layer_type, params=None):
     """Use to convert Conv, MaxPool, AvgPool layers."""
+    print("node input: ", node.input)
     assert layer_type in [
         "Conv",
         "ConvTranspose",
@@ -48,7 +49,7 @@ def convert_layer(node, layer_type, params=None):
         raise ValueError(
             "Unexpected length of kernel_size dimension: {}".format(kernel_size_length)
         )
-
+    print("layer: ", layer)
     pad_layer = None
     if params:
         weight, bias = extract_params(params)
@@ -81,7 +82,7 @@ def convert_layer(node, layer_type, params=None):
 
     if pad_layer is not None:
         layer = nn.Sequential(pad_layer, layer)
-    print(layer)
+    print("final layer: ", layer)
     return layer
 
 

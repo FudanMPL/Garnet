@@ -596,6 +596,10 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0], 
     init_op_id = get_init_op_id()
     forward = get_forward()
     if prepare:
+        if isinstance(input, tuple):
+            input, weight = input
+        print("conv_in_size: ", input.shape)
+        print("conv_w_size: ", weight.shape)
         assert isinstance(input, Tensor) and isinstance(weight, Tensor) ,"Invalid Input and weight"
         assert len(input.shape)==4 and len(weight.shape)==4,"Invalid Dimension input and weight"
         out_shape=[input.shape[0],weight.shape[0],(input.shape[2]+2*padding[0]-weight.shape[2])//stride[0]+1,
@@ -813,6 +817,8 @@ def max_pool2d(input, kernel_size=2, stride=2, padding=0, training = False):
         comparisons = MultiArray([input.shape[0],input.shape[1],
                                        output_shape[2], output_shape[3],
                                        kernel_size[0] * kernel_size[1]], sint)
+        print("maxpool_in_size: ", input.shape)
+        print("maxpool_out_size: ", output.shape)
         if input.req_grad:
             operation = Operation(inputs=[input.name], outputs=[output.name], propagate=propagate,
                                   intermediate=[stride, kernel_size,padding,comparisons])
@@ -882,6 +888,7 @@ def max_pool2d(input, kernel_size=2, stride=2, padding=0, training = False):
                                              [w_in * w], h_in, w_in, h, w])
                     process(pool, bi, k, i, j,operation.intermediate[3],output.value,training)
     set_opid(op_id+1)  # record the input and output of the op
+    print("maxpool_out_size_true: ", output.shape)
     return output
 
     
@@ -972,8 +979,8 @@ def avg_pool2d(input, kernel_size, stride=None, padding=0,):
             if isinstance(padding, int):
                 padding = [padding, padding]
             output_shape = [input.shape[0],input.shape[1]] + [
-                (input.shape[2] + 2 * padding[0] - kernel_size[1]) //stride [1] + 1,
-                (input.shape[3] + 2 * padding[1] - kernel_size[2]) //stride [2] + 1] 
+                (input.shape[2] + 2 * padding[0] - kernel_size[0]) //stride [0] + 1,
+                (input.shape[3] + 2 * padding[1] - kernel_size[1]) //stride [1] + 1] 
              #out_shape.size:[Batch_size,H_out,W_out,out_channel]
              
         new_value=MultiArray(output_shape,input.value.value_type)
@@ -1001,8 +1008,8 @@ def avg_pool2d(input, kernel_size, stride=None, padding=0,):
         
         # assert n_channels_in == n_channels_out
         padding_h, padding_w = (0, 0)
-        _,stride_h, stride_w,_ = operation.intermediate[0]
-        _,filter_h, filter_w,_ = operation.intermediate[1]
+        # _,stride_h, stride_w,_ = operation.intermediate[0]
+        # _,filter_h, filter_w,_ = operation.intermediate[1]
         
         pool_size=reduce(operator.mul,operation.intermediate[1])
         if not forward:
@@ -1013,32 +1020,35 @@ def avg_pool2d(input, kernel_size, stride=None, padding=0,):
         
         Y_sizes =[N,output_h, output_w,n_channels_out]  
         X_sizes =[N,inputs_h, inputs_w,n_channels_in]
-        need_padding = [strides[i] * (Y_sizes[i] - 1) + ksize[i] >
+        
+        print("needpad:", strides, Y_sizes, ksize, X_sizes)
+        # needpad: (1, 1) [1, 35, 35, 192] (3, 3) [1, 35, 35, 192]
+        need_padding = [strides[i//2] * (Y_sizes[i] - 1) + ksize[i//2] >
                         X_sizes[i] for i in range(4)]
         @for_range_opt_multithread(n_threads,[N, n_channels_in])
         def _(l, k):
             bi = batch[l]
             @for_range_opt(Y_sizes[1])
             def _(i):
-                h_base = strides[1] * i - padding[1]
-                hs = [h_base + jj for jj in range(ksize[1])]
+                h_base = strides[0] * i - padding[1]
+                hs = [h_base + jj for jj in range(ksize[0])]
                 if need_padding[1]:
                     h_ins = [(h < X_sizes[1]) * (h >= 0) for h in hs]
                 else:
-                    h_ins = [True] * ksize[1]
+                    h_ins = [True] * ksize[0]
                 @for_range_opt(Y_sizes[2])
                 def _(j):
-                    w_base = strides[2] * j - padding[1]
+                    w_base = strides[1] * j - padding[1]
                     pool = []
-                    ws = [w_base + jj for jj in range(ksize[2])]
+                    ws = [w_base + jj for jj in range(ksize[1])]
                     if need_padding[2]:
                         w_ins = [(w < X_sizes[2]) * (w >= 0) for w in ws]
                     else:
-                        w_ins = [True] * ksize[2]
-                    for ii in range(ksize[1]):
+                        w_ins = [True] * ksize[1]
+                    for ii in range(ksize[0]):
                         h = hs[ii]
                         h_in = h_ins[ii]
-                        for jj in range(ksize[2]):
+                        for jj in range(ksize[1]):
                             w = ws[jj]
                             w_in = w_ins[jj]
                             if not is_zero(h_in * w_in):
@@ -1479,3 +1489,13 @@ def gelu(input, approximate='tanh'):
         factor = factor.Hardtanh()
     factor += 1
     return factor * input * 0.5
+
+def cat(tensors, dim=0, out=None):
+    assert out is None
+    out = tensors[0]
+    for i in range(1, len(tensors)):
+        out.concat(tensors[i], dim=dim)
+    return out
+
+def enlarge(weight1, weight2):
+    return weight2

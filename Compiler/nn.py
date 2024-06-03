@@ -816,9 +816,12 @@ class Module():
             return result
         if self.main:
             TS.reset_op_id()
+        print("forward: ", self.forward)
+        print("args: ", args, kwargs)
         forward_call = self.forward
         break_point()
         result = forward_call(*args, **kwargs)
+        print("output: ", result)
         break_point()
 
         return result
@@ -1376,9 +1379,9 @@ class Conv2d(_ConvNd):
 
     def __init__(
         self,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: int,
+        in_channels: int = 2,
+        out_channels: int = 2,
+        kernel_size: int = 2,
         stride: int = 1,
         padding: Union[str, int] = 0,
         dilation: int = 1,
@@ -1405,7 +1408,13 @@ class Conv2d(_ConvNd):
         return F.conv2d(input, weight, bias, self.stride,
                         self.padding, groups = self.groups)
     
-    def forward(self, input: Tensor) -> Tensor:
+    def forward(self, input: Tensor, weight: Optional[Tensor] = None) -> Tensor:
+        if weight is not None:
+            print(input.shape)
+            print(weight.shape)
+            self.in_channels = weight.shape[0]
+            self.out_channels = weight.shape[1]
+            return self._conv_forward(input, weight, self.bias)
         return self._conv_forward(input, self.weight, self.bias)
 
 class _NormBase(Module):

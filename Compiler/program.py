@@ -51,7 +51,7 @@ class defaults:
     garbled = False
     prime = None
     galois = 40
-    budget = 100
+    budget = 10000
     mixed = False
     edabit = False
     invperm = False
@@ -509,7 +509,7 @@ class Program(object):
                         print(x)
                         
         end_time = time.time()
-        print('profiling time: ' + str(end_time - start_time)) 
+        print('Profiling time: %.6f (ms)'%((end_time - start_time)*1000)) 
         
         if self.tapes:
             self.update_req(self.curr_tape)
