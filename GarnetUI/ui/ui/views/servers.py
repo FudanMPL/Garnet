@@ -1,8 +1,9 @@
 from Model.models import Servers
 from Model.serializers import ServersModelSerializer
+from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
-from rest_framework import status
+
 from ..pagination import PagePagination
 
 
