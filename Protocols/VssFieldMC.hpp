@@ -3,8 +3,8 @@
  *
  */
 
-#ifndef PROTOCOLS_VSSMC_HPP_
-#define PROTOCOLS_VSSMC_HPP_
+#ifndef PROTOCOLS_VSSFIELDMC_HPP_
+#define PROTOCOLS_VSSFIELDMC_HPP_
 
 #include "VssFieldMC.h"
 

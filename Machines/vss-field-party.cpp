@@ -14,5 +14,6 @@
 int main(int argc, const char** argv)
 {
     // ez::ezOptionParser opt;
+    cout<<"啦啦啦啦啦"<<endl;
     VssFieldMachineSpec<VssFieldShare>(argc, argv);
 }

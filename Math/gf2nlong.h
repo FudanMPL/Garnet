@@ -12,12 +12,12 @@
 #include <iostream>
 using namespace std;
 
+#include "Networking/Player.h"
 #include "Tools/random.h"
 #include "Tools/intrinsics.h"
 #include "Math/field_types.h"
 #include "Math/bigint.h"
 #include "Math/gf2n.h"
-
 
 bool is_ge(__m128i a, __m128i b);
 
@@ -148,6 +148,10 @@ class gf2n_long : public gf2n_<int128>
 
   static gf2n_long cut(int128 x) { return x; }
 
+  __m128i toInt() const {
+    return _mm_set_epi64x(0, this->a.get_lower());
+  }
+
   gf2n_long()              { assign_zero(); }
   gf2n_long(const super& g) : super(g) {}
   gf2n_long(const int128& g) : super(g) {}
@@ -160,11 +164,11 @@ class gf2n_long : public gf2n_<int128>
 		mp_limb_t value = *((unsigned long*) adr);
 		if(sender < P.my_num())
 		{
-			*this += gf2n_long(P.inv[sender] * value);
+			*this += gf2n_long(int128(P.field_inv[sender])) * value;
 		}
 		else
 		{
-			*this += gf2n_long(P.inv[sender + 1] * value);
+			*this += gf2n_long(int128(P.field_inv[sender + 1])) * value;
 		}
 	}
 

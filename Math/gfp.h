@@ -12,6 +12,7 @@ using namespace std;
 #include "Math/Setup.h"
 #include "Tools/random.h"
 #include "Processor/OnlineOptions.h"
+#include "Networking/Player.h"
 
 #include "Math/modp.hpp"
 
@@ -163,6 +164,7 @@ class gfp_ : public ValueInterface
   gfp_(long x);
   gfp_(long long x) : gfp_(long(x)) {}
   gfp_(word x) : gfp_(bigint::tmp = x) {}
+  gfp_(const __m128i& x) : gfp_(static_cast<long long>(_mm_cvtsi128_si64(x))) {}
   template<class T>
   gfp_(IntBase<T> x) : gfp_(x.get()) {}
   /**
@@ -202,13 +204,20 @@ class gfp_ : public ValueInterface
 		mp_limb_t value = *((unsigned long*) adr);
 		if(sender < P.my_num())
 		{
-			*this += P.inv[sender] * value;
+			*this += gfp_(P.field_inv[sender]) * value;
 		}
 		else
 		{
-			*this += P.inv[sender + 1] * value;
+			*this += gfp_(P.field_inv[sender + 1]) * value;
 		}
 	}
+
+  __m128i toInt() const
+  {
+    bigint bi;
+    to_bigint(bi, *this);
+    return _mm_set_epi64x(0, static_cast<long long>(bi.get_ui()));
+  }
 
   gfp_ lazy_add(const gfp_& x) const { return *this + x; }
   gfp_ lazy_mul(const gfp_& x) const { return *this * x; }

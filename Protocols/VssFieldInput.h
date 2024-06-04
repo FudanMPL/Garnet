@@ -61,7 +61,7 @@ class VssFieldInput : public SemiInput<T>
 
 
 public:
-    std::vector<typename T::open_type> inv;
+    vector<typename T::open_type> inv;
     VssFieldInput(SubProcessor<T>& proc, VssFieldMC<T>&) :
             VssFieldInput<T>(&proc, proc.P)
     {
@@ -84,6 +84,11 @@ public:
     void exchange();
     void finalize_other(int player, T& target, octetStream& o, int n_bits = -1);
     T finalize_mine();
+
+    typename T::open_type determinant(vector<vector<int>> &matrix); // 行列式
+    vector<vector<typename T::open_type>> adjointMatrix(vector<vector<int>> &matrix); // 伴随矩阵
+    typename T::open_type inverse(typename T::open_type &a); // 行列式的逆
+    typename T::open_type power_field(typename T::open_type a, int b); // a的b次方
 };
 
 

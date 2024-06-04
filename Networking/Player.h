@@ -25,6 +25,9 @@ using namespace std;
 #include "Networking/PlayerBuffer.h"
 #include "Tools/Lock.h"
 
+// #include "Math/gf2nlong.h"
+// class gf2n_long;
+
 template<class T> class MultiPlayer;
 class Server;
 class ServerSocket;
@@ -196,6 +199,7 @@ public:
   mutable Timer timer;
   std::vector<std::vector<int>> public_matrix;
   std::vector<int> inv;
+  std::vector<__m128i> field_inv;
 
   PlayerBase(int player_no) : player_no(player_no), sent(comm_stats.sent) {}
   virtual ~PlayerBase();

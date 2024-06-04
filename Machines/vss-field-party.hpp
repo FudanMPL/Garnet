@@ -34,7 +34,7 @@ VssFieldOptions::VssFieldOptions(ez::ezOptionParser& opt, int argc, const char**
 {
     opt.add(
             "3", // Default.
-            0, // Required?
+            1, // Required?
             1, // Number of args expected.
             0, // Delimiter if expecting multiple args.
             "Number of parties", // Help description.
@@ -43,7 +43,7 @@ VssFieldOptions::VssFieldOptions(ez::ezOptionParser& opt, int argc, const char**
     );
     opt.add(
             "1", // Default.
-            0, // Required?
+            1, // Required?
             1, // Number of args expected.
             0, // Delimiter if expecting multiple args.
             "Number of privileged parties (default: one)", // Help description.
@@ -52,7 +52,7 @@ VssFieldOptions::VssFieldOptions(ez::ezOptionParser& opt, int argc, const char**
     );
     opt.add(
             "2", // Default.
-            0, // Required?
+            1, // Required?
             1, // Number of args expected.
             0, // Delimiter if expecting multiple args.
             "Number of assistant parties (default: two)", // Help description.
@@ -61,7 +61,7 @@ VssFieldOptions::VssFieldOptions(ez::ezOptionParser& opt, int argc, const char**
     );
     opt.add(
             "1", // Default.
-            0, // Required?
+            1, // Required?
             1, // Number of args expected.
             0, // Delimiter if expecting multiple args.
             "Number of assistant parties allowed to drop out (default: one)", // Help description.
