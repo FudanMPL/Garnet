@@ -45,20 +45,20 @@ typename T::open_type VssFieldInput<T>::determinant(vector<vector<int>> &matrix)
         cout<< det + (determinant(submatrix) *  matrix[0][i])<<endl;
         cout<< "如果是减法:"<<endl;
         cout<< det - (determinant(submatrix) *  matrix[0][i])<<endl;
-        typename T::open_type temp1 = 36;
-        typename T::open_type temp2 = 30;
-        typename T::open_type temp3 = temp1+temp2;
-        int x=5;
-        typename T::open_type temp4 = temp1-x;
+        // typename T::open_type temp1 = _mm_set1_epi32(36);
+        // typename T::open_type temp2 = _mm_set1_epi32(30);
+        // typename T::open_type temp3 = temp1+temp2;
+        // int x=5;
+        // typename T::open_type temp4 = temp1-x;
         // x=temp4;
         
-        cout<<"temp1:";
-        cout<<temp1<<endl;
-        cout<<"temp2:";
-        cout<<temp2<<endl;
-        cout<<"temp3:";
-        cout<<temp3<<endl;
-        cout<<"temp4:";
+        // cout<<"temp1:";
+        // cout<<temp1<<endl;
+        // cout<<"temp2:";
+        // cout<<temp2<<endl;
+        // cout<<"temp3:";
+        // cout<<temp3<<endl;
+        // cout<<"temp4:";
         // cout<<type(temp4)<<endl;
         // cout<<temp4<<endl;
         if(sign==true)
