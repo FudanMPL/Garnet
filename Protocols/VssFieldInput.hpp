@@ -11,17 +11,16 @@
 
 // 求矩阵的行列式
 template <class T>
-typename T::open_type VssFieldInput<T>::determinant(vector<vector<int>> &matrix)
+Integer VssFieldInput<T>::determinant(vector<vector<int>> &matrix)
 {
     int n = matrix.size();
     if (n == 2)
     {
-        typename T::open_type det = (matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0] );
+        Integer det = (matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0] );
         return det;
     }
-    typename T::open_type det = 0;
+    Integer det = 0;
     bool sign = true;
-    cout<<"中间结果："<<endl;
     for (int i = 0; i < n; i++)
     {
         vector<vector<int>> submatrix(n - 1, vector<int>(n - 1));
@@ -37,36 +36,10 @@ typename T::open_type VssFieldInput<T>::determinant(vector<vector<int>> &matrix)
                 }
             }
         }
-        cout<<"原行列式:";
-        cout<<det<<endl;
-        cout<<"乘积:";
-        cout<<(determinant(submatrix) *  matrix[0][i])<<endl;
-        cout<< "如果是加法:"<<endl;
-        cout<< det + (determinant(submatrix) *  matrix[0][i])<<endl;
-        cout<< "如果是减法:"<<endl;
-        cout<< det - (determinant(submatrix) *  matrix[0][i])<<endl;
-        // typename T::open_type temp1 = _mm_set1_epi32(36);
-        // typename T::open_type temp2 = _mm_set1_epi32(30);
-        // typename T::open_type temp3 = temp1+temp2;
-        // int x=5;
-        // typename T::open_type temp4 = temp1-x;
-        // x=temp4;
-        
-        // cout<<"temp1:";
-        // cout<<temp1<<endl;
-        // cout<<"temp2:";
-        // cout<<temp2<<endl;
-        // cout<<"temp3:";
-        // cout<<temp3<<endl;
-        // cout<<"temp4:";
-        // cout<<type(temp4)<<endl;
-        // cout<<temp4<<endl;
         if(sign==true)
-            det += (determinant(submatrix) *  matrix[0][i]);
+            det = det + (determinant(submatrix) *  matrix[0][i]);
         else 
-            det -= (determinant(submatrix) *  matrix[0][i]);
-        // cout<<"det:";
-        // cout<<det<<endl;
+            det = det - (determinant(submatrix) *  matrix[0][i]);
         sign = !sign;
     }
     return det;

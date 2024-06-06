@@ -12,40 +12,6 @@
 template<class T> class VssFieldMC;
 
 /**
- * Base class for input protocols where the inputting player sends a share
- * to every other player
- */
-// template<class T>
-// class IndividualVssInput : public PairwiseKeyInput<T>
-// {
-// protected:
-//     Player& P;
-//     octetStreams os;
-//     vector<bool> senders;
-
-// public:
-//     IndividualVssInput(SubProcessor<T>* proc, Player& P) :
-//             PairwiseKeyInput<T>(proc, P), P(P), senders(P.num_players())
-//     {
-//         this->reset_all(P);
-//     }
-//     IndividualVssInput(SubProcessor<T>& proc) :
-//             IndividualVssInput<T>(&proc , proc.P)
-//     {
-//     }
-
-//     void reset(int player);
-//     void add_sender(int player);
-//     void add_other(int player, int n_bits = -1);
-//     void send_mine();
-//     void exchange();
-//     void finalize_other(int player, T& target, octetStream& o, int n_bits = -1);
-
-//     void start_exchange();
-//     void stop_exchange();
-// };
-
-/**
  * Vector space secret sharing over field input protocol
  */
 template<class T>
@@ -85,7 +51,7 @@ public:
     void finalize_other(int player, T& target, octetStream& o, int n_bits = -1);
     T finalize_mine();
 
-    typename T::open_type determinant(vector<vector<int>> &matrix); // 行列式
+    Integer determinant(vector<vector<int>> &matrix); // 行列式
     vector<vector<typename T::open_type>> adjointMatrix(vector<vector<int>> &matrix); // 伴随矩阵
     typename T::open_type inverse(typename T::open_type &a); // 行列式的逆
     typename T::open_type power_field(typename T::open_type a, int b); // a的b次方
