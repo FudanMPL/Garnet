@@ -26,6 +26,7 @@ HonestMajorityFieldMachine<T, V>::HonestMajorityFieldMachine(int argc,
         const char **argv, ez::ezOptionParser& opt, int nplayers)
 {
     OnlineOptions online_opts(opt, argc, argv, T<gfp0>());
+    cout<<"我在FieldMachine的第二个构造函数"<<endl;
     FieldMachine<T, T, V>(argc, argv, opt, online_opts,
             nplayers);
 }
@@ -34,6 +35,7 @@ template<template<class U> class T, template<class U> class V, class W, class X>
 FieldMachine<T, V, W, X>::FieldMachine(int argc, const char** argv,
         ez::ezOptionParser& opt, OnlineOptions& online_opts, int nplayers)
 {
+    cout<<"我在FieldMachine的第三个构造函数"<<endl;
     W machine(argc, argv, opt, online_opts, X(), nplayers);
     int n_limbs = online_opts.prime_limbs();
     switch (n_limbs)

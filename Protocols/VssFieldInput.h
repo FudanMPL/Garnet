@@ -31,9 +31,11 @@ public:
     VssFieldInput(SubProcessor<T>& proc, VssFieldMC<T>&) :
             VssFieldInput(&proc, proc.P)
     {
+        cout<<"我在VssFieldInput第一个构造函数"<<endl;
         // npparties = VssFieldMachine::s().npparties;
         // naparties = VssFieldMachine::s().naparties;
         ndparties = VssFieldMachine::s().ndparties;
+        
     }
 
     VssFieldInput(SubProcessor<T>* proc, Player& P);

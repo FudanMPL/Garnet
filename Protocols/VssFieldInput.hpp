@@ -83,7 +83,7 @@ vector<vector<typename T::open_type>> VssFieldInput<T>::adjointMatrix(vector<vec
 template <class T>
 VssFieldInput<T>::VssFieldInput(SubProcessor<T> *proc, Player &P) : SemiInput<T>(proc, P), P(P)
 {
-    cout<<"啦啦啦啦啦啦啦"<<endl;
+    cout<<"244565676"<<endl;
     int public_matrix_row = P.num_players(); // n+nd
     int public_matrix_col = P.num_players() - ndparties; // n
     P.public_matrix.resize(public_matrix_row);
@@ -113,7 +113,6 @@ VssFieldInput<T>::VssFieldInput(SubProcessor<T> *proc, Player &P) : SemiInput<T>
     cout << "恢复系数：" << endl;
     for (int i = 0; i < public_matrix_col; i++)
     {
-        cout<<"哈哈哈哈哈"<<endl;
         inv[i] = adj[0][i] * det_inv; // 逆矩阵的第一行
         cout<<inv[i]<<' ';
         // P.field_inv[i] = inv[i].toInt(); // 一个是int，一个是gfp，必须转换
