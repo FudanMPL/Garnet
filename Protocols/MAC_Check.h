@@ -658,6 +658,7 @@ void add_Vss_Field_openings(vector<T>& values, const Player& P, int sum_players,
   oss.resize(P.num_players());
   vector<int> senders;
   senders.reserve(P.num_players()); //分配n的内存空间
+  
 
   for (int relative_sender = positive_modulo(P.my_num() - send_player, P.num_players()) + sum_players; //正模
       relative_sender < last_sum_players; relative_sender += sum_players) // 循环条件是relative_sender < last_sum_players

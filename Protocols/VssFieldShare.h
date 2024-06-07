@@ -87,7 +87,7 @@ public:
     //             square64 square;
 
     //             for (int j = 0; j < m; j++)
-    //                 square.rows[j] = source[j + start].get_limb(l / unit);
+    //                 square.rows[j] = source[j + start].a.get_limb(l / unit);
 
     //             square.transpose(m, n_left);
 

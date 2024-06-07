@@ -73,45 +73,17 @@ vector<vector<typename T::open_type>> VssFieldInput<T>::adjointMatrix(vector<vec
                     subi++;
                 }
             }
-            // typename T::open_type sign = ((i + j) % 2 == 0) ? 1 : P - 1;
-            typename T::open_type sign = ((i + j) % 2 == 0) ? 1 : -1;
-            adj[j][i] = sign * determinant(submatrix);
+            int sign = ((i + j) % 2 == 0) ? 1 : -1;
+            adj[j][i] = Integer(sign) * determinant(submatrix);
         }
     }
     return adj;
 }
 
-// 求a的b次方
-template <class T>
-typename T::open_type VssFieldInput<T>::power_field(typename T::open_type a, int b)
-{
-    typename T::open_type res = 1;
-    while (b)
-    {
-        cout<<"//2"<<endl;
-        if (b & 1)
-        {
-            res *= a;
-        }
-        a *= a;
-        b >>= 1;
-    }
-    return res;
-}
-
-// 求逆元
-template <class T>
-typename T::open_type VssFieldInput<T>::inverse(typename T::open_type &a)
-{
-    // return power_field(a, -1); //负数的表示
-    typename T::open_type x = 1;
-    return x / a;
-}
-
 template <class T>
 VssFieldInput<T>::VssFieldInput(SubProcessor<T> *proc, Player &P) : SemiInput<T>(proc, P), P(P)
 {
-    cout<<"哈哈哈哈"<<endl;
+    cout<<"啦啦啦啦啦啦啦"<<endl;
     int public_matrix_row = P.num_players(); // n+nd
     int public_matrix_col = P.num_players() - ndparties; // n
     P.public_matrix.resize(public_matrix_row);
@@ -127,7 +99,8 @@ VssFieldInput<T>::VssFieldInput(SubProcessor<T> *proc, Player &P) : SemiInput<T>
     for (int i = 0; i < public_matrix_row; i++)
     {
         int x = 1;
-        for (int j = 0; j < public_matrix_col; j++){
+        P.public_matrix[i][0] = 1;
+        for (int j = 1; j < public_matrix_col; j++){
             x *= (i + 1);
             P.public_matrix[i][j] = x;
         }
@@ -135,47 +108,19 @@ VssFieldInput<T>::VssFieldInput(SubProcessor<T> *proc, Player &P) : SemiInput<T>
     // 求前n行的行列式
     vector<vector<int>> selected(P.public_matrix.begin(), P.public_matrix.begin() + public_matrix_col);
     typename T::open_type det = determinant(selected); // 行列式
-    cout<<"==3"<<endl;
+    typename T::open_type det_inv = det.invert(); // 行列式的逆
     vector<vector<typename T::open_type>> adj = adjointMatrix(selected); // 伴随矩阵
-    cout<<"==4"<<endl;
-    typename T::open_type det_inv = inverse(det); // 行列式的逆
-    cout<<"==5"<<endl;
-    vector<vector<typename T::open_type>> selected_inv(public_matrix_col,vector<typename T::open_type>(public_matrix_col));
-    cout<<"==6"<<endl;
+    cout << "恢复系数：" << endl;
     for (int i = 0; i < public_matrix_col; i++)
     {
-        for (int j = 0; j < public_matrix_col; j++)
-        {
-            cout<<"!!3"<<endl;
-            selected_inv[i][j] = adj[i][j] * det_inv; // 伴随矩阵 * 行列式的逆 = 矩阵的逆
-        }
+        cout<<"哈哈哈哈哈"<<endl;
+        inv[i] = adj[0][i] * det_inv; // 逆矩阵的第一行
+        cout<<inv[i]<<' ';
+        // P.field_inv[i] = inv[i].toInt(); // 一个是int，一个是gfp，必须转换
     }
-    cout<<"==7"<<endl;
-    // for test，输出生成的范德蒙矩阵P.public_matrix及其逆矩阵inv
-    cout << "范德蒙矩阵:" << endl;
-    for (int i = 0; i < public_matrix_col; i++)
-    {
-        for (int j = 0; j < public_matrix_col; j++)
-        {
-            cout << selected[i][j] << " ";
-        }
-        cout << endl;
-    }
-    // for (int i = 0; i < public_matrix_col; i++)
-    // {
-    //     cout << inv[i] << " ";
-    // }
-
-    for (int i = 0; i < public_matrix_col; i++)
-    {
-        inv[i] = selected_inv[0][i];
-        cout<<"!!4"<<endl;
-        cout<<inv[i]<<endl;
-        P.field_inv[i] = selected_inv[0][i].toInt(); //一个是int，一个是gfp，必须转换
-        cout<<"!!5"<<endl;
-    } 
-    
-
+    cout<<endl;
+    // for test
+    cout << "结束" << endl;
     this->reset_all(P);
 }
 

@@ -149,7 +149,7 @@ class gf2n_long : public gf2n_<int128>
   static gf2n_long cut(int128 x) { return x; }
 
   __m128i toInt() const {
-    return _mm_set_epi64x(0, this->a.get_lower());
+    return _mm_set_epi64x(this->a.get_upper(), this->a.get_lower());
   }
 
   gf2n_long()              { assign_zero(); }

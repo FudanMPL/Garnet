@@ -122,5 +122,6 @@ VssFieldMachineSpec<T>::VssFieldMachineSpec(int argc, const char** argv)
     auto& opts = VssFieldOptions::singleton;
     ez::ezOptionParser opt;
     opts = {opt, argc, argv};
+    cout<<"我在虚拟机层"<<endl;
     HonestMajorityFieldMachine<T>(argc, argv, opt, opts.nparties);
 }
