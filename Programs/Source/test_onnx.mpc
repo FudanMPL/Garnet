@@ -1,38 +1,25 @@
 
-import nn as nn
-from tensor import Tensor,autograd_function
-import optimizer as optim
-import dataloader as dataloader
-import functional as F
+from Compiler.tensor import Tensor, reset_gloabal_store, reset_op_id
 import onnx
+from Compiler.library import *
 program.use_trunc_pr = True
+print_ln('conv!!\n')
 
 
-
-onnx_model = onnx.load("graph_opt.onnx")
+onnx_model = onnx.load("example.onnx")
 from Convert.model import ConvertModel
+print_ln('conv!!\n')
+
 model = ConvertModel(onnx_model)
 print(model)
-
-crossloss = nn.CrossEntropyLoss()
-
+print_ln('conv!!\n')
 x = MultiArray([1,32,10,10], sfix)
-y = MultiArray([1,10], sfix)
-
 @for_range(x.total_size())
 def _(i):
     x.assign_vector(sfix(i/10), i)
-y.assign_all(0)
-for i in range(10):
-    y[0][i//3] = 1
-
-dataload = dataloader.DataLoader(x, y, batch_size = 1)
-# optimizer = optim.SGD(model.parameters(), lr = 0.01)
-# params = list(model.parameters())
-# for i in params:
-#     i.assign_all(0.1)
-
-input, label = dataload.get_data(0)
-output = model(input)
+print_ln('conv!!\n')
+    
+input = Tensor(x)
+# y = model(input)
     
    

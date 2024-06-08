@@ -18,11 +18,12 @@ def resnet_block(graph, input, strides, out_channels):
         input=graph.conv2d(input=input, weight=w4,
                            strides=strides, padding="SAME",
                            activation="RELU")
+    return graph.add(input, t)
     return graph.relu(graph.add(input, t))
 
 graph = ts.new_graph()
 input = graph.new_input(dims=(1,64,56,56))
-t = input
+t = graph.relu(input)
 for i in range(3):
     t = resnet_block(graph, t, (1,1), 64)
 strides = (2,2)
@@ -38,7 +39,8 @@ for i in range(3):
     t = resnet_block(graph, t, strides, 512)
     strides = (1,1)
 
-new_graph = ts.optimize(graph, alpha=1e9, budget=1000, input_size=(1,64,56,56))
+# new_graph = ts.optimize(graph, alpha=1e9, budget=1000, input_size=(1,64,56,56))
+new_graph = ts.optimize(graph, alpha=1e9, budget=1000, input_size=(1,64,56,56), inMPL=True)
 
 onnx_model = ts.export_onnx(graph)
 onnx.save(onnx_model, "resnet50.onnx")

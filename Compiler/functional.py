@@ -809,8 +809,8 @@ def max_pool2d(input, kernel_size=2, stride=2, padding=0, training = False):
             strides = (1, 1, stride[0], stride[0])
             output_shape = [int(math.ceil(input.shape[i] / strides[i])) for i in range(4)]
         else:
-            output_shape = [input.shape[0],input.shape[1],(input.shape[2]-kernel_size[0])//stride[0]+1,
-                            (input.shape[3]-kernel_size[1])//stride[1]+1 ]
+            output_shape = [input.shape[0],input.shape[1],(input.shape[2]-kernel_size[0]+2*padding[0])//stride[0]+1,
+                            (input.shape[3]-kernel_size[1]+2*padding[1])//stride[1]+1 ]
              #out_shape.size:[Batch_size,out_channel,H_out,W_out]
         new_value=MultiArray(output_shape,input.value.value_type)
         output = Tensor(new_value, req_grad=input.req_grad)

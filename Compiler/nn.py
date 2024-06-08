@@ -1410,8 +1410,7 @@ class Conv2d(_ConvNd):
     
     def forward(self, input: Tensor, weight: Optional[Tensor] = None) -> Tensor:
         if weight is not None:
-            print(input.shape)
-            print(weight.shape)
+            print(self.in_channels, self.out_channels, input.shape, weight.shape)
             self.in_channels = weight.shape[0]
             self.out_channels = weight.shape[1]
             return self._conv_forward(input, weight, self.bias)

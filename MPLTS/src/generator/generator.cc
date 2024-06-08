@@ -14,7 +14,7 @@
  */
 
 #include <unordered_map>
-#include "xflow/ops.h"
+#include "taso/ops.h"
 #include "rules.pb.h"
 typedef int TYPE;
 #define MAX_SIZE 512
@@ -23,7 +23,7 @@ typedef int TYPE;
 #define BATCHSIZE 2
 #define NO_SAME_INPUTS
 
-using namespace XFlow;
+using namespace taso;
 const SplitInfo SplitInfo::NO_SPLIT = SplitInfo();
 
 TYPE relu_function(TYPE input)

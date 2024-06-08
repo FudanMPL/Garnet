@@ -90,6 +90,7 @@ class ConvertModel(nn.Module):
         experimental=False,
         debug=False,
         enable_pruning=False,
+        fake_param=False,
     ):
         """
         Convert onnx model to pytorch.
@@ -117,7 +118,8 @@ class ConvertModel(nn.Module):
         self.experimental = experimental
         self.debug = debug
         self.enable_pruning = enable_pruning
-
+        self.fake_param = fake_param
+        
         self.input_names = get_inputs_names(onnx_model.graph)
         self.output_names = get_outputs_names(onnx_model.graph)
         opset_version = onnx_model.opset_import[0].version
@@ -144,20 +146,21 @@ class ConvertModel(nn.Module):
             buffer_name = get_buffer_name(tensor.name)
             val = numpy_helper.to_array(tensor)
             
-            for x in val.flatten():
-                file.write(str(int(x * (1<<param_type.f)))+'\n')
-            # for x in val:
-            #     P.public_input(str(int(x * (1<<sfix.f))))
-            
             if len(val.shape)==1:
                 buffer_val = Array(val.shape[0], param_type)
             else:
                 buffer_val = MultiArray(val.shape, param_type)
-            print("buffer shape: ", buffer_val.shape)
-            @for_range_opt(buffer_val.total_size())
-            def _(i):
-                v = param_type._new(public_input(), param_type.f, param_type.k)
-                buffer_val.assign_vector(v, i)
+            
+            if self.fake_param is False:
+                for x in val.flatten():
+                    file.write(str(int(x * (1<<param_type.f)))+'\n')
+                # for x in val:
+                #     P.public_input(str(int(x * (1<<sfix.f))))
+                # print("buffer shape: ", buffer_val.shape)
+                @for_range_opt(buffer_val.total_size())
+                def _(i):
+                    v = param_type._new(public_input(), param_type.f, param_type.k)
+                    buffer_val.assign_vector(v, i)
             # buffer_val.print_reveal_nested()
             self.register_buffer(
                 buffer_name,
@@ -206,7 +209,6 @@ class ConvertModel(nn.Module):
             # getting correct layer
             # print(out_op_name)
             op = getattr(self, out_op_name)
-            # print("operation: ", op)
             # print("operation type: ", type(op))
             
             # if first layer choose input as in_activations
@@ -216,14 +218,14 @@ class ConvertModel(nn.Module):
                 isinstance(op, COMPOSITE_LAYERS)
                 and any(isinstance(x, STANDARD_LAYERS) for x in op.modules())
             ):
-                # print("STAND")
+                print("STAND")
                 in_activations = [
                     activations[in_op_id]
                     for in_op_id in node.input
                     if in_op_id in activations
                 ]
             else:
-                # print("NOSTAND")
+                print("NOSTAND")
                 in_activations = [
                     activations[in_op_id] if in_op_id in activations
                     # if in_op_id not in activations neither in parameters then
@@ -233,14 +235,14 @@ class ConvertModel(nn.Module):
                 ]
 
             in_activations = [in_act for in_act in in_activations if in_act is not None]
-            # print("operation input: ", in_activations)
+            
             # store activations for next layer
             if isinstance(op, Loop):
                 outputs = op((self,), activations, *in_activations)
                 for out_op_id, output in zip(node.output, outputs):
                     activations[out_op_id] = output
             elif isinstance(op, partial) and op.func == F.cat:
-                print("my cat input", in_activations)
+                # print("my cat input", in_activations)
                 activations[out_op_id] = op(in_activations)
             elif isinstance(op, Identity):
                 # After batch norm fusion the batch norm parameters

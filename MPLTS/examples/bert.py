@@ -32,7 +32,7 @@ def attention(graph, input, heads):
 
     # a final linear layer
     linear = graph.new_weight(dims=(d_model, d_model))
-    output = graph.matmul(input, linear)
+    output = graph.matmul(output, linear)
     return output
 
 graph = ts.new_graph()
@@ -42,4 +42,5 @@ t = input
 for i in range(8):
     t = attention(graph, t, 16)
 
-new_graph = ts.optimize(graph, alpha=1.0, budget=100)
+# new_graph = ts.optimize(graph, alpha=1.0, budget=100, input_size=(batch_size * seq_length, hidden_dims))
+new_graph = ts.optimize(graph, alpha=1.0, budget=100, input_size=(batch_size * seq_length, hidden_dims), inMPL=True)

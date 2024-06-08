@@ -23,7 +23,7 @@ import array
 import numpy as np
 from libcpp.vector cimport vector
 from libcpp.memory cimport unique_ptr
-
+import copy
 #helper function
 def get_padding_mode(padding):
     if (padding == "SAME"):
@@ -559,7 +559,7 @@ cdef class PyGraph:
         cdef Graph* new_graph
         graph_list = []
         for graph in subgraphs:
-            new_graph = graph#.preprocess_weights()
+            new_graph = graph.preprocess_weights()
             g = ctypes.cast(<unsigned long long>new_graph, ctypes.c_void_p)
             graph_list.append(PyGraph(g))
         

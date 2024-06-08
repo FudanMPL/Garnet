@@ -900,6 +900,7 @@ def export_onnx(graph):
     graph_initializers = list()
     graph_outputs = list()
     output_guids = dict()
+    created_graph_inputs = set()
     for op in opList:
         mytype = graph.get_operator_type(op)
         inedges = graph.get_input_edges(op)
@@ -907,15 +908,18 @@ def export_onnx(graph):
         inputs = list()
         for e in inedges:
             intype = graph.get_operator_type(e['srcOp'])
-            inputs.append(_input_tensor_name(graph, e, op))
+            input_name = _input_tensor_name(graph, e, op)
+            inputs.append(input_name)
             output_guids.pop((e['srcOp']['guid'], e['srcIdx']), None)
             if intype == 'Input' or intype == 'Weight':
-                graph_inputs.append(helper.make_tensor_value_info(_input_tensor_name(graph, e, op),
-                                    TensorProto.FLOAT, graph.get_input_dims(op, e['dstIdx'])))
-            if intype == 'Weight':
-                graph_initializers.append(helper.make_tensor(_input_tensor_name(graph, e, op),
-                                          TensorProto.FLOAT, graph.get_input_dims(op, e['dstIdx']),
-                                          graph.get_weight_value(e['srcOp'])))
+                if input_name not in created_graph_inputs:
+                    created_graph_inputs.add(input_name)
+                    graph_inputs.append(helper.make_tensor_value_info(input_name,
+                                        TensorProto.FLOAT, graph.get_input_dims(op, e['dstIdx'])))
+                    if intype == 'Weight':
+                        graph_initializers.append(helper.make_tensor(input_name,
+                                                TensorProto.FLOAT, graph.get_input_dims(op, e['dstIdx']),
+                                                graph.get_weight_value(e['srcOp'])))
 
         # add a second input for Reshape
         if mytype == 'Reshape':
@@ -939,11 +943,11 @@ def export_onnx(graph):
     return onnx_model
 
 import sys
-sys.path.append('/home/lx/Garnet')
+import os
+sys.path.append(os.environ.get('GARNET_HOME', ''))
 import time
 import onnx
 import subprocess
-import os
 import json
 import re
 import traceback
@@ -957,85 +961,82 @@ from Compiler.Convert.model import ConvertModel
 from Compiler.tensor import Tensor, reset_gloabal_store, reset_op_id
 import io
 import contextlib
-
-compiler = Compiler()
-onnx_model = None
-in_size = None
-out_size = None
-
-@compiler.register_function('testonnx')
-def test_onnx():
-    # onnx_model = onnx.load("../graph_opt.onnx")
-    
-    model = ConvertModel(onnx_model)
-
-    x = MultiArray(in_size, sfix)
-    # y = MultiArray(out_size, sfix)
-
-    @for_range(x.total_size())
-    def _(i):
-        x.assign_vector(sfix(i/10), i)
-    # @for_range(y.total_size())
-    # def _(i):
-    #     y.assign_vector(sfix(i/3), i)
-
-    # dataload = dataloader.DataLoader(x, y, batch_size = 1)
-    # input, label = dataload.get_data(0)
-    # output = model(input)
-    input = Tensor(x, req_grad = True)
-    model(input)
-    
-    reset_op_id()
-    reset_gloabal_store()
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 working_directory = os.path.dirname(os.getcwd())
-# bandwidth and ping_time quanting by second
-bandwidth = 1e9
-ping_time = 0.2 * (1e-3)
+## piranha env
+# bandwidth = 1e9
+# ping_time = 0.2 * (1e-3)
+# # secureML LAN env
+# bandwidth = 1e9
+# ping_time = 0.17 * (1e-3)
+# secureML WAN env
+bandwidth = 9 * 1e6
+ping_time = 0.72 * (1e-3)
 
-log_file = open('log.txt', 'w')
+log_file = open('log', 'w')
+data_file = open('data', 'w')
 
-def MPCprofiling(subGraphs, fail_cost=1e9):
-    round_list = []
-    comm_list = []
-    original_stdout = sys.stdout
-    for i in tqdm(range(0, len(subGraphs)), leave=False):
-        graph = subGraphs[i]
+def profiling(graph, in_size, index):
+    compiler = Compiler()
+    onnx_model = export_onnx(graph)
+    @compiler.register_function('testonnx')
+    def test_onnx():
+        # onnx_model = onnx.load("../graph_opt.onnx")
+        # model = ConvertModel(onnx_model, fake_param=True, experimental=True)
+        model = ConvertModel(onnx_model, fake_param=True)
         
+        x = MultiArray(in_size, sfix)
+
+        @for_range(x.total_size())
+        def _(i):
+            x.assign_vector(sfix(i/10), i)
+
+        input = Tensor(x, req_grad = True)
+        model(input)
+        
+        reset_op_id()
+        reset_gloabal_store()
+    
+    log_file.write('############# '+str(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))+' ############\n')
+    with contextlib.redirect_stdout(log_file):
+        compiler.compile_func()
+        
+    result = str(compiler.prog.req_num)
+    round = int(re.search(r"(\d+) online round", result).group(1))
+    comm = int(re.search(r"(\d+) online communication bits", result).group(1))
+    offround = int(re.search(r"(\d+) offline round", result).group(1))
+    offcomm = int(re.search(r"(\d+) offline communication bits", result).group(1))
+    return index, round, comm, offround, offcomm
+    
+def MPCprofiling(subGraphs, in_size, fail_cost=1e9):
+    round_list = [-1] * len(subGraphs)
+    comm_list = [-1] * len(subGraphs)
+    delay_list = [-1] * len(subGraphs)
+    original_stdout = sys.stdout
+    '''
+    with ThreadPoolExecutor(max_workers=16) as executor:
+        futures = {executor.submit(profiling, graph, i): i for i, graph in enumerate(subGraphs)}
+        
+        for future in tqdm(as_completed(futures), total=len(futures), leave=False):
+            index, round, comm, offround, offcomm = future.result()
+            round_list[index] = round
+            comm_list[index] = comm
+            delay_list[index] = round * ping_time + comm / bandwidth if round != -1 and comm != -1 else fail_cost
+            # data_file.write('%d %d %d %d %f\n' % (round, comm, offround, offcomm, delay))
+    '''            
+    for i in tqdm(range(0, len(subGraphs)), leave=False):
         try:
-            reset_op_id()
-            global onnx_model
-            onnx_model = export_onnx(graph)
-            
-            # onnx.save(onnx_model, "../graph_opt.onnx")
-            # with contextlib.redirect_stdout(io.StringIO()):
-            log_file.write('############# '+str(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))+' ############\n')
-            with contextlib.redirect_stdout(log_file):
-                compiler.compile_func()
-                        
-            result = str(compiler.prog.req_num)
-            round = int(re.search(r"(\d+) online round", result).group(1))
-            comm = int(re.search(r"(\d+) online communication bits", result).group(1))
-            # response = subprocess.run(['python', './compile.py', '-R', '64', 'test_onnx.mpc'], cwd=working_directory, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            # with open('../profiling_result.json', 'r') as file:
-            #     data = json.load(file)
-            # round = data['online round']
-            # comm = data['online communication bits']
-            round_list.append(round)
-            comm_list.append(comm)
-        # except subprocess.CalledProcessError as e:
-        #     with open('errorLog.txt', 'w+') as file:
-        #         file.write(e.stderr.decode()+time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
-        #     with open('outLog.txt', 'w+') as file:
-        #         file.write(e.stdout.decode()+time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
-        #     round_list.append(fail_cost)
-        #     comm_list.append(1e9)
+            index,round,comm,offround,offcomm = profiling(subGraphs[i], in_size, i)
+            round_list[i] = round
+            comm_list[i] = comm
+            data_file.write('%d %d %d %d %f\n'%(round,comm,offround,offcomm, round * ping_time + comm / bandwidth))
+            if i%10==0:
+                data_file.flush()
         except Exception as e:
             log_file.write('############# '+str(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))+' ############\n')
             traceback_info = traceback.format_exc()
             log_file.write(str(traceback_info)+'\n')
-            round_list.append(-1)
-            comm_list.append(-1)
     sys.stdout = original_stdout
     print(round_list)
     print(comm_list)
@@ -1045,24 +1046,32 @@ def MPCprofiling(subGraphs, fail_cost=1e9):
     print(delay_list)
     return delay_list
 
-def optimize(graph, input_size, alpha = 1.0, budget = 1000, print_subst = False):
-    global in_size, out_size
+def optimize(graph, input_size, alpha = 1.0, budget = 1000, inMPL = False, print_subst = False):
+    if not inMPL:
+        return graph.optimize(alpha, budget, print_subst)
+
     in_size = list(input_size)
     
     graph.optimize_on_step(alpha, budget)
-    Cost_list = MPCprofiling([graph])
+    Cost_list = MPCprofiling([graph], in_size)
     bestCost = Cost_list[0]
     bestGraph = graph
     subGraphs = [graph]
-    while subGraphs is not None:
-        subGraphs = graph.optimize_next_step(alpha, budget, Cost_list)
-        if subGraphs is None:
-            break
-        Cost_list = MPCprofiling(subGraphs, bestCost*1.5)
-        for i in range(0,len(subGraphs)):
-            if Cost_list[i] < bestCost:
-                bestCost = Cost_list[i]
-                bestGraph = subGraphs[i]
+    
+    try:
+        while subGraphs is not None:
+            subGraphs = graph.optimize_next_step(alpha, budget, Cost_list)
+            if subGraphs is None:
+                break
+            Cost_list = MPCprofiling(subGraphs, in_size, bestCost*1.5)
+            for i in range(0,len(subGraphs)):
+                if Cost_list[i] < bestCost:
+                    bestCost = Cost_list[i]
+                    bestGraph = subGraphs[i]
+    except KeyboardInterrupt:
+        print("saving best graph as temp.onnx ...")
+        onnx_model = export_onnx(bestGraph)
+        onnx.save(onnx_model, "temp.onnx")
     return bestGraph
 
 # Current TASO Version

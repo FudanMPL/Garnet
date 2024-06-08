@@ -138,6 +138,8 @@ def reconst_dims(v1, v2):
     # v1, v2= input1.value, input2.value
     flag1, dim1 = check_subseq(v1.sizes, v2.sizes)
     flag2, dim2 = check_subseq(v2.sizes, v1.sizes)
+    print(v1.sizes, v2.sizes)
+    print(dim1, dim2)
     assert flag1 or flag2, "Invalid Dimension"
     # swap to ensure v1 size is bigger than v2 size
     dims = dim1

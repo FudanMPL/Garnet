@@ -76,18 +76,19 @@ def main(args):
     input_size = tuple([int(x) for x in args.input_size.split('x')])
     input = graph.new_input(dims=input_size)
     shared_resnet_model(graph, input, args.num_models, args.num_shared_blocks)
-    if args.save_graphs:
-        original_model = ts.export_onnx(graph)
-        onnx.save(original_model, 'original_model.onnx')
 
-    new_graph = ts.optimize(graph, alpha=1.0, budget=1000)
-    if args.save_graphs:
-        optimized_model = ts.export_onnx(new_graph)
-        onnx.save(optimized_model, 'optimized_model.onnx')
+    original_model = ts.export_onnx(graph)
+    onnx.save(original_model, 'batched_resnet.onnx')
+
+    # new_graph = ts.optimize(graph, alpha=1.0, budget=1000, input_size=input_size)
+    new_graph = ts.optimize(graph, alpha=1e9, budget=1000, input_size=input_size, inMPL=True)
+
+    optimized_model = ts.export_onnx(new_graph)
+    onnx.save(optimized_model, 'batched_resnet_opt.onnx')
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description='')
-    parser.add_argument('--num_models', type=int, default=1,
+    parser.add_argument('--num_models', type=int, default=3,
                         help='Number of parallel models')
     parser.add_argument('--num_shared_blocks', type=int, default=0,
                         help='Number of shared blocks')

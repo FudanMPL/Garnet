@@ -445,7 +445,6 @@ void Graph::optimize_on_step(float alpha, int budget){
   //xfers.push_back(create_exclusive_concat_xfer(model));
   //xfers.push_back(create_enlarge_conv_xfer(model));
   //xfers.push_back(create_resnet_merge_xfer(model));
-  printf("transform rules: %d\n", xfers.size());
   
 
   // candidates.push(this);
@@ -453,7 +452,7 @@ void Graph::optimize_on_step(float alpha, int budget){
   bestGraph = this;
   // bestCost = total_cost();
   transGraphs.push_back(this);
-  std::printf("%3f \n",this->preprocess_weights()->total_cost());
+  // std::printf("%3f \n",this->preprocess_weights()->total_cost());
   //printf("MetaFlow Cost = %.4lfms\n", bestCost);
   //printf("Input graph: end-to-end execution time =\n"
   //       "%.8lf ms (average of 100 runs)\n", run());
@@ -468,7 +467,6 @@ void Graph::optimize_on_step(float alpha, int budget){
 }
 
 bool Graph::optimize_next_step(float alpha, int budget){
-  printf("transform rules: %d\n", xfers.size());
   for (auto it: transGraphs) 
     if (it->total_cost() < bestGraph->total_cost() * alpha) candidates.push(it);
   if (candidates.empty()) return candidates.empty();
@@ -507,10 +505,9 @@ bool Graph::optimize_next_step(float alpha, int budget){
   }
   
   transGraphs.clear();
-  printf("mytest==\n");
   while(!temp.empty()){
     // candidates.push(temp.top());
-    std::printf("%3f ",temp.top()->preprocess_weights()->total_cost());
+    // std::printf("%3f ",temp.top()->preprocess_weights()->total_cost());
     transGraphs.push_back(temp.top());
     temp.pop();
   }

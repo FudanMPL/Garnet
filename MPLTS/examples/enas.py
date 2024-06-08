@@ -170,7 +170,8 @@ def main(args):
         onnx_model = ts.export_onnx(graph)
         onnx.save(onnx_model, 'original_model.onnx')
 
-    new_graph = ts.optimize(graph, alpha=1.0, budget=1000)
+    new_graph = ts.optimize(graph, alpha=1, budget=1000, input_size=(1,3,32,32))
+    new_graph = ts.optimize(new_graph, alpha=1e9, budget=1000, input_size=(1,3,32,32), inMPL=True)
     if args.save_models:
         onnx_model = ts.export_onnx(new_graph)
         onnx.save(onnx_model, 'optimized_model.onnx')
@@ -179,7 +180,7 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser(
         description='Runs architectures sampled by the ENAS algorithm in TASO')
     parser.add_argument('--input_file', type=str,
-                        default='examples/enas_arcs.txt',
+                        default='MPLTS/examples/enas_arcs',
                         help='Input file specifying ENAS models')
     parser.add_argument('--num_models', type=int, default=None,
                         help=('Number of models to fuse '

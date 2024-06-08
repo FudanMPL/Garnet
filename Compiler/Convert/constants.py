@@ -1,5 +1,5 @@
 import Compiler.nn as nn
-
+# from Compiler.nn.modules.conv import _ConvNd
 from onnx2pytorch.operations import (
     BatchNormWrapper,
     InstanceNormWrapper,
@@ -15,7 +15,7 @@ COMPOSITE_LAYERS = (nn.Sequential,)
 # MULTIOUTPUT_LAYERS = (nn.MaxPool2d, Loop, LSTMWrapper, split.Split, TopK)
 MULTIOUTPUT_LAYERS = (Loop, LSTMWrapper, split.Split, TopK)
 STANDARD_LAYERS = (
-    nn.Conv2d,
+    # _ConvNd,
     BatchNormWrapper,
     InstanceNormWrapper,
     LSTMWrapper,

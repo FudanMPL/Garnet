@@ -159,5 +159,6 @@ MPLTS/build
 MPLTS/python/build
 MPLTS/python/dist
 MPLTS/python/taso.egg-info
+MPLTS/python/taso/_cython/core.cpp
 !MPLTS/CMakeLists.txt
 !MPLTS/requirements.txt
