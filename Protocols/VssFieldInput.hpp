@@ -83,7 +83,7 @@ vector<vector<typename T::open_type>> VssFieldInput<T>::adjointMatrix(vector<vec
 template <class T>
 VssFieldInput<T>::VssFieldInput(SubProcessor<T> *proc, Player &P) : SemiInput<T>(proc, P), P(P)
 {
-    cout<<"244565676"<<endl;
+    cout<<"进入Input构造函数"<<endl;
     int public_matrix_row = P.num_players(); // n+nd
     int public_matrix_col = P.num_players() - ndparties; // n
     P.public_matrix.resize(public_matrix_row);
@@ -111,11 +111,16 @@ VssFieldInput<T>::VssFieldInput(SubProcessor<T> *proc, Player &P) : SemiInput<T>
     typename T::open_type det_inv = det.invert(); // 行列式的逆
     vector<vector<typename T::open_type>> adj = adjointMatrix(selected); // 伴随矩阵
     cout << "恢复系数：" << endl;
+    cout << "det:" << det << endl;
+    cout << "det_inv:" << det_inv << endl;
+    cout << "adj[0][0]:" << adj[0][0] << endl;
     for (int i = 0; i < public_matrix_col; i++)
     {
         inv[i] = adj[0][i] * det_inv; // 逆矩阵的第一行
         cout<<inv[i]<<' ';
-        // P.field_inv[i] = inv[i].toInt(); // 一个是int，一个是gfp，必须转换
+        // Integer temp1 = Integer(inv[i]);
+        // cout<<"temp1:"<<temp1<<endl;
+        // P.field_inv[i] = temp1.get(); // 一个是int，一个是gfp，必须转换
     }
     cout<<endl;
     // for test

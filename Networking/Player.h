@@ -200,6 +200,7 @@ public:
   std::vector<std::vector<int>> public_matrix;
   std::vector<int> inv;
   std::vector<__m128i> field_inv;
+  // std::vector<Integer> field_inv;
 
   PlayerBase(int player_no) : player_no(player_no), sent(comm_stats.sent) {}
   virtual ~PlayerBase();
