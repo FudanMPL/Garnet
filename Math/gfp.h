@@ -199,17 +199,19 @@ class gfp_ : public ValueInterface
   void mul(const gfp_& x,const gfp_& y)
     { a.template mul<L>(x.a,y.a,ZpD); }
 
-  void vss_add(octetStream& os, const Player& P, int sender){
+  void vss_add(octetStream& os, const Player& P, const vector<gfp_>& field_inv, int sender){
+    cout<<"进入gfp的vss_add"<<endl;
 		octet* adr = os.consume(size());
 		mp_limb_t value = *((unsigned long*) adr);
 		if(sender < P.my_num())
 		{
-			*this += gfp_(P.field_inv[sender]) * value;
+			*this += P.field_inv[sender] * value;
 		}
 		else
 		{
-			*this += gfp_(P.field_inv[sender + 1]) * value;
+			*this += P.field_inv[sender + 1] * value;
 		}
+    cout<<"从gfp的vss_add离开"<<endl;
 	}
 
   __m128i toInt() const

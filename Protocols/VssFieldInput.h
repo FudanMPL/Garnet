@@ -30,28 +30,6 @@ class VssFieldInput : public SemiInput<T>
 public:
     VssFieldInput(SubProcessor<T> &proc, VssFieldMC<T> &) : VssFieldInput(&proc, proc.P)
     {
-        cout << "我在VssFieldInput第一个构造函数" << endl;
-        int public_matrix_row = P.num_players();             // n+nd
-        int public_matrix_col = P.num_players() - ndparties; // n
-        public_matrix.resize(public_matrix_row);
-        P.public_matrix.resize(public_matrix_row);
-        for (int i = 0; i < public_matrix_row; i++)
-        {
-            public_matrix[i].resize(public_matrix_col);
-            P.public_matrix[i].resize(public_matrix_col);
-        }
-        for (int i = 0; i < public_matrix_row; i++)
-        {
-            int x = 1;
-            public_matrix[i][0] = 1;
-            P.public_matrix[i][0] = 1;
-            for (int j = 1; j < public_matrix_col; j++)
-            {
-                x *= (i + 1);
-                public_matrix[i][j] = x;
-                P.public_matrix[i][j] = x;
-            }
-        }
     }
 
     VssFieldInput(SubProcessor<T> *proc, Player &P);
@@ -68,8 +46,6 @@ public:
     void finalize_other(int player, T &target, octetStream &o, int n_bits = -1);
     T finalize_mine();
 
-    Integer determinant(vector<vector<int>> &matrix);                                 // 行列式
-    vector<vector<typename T::open_type>> adjointMatrix(vector<vector<int>> &matrix); // 伴随矩阵
 };
 
 #endif /* PROTOCOLS_VSSFIELDINPUT_H_ */

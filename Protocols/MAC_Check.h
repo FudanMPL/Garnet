@@ -113,7 +113,8 @@ public:
   vector<octetStream> oss;
   vector<Timer> timers;
   vector<Timer> player_timers;
-  vector<vector<T>> field_inv; // 恢复系数
+  vector<vector<int>> public_matrix;
+  vector<T> field_inv; // 恢复系数
 
   TreeVssField_Sum(int opening_sum = 10, int max_broadcast = 10, int base_player = 0);
   virtual ~TreeVssField_Sum();
@@ -124,6 +125,10 @@ public:
   octetStream &get_buffer() { return os; }
 
   size_t report_size(ReportType type);
+
+  
+  Integer determinant(vector<vector<int>> &matrix); // 行列式
+  vector<vector<T>> adjointMatrix(vector<vector<int>> &matrix); // 伴随矩阵
 };
 
 template <class U>
@@ -694,42 +699,121 @@ void add_Vss_Field_openings(vector<T> &values, const Player &P, int sum_players,
     MC.timers[SUM].start();
     for (unsigned int i = 0; i < values.size(); i++)
     {
-      values[i].vss_add(oss[j], P, j); // j 是 sender ，value[i]+ P.inv[sender] * value
+      values[i].vss_add(oss[j], P, MC.field_inv, j); // j 是 sender ，value[i]+ P.inv[sender] * value
     }
     MC.timers[SUM].stop();
   }
 }
 
+// 求矩阵的行列式
+template <class T>
+Integer TreeVssField_Sum<T>::determinant(vector<vector<int>> &matrix)
+{
+    int n = matrix.size();
+    if (n == 2)
+    {
+        Integer det = (matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0]);
+        return det;
+    }
+    Integer det = 0;
+    bool sign = true;
+    for (int i = 0; i < n; i++)
+    {
+        vector<vector<int>> submatrix(n - 1, vector<int>(n - 1));
+        for (int j = 1; j < n; j++)
+        {
+            int col = 0;
+            for (int k = 0; k < n; k++)
+            {
+                if (k != i)
+                {
+                    submatrix[j - 1][col] = matrix[j][k];
+                    col++;
+                }
+            }
+        }
+        if (sign == true)
+            det = det + (determinant(submatrix) * matrix[0][i]);
+        else
+            det = det - (determinant(submatrix) * matrix[0][i]);
+        sign = !sign;
+    }
+    return det;
+}
+
+// 求矩阵的伴随矩阵
+template <class T>
+vector<vector<T>> TreeVssField_Sum<T>::adjointMatrix(vector<vector<int>> &matrix)
+{
+    int n = matrix.size();
+    vector<vector<T>> adj(n, vector<T>(n));
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            vector<vector<int>> submatrix(n - 1, vector<int>(n - 1));
+            int subi = 0, subj = 0;
+            for (int k = 0; k < n; k++)
+            {
+                if (k != i)
+                {
+                    subj = 0;
+                    for (int l = 0; l < n; l++)
+                    {
+                        if (l != j)
+                        {
+                            submatrix[subi][subj] = matrix[k][l];
+                            subj++;
+                        }
+                    }
+                    subi++;
+                }
+            }
+            int sign = ((i + j) % 2 == 0) ? 1 : -1;
+            adj[j][i] = Integer(sign) * determinant(submatrix);
+        }
+    }
+    return adj;
+}
+
 template <class T>
 void TreeVssField_Sum<T>::start(vector<T> &values, const Player &P)
 {
-
   cout << "我在TreeVssField_Sum的start函数" << endl;
-  // 求前n行的行列式
-  vector<vector<int>> selected(P.public_matrix.begin(), P.public_matrix.begin() + P.public_matrix[0].size());
-  cout << "Public_matrix:" << endl;
-  for (int i = 0; i < P.public_matrix.size(); i++)
+
+  int public_matrix_row = P.num_players(); // n+nd
+  // int public_matrix_col = P.num_players() - ndparties; // n
+  int public_matrix_col = P.num_players(); // n+nd
+
+  public_matrix.resize(public_matrix_row);
+  field_inv.resize(public_matrix_col);
+
+  for (int i = 0; i < public_matrix_row; i++)
   {
-    for (int j = 0; j < P.public_matrix[i].size(); j++)
-    {
-      cout << P.public_matrix[i][j] << " ";
-    }
-    cout << endl;
+      public_matrix[i].resize(public_matrix_col);
+  }
+  for (int i = 0; i < public_matrix_row; i++)
+  {
+      int x = 1;
+      public_matrix[i][0] = 1;
+      for (int j = 1; j < public_matrix_col; j++)
+      {
+          x *= (i + 1);
+          public_matrix[i][j] = x;
+      }
   }
 
-  // typename T::open_type det = determinant(selected);                   // 行列式
-  // typename T::open_type det_inv = det.invert();                        // 行列式的逆
-  // vector<vector<typename T::open_type>> adj = adjointMatrix(selected); // 伴随矩阵
-  // cout << "恢复系数：" << endl;
-  // for (int i = 0; i < public_matrix_col; i++)
-  // {
-  //   inv[i] = adj[0][i] * det_inv; // 逆矩阵的第一行
-  //   cout << inv[i] << ' ';
-  //   // Integer temp1 = Integer(inv[i]);
-  //   // cout<<"temp1:"<<temp1<<endl;
-  //   // P.field_inv[i] = temp1.get(); // 一个是int，一个是gfp，必须转换
-  // }
-
+  // 求前n行的行列式
+  vector<vector<int>> selected(public_matrix.begin(), public_matrix.begin() + public_matrix_col);
+  T det = determinant(selected);                   // 行列式
+  T det_inv = det.invert();                        // 行列式的逆
+  vector<vector<T>> adj = adjointMatrix(selected); // 伴随矩阵
+  cout << "恢复系数：" << endl;
+  for (int i = 0; i < public_matrix_col; i++)
+  {
+    field_inv[i] = adj[0][i] * det_inv; // 逆矩阵的第一行
+    cout <<"field_inv["<<i<<"]:"<<field_inv[i] << endl;
+  }
   os.reset_write_head();
   int sum_players = P.num_players();
   int my_relative_num = positive_modulo(P.my_num() - base_player, P.num_players());

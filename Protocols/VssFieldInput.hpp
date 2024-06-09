@@ -8,77 +8,6 @@
 
 #include "VssFieldInput.h"
 
-// 求矩阵的行列式
-template <class T>
-Integer VssFieldInput<T>::determinant(vector<vector<int>> &matrix)
-{
-    int n = matrix.size();
-    if (n == 2)
-    {
-        Integer det = (matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0]);
-        return det;
-    }
-    Integer det = 0;
-    bool sign = true;
-    for (int i = 0; i < n; i++)
-    {
-        vector<vector<int>> submatrix(n - 1, vector<int>(n - 1));
-        for (int j = 1; j < n; j++)
-        {
-            int col = 0;
-            for (int k = 0; k < n; k++)
-            {
-                if (k != i)
-                {
-                    submatrix[j - 1][col] = matrix[j][k];
-                    col++;
-                }
-            }
-        }
-        if (sign == true)
-            det = det + (determinant(submatrix) * matrix[0][i]);
-        else
-            det = det - (determinant(submatrix) * matrix[0][i]);
-        sign = !sign;
-    }
-    return det;
-}
-
-// 求矩阵的伴随矩阵
-template <class T>
-vector<vector<typename T::open_type>> VssFieldInput<T>::adjointMatrix(vector<vector<int>> &matrix)
-{
-    int n = matrix.size();
-    vector<vector<typename T::open_type>> adj(n, vector<typename T::open_type>(n));
-    for (int i = 0; i < n; i++)
-    {
-        for (int j = 0; j < n; j++)
-        {
-            vector<vector<int>> submatrix(n - 1, vector<int>(n - 1));
-            int subi = 0, subj = 0;
-            for (int k = 0; k < n; k++)
-            {
-                if (k != i)
-                {
-                    subj = 0;
-                    for (int l = 0; l < n; l++)
-                    {
-                        if (l != j)
-                        {
-                            submatrix[subi][subj] = matrix[k][l];
-                            subj++;
-                        }
-                    }
-                    subi++;
-                }
-            }
-            int sign = ((i + j) % 2 == 0) ? 1 : -1;
-            adj[j][i] = Integer(sign) * determinant(submatrix);
-        }
-    }
-    return adj;
-}
-
 template <class T>
 VssFieldInput<T>::VssFieldInput(SubProcessor<T> *proc, Player &P) : SemiInput<T>(proc, P), P(P)
 {
@@ -86,44 +15,32 @@ VssFieldInput<T>::VssFieldInput(SubProcessor<T> *proc, Player &P) : SemiInput<T>
     ndparties = VssFieldMachine::s().ndparties;
     int public_matrix_row = P.num_players(); // n+nd
     // int public_matrix_col = P.num_players() - ndparties; // n
-    int public_matrix_col = P.num_players(); // n+nd
+    int public_matrix_col = P.num_players(); // n+nd, 为了测试，暂时设为n+nd
 
-    // P.public_matrix.resize(public_matrix_row);
-
-    // for (int i = 0; i < public_matrix_row; i++)
-    // {
-    //     P.public_matrix[i].resize(public_matrix_col);
-    // }
     os.resize(2); // 是什么，socket发送
     os[0].resize(public_matrix_col);
     os[1].resize(public_matrix_col);
     expect.resize(public_matrix_col); // 是什么
-    // for (int i = 0; i < public_matrix_row; i++)
-    // {
-    //     int x = 1;
-    //     P.public_matrix[i][0] = 1;
-    //     for (int j = 1; j < public_matrix_col; j++)
-    //     {
-    //         x *= (i + 1);
-    //         P.public_matrix[i][j] = x;
-    //     }
-    // }
-    // 求前n行的行列式
-    // vector<vector<int>> selected(P.public_matrix.begin(), P.public_matrix.begin() + public_matrix_col);
-    // typename T::open_type det = determinant(selected);                   // 行列式
-    // typename T::open_type det_inv = det.invert();                        // 行列式的逆
-    // vector<vector<typename T::open_type>> adj = adjointMatrix(selected); // 伴随矩阵
-    // cout << "恢复系数：" << endl;
-    // for (int i = 0; i < public_matrix_col; i++)
-    // {
-    //     inv[i] = adj[0][i] * det_inv; // 逆矩阵的第一行
-    //     cout << inv[i] << ' ';
-    //     // Integer temp1 = Integer(inv[i]);
-    //     // cout<<"temp1:"<<temp1<<endl;
-    //     // P.field_inv[i] = temp1.get(); // 一个是int，一个是gfp，必须转换
-    // }
-    cout << endl;
-    // for test
+
+    public_matrix.resize(public_matrix_row);
+    P.public_matrix.resize(public_matrix_row);
+    for (int i = 0; i < public_matrix_row; i++)
+    {
+        public_matrix[i].resize(public_matrix_col);
+        P.public_matrix[i].resize(public_matrix_col);
+    }
+    for (int i = 0; i < public_matrix_row; i++)
+    {
+        int x = 1;
+        public_matrix[i][0] = 1;
+        P.public_matrix[i][0] = 1;
+        for (int j = 1; j < public_matrix_col; j++)
+        {
+            x *= (i + 1);
+            public_matrix[i][j] = x;
+            P.public_matrix[i][j] = x;
+        }
+    }
     cout << "结束" << endl;
     this->reset_all(P);
 }
@@ -137,7 +54,7 @@ void VssFieldInput<T>::reset(int player)
         os.resize(2);
         for (int i = 0; i < 2; i++)
         {
-            os[i].resize(P.public_matrix[0].size());
+            os[i].resize(public_matrix[0].size());
             for (auto &o : os[i])
                 o.reset_write_head();
         }
@@ -149,20 +66,20 @@ template <class T>
 void VssFieldInput<T>::add_mine(const typename T::clear &input, int) // 计算秘密份额
 {
     auto &P = this->P;
-    vector<typename T::open_type> v(P.public_matrix[0].size());
-    vector<T> secrets(P.public_matrix.size());
+    vector<typename T::open_type> v(public_matrix[0].size());
+    vector<T> secrets(public_matrix.size());
     PRNG G;
     v[0] = input;
-    for (int i = 1; i < P.public_matrix[0].size(); i++)
+    for (int i = 1; i < public_matrix[0].size(); i++)
     {
         v[i] = G.get<typename T::open_type>();
     }
-    for (int i = 0; i < P.public_matrix.size(); i++)
+    for (int i = 0; i < public_matrix.size(); i++)
     {
         typename T::open_type sum = 0;
-        for (int j = 0; j < P.public_matrix[0].size(); j++)
+        for (int j = 0; j < public_matrix[0].size(); j++)
         {
-            sum += v[j] * P.public_matrix[i][j];
+            sum += v[j] * public_matrix[i][j];
         }
         secrets[i] = sum;
     }

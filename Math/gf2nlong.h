@@ -159,17 +159,19 @@ class gf2n_long : public gf2n_<int128>
   template<class T>
   gf2n_long(IntBase<T> g) : super(g.get()) {}
 
-  void vss_add(octetStream& os, const Player& P, int sender){
+  void vss_add(octetStream& os, const Player& P, const vector<gf2n_long>& field_inv, int sender){
+    cout<<"进入gf2nlong的vss_add"<<endl;
 		octet* adr = os.consume(size());
 		mp_limb_t value = *((unsigned long*) adr);
 		if(sender < P.my_num())
 		{
-			*this += gf2n_long(int128(P.field_inv[sender])) * value;
+			*this += field_inv[sender] * value;
 		}
 		else
 		{
-			*this += gf2n_long(int128(P.field_inv[sender + 1])) * value;
+			*this += field_inv[sender + 1] * value;
 		}
+    cout<<"从gf2nlong的vss_add离开"<<endl;
 	}
 
   friend ostream& operator<<(ostream& s,const gf2n_long& x)
