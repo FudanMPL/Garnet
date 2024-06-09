@@ -432,7 +432,6 @@ template<class sint, class sgf2n>
 void Machine<sint, sgf2n>:: run(const string& progname)
 {
   prepare(progname);
-  cout<<"我在run"<<endl;
   Timer proc_timer(CLOCK_PROCESS_CPUTIME_ID);
   proc_timer.start();
   timer[0].start({});

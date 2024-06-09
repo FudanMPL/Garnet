@@ -17,17 +17,17 @@
 #include "VssPrep.h"
 #include "Processor/Instruction.h"
 
-
 template <class T>
 class VssFieldShare : public SemiShare<T>
 {
     typedef VssFieldShare This;
     typedef SemiShare<T> super;
+
 public:
-    typedef typename super::clear Dtype; 
+    typedef typename super::clear Dtype;
+    typedef VssFieldInput<VssFieldShare> Input;
     typedef VssFieldMC<VssFieldShare> MAC_Check;
     typedef DirectVssFieldMC<VssFieldShare> Direct_MC;
-    typedef VssFieldInput<VssFieldShare> Input;
     typedef ::PrivateOutput<VssFieldShare> PrivateOutput;
     typedef Vss<VssFieldShare> Protocol;
 
@@ -45,11 +45,11 @@ public:
 
     // static const bool has_split = true;
     static const bool local_mul = true;
-    
+
     VssFieldShare()
     {
     }
-    template <class U> 
+    template <class U>
     VssFieldShare(const U &other) : SemiShare<T>(other)
     {
     }
