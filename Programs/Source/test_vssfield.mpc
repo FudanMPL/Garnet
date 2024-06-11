@@ -1,1 +1,18 @@
-print_ln('result: %s', sint(123).reveal())
+# print_ln('result: %s', sint(123).reveal())
+
+a=sint.get_input_from(0)
+b=sint.get_input_from(1)
+c=sint.get_input_from(2)
+sum=a+b+c
+print_ln('a=%s, b=%s, c=%s', a.reveal(), b.reveal(), c.reveal())
+print_ln('Results=%s',sum.reveal())
+
+
+c = a + b
+print_ln('a+b=%s', c.reveal())
+d = a * b
+print_ln('a*b=%s', d.reveal())
+#e = a - b
+#print_ln('a-b=%s', e.reveal())
+#f = a / b
+#print_ln('a/b=%s', f.reveal())

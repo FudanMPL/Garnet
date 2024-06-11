@@ -11,7 +11,7 @@
 template <class T>
 VssFieldInput<T>::VssFieldInput(SubProcessor<T> *proc, Player &P) : SemiInput<T>(proc, P), P(P)
 {
-    cout << "进入Input构造函数" << endl;
+    // cout << "进入Input构造函数" << endl;
     ndparties = VssFieldMachine::s().ndparties;
     int public_matrix_row = P.num_players(); // n+nd
     // int public_matrix_col = P.num_players() - ndparties; // n
@@ -41,7 +41,7 @@ VssFieldInput<T>::VssFieldInput(SubProcessor<T> *proc, Player &P) : SemiInput<T>
             P.public_matrix[i][j] = x;
         }
     }
-    cout << "结束" << endl;
+    // cout << "结束" << endl;
     this->reset_all(P);
 }
 
@@ -72,7 +72,8 @@ void VssFieldInput<T>::add_mine(const typename T::clear &input, int) // 计算�
     v[0] = input;
     for (int i = 1; i < public_matrix[0].size(); i++)
     {
-        v[i] = G.get<typename T::open_type>();
+        // v[i] = G.get<typename T::open_type>(); // for test,记得改回来
+        v[i] = i;
     }
     for (int i = 0; i < public_matrix.size(); i++)
     {
@@ -82,6 +83,7 @@ void VssFieldInput<T>::add_mine(const typename T::clear &input, int) // 计算�
             sum += v[j] * public_matrix[i][j];
         }
         secrets[i] = sum;
+        // cout<<"secrets["<<i<<"]:"<<secrets[i]<<endl;
     }
     this->shares.push_back(secrets[P.my_num()]);
     for (int i = 0; i < P.num_players(); i++)
@@ -91,6 +93,7 @@ void VssFieldInput<T>::add_mine(const typename T::clear &input, int) // 计算�
             secrets[i].pack(os[0][i]);
         }
     }
+
     // typename T::open_type sum;
     // std::vector<typename T::open_type> shares(P.num_players());
     // for (int i = 0; i < P.num_players(); i++)
@@ -124,12 +127,17 @@ void VssFieldInput<T>::exchange()
         for (int i = 0; i < P.num_players(); i++)
         {
             if (i != P.my_num())
-                P.send_to(i, os[0][i]); // 发送数据(秘密份额)
+                {
+                    P.send_to(i, os[0][i]); // 发送数据(秘密份额)
+                }
         }
+        
         for (int i = 0; i < P.num_players(); i++)
         {
             if (expect[i]) // 从expect[i]的参与者处接收数据
+            {
                 P.receive_player(i, os[1][i]);
+            }
         }
     }
     else // 如果为空，无需发送数据

@@ -126,8 +126,7 @@ public:
 
   size_t report_size(ReportType type);
 
-  
-  Integer determinant(vector<vector<int>> &matrix); // 行列式
+  Integer determinant(vector<vector<int>> &matrix);             // 行列式
   vector<vector<T>> adjointMatrix(vector<vector<int>> &matrix); // 伴随矩阵
 };
 
@@ -523,7 +522,7 @@ void add_Vss_openings(vector<T> &values, const Player &P, int sum_players, int l
     MC.timers[SUM].start();
     for (unsigned int i = 0; i < values.size(); i++)
     {
-      values[i].vss_add(oss[j], P, j); // j 是 sender ，value[i]+ P.inv[sender] * value
+      values[i].vss_add(oss[j], P, j);
     }
     MC.timers[SUM].stop();
   }
@@ -650,6 +649,7 @@ TreeVssField_Sum<T>::~TreeVssField_Sum()
 template <class T>
 void TreeVssField_Sum<T>::run(vector<T> &values, const Player &P)
 {
+  // cout<<"我在TreeVssField_Sum的run函数"<<endl;
   start(values, P);
   finish(values, P);
 }
@@ -674,6 +674,11 @@ size_t TreeVssField_Sum<T>::report_size(ReportType type)
 template <class T>
 void add_Vss_Field_openings(vector<T> &values, const Player &P, int sum_players, int last_sum_players, int send_player, TreeVssField_Sum<T> &MC)
 {
+
+  for (unsigned int i = 0; i < values.size(); i++)
+  {
+    values[i] *= MC.field_inv[0];
+  }
   MC.player_timers.resize(P.num_players());
   vector<octetStream> &oss = MC.oss;
   oss.resize(P.num_players());
@@ -699,7 +704,9 @@ void add_Vss_Field_openings(vector<T> &values, const Player &P, int sum_players,
     MC.timers[SUM].start();
     for (unsigned int i = 0; i < values.size(); i++)
     {
-      values[i].vss_add(oss[j], P, MC.field_inv, j); // j 是 sender ，value[i]+ P.inv[sender] * value
+      // cout << endl <<"初始时values["<<i<<"]:"<<values[i]<<endl;
+      values[i].vss_add(oss[j], P, MC.field_inv, j); // j 是 sender ，value[i]+ field_inv[sender] * os里的value
+      // cout<<"values["<<i<<"]:"<<values[i]<<endl;
     }
     MC.timers[SUM].stop();
   }
@@ -709,77 +716,77 @@ void add_Vss_Field_openings(vector<T> &values, const Player &P, int sum_players,
 template <class T>
 Integer TreeVssField_Sum<T>::determinant(vector<vector<int>> &matrix)
 {
-    int n = matrix.size();
-    if (n == 2)
-    {
-        Integer det = (matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0]);
-        return det;
-    }
-    Integer det = 0;
-    bool sign = true;
-    for (int i = 0; i < n; i++)
-    {
-        vector<vector<int>> submatrix(n - 1, vector<int>(n - 1));
-        for (int j = 1; j < n; j++)
-        {
-            int col = 0;
-            for (int k = 0; k < n; k++)
-            {
-                if (k != i)
-                {
-                    submatrix[j - 1][col] = matrix[j][k];
-                    col++;
-                }
-            }
-        }
-        if (sign == true)
-            det = det + (determinant(submatrix) * matrix[0][i]);
-        else
-            det = det - (determinant(submatrix) * matrix[0][i]);
-        sign = !sign;
-    }
+  int n = matrix.size();
+  if (n == 2)
+  {
+    Integer det = (matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0]);
     return det;
+  }
+  Integer det = 0;
+  bool sign = true;
+  for (int i = 0; i < n; i++)
+  {
+    vector<vector<int>> submatrix(n - 1, vector<int>(n - 1));
+    for (int j = 1; j < n; j++)
+    {
+      int col = 0;
+      for (int k = 0; k < n; k++)
+      {
+        if (k != i)
+        {
+          submatrix[j - 1][col] = matrix[j][k];
+          col++;
+        }
+      }
+    }
+    if (sign == true)
+      det = det + (determinant(submatrix) * matrix[0][i]);
+    else
+      det = det - (determinant(submatrix) * matrix[0][i]);
+    sign = !sign;
+  }
+  return det;
 }
 
 // 求矩阵的伴随矩阵
 template <class T>
 vector<vector<T>> TreeVssField_Sum<T>::adjointMatrix(vector<vector<int>> &matrix)
 {
-    int n = matrix.size();
-    vector<vector<T>> adj(n, vector<T>(n));
-    for (int i = 0; i < n; i++)
+  int n = matrix.size();
+  vector<vector<T>> adj(n, vector<T>(n));
+  for (int i = 0; i < n; i++)
+  {
+    for (int j = 0; j < n; j++)
     {
-        for (int j = 0; j < n; j++)
+      vector<vector<int>> submatrix(n - 1, vector<int>(n - 1));
+      int subi = 0, subj = 0;
+      for (int k = 0; k < n; k++)
+      {
+        if (k != i)
         {
-            vector<vector<int>> submatrix(n - 1, vector<int>(n - 1));
-            int subi = 0, subj = 0;
-            for (int k = 0; k < n; k++)
+          subj = 0;
+          for (int l = 0; l < n; l++)
+          {
+            if (l != j)
             {
-                if (k != i)
-                {
-                    subj = 0;
-                    for (int l = 0; l < n; l++)
-                    {
-                        if (l != j)
-                        {
-                            submatrix[subi][subj] = matrix[k][l];
-                            subj++;
-                        }
-                    }
-                    subi++;
-                }
+              submatrix[subi][subj] = matrix[k][l];
+              subj++;
             }
-            int sign = ((i + j) % 2 == 0) ? 1 : -1;
-            adj[j][i] = Integer(sign) * determinant(submatrix);
+          }
+          subi++;
         }
+      }
+      int sign = ((i + j) % 2 == 0) ? 1 : -1;
+      adj[j][i] = Integer(sign) * determinant(submatrix);
     }
-    return adj;
+  }
+  return adj;
 }
 
 template <class T>
 void TreeVssField_Sum<T>::start(vector<T> &values, const Player &P)
 {
-  cout << "我在TreeVssField_Sum的start函数" << endl;
+  // cout << "我在TreeVssField_Sum的start函数" << endl;
 
   int public_matrix_row = P.num_players(); // n+nd
   // int public_matrix_col = P.num_players() - ndparties; // n
@@ -790,17 +797,17 @@ void TreeVssField_Sum<T>::start(vector<T> &values, const Player &P)
 
   for (int i = 0; i < public_matrix_row; i++)
   {
-      public_matrix[i].resize(public_matrix_col);
+    public_matrix[i].resize(public_matrix_col);
   }
   for (int i = 0; i < public_matrix_row; i++)
   {
-      int x = 1;
-      public_matrix[i][0] = 1;
-      for (int j = 1; j < public_matrix_col; j++)
-      {
-          x *= (i + 1);
-          public_matrix[i][j] = x;
-      }
+    int x = 1;
+    public_matrix[i][0] = 1;
+    for (int j = 1; j < public_matrix_col; j++)
+    {
+      x *= (i + 1);
+      public_matrix[i][j] = x;
+    }
   }
 
   // 求前n行的行列式
@@ -808,11 +815,11 @@ void TreeVssField_Sum<T>::start(vector<T> &values, const Player &P)
   T det = determinant(selected);                   // 行列式
   T det_inv = det.invert();                        // 行列式的逆
   vector<vector<T>> adj = adjointMatrix(selected); // 伴随矩阵
-  cout << "恢复系数：" << endl;
+  // cout << "恢复系数：" << endl;
   for (int i = 0; i < public_matrix_col; i++)
   {
     field_inv[i] = adj[0][i] * det_inv; // 逆矩阵的第一行
-    cout <<"field_inv["<<i<<"]:"<<field_inv[i] << endl;
+    // cout <<"field_inv["<<i<<"]:"<<field_inv[i] << endl;
   }
   os.reset_write_head();
   int sum_players = P.num_players();
