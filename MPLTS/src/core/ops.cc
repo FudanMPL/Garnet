@@ -419,7 +419,7 @@ void Graph::optimize_on_step(float alpha, int budget){
       xfers.push_back(GraphXfer::create_conv_relu(model, i, i, pad_mode));
       xfers.push_back(GraphXfer::create_conv_batch(model, i, i, pad_mode));
       xfers.push_back(GraphXfer::create_conv_mul(model, i, i, pad_mode));
-      //xfers.push_back(GraphXfer::create_conv_add(model, i, i, pad_mode));
+      xfers.push_back(GraphXfer::create_conv_add(model, i, i, pad_mode));
     }
   xfers.push_back(GraphXfer::create_enlarge_merge_convs(model, AC_MODE_NONE));
   xfers.push_back(GraphXfer::create_enlarge_merge_convs(model, AC_MODE_RELU));

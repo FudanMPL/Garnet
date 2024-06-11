@@ -55,5 +55,5 @@ def runMPL(model_path):
 
 if __name__=='__main__':
     runPlain("example.onnx")
-    runMPL("example.onnx")
+    # runMPL("example.onnx")
     runMPL("example_opt.onnx")

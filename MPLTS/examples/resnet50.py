@@ -18,7 +18,6 @@ def resnet_block(graph, input, strides, out_channels):
         input=graph.conv2d(input=input, weight=w4,
                            strides=strides, padding="SAME",
                            activation="RELU")
-    return graph.add(input, t)
     return graph.relu(graph.add(input, t))
 
 graph = ts.new_graph()

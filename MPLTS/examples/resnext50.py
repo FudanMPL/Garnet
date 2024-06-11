@@ -44,8 +44,8 @@ for i in range(3):
 onnx_model = ts.export_onnx(graph)
 onnx.save(onnx_model, "resnext50.onnx")
 
-new_graph = ts.optimize(graph, alpha=1, budget=1000, input_size=(1,3,224,224))
-new_graph = ts.optimize(new_graph, alpha=1e9, budget=2000, input_size=(1,3,224,224), inMPL=True)
+# new_graph = ts.optimize(graph, alpha=1, budget=1000, input_size=(1,3,224,224))
+new_graph = ts.optimize(graph, alpha=1e9, budget=2000, input_size=(1,3,224,224), inMPL=True)
 
 onnx_model = ts.export_onnx(new_graph)
 onnx.save(onnx_model, "resnext50_opt.onnx")
