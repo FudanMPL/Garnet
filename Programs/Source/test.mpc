@@ -1,5 +1,14 @@
 
-s = sint(10, 10)
-
-print_ln("%s",s.reveal())
-
+from sorting import radix_sort
+a = sint.Array(3)
+a[0] = 1
+a[1] = 3
+a[2] = 2
+radix_sort(a, a, 4)
+print_ln("a = %s",a.reveal())
+b = sint.Array(3)
+b[0] = 1
+b[1] = 3
+b[2] = 2
+c = a.get_vector() > b.get_vector()
+print_ln("c = %s",c.reveal())

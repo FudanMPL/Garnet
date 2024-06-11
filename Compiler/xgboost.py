@@ -194,7 +194,7 @@ class XGBoost:
         right = 0
         for i in range(n):
             right = right + (y_true[i] == pred_res[i])
-        print_ln("accuracy: %s/%s", right, n)
+        print_ln("*** accuracy: %s/%s", right, n)
 
 
     def gen_perm_for_attrbutes(self):

@@ -1,9 +1,11 @@
-import hashlib, datetime, subprocess
+import hashlib
 import os
+import subprocess
 from pathlib import Path
-from django.conf import settings
 from typing import List, Tuple
+
 import requests
+from django.conf import settings
 
 
 def md5(s, sale=settings.SECRET_KEY, encoding="utf-8"):
@@ -25,27 +27,6 @@ def md5(s, sale=settings.SECRET_KEY, encoding="utf-8"):
             sale = str(sale).encode(encoding=encoding)
         md.update(sale)
         return md.hexdigest()
-
-
-def set_expires_time(days=settings.TOKEN_EXPIRES):
-    """
-    获取有效期结束时间点的时间戳
-    :param days: 有效期，默认7天
-    :return:
-    """
-    return str(datetime.datetime.now() + datetime.timedelta(days=days)).split(".")[0]
-
-
-def is_expiration(expires):
-    """
-    校验有效期
-    :param expires: datetime.datetimed对象
-    :return:
-    """
-    if datetime.datetime.now() < datetime.datetime.strptime(
-        expires, "%Y-%m-%d %H:%M:%S"
-    ):
-        return True
 
 
 def inputFileLink(filepaths: List[Tuple[int, str]], prefix: str):

@@ -1226,6 +1226,7 @@ def multithread(n_threads, n_items=None, max_size=None):
         return map_reduce(n_threads, None, n_items, initializer=lambda: [],
                           reducer=None, looping=False)
     else:
+        max_size = max(1, max_size)
         def wrapper(function):
             @multithread(n_threads, n_items)
             def new_function(base, size):
@@ -2075,6 +2076,11 @@ def stop_profiling():
     break_point()
     # instructions.program.is_profiling = False
 
+
+def print_both(s, end='\n'):
+    """ Print line during compilation and execution. """
+    print(s, end=end)
+    print_str(s + end)
 
 def ss_psi_merge(*tables):
     from Compiler.sorting import gen_perm_by_radix_sort, SortPerm
