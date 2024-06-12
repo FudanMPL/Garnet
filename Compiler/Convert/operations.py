@@ -6,12 +6,13 @@ import onnx
 import torch
 import Compiler.nn as nn
 from Compiler.tensor import *
+import Compiler.nn as nn
+from Compiler.tensor import *
 import Compiler.functional as F
 from onnx import numpy_helper 
 from torch.nn.modules.linear import Identity
 
 from onnx2pytorch.convert.attribute import extract_attributes
-from Compiler.Convert.Ops import split, add, conv
 from Compiler.Convert.layer import (
     convert_layer,
     convert_linear_layer,

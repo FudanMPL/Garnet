@@ -8,6 +8,7 @@ import onnx
 import torch
 from onnx import numpy_helper
 import Compiler.nn as nn
+from Compiler.functional import *
 from Compiler.tensor import Tensor
 from Compiler.types import *
 from Compiler.library import *

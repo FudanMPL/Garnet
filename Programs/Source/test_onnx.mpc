@@ -1,4 +1,3 @@
-
 from Compiler.tensor import Tensor, reset_gloabal_store, reset_op_id
 import onnx
 from Compiler.library import *
@@ -6,6 +5,7 @@ program.use_trunc_pr = True
 print_ln('conv!!\n')
 
 
+onnx_model = onnx.load("example.onnx")
 onnx_model = onnx.load("example.onnx")
 from Convert.model import ConvertModel
 print_ln('conv!!\n')
@@ -20,6 +20,4 @@ def _(i):
 print_ln('conv!!\n')
     
 input = Tensor(x)
-# y = model(input)
-    
-   
+y= model(input)

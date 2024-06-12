@@ -223,7 +223,8 @@ class Program(object):
             self.programs_dir = sys.path[0] + "/Programs"
         if self.verbose:
             print("Compiling program in", self.programs_dir)
-
+        # if self.options.p_dir:
+        #     self.programs_dir = self.options.p_dir + "/Programs"
         # create extra directories if needed
         for dirname in ["Public-Input", "Bytecode", "Schedules"]:
             if not os.path.exists(self.programs_dir + "/" + dirname):

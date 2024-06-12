@@ -2134,7 +2134,7 @@ class Conv2d(ConvBase):
                 conv2ds(res, inputs, weights, output_h, output_w,
                         inputs_h, inputs_w, weights_h, weights_w,
                         stride_h, stride_w, n_channels_in, padding_h, padding_w,
-                        part_size)
+                        part_size, -1)
                 if self.bias_before_reduction:
                     res += self.bias.expand_to_vector(j, res.size).v
                 else:
@@ -2266,7 +2266,7 @@ class FixConv2d(Conv2d, FixBase):
             res = sint(size = weights_h * weights_w)
             conv2ds(res, inputs, nabla_outputs, weights_h, weights_w, inputs_h,
                     inputs_w, output_h, output_w, -stride_h, -stride_w, N,
-                    padding_h, padding_w, 1) 
+                    padding_h, padding_w, 1, -1) 
             reduced = unreduced_sfix._new(res).reduce_after_mul()
             self.nabla_weights.assign_vector_by_indices(reduced, j, None, None, i)
 
@@ -2301,7 +2301,7 @@ class FixConv2d(Conv2d, FixBase):
                         reverse_weights[j].get_vector().pre_mul(),
                         padded_h, padded_w, output_h, output_w,
                         weights_h, weights_w, 1, 1, n_channels_out,
-                        weights_h - 1, weights_w - 1, 1)
+                        weights_h - 1, weights_w - 1, 1, -1)
                 output.assign_vector_by_indices(
                     unreduced_sfix._new(res).reduce_after_mul(),
                     i, None, None, j)
@@ -2363,7 +2363,7 @@ class QuantDepthwiseConv2d(QuantConvBase, Conv2d):
                 res = sint(size = output_h * output_w)
                 conv2ds(res, inputs, weights, output_h, output_w,
                         inputs_h, inputs_w, weights_h, weights_w,
-                        stride_h, stride_w, 1, padding_h, padding_w, 1)
+                        stride_h, stride_w, 1, padding_h, padding_w, 1, -1)
                 res += self.bias.expand_to_vector(j, res.size).v
                 self.unreduced.assign_vector_by_indices(res, 0, None, None, j)
             self.reduction()
