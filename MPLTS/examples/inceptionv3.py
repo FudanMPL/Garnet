@@ -1,4 +1,5 @@
 import taso
+import onnx
 
 def get_pads(kernel, padding):
     if sum(padding) == 0 and sum(kernel) > 2:
@@ -136,7 +137,14 @@ def inception_v3(batch_size=1):
     return graph
 
 graph = inception_v3(batch_size=1)  # change batch_size from 4 to 8 would cause error.
-opt_graph = taso.optimize(graph, alpha=1e9, budget=30, input_size=(1, 3, 299, 299))
 
-print(graph.run_time())
-print(opt_graph.run_time())
+onnx_model = taso.export_onnx(graph)
+onnx.save(onnx_model, "inceptionv3.onnx")
+
+graph = taso.optimize(graph, alpha=1e9, budget=1000, input_size=(1, 3, 299, 299))
+graph = taso.optimize(graph, alpha=1e9, budget=1000, input_size=(1, 3, 299, 299), inMPL=True)
+
+onnx_model = taso.export_onnx(graph)
+onnx.save(onnx_model, "inceptionv3_opt.onnx")
+# print(graph.run_time())
+# print(opt_graph.run_time())

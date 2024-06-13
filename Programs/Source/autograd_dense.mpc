@@ -1,0 +1,38 @@
+import Compiler.nn as nn
+import Compiler.optimizer as optim
+import Compiler.dataloader as dataloader
+import Compiler.functional as F
+from Compiler.tensor import Tensor,autograd_function
+
+class LogisticRegression(nn.Module):
+    def __init__(self):
+        super(LogisticRegression, self).__init__()
+        self.flatten = nn.Flatten()
+        self.fc1 = nn.Linear(28*28, 128)  # Assuming input is 28x28 (like MNIST)
+        self.fc2 = nn.Linear(128, 128)
+        self.fc3 = nn.Linear(128, 10)
+    
+    def forward(self, x):
+        x = self.flatten(x)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = F.log_softmax(self.fc3(x), dim=1)
+        return x
+
+x = Tensor.ones(3, 28, 28)
+y = Tensor.ones(3, 10)
+dataload = dataloader.DataLoader(x, y, batch_size = 1)
+
+model = LogisticRegression()
+optimizer = optim.SGD(model.parameters(), lr = 0.01)
+mse = nn.MSELoss()
+model.train()
+@for_range(1)
+def _(i):
+    input, label = dataload.get_data(i)
+    output = model(input)
+    # loss = mse(output, label)
+    # optimizer.zero_grad()
+    # loss.backward()
+    # loss.print_reveal_nested()
+    # optimizer.step()

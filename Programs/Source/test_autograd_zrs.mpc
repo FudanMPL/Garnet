@@ -1,7 +1,7 @@
-from tensor import Tensor,reset_gloabal_store,untrain,autograd_function
-import tensor as tensor
+from Compiler.tensor import Tensor,reset_gloabal_store,untrain,autograd_function
+import Compiler.tensor as tensor
 from functools import reduce
-import functional as F
+import Compiler.functional as F
 import operator
 
 # program.options_from_args()
@@ -875,9 +875,9 @@ def test_logsoftmax_F_Array():
 
 # test_normalize()
 
-# test_avgpool2d()
+test_avgpool2d()
 
-test_maxpool2d()
+# test_maxpool2d()
 
 # test_conv2d()
 # test_tanh()

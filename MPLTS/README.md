@@ -28,10 +28,10 @@ export LD_LIBRARY_PATH="/path/to/lib/:$LD_LIBRARY_PATH"
 
 ## Run example
 ```
-python MPLTS/examples/resnet50.py  -R 64 -Q ABY3
-python MPLTS/examples/resnext50.py -R 64 -Q ABY3
-python MPLTS/examples/inceptionv3.py -R 64 -Q ABY3
-python MPLTS/examples/nasnet_a.py -R 64 -Q ABY3
+python MPLTS/examples/resnet50.py  -R 64 -Q -Z 3 ABY3
+python MPLTS/examples/resnext50.py -R 64 -Q -Z 3 ABY3
+python MPLTS/examples/inceptionv3.py -R 64 -Q -Z 3 ABY3
+python MPLTS/examples/nasnet_a.py -R 64 -Q -Z 3 ABY3
 python MPLTS/examples/batched_resnet.py
 ```
 
@@ -48,7 +48,7 @@ python MPLTS/experiments/check.py -R 64
 ```
 
 
-## Appendix <a name="appendix"></a>
+## Appendix: build Garnet running environment <a name="appendix"></a>
 two-party environment
 ```
 make -j 8 tldr

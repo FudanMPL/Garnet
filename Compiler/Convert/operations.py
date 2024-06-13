@@ -85,8 +85,8 @@ def convert_operations(onnx_graph, opset_version, batch_dim=0, enable_pruning=Tr
         print("node: ", node.op_type)
         # print("opparams: ", params)
         if node.op_type == "Add":
-            op = add.Add(feature_dim=batch_dim + 1)  # 0 for CV models and 1 for NLP
-            # op = OperatorWrapper(Tensor.__add__)
+            # op = add.Add(feature_dim=batch_dim + 1)  # 0 for CV models and 1 for NLP
+            op = OperatorWrapper(Tensor.__add__)
         elif node.op_type == "And":
             op = OperatorWrapper(torch.logical_and)
         elif node.op_type == "AveragePool":

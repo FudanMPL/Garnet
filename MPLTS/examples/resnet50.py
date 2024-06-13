@@ -5,11 +5,11 @@ def resnet_block(graph, input, strides, out_channels):
     w1 = graph.new_weight(dims=(out_channels,input.dim(1),1,1))
     t = graph.conv2d(input=input, weight=w1,
                      strides=(1,1), padding="SAME",
-                     activation="RELU")
+                     )
     w2 = graph.new_weight(dims=(out_channels,t.dim(1),3,3))
     t = graph.conv2d(input=t, weight=w2,
                      strides=strides, padding="SAME",
-                     activation="RELU")
+                     )
     w3 = graph.new_weight(dims=(4*out_channels,t.dim(1),1,1))
     t = graph.conv2d(input=t, weight=w3,
                      strides=(1,1), padding="SAME")
@@ -17,7 +17,8 @@ def resnet_block(graph, input, strides, out_channels):
         w4 = graph.new_weight(dims=(out_channels*4,input.dim(1),1,1))
         input=graph.conv2d(input=input, weight=w4,
                            strides=strides, padding="SAME",
-                           activation="RELU")
+                           )
+    # return graph.add(input, t)
     return graph.relu(graph.add(input, t))
 
 graph = ts.new_graph()

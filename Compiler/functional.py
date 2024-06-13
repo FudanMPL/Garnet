@@ -963,8 +963,12 @@ def avg_pool2d(input, kernel_size, stride=None, padding=0,):
     if prepare:
         if isinstance(kernel_size, int):
             kernel_size = (1,kernel_size, kernel_size,1)
+        if isinstance(kernel_size, tuple) and len(kernel_size)==2:
+            kernel_size = (1,kernel_size[0], kernel_size[1],1)
         if isinstance(stride, int):
             stride = (1,stride, stride,1)
+        if isinstance(stride, tuple) and len(stride)==2:
+            stride = (1, stride[0], stride[1], 1)
         if stride == None:
             stride = kernel_size
         padding = padding.upper() if isinstance(padding, str) else padding
@@ -1025,32 +1029,32 @@ def avg_pool2d(input, kernel_size, stride=None, padding=0,):
         
         print("needpad:", strides, Y_sizes, ksize, X_sizes)
         # needpad: (1, 1) [1, 35, 35, 192] (3, 3) [1, 35, 35, 192]
-        need_padding = [strides[i//2] * (Y_sizes[i] - 1) + ksize[i//2] >
+        need_padding = [strides[i] * (Y_sizes[i] - 1) + ksize[i] >
                         X_sizes[i] for i in range(4)]
         @for_range_opt_multithread(n_threads,[N, n_channels_in])
         def _(l, k):
             bi = batch[l]
             @for_range_opt(Y_sizes[1])
             def _(i):
-                h_base = strides[0] * i - padding[1]
-                hs = [h_base + jj for jj in range(ksize[0])]
+                h_base = strides[1] * i - padding[1]
+                hs = [h_base + jj for jj in range(ksize[1])]
                 if need_padding[1]:
                     h_ins = [(h < X_sizes[1]) * (h >= 0) for h in hs]
                 else:
-                    h_ins = [True] * ksize[0]
+                    h_ins = [True] * ksize[1]
                 @for_range_opt(Y_sizes[2])
                 def _(j):
-                    w_base = strides[1] * j - padding[1]
+                    w_base = strides[2] * j - padding[1]
                     pool = []
-                    ws = [w_base + jj for jj in range(ksize[1])]
+                    ws = [w_base + jj for jj in range(ksize[2])]
                     if need_padding[2]:
                         w_ins = [(w < X_sizes[2]) * (w >= 0) for w in ws]
                     else:
-                        w_ins = [True] * ksize[1]
-                    for ii in range(ksize[0]):
+                        w_ins = [True] * ksize[2]
+                    for ii in range(ksize[1]):
                         h = hs[ii]
                         h_in = h_ins[ii]
-                        for jj in range(ksize[1]):
+                        for jj in range(ksize[2]):
                             w = ws[jj]
                             w_in = w_ins[jj]
                             if not is_zero(h_in * w_in):
