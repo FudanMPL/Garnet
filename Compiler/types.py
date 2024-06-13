@@ -7513,15 +7513,14 @@ class MultiArray(SubMultiArray):
                     summary[:] += input_perm.get_vector(i*stride+j, 1)
                 res.assign_vector(summary[:], i)
             summary.delete()
-            tmp = 1 / stride
             @library.multithread(1, res.total_size())
             def _(base, size):
-                res.assign_vector(res.get_vector(base, size)* tmp, base)
+                res.assign_vector(res.get_vector(base, size), base)
             if keepdims:
                 keep_sizes = self.sizes[:dim] + (1,) +self.sizes[dim+1:]
                 res.view(*keep_sizes)
         else:
-            res[:] = sum(self[:]) / self.total_size()
+            res[:] = sum(self[:])
             
         return res
 
