@@ -233,16 +233,20 @@ public:
     gfp_ value = *((gfp_ *)adr);
     // cout << "sender:" << sender << endl;
     // cout << "P.my_num():" << P.my_num() << endl;
+
+    if(value.is_zero()&&sender==P.my_num()){
+      *this = *this / field_inv[0];
+    }
     if (sender < P.my_num())
     {
       // cout << "value:" << value << endl;
-      // cout<<"field_inv[sender]:"<< field_inv[sender] <<endl;
+      // cout << "field_inv[sender]:" << field_inv[sender] << endl;
       *this += field_inv[sender] * value;
     }
     else
     {
       // cout << "value:" << value << endl;
-      // cout<<"field_inv[sender+1]:"<< field_inv[sender+1] <<endl;
+      // cout << "field_inv[sender+1]:" << field_inv[sender + 1] << endl;
       *this += field_inv[sender + 1] * value;
     }
     // cout << "从gfp的vss_add离开" << endl;

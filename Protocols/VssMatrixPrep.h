@@ -39,6 +39,7 @@ public:
 
     ShareMatrix<T> toVSSMatrixTriples(int rows, int cols, ShareMatrix<T> X)
     {
+        // cout<<"toVSSMatrixTriples"<<endl;
         octetStream os, oc;
         int n = P->num_players();
         AddableVector<ValueMatrix<Dtype>> my_share(n, {rows, cols});

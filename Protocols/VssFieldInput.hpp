@@ -41,6 +41,21 @@ VssFieldInput<T>::VssFieldInput(SubProcessor<T> *proc, Player &P) : SemiInput<T>
             P.public_matrix[i][j] = x;
         }
     }
+
+    // test inv
+    // int array[4][3] = {{1, 0, 1},
+    //                    {2, 2, -3},
+    //                    {3, 3, -4},
+    //                    {1, 1, -1}};
+
+    // for (int i = 0; i < 3; i++)
+    // {
+    //     for (int j = 0; j < 3; j++)
+    //     {
+    //         P.public_matrix[i][j] = array[i][j];
+    //         public_matrix[i][j] = array[i][j];
+    //     }
+    // }
     // cout << "结束" << endl;
     this->reset_all(P);
 }

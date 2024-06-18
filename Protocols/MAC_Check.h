@@ -674,10 +674,9 @@ size_t TreeVssField_Sum<T>::report_size(ReportType type)
 template <class T>
 void add_Vss_Field_openings(vector<T> &values, const Player &P, int sum_players, int last_sum_players, int send_player, TreeVssField_Sum<T> &MC)
 {
-
   for (unsigned int i = 0; i < values.size(); i++)
   {
-    values[i] *= MC.field_inv[0];
+    values[i] *= MC.field_inv[0]; // 乘第一个恢复系数
   }
   MC.player_timers.resize(P.num_players());
   vector<octetStream> &oss = MC.oss;
@@ -819,8 +818,22 @@ void TreeVssField_Sum<T>::start(vector<T> &values, const Player &P)
   for (int i = 0; i < public_matrix_col; i++)
   {
     field_inv[i] = adj[0][i] * det_inv; // 逆矩阵的第一行
-    // cout <<"field_inv["<<i<<"]:"<<field_inv[i] << endl;
   }
+  
+  // T inv0 = field_inv[0];
+  // for (int i = 0; i < public_matrix_col; i++)
+  // {
+  //   field_inv[i] = field_inv[i] / inv0; // 第一个恢复系数
+  //   cout <<"field_inv["<<i<<"]:"<<field_inv[i] << endl;
+  // }
+
+  // test field_inv
+  // int array_inv[3] = {1, 3, -2};
+  // for (int i = 0; i < 3; i++)
+  // {
+  //   field_inv[i] = array_inv[i];
+  // }
+  // end
   os.reset_write_head();
   int sum_players = P.num_players();
   int my_relative_num = positive_modulo(P.my_num() - base_player, P.num_players());
@@ -887,6 +900,10 @@ void TreeVssField_Sum<T>::start(vector<T> &values, const Player &P)
     }
     timers[BCAST].stop();
   }
+  // for (unsigned int i = 0; i < values.size(); i++)
+  // {
+  //   values[i] *= inv0;
+  // }
 }
 
 template <class T>

@@ -6,7 +6,7 @@
 #include <Machines/vss-field-party.h>
 #include "Processor/FieldMachine.hpp"
 #include "Machines/Semi.hpp"
-#include "Protocols/Vss.h"
+#include "Protocols/VssField.h"
 #include "Protocols/VssFieldShare.h"
 
 #include "Math/gfp.h"

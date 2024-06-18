@@ -6,7 +6,7 @@
 #include "SemiInput.h"
 #include "ReplicatedInput.h"
 #include "Processor/Input.h"
-#include "Vss.h"
+#include "VssField.h"
 #include "Machines/vss-field-party.h"
 
 template <class T>

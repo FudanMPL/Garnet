@@ -162,7 +162,7 @@ class gf2n_long : public gf2n_<int128>
   void vss_add(octetStream& os, const Player& P, const vector<gf2n_long>& field_inv, int sender){
     cout<<"进入gf2nlong的vss_add"<<endl;
 		octet* adr = os.consume(size());
-		mp_limb_t value = *((unsigned long*) adr);
+		gf2n_long value = *((int128*) adr);
 		if(sender < P.my_num())
 		{
 			*this += field_inv[sender] * value;

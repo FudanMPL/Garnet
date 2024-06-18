@@ -6,7 +6,7 @@
 #ifndef PROTOCOLS_VSSFIELDSHARE_H_
 #define PROTOCOLS_VSSFIELDSHARE_H_
 
-#include "Vss.h"
+#include "VssField.h"
 #include "SecureML.h"
 #include "VssFieldMC.h"
 #include "SemiShare.h"
@@ -29,7 +29,7 @@ public:
     typedef VssFieldMC<VssFieldShare> MAC_Check;
     typedef DirectVssFieldMC<VssFieldShare> Direct_MC;
     typedef ::PrivateOutput<VssFieldShare> PrivateOutput;
-    typedef Vss<VssFieldShare> Protocol;
+    typedef VssField<VssFieldShare> Protocol;
 
     typedef VssFieldPrep<This> LivePrep;
 
