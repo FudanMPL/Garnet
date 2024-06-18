@@ -12,7 +12,7 @@
 #include "VssMatrixPrep.h"
 #include "../Processor/Conv2dTuple.h"
 #include "../Processor/MatmulsmTuple.h"
-// #include "VssBeaver.h"
+#include "VssBeaver.h"
 
 template <class T>
 class VssField : public Semi<T>
@@ -21,6 +21,8 @@ class VssField : public Semi<T>
     map<array<int, 3>, VssMatrixPrep<T> *> matrix_preps;
     DataPositions matrix_usage;
     MatrixMC<T> mc;
+    vector<vector<int>> public_matrix;
+    vector<typename T::open_type> field_inv; // 恢复系数
 public:
     VssField(Player &P) : Semi<T>(P)
     {
@@ -100,9 +102,6 @@ public:
         (void)n;
         typename T::open_type masked[2];
 
-        vector<vector<int>> public_matrix;
-        vector<typename T::open_type> field_inv; // 恢复系数
-
         int public_matrix_row = this->P.num_players(); // n+nd
         // int public_matrix_col = P.num_players() - ndparties; // n
         int public_matrix_col = this->P.num_players(); // n+nd
@@ -168,7 +167,7 @@ public:
     ShareMatrix<T> matrix_multiply(const ShareMatrix<T> &A,
                                    const ShareMatrix<T> &B, SubProcessor<T> &processor)
     {
-        Beaver<ShareMatrix<T>> beaver(this->P);
+        VssBeaver<ShareMatrix<T>> beaver(this->P);
         array<int, 3> dims = {{A.n_rows, A.n_cols, B.n_cols}};
         ShareMatrix<T> C(A.n_rows, B.n_cols);
 

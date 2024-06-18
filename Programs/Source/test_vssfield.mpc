@@ -10,5 +10,5 @@ print_ln('Results=%s',sum.reveal())
 e = a * c
 print_ln('a*c=%s', e.reveal())
 
-f = (a < 0)
+f = (a < b)
 print_ln('a<b=%s', f.reveal())
