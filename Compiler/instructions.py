@@ -2856,7 +2856,7 @@ class matmuls(matmul_base, base.VarArgsInstruction, base.Mergeable):
         res = 0
         for i in range(0, len(self.args), 6):
             res += reduce(operator.mul, self.args[i+3:i+6])
-        return 
+        return res
     
     def add_usage(self, req_node):
         cost_func = program.get_cost("matmuls")
