@@ -234,9 +234,9 @@ public:
     // cout << "sender:" << sender << endl;
     // cout << "P.my_num():" << P.my_num() << endl;
 
-    if(value.is_zero()&&sender==P.my_num()){
-      *this = *this / field_inv[0];
-    }
+      // if(value.is_zero()&&sender==P.my_num()){
+      //   *this = *this / field_inv[0];
+      // }
     if (sender < P.my_num())
     {
       // cout << "value:" << value << endl;
@@ -250,13 +250,6 @@ public:
       *this += field_inv[sender + 1] * value;
     }
     // cout << "从gfp的vss_add离开" << endl;
-  }
-
-  __m128i toInt() const
-  {
-    bigint bi;
-    to_bigint(bi, *this);
-    return _mm_set_epi64x(0, static_cast<long long>(bi.get_ui()));
   }
 
   gfp_ lazy_add(const gfp_ &x) const { return *this + x; }

@@ -11,7 +11,6 @@
 template <class T>
 VssFieldInput<T>::VssFieldInput(SubProcessor<T> *proc, Player &P) : SemiInput<T>(proc, P), P(P)
 {
-    // cout << "进入Input构造函数" << endl;
     ndparties = VssFieldMachine::s().ndparties;
     int public_matrix_row = P.num_players(); // n+nd
     // int public_matrix_col = P.num_players() - ndparties; // n
@@ -22,41 +21,30 @@ VssFieldInput<T>::VssFieldInput(SubProcessor<T> *proc, Player &P) : SemiInput<T>
     os[1].resize(public_matrix_col);
     expect.resize(public_matrix_col); // 是什么
 
-    public_matrix.resize(public_matrix_row);
     P.public_matrix.resize(public_matrix_row);
     for (int i = 0; i < public_matrix_row; i++)
     {
-        public_matrix[i].resize(public_matrix_col);
         P.public_matrix[i].resize(public_matrix_col);
     }
     for (int i = 0; i < public_matrix_row; i++)
     {
         int x = 1;
-        public_matrix[i][0] = 1;
         P.public_matrix[i][0] = 1;
         for (int j = 1; j < public_matrix_col; j++)
         {
             x *= (i + 1);
-            public_matrix[i][j] = x;
             P.public_matrix[i][j] = x;
         }
     }
+    vector<vector<int>> selected(P.public_matrix.begin(), P.public_matrix.begin() + public_matrix_col);
 
-    // test inv
-    // int array[4][3] = {{1, 0, 1},
-    //                    {2, 2, -3},
-    //                    {3, 3, -4},
-    //                    {1, 1, -1}};
-
-    // for (int i = 0; i < 3; i++)
-    // {
-    //     for (int j = 0; j < 3; j++)
-    //     {
-    //         P.public_matrix[i][j] = array[i][j];
-    //         public_matrix[i][j] = array[i][j];
-    //     }
-    // }
-    // cout << "结束" << endl;
+    for (int i = 0; i < public_matrix_row; i++)
+    {
+        for (int j = 0; j < public_matrix_col; j++)
+        {
+            P.public_matrix[i][j] = P.public_matrix[i][j] * public_matrix_col;
+        }
+    }
     this->reset_all(P);
 }
 
@@ -69,7 +57,7 @@ void VssFieldInput<T>::reset(int player)
         os.resize(2);
         for (int i = 0; i < 2; i++)
         {
-            os[i].resize(public_matrix[0].size());
+            os[i].resize(P.public_matrix[0].size());
             for (auto &o : os[i])
                 o.reset_write_head();
         }
@@ -81,24 +69,23 @@ template <class T>
 void VssFieldInput<T>::add_mine(const typename T::clear &input, int) // 计算秘密份额
 {
     auto &P = this->P;
-    vector<typename T::open_type> v(public_matrix[0].size());
-    vector<T> secrets(public_matrix.size());
+    vector<typename T::open_type> v(P.public_matrix[0].size());
+    vector<T> secrets(P.public_matrix.size());
     PRNG G;
     v[0] = input;
-    for (int i = 1; i < public_matrix[0].size(); i++)
+    for (int i = 1; i < P.public_matrix[0].size(); i++)
     {
-        // v[i] = G.get<typename T::open_type>(); // for test,记得改回来
-        v[i] = i;
+        v[i] = G.get<typename T::open_type>(); // for test,记得改回来
+        // v[i] = i;
     }
-    for (int i = 0; i < public_matrix.size(); i++)
+    for (int i = 0; i < P.public_matrix.size(); i++)
     {
         typename T::open_type sum = 0;
-        for (int j = 0; j < public_matrix[0].size(); j++)
+        for (int j = 0; j < P.public_matrix[0].size(); j++)
         {
-            sum += v[j] * public_matrix[i][j];
+            sum += v[j] * P.public_matrix[i][j];
         }
         secrets[i] = sum;
-        // cout<<"secrets["<<i<<"]:"<<secrets[i]<<endl;
     }
     this->shares.push_back(secrets[P.my_num()]);
     for (int i = 0; i < P.num_players(); i++)

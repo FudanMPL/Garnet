@@ -148,10 +148,6 @@ class gf2n_long : public gf2n_<int128>
 
   static gf2n_long cut(int128 x) { return x; }
 
-  __m128i toInt() const {
-    return _mm_set_epi64x(this->a.get_upper(), this->a.get_lower());
-  }
-
   gf2n_long()              { assign_zero(); }
   gf2n_long(const super& g) : super(g) {}
   gf2n_long(const int128& g) : super(g) {}
@@ -160,7 +156,6 @@ class gf2n_long : public gf2n_<int128>
   gf2n_long(IntBase<T> g) : super(g.get()) {}
 
   void vss_add(octetStream& os, const Player& P, const vector<gf2n_long>& field_inv, int sender){
-    cout<<"进入gf2nlong的vss_add"<<endl;
 		octet* adr = os.consume(size());
 		gf2n_long value = *((int128*) adr);
 		if(sender < P.my_num())
@@ -171,7 +166,6 @@ class gf2n_long : public gf2n_<int128>
 		{
 			*this += field_inv[sender + 1] * value;
 		}
-    cout<<"从gf2nlong的vss_add离开"<<endl;
 	}
 
   friend ostream& operator<<(ostream& s,const gf2n_long& x)

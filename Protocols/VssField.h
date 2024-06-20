@@ -140,7 +140,7 @@ public:
         }
         tmp += (masked[0] * (*this->triple)[1]);
         tmp += ((*this->triple)[0] * masked[1]);
-        tmp += T::constant((masked[0] * masked[1]) / field_inv[0], this->P.my_num(), this->MC->get_alphai()); // P0的是正确的，P1和P2的是错误的
+        tmp += T::constant((masked[0] * masked[1]) / field_inv[0], this->P.my_num(), this->MC->get_alphai());
 
         this->triple++;
         return tmp;
@@ -167,7 +167,7 @@ public:
     ShareMatrix<T> matrix_multiply(const ShareMatrix<T> &A,
                                    const ShareMatrix<T> &B, SubProcessor<T> &processor)
     {
-        VssBeaver<ShareMatrix<T>> beaver(this->P);
+        Beaver<ShareMatrix<T>> beaver(this->P);
         array<int, 3> dims = {{A.n_rows, A.n_cols, B.n_cols}};
         ShareMatrix<T> C(A.n_rows, B.n_cols);
 

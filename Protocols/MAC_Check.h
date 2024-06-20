@@ -674,10 +674,10 @@ size_t TreeVssField_Sum<T>::report_size(ReportType type)
 template <class T>
 void add_Vss_Field_openings(vector<T> &values, const Player &P, int sum_players, int last_sum_players, int send_player, TreeVssField_Sum<T> &MC)
 {
-  for (unsigned int i = 0; i < values.size(); i++)
-  {
-    values[i] *= MC.field_inv[0]; // 乘第一个恢复系数
-  }
+  // for (unsigned int i = 0; i < values.size(); i++)
+  // {
+  //   values[i] *= MC.field_inv[0]; // 乘第一个恢复系数
+  // }
   MC.player_timers.resize(P.num_players());
   vector<octetStream> &oss = MC.oss;
   oss.resize(P.num_players());
@@ -785,8 +785,6 @@ vector<vector<T>> TreeVssField_Sum<T>::adjointMatrix(vector<vector<int>> &matrix
 template <class T>
 void TreeVssField_Sum<T>::start(vector<T> &values, const Player &P)
 {
-  // cout << "我在TreeVssField_Sum的start函数" << endl;
-
   int public_matrix_row = P.num_players(); // n+nd
   // int public_matrix_col = P.num_players() - ndparties; // n
   int public_matrix_col = P.num_players(); // n+nd
@@ -814,26 +812,17 @@ void TreeVssField_Sum<T>::start(vector<T> &values, const Player &P)
   T det = determinant(selected);                   // 行列式
   T det_inv = det.invert();                        // 行列式的逆
   vector<vector<T>> adj = adjointMatrix(selected); // 伴随矩阵
-  // cout << "恢复系数：" << endl;
   for (int i = 0; i < public_matrix_col; i++)
   {
     field_inv[i] = adj[0][i] * det_inv; // 逆矩阵的第一行
   }
   
-  // T inv0 = field_inv[0];
-  // for (int i = 0; i < public_matrix_col; i++)
-  // {
-  //   field_inv[i] = field_inv[i] / inv0; // 第一个恢复系数
-  //   cout <<"field_inv["<<i<<"]:"<<field_inv[i] << endl;
-  // }
+  T inv0 = field_inv[0];
+  for (int i = 0; i < public_matrix_col; i++)
+  {
+    field_inv[i] = field_inv[i] / inv0; // 第一个恢复系数
+  }
 
-  // test field_inv
-  // int array_inv[3] = {1, 3, -2};
-  // for (int i = 0; i < 3; i++)
-  // {
-  //   field_inv[i] = array_inv[i];
-  // }
-  // end
   os.reset_write_head();
   int sum_players = P.num_players();
   int my_relative_num = positive_modulo(P.my_num() - base_player, P.num_players());

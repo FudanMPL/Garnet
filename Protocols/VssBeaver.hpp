@@ -87,8 +87,6 @@ T VssBeaver<T>::finalize_mul(int n)
     (void)n;
     typename T::open_type masked[2];
     T &tmp = (*triple)[2];
-    gfp_ sss = 3;
-    gfp_ inv1 = sss.invert();
 
     for (int k = 0; k < 2; k++)
     {
@@ -96,7 +94,7 @@ T VssBeaver<T>::finalize_mul(int n)
     }
     tmp += (masked[0] * (*triple)[1]);
     tmp += ((*triple)[0] * masked[1]);
-    tmp += T::constant((masked[0] * masked[1]) * inv1, P.my_num(), MC->get_alphai());
+    tmp += T::constant((masked[0] * masked[1]), P.my_num(), MC->get_alphai()); // 待修改
     triple++;
     return tmp;
 }

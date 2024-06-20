@@ -21,6 +21,77 @@ public:
     {
         this->params.set_passive();
     }
+
+    // 求矩阵的行列式
+    Integer determinant(vector<vector<int>> &matrix)
+    {
+        int n = matrix.size();
+        if (n == 2)
+        {
+            Integer det = (matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0]);
+            return det;
+        }
+        Integer det = 0;
+        bool sign = true;
+        for (int i = 0; i < n; i++)
+        {
+            vector<vector<int>> submatrix(n - 1, vector<int>(n - 1));
+            for (int j = 1; j < n; j++)
+            {
+                int col = 0;
+                for (int k = 0; k < n; k++)
+                {
+                    if (k != i)
+                    {
+                        submatrix[j - 1][col] = matrix[j][k];
+                        col++;
+                    }
+                }
+            }
+            if (sign == true)
+                det = det + (determinant(submatrix) * matrix[0][i]);
+            else
+                det = det - (determinant(submatrix) * matrix[0][i]);
+            sign = !sign;
+        }
+        return det;
+    }
+
+    // 求矩阵的伴随矩阵
+    vector<vector<typename T::open_type>> adjointMatrix(vector<vector<int>> &matrix)
+    {
+        int n = matrix.size();
+        vector<vector<typename T::open_type>> adj(n, vector<typename T::open_type>(n));
+        for (int i = 0; i < n; i++)
+        {
+            for (int j = 0; j < n; j++)
+            {
+                vector<vector<int>> submatrix(n - 1, vector<int>(n - 1));
+                int subi = 0, subj = 0;
+                for (int k = 0; k < n; k++)
+                {
+                    if (k != i)
+                    {
+                        subj = 0;
+                        for (int l = 0; l < n; l++)
+                        {
+                            if (l != j)
+                            {
+                                submatrix[subi][subj] = matrix[k][l];
+                                subj++;
+                            }
+                        }
+                        subi++;
+                    }
+                }
+                int sign = ((i + j) % 2 == 0) ? 1 : -1;
+                adj[j][i] = Integer(sign) * determinant(submatrix);
+            }
+        }
+        return adj;
+    }
+
+
     open_type toVSSTriples(open_type X)
     {
         octetStream os, oc;
@@ -32,56 +103,19 @@ public:
         open_type res = 0;
         SeededPRNG G;
 
-        vector<vector<open_type>> public_matrix;
-        int public_matrix_row = P.num_players(); // n+nd
-        int public_matrix_col = P.num_players(); // n+nd, 为了测试，暂时设为n+nd
-        public_matrix.resize(public_matrix_row);
-        for (int i = 0; i < public_matrix_row; i++)
-        {
-            public_matrix[i].resize(public_matrix_col);
-        }
-        for (int i = 0; i < public_matrix_row; i++)
-        {
-            int x = 1;
-            public_matrix[i][0] = 1;
-            for (int j = 1; j < public_matrix_col; j++)
-            {
-                x *= (i + 1);
-                public_matrix[i][j] = x;
-            }
-        }
-
-        // int array[4][3] = {{1, 0, 1},
-        //                     {2, 2, -3},
-        //                     {3, 3, -4},
-        //                     {1, 1, -1}};
-
-        // for (int i = 0; i < public_matrix_row; i++)
-        // {
-        //     for (int j = 0; j < public_matrix_col; j++)
-        //     {
-        //         public_matrix[i][j] = array[i][j];
-        //     }
-        // }
-
         S[0] = X;
         for (int i = 1; i < n; i++)
         {
-            // S[i] = G.get<open_type>();  // for test, 记得改回来
-            S[i] = i;
+            S[i] = G.get<open_type>();  // for test, 记得改回来
+            // S[i] = i;
         }
         for (int i = 0; i < n; i++)
         {
             for (int j = 0; j < n; j++)
             {
-                Vss_X[i] += S[j] * public_matrix[i][j]; // 是share份额
+                Vss_X[i] += S[j] * P.public_matrix[i][j]; // 是share份额
             }
         }
-        // cout << "X" << X << endl;
-        // for (int i = 0; i < n; i++)
-        // {
-        //     cout << "Vss_X[" << i << "]: " << Vss_X[i] << endl;
-        // }
 
         for (int k = 0; k < n; k++) // share份额赋值给my_share
         {
@@ -112,17 +146,9 @@ public:
         this->triple_generator->generatePlainTriples();
         for (auto &x : this->triple_generator->plainTriples)
         {
-            // cout << endl;
-            // cout << "x[0]: " << x[0] << endl;
-            // cout << "x[1]: " << x[1] << endl;
-            // cout << "x[2]: " << x[2] << endl;
-            // x123是三元组share后本player持有的份额，本人的x1+其他人的x1=x1
             x[0] = toVSSTriples(x[0]);
             x[1] = toVSSTriples(x[1]);
             x[2] = toVSSTriples(x[2]);
-            // cout << "x[0]: " << x[0] << endl;
-            // cout << "x[1]: " << x[1] << endl;
-            // cout << "x[2]: " << x[2] << endl;
             this->triples.push_back({{x[0], x[1], x[2]}});
         }
         this->triple_generator->unlock();

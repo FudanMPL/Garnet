@@ -25,7 +25,7 @@ class VssFieldInput : public SemiInput<T>
     // int npparties;   // the number of privileged parties
     // int naparties;   // the number of assistant parties
     int ndparties; // the number of assistant parties allowed to drop out
-    vector<vector<typename T::open_type>> public_matrix;
+
 
 public:
     VssFieldInput(SubProcessor<T> &proc, VssFieldMC<T> &) : VssFieldInput(&proc, proc.P)
@@ -45,7 +45,6 @@ public:
     void exchange();
     void finalize_other(int player, T &target, octetStream &o, int n_bits = -1);
     T finalize_mine();
-
 };
 
 #endif /* PROTOCOLS_VSSFIELDINPUT_H_ */
