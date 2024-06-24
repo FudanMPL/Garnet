@@ -92,6 +92,8 @@ CFLAGS += $(ARCH) $(MY_CFLAGS) $(GDEBUG) -Wextra -Wall $(OPTIM) -I$(ROOT) -I$(RO
 CPPFLAGS = $(CFLAGS)
 LD = $(CXX)
 
+MY_CFLAGS = -DINSECURE
+
 ifeq ($(OS), Darwin)
 # for boost with OpenSSL 3
 CFLAGS += -Wno-error=deprecated-declarations
