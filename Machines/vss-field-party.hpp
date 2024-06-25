@@ -6,7 +6,7 @@
 #include <Machines/vss-field-party.h>
 #include "Processor/FieldMachine.hpp"
 #include "Machines/Semi.hpp"
-#include "Protocols/VssField.h"
+#include "Protocols/Vss.h"
 #include "Protocols/VssFieldShare.h"
 
 #include "Math/gfp.h"
@@ -109,7 +109,7 @@ void VssFieldOptions::set_ndparties(ez::ezOptionParser& opt)
 #endif
     if (ndparties >= naparties)
         throw runtime_error("ndparties too many");
-    if (ndparties < 1)
+    if (ndparties < 0)
     {
         cerr << "ndparties has to be positive" << endl;
         exit(1);

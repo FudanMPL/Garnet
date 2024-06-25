@@ -6,7 +6,7 @@
 #include "SemiInput.h"
 #include "ReplicatedInput.h"
 #include "Processor/Input.h"
-#include "VssField.h"
+#include "Vss.h"
 #include "Machines/vss-field-party.h"
 
 template <class T>
@@ -22,8 +22,6 @@ class VssFieldInput : public SemiInput<T>
     // friend class Vss<T>;
     vector<vector<octetStream>> os;
     vector<bool> expect;
-    // int npparties;   // the number of privileged parties
-    // int naparties;   // the number of assistant parties
     int ndparties; // the number of assistant parties allowed to drop out
 
 

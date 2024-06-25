@@ -26,5 +26,3 @@
 #include "Protocols/Beaver.hpp"
 #include "Protocols/MalRepRingPrep.hpp"
 #include "GC/SemiSecret.hpp"
-
-#include "Protocols/VssBeaver.hpp"

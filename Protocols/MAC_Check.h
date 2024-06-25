@@ -649,7 +649,6 @@ TreeVssField_Sum<T>::~TreeVssField_Sum()
 template <class T>
 void TreeVssField_Sum<T>::run(vector<T> &values, const Player &P)
 {
-  // cout<<"我在TreeVssField_Sum的run函数"<<endl;
   start(values, P);
   finish(values, P);
 }
@@ -674,22 +673,18 @@ size_t TreeVssField_Sum<T>::report_size(ReportType type)
 template <class T>
 void add_Vss_Field_openings(vector<T> &values, const Player &P, int sum_players, int last_sum_players, int send_player, TreeVssField_Sum<T> &MC)
 {
-  // for (unsigned int i = 0; i < values.size(); i++)
-  // {
-  //   values[i] *= MC.field_inv[0]; // 乘第一个恢复系数
-  // }
   MC.player_timers.resize(P.num_players());
   vector<octetStream> &oss = MC.oss;
   oss.resize(P.num_players());
   vector<int> senders;
-  senders.reserve(P.num_players()); // 分配n的内存空间
+  senders.reserve(P.num_players());
 
-  for (int relative_sender = positive_modulo(P.my_num() - send_player, P.num_players()) + sum_players; // 正模
-       relative_sender < last_sum_players; relative_sender += sum_players)                             // 循环条件是relative_sender < last_sum_players
+  for (int relative_sender = positive_modulo(P.my_num() - send_player, P.num_players()) + sum_players; 
+       relative_sender < last_sum_players; relative_sender += sum_players)                            
   {
     int sender = positive_modulo(send_player + relative_sender, P.num_players());
     senders.push_back(sender);
-  } // 计算一组发送者的编号，预计需更改
+  } 
 
   for (int j = 0; j < (int)senders.size(); j++)
     P.request_receive(senders[j], oss[j]);
@@ -704,7 +699,7 @@ void add_Vss_Field_openings(vector<T> &values, const Player &P, int sum_players,
     for (unsigned int i = 0; i < values.size(); i++)
     {
       // cout << endl <<"初始时values["<<i<<"]:"<<values[i]<<endl;
-      values[i].vss_add(oss[j], P, MC.field_inv, j); // j 是 sender ，value[i]+ field_inv[sender] * os里的value
+      values[i].vss_add(oss[j], P, MC.field_inv, j);
       // cout<<"values["<<i<<"]:"<<values[i]<<endl;
     }
     MC.timers[SUM].stop();
@@ -785,9 +780,10 @@ vector<vector<T>> TreeVssField_Sum<T>::adjointMatrix(vector<vector<int>> &matrix
 template <class T>
 void TreeVssField_Sum<T>::start(vector<T> &values, const Player &P)
 {
+  // int ndparties = VssFieldMachine::s().ndparties;
   int public_matrix_row = P.num_players(); // n+nd
+  int public_matrix_col = P.num_players();
   // int public_matrix_col = P.num_players() - ndparties; // n
-  int public_matrix_col = P.num_players(); // n+nd
 
   public_matrix.resize(public_matrix_row);
   field_inv.resize(public_matrix_col);

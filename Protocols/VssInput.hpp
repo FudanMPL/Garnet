@@ -62,7 +62,6 @@ void VssInput<T>::reset(int player)
 template <class T>
 void VssInput<T>::add_mine(const typename T::clear &input, int)
 {
-    cout<<"进入Input"<<endl;
     auto &P = this->P;
     vector<typename T::open_type> v(P.public_matrix[0].size());
     vector<T> secrets(P.public_matrix.size());

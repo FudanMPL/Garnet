@@ -13,13 +13,12 @@ VssFieldInput<T>::VssFieldInput(SubProcessor<T> *proc, Player &P) : SemiInput<T>
 {
     ndparties = VssFieldMachine::s().ndparties;
     int public_matrix_row = P.num_players(); // n+nd
-    // int public_matrix_col = P.num_players() - ndparties; // n
-    int public_matrix_col = P.num_players(); // n+nd, 为了测试，暂时设为n+nd
+    int public_matrix_col = P.num_players() - ndparties; // n
 
-    os.resize(2); // 是什么，socket发送
+    os.resize(2);
     os[0].resize(public_matrix_col);
     os[1].resize(public_matrix_col);
-    expect.resize(public_matrix_col); // 是什么
+    expect.resize(public_matrix_col);
 
     P.public_matrix.resize(public_matrix_row);
     for (int i = 0; i < public_matrix_row; i++)
@@ -75,8 +74,7 @@ void VssFieldInput<T>::add_mine(const typename T::clear &input, int) // 计算�
     v[0] = input;
     for (int i = 1; i < P.public_matrix[0].size(); i++)
     {
-        v[i] = G.get<typename T::open_type>(); // for test,记得改回来
-        // v[i] = i;
+        v[i] = G.get<typename T::open_type>();
     }
     for (int i = 0; i < P.public_matrix.size(); i++)
     {

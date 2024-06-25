@@ -22,7 +22,6 @@ public:
         this->params.set_passive();
     }
 
-    // 求矩阵的行列式
     Integer determinant(vector<vector<int>> &matrix)
     {
         int n = matrix.size();
@@ -57,7 +56,6 @@ public:
         return det;
     }
 
-    // 求矩阵的伴随矩阵
     vector<vector<typename T::open_type>> adjointMatrix(vector<vector<int>> &matrix)
     {
         int n = matrix.size();
@@ -106,18 +104,17 @@ public:
         S[0] = X;
         for (int i = 1; i < n; i++)
         {
-            S[i] = G.get<open_type>();  // for test, 记得改回来
-            // S[i] = i;
+            S[i] = G.get<open_type>();
         }
         for (int i = 0; i < n; i++)
         {
             for (int j = 0; j < n; j++)
             {
-                Vss_X[i] += S[j] * P.public_matrix[i][j]; // 是share份额
+                Vss_X[i] += S[j] * P.public_matrix[i][j];
             }
         }
 
-        for (int k = 0; k < n; k++) // share份额赋值给my_share
+        for (int k = 0; k < n; k++) 
         {
             os.reset_write_head();
             oc.reset_read_head();
