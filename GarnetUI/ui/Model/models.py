@@ -1,6 +1,7 @@
 import uuid
+
+from django.core.validators import MinValueValidator
 from django.db import models
-from django.core.validators import MaxValueValidator, MinValueValidator
 
 
 class Users(models.Model):
@@ -10,7 +11,9 @@ class Users(models.Model):
         max_length=64, unique=True, null=False, verbose_name="用户名"
     )
     password = models.CharField(max_length=255, null=False, verbose_name="密码")
-    role = models.IntegerField(default=1, blank=True, null=False, verbose_name="用户权限")
+    role = models.IntegerField(
+        default=1, blank=True, null=False, verbose_name="用户权限"
+    )
     create_time = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
     update_time = models.DateTimeField(auto_now=True, verbose_name="更新时间")
 
@@ -66,7 +69,9 @@ class UserData(models.Model):
     create_time = models.DateTimeField(
         auto_now_add=True, null=True, verbose_name="创建时间"
     )
-    update_time = models.DateTimeField(auto_now=True, null=True, verbose_name="更新时间")
+    update_time = models.DateTimeField(
+        auto_now=True, null=True, verbose_name="更新时间"
+    )
     description = models.TextField(null=True, verbose_name="详情")
 
 
@@ -91,7 +96,9 @@ class LocalTask(models.Model):
     userdata = models.ManyToManyField(
         UserData, verbose_name="使用的数据", through="DataTaskRelationship"
     )
-    prefix = models.UUIDField(default=uuid.uuid4, editable=False, verbose_name="数据前缀")
+    prefix = models.UUIDField(
+        default=uuid.uuid4, editable=False, verbose_name="数据前缀"
+    )
     status = models.CharField(max_length=30, verbose_name="状态", blank=True)
     create_time = models.DateTimeField(
         auto_now_add=True, null=True, verbose_name="创建时间"
@@ -116,11 +123,17 @@ class RemoteTask(models.Model):
         max_length=40, verbose_name="任务名", unique=False, null=False
     )
     mpc = models.ForeignKey(
-        to="Mpc", to_field="id", on_delete=models.DO_NOTHING, verbose_name="使用的mpc文件"
+        to="Mpc",
+        to_field="id",
+        on_delete=models.DO_NOTHING,
+        verbose_name="使用的mpc文件",
     )
     mpc_parameters = models.TextField("编译参数", null=True, blank=True)
     protocol = models.ForeignKey(
-        to="Protocol", to_field="id", on_delete=models.DO_NOTHING, verbose_name="使用的协议"
+        to="Protocol",
+        to_field="id",
+        on_delete=models.DO_NOTHING,
+        verbose_name="使用的协议",
     )
     protocol_parameters = models.TextField("运行参数", null=True, blank=True)
     pN = models.PositiveIntegerField(verbose_name="模拟运算的参与方数量")
@@ -139,8 +152,12 @@ class RemoteTask(models.Model):
         verbose_name="本方使用的数据",
         blank=True,
     )
-    prefix = models.UUIDField(default=uuid.uuid4, editable=False, verbose_name="数据前缀")
-    host = models.GenericIPAddressField(verbose_name="协调方ip地址", blank=True, null=True)
+    prefix = models.UUIDField(
+        default=uuid.uuid4, editable=False, verbose_name="数据前缀"
+    )
+    host = models.GenericIPAddressField(
+        verbose_name="协调方ip地址", blank=True, null=True
+    )
     baseport = models.IntegerField(verbose_name="基端口")
     status = models.CharField(max_length=30, verbose_name="状态", blank=True)
     create_time = models.DateTimeField(
@@ -157,17 +174,3 @@ class ServerTaskRelationship(models.Model):
     server = models.ForeignKey(Servers, on_delete=models.DO_NOTHING)
     task = models.ForeignKey(RemoteTask, on_delete=models.CASCADE)
     part = models.IntegerField()
-
-
-class Token(models.Model):
-    """token表"""
-
-    user = models.OneToOneField(
-        to="Users", to_field="id", on_delete=models.CASCADE, verbose_name="用户主键"
-    )
-    token = models.CharField(max_length=64, null=True, verbose_name="token")
-    expires_time = models.CharField(max_length=32, null=True, verbose_name="有效期")
-    create_time = models.DateTimeField(
-        auto_now_add=True, null=True, verbose_name="创建时间"
-    )
-    update_time = models.DateTimeField(auto_now=True, null=True, verbose_name="更新时间")

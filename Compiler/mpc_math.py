@@ -1034,7 +1034,6 @@ def logsum(x):
     
 def argmax(x):
     len=x.size
-    print(len)
     len2=(int)(len*(len-1)/2)
     temp_input=type(x[0]).Array(len)
     temp=type(x[0]).Array(len2)

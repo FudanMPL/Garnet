@@ -144,6 +144,8 @@ void BaseOT::exec_base(bool new_receiver_inputs)
 
     if (ot_role & RECEIVER)
     {
+        // Receive A
+        len = sizeof(receiver.S_pack);
         os[1].get_bytes((octet *)receiver.S_pack, len);
         if (len != HASHBYTES)
         {
@@ -200,6 +202,8 @@ void BaseOT::exec_base(bool new_receiver_inputs)
     {
         if (ot_role & SENDER)
         {
+            // Receive B
+            len = sizeof(Rs_pack[1]);
             os[1].get_bytes((octet *)Rs_pack[1], len);
             if (len != sizeof(Rs_pack[1]))
             {

@@ -49,7 +49,7 @@ class MpcFormStringView(GenericViewSet):
         try:
             Mpc.objects.get(file=path)
             return Response({"msg": "文件名重名"}, status=status.HTTP_409_CONFLICT)
-        except:
+        except Exception:
             pass
         mpc = Mpc()
         mpc.file.name = path
