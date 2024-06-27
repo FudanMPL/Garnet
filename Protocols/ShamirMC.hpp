@@ -137,15 +137,7 @@ typename T::open_type ShamirMC<T>::reconstruct(const vector<open_type>& shares)
     typename T::open_type res;
     for (size_t j = 0; j < reconstruction.size(); j++)
     {
-        cout<<"test shamir:"<<endl;
-        cout<<shares[j]<<endl;
-        cout<<reconstruction[j]<<endl;
-        cout<<res<<endl;
-        cout<<shares[j] * reconstruction[j]<<endl;
         res += shares[j] * reconstruction[j];
-        cout<<res<<endl;
-        cout<<"test end"<<endl;
-        cout<<endl;
     }
 
     return res;

@@ -12,6 +12,7 @@ using namespace std;
 #include "Protocols/MAC_Check_Base.h"
 #include "Tools/time-func.h"
 #include "Tools/Coordinator.h"
+#include "Machines/vss-field-party.h"
 
 /* The MAX number of things we will partially open before running
  * a MAC Check
@@ -677,7 +678,8 @@ void add_Vss_Field_openings(vector<T> &values, const Player &P, int sum_players,
   vector<octetStream> &oss = MC.oss;
   oss.resize(P.num_players());
   vector<int> senders;
-  senders.reserve(P.num_players());
+  int ndparties = VssFieldMachine::s().ndparties;
+  senders.reserve(P.num_players() - ndparties);
 
   for (int relative_sender = positive_modulo(P.my_num() - send_player, P.num_players()) + sum_players; 
        relative_sender < last_sum_players; relative_sender += sum_players)                            
@@ -780,10 +782,10 @@ vector<vector<T>> TreeVssField_Sum<T>::adjointMatrix(vector<vector<int>> &matrix
 template <class T>
 void TreeVssField_Sum<T>::start(vector<T> &values, const Player &P)
 {
-  // int ndparties = VssFieldMachine::s().ndparties;
+  int ndparties = VssFieldMachine::s().ndparties;
   int public_matrix_row = P.num_players(); // n+nd
-  int public_matrix_col = P.num_players();
-  // int public_matrix_col = P.num_players() - ndparties; // n
+  // int public_matrix_col = P.num_players();
+  int public_matrix_col = P.num_players() - ndparties; // n
 
   public_matrix.resize(public_matrix_row);
   field_inv.resize(public_matrix_col);
@@ -825,7 +827,7 @@ void TreeVssField_Sum<T>::start(vector<T> &values, const Player &P)
   while (true)
   {
     // summing phase
-    int last_sum_players = sum_players;
+    int last_sum_players = sum_players - ndparties;
     sum_players = (sum_players - 2 + opening_sum) / opening_sum;
     if (sum_players == 0)
       break;

@@ -16,9 +16,9 @@ VssFieldInput<T>::VssFieldInput(SubProcessor<T> *proc, Player &P) : SemiInput<T>
     int public_matrix_col = P.num_players() - ndparties; // n
 
     os.resize(2);
-    os[0].resize(public_matrix_col);
-    os[1].resize(public_matrix_col);
-    expect.resize(public_matrix_col);
+    os[0].resize(public_matrix_row);
+    os[1].resize(public_matrix_row);
+    expect.resize(public_matrix_row);
 
     P.public_matrix.resize(public_matrix_row);
     for (int i = 0; i < public_matrix_row; i++)
@@ -35,8 +35,6 @@ VssFieldInput<T>::VssFieldInput(SubProcessor<T> *proc, Player &P) : SemiInput<T>
             P.public_matrix[i][j] = x;
         }
     }
-    vector<vector<int>> selected(P.public_matrix.begin(), P.public_matrix.begin() + public_matrix_col);
-
     for (int i = 0; i < public_matrix_row; i++)
     {
         for (int j = 0; j < public_matrix_col; j++)
