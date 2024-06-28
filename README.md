@@ -38,7 +38,7 @@ make -j 8 tldr
 
 #### 2024年7月份发布: 
 
-* [SecureML协议](./docs/knn.md)
+* [SecureML协议](./docs/.md)
 
 #### 2024年1月份发布: 
 
