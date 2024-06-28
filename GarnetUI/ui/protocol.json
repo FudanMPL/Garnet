@@ -31,4 +31,13 @@
             "description": "3方"
         }
     }
+    ,
+    {
+        "model": "Model.Protocol",
+        "pk": 5,
+        "fields": {
+            "name": "shamir-party",
+            "description": "Shamir秘密共享协议"
+        }
+    }
 ]

@@ -25,6 +25,9 @@ using namespace std;
 #include "Networking/PlayerBuffer.h"
 #include "Tools/Lock.h"
 
+// #include "Math/gf2nlong.h"
+// class gf2n_long;
+
 template<class T> class MultiPlayer;
 class Server;
 class ServerSocket;
@@ -121,6 +124,16 @@ class Names
   Names(int my_num = 0, int num_players = 1);
   Names(const Names& other);
   ~Names();
+
+
+
+
+
+
+
+
+
+
 
   int num_players() const { return nplayers; }
   int my_num() const { return player_no; }
@@ -235,6 +248,7 @@ public:
    * Get number of players
    */
   int num_players() const { return nplayers; }
+
   /**
    * Get my player number
    */

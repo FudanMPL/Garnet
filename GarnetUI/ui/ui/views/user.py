@@ -1,14 +1,15 @@
+from drf_spectacular.utils import OpenApiExample, extend_schema
 from Model.models import Users
 from Model.serializers import UserModelSerializer
-from drf_spectacular.utils import extend_schema, OpenApiExample
-from rest_framework.viewsets import GenericViewSet
-from rest_framework.mixins import (
-    UpdateModelMixin,
-    CreateModelMixin,
-    ListModelMixin,
-    DestroyModelMixin,
-)
 from rest_framework import status
+from rest_framework.mixins import (
+    CreateModelMixin,
+    DestroyModelMixin,
+    ListModelMixin,
+    UpdateModelMixin,
+)
+from rest_framework.viewsets import GenericViewSet
+
 from ..authentication import UserAuthentication
 from ..pagination import PagePagination
 

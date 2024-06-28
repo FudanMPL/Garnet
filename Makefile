@@ -239,6 +239,7 @@ semi2k-party.x: $(TOOLS_PSI) $(OT) $(GC_SEMI)
 semi2k-with-conversion-party.x: $(OT) $(GC_SEMI)
 sml-party.x:  CFLAGS += -D ENABLE_PSI=true
 sml-party.x: $(TOOLS_PSI) $(OT) $(GC_SEMI) 
+vss-field-party.x: $(OT) $(GC_SEMI)
 vss-party.x: $(OT) $(GC_SEMI)
 fss-ring-party.x: GC/square64.o
 hemi-party.x: $(FHEOFFLINE) $(GC_SEMI) $(OT)
@@ -395,6 +396,8 @@ deps/simde/simde:
 	git submodule update --init deps/simde || git clone https://github.com/simd-everywhere/simde deps/simde
 
 
-clean:
-	-rm -f */*.o *.o */*.d *.d *.x core.* *.a gmon.out */*/*.o static/*.x *.so
+clean-deps:
+	-rm -rf local/lib/liblibOTe.* deps/libOTe/out deps/SimplestOT_C
 
+clean: clean-deps
+	-rm -f */*.o *.o */*.d *.d *.x core.* *.a gmon.out */*/*.o static/*.x *.so

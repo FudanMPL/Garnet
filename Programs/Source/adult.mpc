@@ -1,3 +1,7 @@
+from Compiler.program import Program as program
+from Compiler.types import sint,sfix
+import decision_tree
+import util
 m = 6
 n_train = 32561
 n_test = 16281
@@ -34,7 +38,6 @@ test = sint.Array(n_test), sint.Matrix(m, n_test)
 for x in train + test:
     x.input_from(0)
 
-import decision_tree, util
 
 #decision_tree.debug_layers = True
 decision_tree.max_leaves = 3000

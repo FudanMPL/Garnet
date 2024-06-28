@@ -148,6 +148,8 @@ Compiler/GFA/*.json
 #GarnetUI
 GarnetUI/ui/db.sqlite3 
 GarnetUI/ui/Model/migrations
+GarnetUI/.venv/*
+GarnetUI/ui/uploads/data
 
 #GarnetUI loaddata
 !GarnetUI/ui/mpc.json
@@ -157,3 +159,9 @@ GarnetUI/ui/Model/migrations
 !GarnetUI/Vue3-garnet-ui/.prettierrc.json
 !GarnetUI/Vue3-garnet-ui/package-lock.json
 !GarnetUI/Vue3-garnet-ui/package.json
+
+#GarnetUI Input Output
+Input/*
+!Input/.gitkeep
+Output/*
+!Output/.gitkeep

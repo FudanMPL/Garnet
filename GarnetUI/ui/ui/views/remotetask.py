@@ -1,31 +1,31 @@
-import uuid
-from django.conf import settings
 import datetime
+import uuid
 
 import requests
+from django.conf import settings
 from django.http import StreamingHttpResponse
-from drf_spectacular.types import OpenApiTypes
 from django_q.tasks import async_task
-from Model.models import RemoteTask, ServerTaskRelationship, Servers, UserData
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiResponse,
+    extend_schema,
+    inline_serializer,
+)
+from Model.models import RemoteTask, Servers, ServerTaskRelationship, UserData
 from Model.serializers import (
     NoneSerializer,
     RemoteTaskModelSerializer,
     ServerTaskRelationshipModelSerializer,
 )
+from rest_framework import serializers, status
 from rest_framework.mixins import UpdateModelMixin
-from rest_framework.viewsets import ModelViewSet, GenericViewSet
 from rest_framework.response import Response
-from rest_framework import status
-from .link import metadataUpdate, TaskReleaseView
-from drf_spectacular.utils import (
-    extend_schema,
-    inline_serializer,
-    OpenApiParameter,
-    OpenApiResponse,
-)
-from rest_framework import serializers
+from rest_framework.viewsets import GenericViewSet, ModelViewSet
+
 from ..pagination import PagePagination
 from ..Rtask import RTask, mpc_compile, protocol_compile
+from .link import TaskReleaseView, metadataUpdate
 
 
 class RemoteTaskSets(ModelViewSet):
@@ -192,7 +192,8 @@ class RemoteRun(GenericViewSet):
         task = RemoteTask.objects.get(id=taskID)
         if task.host != settings.IPADDRESS:
             return Response(
-                {"msg": "本方不是协调方，不能发布计算命令"}, status=status.HTTP_400_BAD_REQUEST
+                {"msg": "本方不是协调方，不能发布计算命令"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
         if task.status != "本地就绪" and task.status != "就绪":
             return Response({"msg": "本方未就绪"}, status=status.HTTP_204_NO_CONTENT)
@@ -212,10 +213,17 @@ class RemoteRun(GenericViewSet):
                         ready = False
                         t = TaskReleaseView()
                         t.serverSend(None, task.pk)
-                    case status.HTTP_425_TOO_EARLY | status.HTTP_408_REQUEST_TIMEOUT | status.HTTP_404_NOT_FOUND | status.HTTP_500_INTERNAL_SERVER_ERROR:
+                    case (
+                        status.HTTP_425_TOO_EARLY
+                        | status.HTTP_408_REQUEST_TIMEOUT
+                        | status.HTTP_404_NOT_FOUND
+                        | status.HTTP_500_INTERNAL_SERVER_ERROR
+                    ):
                         ready = False
             if not ready:
-                return Response({"msg": "其余各方未就绪"}, status=status.HTTP_425_TOO_EARLY)
+                return Response(
+                    {"msg": "其余各方未就绪"}, status=status.HTTP_425_TOO_EARLY
+                )
         for server in servers:
             url = f"http://{server.server.ip}:{server.server.port}/api/task/remote/run/{task.prefix}"
             requests.get(url=url)

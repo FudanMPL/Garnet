@@ -38,6 +38,7 @@ class DataLoader():
         self.data_buffer = Tensor(MultiArray(new_sample_shape[1:], sfix))
         self.label_buffer = Tensor(MultiArray(new_label_shape[1:], sfix))
         indices = regint.Array(len(samples))
+        
         indices.assign(regint.inc(len(samples)))
         if shuffle:
             indices.shuffle()
@@ -50,7 +51,7 @@ class DataLoader():
             self.samples[i//batch_size][i%batch_size] = tmp_samples[indices.get_vector(i, 1)].get_vector()
             self.labels[i//batch_size][i%batch_size] = tmp_labels[indices.get_vector(i, 1)].get_vector()
             
-
+        
         if not drop_last:
             for i in range(batch_size - self.size%batch_size):
                 self.samples[-1][self.size%batch_size+i]= self.samples.value[0][i].get_vector()
