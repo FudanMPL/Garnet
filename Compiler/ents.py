@@ -36,7 +36,6 @@ def Sort(keys, *to_sort, n_bits=None, time=False):
         stop_timer(1)
     return res.transpose()
 
-# 11 返回最大数据的key和data
 def VectMax(key, *data):
     def reducer(x, y):
         b = x[0] > y[0]
