@@ -178,7 +178,6 @@ public:
 int main(int argc, const char** argv)
 {
     parse_argv(argc, argv);
-    // test_Z2();
     KNN_party_optimized party(playerno);
     // KNN_party_SecKNN party(playerno);
     party.start_networking(opt);
