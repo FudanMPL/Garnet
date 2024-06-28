@@ -1231,6 +1231,24 @@ class bit(base.DataInstruction):
         req_node.increment((self.field_type, self.data_type),
                            self.get_size() * self.get_repeat())
 
+@base.gf2n
+@base.vectorize
+class gaussian(base.Instruction):
+    """ Store gaussian noise in secret register (vectors).
+
+    :param: destination (sint)
+    :param: mean (int)
+    :param: variance (int)
+    :param: fraction (int)
+    """
+    __slots__ = []
+    code = base.opcodes['GAUSSIAN']
+    arg_format = ['sw', 'i', 'i', 'i']
+
+
+    def add_usage(self, req_node):
+        print(self.get_encoding())
+
 @base.vectorize
 class dabit(base.DataInstruction):
     """ Store fresh random daBit(s) in secret register (vectors).

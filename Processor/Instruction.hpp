@@ -521,6 +521,12 @@ inline void BaseInstruction::parse_operands(istream &s, int pos, int file_pos)
     get_ints(r, s, 1);
     get_vector(num_var_args, start, s);
     break;
+  case GAUSSIAN:
+    //get_ints(r, s, 3);
+    r[0] = get_int(s);
+    n = get_int(s);
+    get_vector(2, start, s);
+    break;
 
   default:
     ostringstream os;

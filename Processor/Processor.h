@@ -108,6 +108,8 @@ public:
   void send_personal(const vector<int> &args);
   void private_output(const vector<int> &args);
 
+  void get_gaussian(int mean, int variance, int fraction, T &res);
+
 #ifdef BIG_DOMAIN_USE_RSS
   template <class T2>
   void assign_S(CheckVector<T2> &s2)
