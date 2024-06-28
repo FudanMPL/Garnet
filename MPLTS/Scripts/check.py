@@ -4,7 +4,7 @@ sys.path.append(os.environ.get('GARNET_HOME', ''))
 from Compiler.compilerLib import Compiler
 from Compiler.types import *
 from Compiler.library import for_range
-from Compiler.Convert.model import ConvertModel
+from Compiler.onnxConverter.model import ConvertModel
 from Compiler.tensor import Tensor, reset_gloabal_store, reset_op_id
 import onnx
 import subprocess

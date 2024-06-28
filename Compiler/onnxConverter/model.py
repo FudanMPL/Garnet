@@ -17,13 +17,13 @@ import Compiler.functional as F
 from torch.jit import TracerWarning
 from torch.nn.modules.linear import Identity
 
-from Compiler.Convert.constants import (
+from Compiler.onnxConverter.constants import (
     COMPOSITE_LAYERS,
     MULTIOUTPUT_LAYERS,
     STANDARD_LAYERS,
 )
 from onnx2pytorch.convert.debug import debug_model_conversion
-from Compiler.Convert.operations import (
+from Compiler.onnxConverter.operations import (
     convert_operations,
     get_buffer_name,
     get_init_parameter,
@@ -219,14 +219,12 @@ class ConvertModel(nn.Module):
                 isinstance(op, COMPOSITE_LAYERS)
                 and any(isinstance(x, STANDARD_LAYERS) for x in op.modules())
             ):
-                print("STAND")
                 in_activations = [
                     activations[in_op_id]
                     for in_op_id in node.input
                     if in_op_id in activations
                 ]
             else:
-                print("NOSTAND")
                 in_activations = [
                     activations[in_op_id] if in_op_id in activations
                     # if in_op_id not in activations neither in parameters then
@@ -253,10 +251,10 @@ class ConvertModel(nn.Module):
                 isinstance(op, COMPOSITE_LAYERS)
                 and any(isinstance(x, MULTIOUTPUT_LAYERS) for x in op.modules())
             ):
-                print("MULTIOUTPUT op: ", op, )
+                # print("MULTIOUTPUT op: ", op, )
                 for out_op_id, output in zip(node.output, op(*in_activations)):
                     activations[out_op_id] = output
-                    print("MULTIOUTPUT size: ", output.shape)
+                    # print("MULTIOUTPUT size: ", output.shape)
             else:
                 activations[out_op_id] = op(*in_activations)
 

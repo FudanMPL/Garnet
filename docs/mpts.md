@@ -29,14 +29,14 @@ pip install -r MPLTS/requirements.txt
 ## 运行优化样例
 以resnet和nasnet的单个块为例优化模型结构。
 ```
-python MPLTS/examples/resnet_block.py -R 64 -Q  ABY3
-python MPLTS/examples/nasnet_block.py -R 64 -Q  ABY3
+python MPLTS/examples/resnet_block.py -R 64 -Q ABY3
+python MPLTS/examples/nasnet_block.py -R 64 -Q ABY3
 ```
 
 ## 使用优化模型推理
 首先模型载入Garnet框架。
 ```
-from Compiler.Convert.model import 
+from Compiler.onnxConverter.model import 
 ConvertModel
 import onnx
 onnx_model = onnx.load("example.onnx")

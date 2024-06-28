@@ -11,8 +11,8 @@ from onnx import numpy_helper
 from torch.nn.modules.linear import Identity
 
 from onnx2pytorch.convert.attribute import extract_attributes
-from Compiler.Convert.Ops import split, add, conv
-from Compiler.Convert.layer import (
+from Compiler.onnxConverter.Ops import split, add, conv
+from Compiler.onnxConverter.layer import (
     convert_layer,
     convert_linear_layer,
     convert_batch_norm_layer,

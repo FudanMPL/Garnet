@@ -957,7 +957,7 @@ from Compiler.types import *
 from Compiler.library import for_range
 import Compiler.dataloader as dataloader
 import Compiler.nn as nn
-from Compiler.Convert.model import ConvertModel
+from Compiler.onnxConverter.model import ConvertModel
 from Compiler.tensor import Tensor, reset_gloabal_store, reset_op_id
 import io
 import contextlib

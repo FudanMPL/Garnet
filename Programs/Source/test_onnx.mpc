@@ -4,7 +4,7 @@ from Compiler.library import *
 from Compiler.types import *
 program.use_trunc_pr = True
 
-from Compiler.Convert.model import ConvertModel
+from Compiler.onnxConverter.model import ConvertModel
 onnx_model = onnx.load("example.onnx")
 model = ConvertModel(onnx_model)
 print(model)
