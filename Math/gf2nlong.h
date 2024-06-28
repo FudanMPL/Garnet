@@ -12,12 +12,12 @@
 #include <iostream>
 using namespace std;
 
+#include "Networking/Player.h"
 #include "Tools/random.h"
 #include "Tools/intrinsics.h"
 #include "Math/field_types.h"
 #include "Math/bigint.h"
 #include "Math/gf2n.h"
-
 
 bool is_ge(__m128i a, __m128i b);
 
@@ -154,6 +154,19 @@ class gf2n_long : public gf2n_<int128>
   gf2n_long(int g) : gf2n_long(int128(unsigned(g))) {}
   template<class T>
   gf2n_long(IntBase<T> g) : super(g.get()) {}
+
+  void vss_add(octetStream& os, const Player& P, const vector<gf2n_long>& field_inv, int sender){
+		octet* adr = os.consume(size());
+		gf2n_long value = *((int128*) adr);
+		if(sender < P.my_num())
+		{
+			*this += field_inv[sender] * value;
+		}
+		else
+		{
+			*this += field_inv[sender + 1] * value;
+		}
+	}
 
   friend ostream& operator<<(ostream& s,const gf2n_long& x)
     { s << hex << x.get() << dec;

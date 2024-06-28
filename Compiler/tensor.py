@@ -1410,7 +1410,7 @@ def std_of_multiarray(self, dim, keepdim=False):
 
 class Tensor():
     check_indices = True
-    def __init__(self, value, value_type=sfix, name=None, req_grad=False, grad=None):
+    def __init__(self, value, value_type=sfix, name=None, req_grad=False, grad=None, subTensor = False):
         assert isinstance(value, Array) or isinstance(value, MultiArray) or isinstance(value, list) or isinstance(value, Tensor)
         assert isinstance(grad, Array) or isinstance(grad, MultiArray) or grad is None
         if isinstance(value, list):
@@ -1440,6 +1440,7 @@ class Tensor():
                 self.grad = None
                 dl_d[self.name] = self.grad
         tensors[self.name] = self
+        self.subTensor = subTensor
 
     def numel(self):
         return self.value.length
@@ -1447,7 +1448,9 @@ class Tensor():
     def set_req_grad(self, req_grad):
         self.req_grad = req_grad
 
-
+    def reveal(self):
+        return self.value.reveal()
+        
     def randomize(self, *args):
         self.value.randomize(*args)
         
@@ -1676,7 +1679,8 @@ class Tensor():
         else:
             res = self.sub_cache[key]
             return res
-        res = Tensor(new_value, req_grad=self.req_grad, grad=new_grad)
+        res = Tensor(new_value, req_grad=self.req_grad, grad=new_grad, subTensor=True)
+
         self.sub_cache[key] = res
         res.check_indices = self.check_indices
         return res
@@ -2437,6 +2441,8 @@ class Tensor():
             output.value.assign(self.value)
         op_id += 1
         return output
+
+
 
     @buildingblock("permute-forward")
     def permute(self, *new_perm):  # todo :这里的参数不应该是list类型的new-perm，而应该是*newperm :pytorch中：x.permute(2, 0, 1)
@@ -3439,10 +3445,18 @@ def sanitize(x, raw, lower, upper):
 def sigmoid_from_e_x(x,e_x):
     return sanitize(x, 1 / (1 + e_x), 0, 1)
 
+def reset():
+        global init_op_id
+        untrain()
+        init_op_id = 0
+        reset_op_id()
+        reset_gloabal_store()
 # reset operation
 def reset_gloabal_store():
     gradient_operation.clear()
     for key, item in tensors.items():
+        if not isinstance(item.value.address, int) or item.subTensor:
+            continue
         item.value.delete()
     tensors.clear()
     for key, item in dl_d.items():

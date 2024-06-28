@@ -12,7 +12,7 @@
 
 #include <array>
 
-template<class T>
+template <class T>
 typename T::Protocol Beaver<T>::branch()
 {
     typename T::Protocol res(P);
@@ -22,14 +22,14 @@ typename T::Protocol Beaver<T>::branch()
     return res;
 }
 
-template<class T>
-void Beaver<T>::init(Preprocessing<T>& prep, typename T::MAC_Check& MC)
+template <class T>
+void Beaver<T>::init(Preprocessing<T> &prep, typename T::MAC_Check &MC)
 {
     this->prep = &prep;
     this->MC = &MC;
 }
 
-template<class T>
+template <class T>
 void Beaver<T>::init_mul()
 {
     assert(this->prep);
@@ -40,23 +40,23 @@ void Beaver<T>::init_mul()
     lengths.clear();
 }
 
-template<class T>
-void Beaver<T>::prepare_mul(const T& x, const T& y, int n)
+template <class T>
+void Beaver<T>::prepare_mul(const T &x, const T &y, int n)
 {
-    (void) n;
+    (void)n;
     triples.push_back({{}});
-    auto& triple = triples.back();
+    auto &triple = triples.back();
     triple = prep->get_triple(n);
     shares.push_back(x - triple[0]);
     shares.push_back(y - triple[1]);
     lengths.push_back(n);
 }
 
-template<class T>
+template <class T>
 void Beaver<T>::exchange()
 {
     assert(shares.size() == 2 * lengths.size());
-    MC->init_open(P, shares.size());
+    MC->init_open(P, shares.size()); // clear
     for (size_t i = 0; i < shares.size(); i++)
         MC->prepare_open(shares[i], lengths[i / 2]);
     MC->exchange(P);
@@ -66,13 +66,13 @@ void Beaver<T>::exchange()
     triple = triples.begin();
 }
 
-template<class T>
+template <class T>
 void Beaver<T>::start_exchange()
 {
     MC->POpen_Begin(opened, shares, P);
 }
 
-template<class T>
+template <class T>
 void Beaver<T>::stop_exchange()
 {
     MC->POpen_End(opened, shares, P);
@@ -80,24 +80,26 @@ void Beaver<T>::stop_exchange()
     triple = triples.begin();
 }
 
-template<class T>
+template <class T>
 T Beaver<T>::finalize_mul(int n)
 {
-    (void) n;
+    (void)n;
     typename T::open_type masked[2];
-    T& tmp = (*triple)[2];
+    T &tmp = (*triple)[2];
+
     for (int k = 0; k < 2; k++)
     {
-        masked[k] = *it++;
+        masked[k] = *it++; 
     }
     tmp += (masked[0] * (*triple)[1]);
     tmp += ((*triple)[0] * masked[1]);
     tmp += T::constant(masked[0] * masked[1], P.my_num(), MC->get_alphai());
+
     triple++;
     return tmp;
 }
 
-template<class T>
+template <class T>
 void Beaver<T>::check()
 {
     assert(MC);
