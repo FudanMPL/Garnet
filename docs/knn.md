@@ -4,7 +4,8 @@
 
 利用Garnet系统现有的一些接口，本文实现了一个两方下隐私保护的KNN算法。为方便代码实现和阅读，本文使用了固定的场景：一个参与方P0拥有训练数据集$\mathbf{D}$，P1拥有一个无标签的特征向量$\mathbf{q}$，P0和P1共同在P0数据集$\mathbf{D}$中运行隐私保护的KNN算法来获得$\mathbf{q}$的分类结果，最终达到P1无法获取到除了预测结果之外的其他信息，数据集$\mathbf{D}$的拥有者P0也无法获取到包括预测结果等任何信息,本文代码默认在环上进行运算。
 
-在本文中，针对两方下基于加法秘密共享技术的隐私保护KNN算法实现，给出了两种实现方案，分别为24’TIFS论文实现方案，以及针对该方案的优化版本，该优化在当前的数据集测试中均取得了符合实验预期的实验结果。
+在本文中，针对两方下基于加法秘密共享技术的隐私保护KNN算法实现，给出了两种实现方案，分别为 [SecKNN,2024,TIFs](https://ieeexplore.ieee.org/document/10339363/footnotes#footnotes)
+论文的实现方案以及本文针对该方案的优化版本，该优化在当前的数据集测试中均取得了符合实验预期的实验结果。
 ### 输入文件格式规范
 下面针对Chronic KIdney Disease dataset 数据集进行举例子。首先进行数据的预处理，将原始数据集归一化到[0,10]的整数范围内。按照70%划分为训练集，30%划分为测试集。然后需要在/Player-Data目录下创建一个Knn-Data目录，然后针对当前数据集创建chronic-data目录，随后在该目录下面按照要求分别创建如下文件，并指定文件内容。下面对文件内容举例并解释对应功能：
 #### /Player-Data/Knn-Data/chronic-data/Knn-meta：
@@ -82,6 +83,16 @@ make -j 8 knn-patry.x//编译knn-patry.x文件
 ./knn-party.x 0 -pn 11126 -h localhost //模拟参与方P0运行的命令
 ./knn-party.x 1 -pn 11126 -h localhost//模拟参与方P1运行的命令
 ```
+（5）实验结果：
+```markdown
+测准确率：0.966667
+Total Round count = 13440 online round
+Party total time = 77.4452 seconds
+Party Data sent = 12.0134 MB
+call_evaluate_nums : 337440
+在Evaluation函数中 Total elapsed time: 76.0757 seconds
+```
+
 ### 指定参数
 如果需要自己指定数据集，以及计算环大小，KNN算法中k值大小，需要在Machines/knn-party.cpp代码文件中进行修改，寻找如下代码段进行修改，然后使用上面的命令进行编译运行即可。
 ```markdown
