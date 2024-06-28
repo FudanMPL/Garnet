@@ -397,5 +397,4 @@ deps/simde/simde:
 
 clean:
 	-rm -f */*.o *.o */*.d *.d *.x core.* *.a gmon.out */*/*.o static/*.x *.so
-c:
-	-rm -f *.x 
+
