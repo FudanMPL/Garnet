@@ -509,7 +509,6 @@ public:
 // for different threads, separate statistics
 class VirtualTwoPartyPlayer : public TwoPartyPlayer
 {
-  
   Player& P;
   int other_player;
   NamedCommStats& comm_stats;

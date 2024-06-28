@@ -49,7 +49,7 @@ void SemiInput<T>::add_mine(const typename T::clear& input, int)
 	for (int i = 0; i < P.num_players(); i++)
 	{
 	    if (i != P.my_num())
-	        sum += this->send_prngs[i].template get<typename T::open_type>();//T res; res.randomize(*this); return res;
+	        sum += this->send_prngs[i].template get<typename T::open_type>();
 	}
 	this->shares.push_back(input - sum);
 }

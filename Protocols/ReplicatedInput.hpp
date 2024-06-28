@@ -61,11 +61,9 @@ void ReplicatedInput<T>::exchange()
             P.pass_around(os[1], dest, -1);
         else
             P.send_to(P.get_player(-1), os[1]);
-
     else
         if (receive)
             P.receive_player(P.get_player(1), dest);
-            
 }
 
 template<class T>

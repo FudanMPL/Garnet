@@ -315,7 +315,6 @@ void InputBase<T>::input_mixed(SubProcessor<T>& Proc, const vector<int>& args,
         int n_arg_tuple;
         int type = args[i];
         int player;
-        
         switch (type)
         {
 #undef X

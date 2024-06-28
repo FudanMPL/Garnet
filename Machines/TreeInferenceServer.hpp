@@ -154,6 +154,8 @@ void TreeInferenceServer::send_single_answer(Ciphertext &answer) {
   answer.save(stream);
   octetStream os(stream.str());
   player->send(os);
+
+  
 }
 
 
