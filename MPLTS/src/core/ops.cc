@@ -20,6 +20,7 @@
 #include <unistd.h>
 #include <semaphore.h>
 #include <vector>
+#include <cmath>
 using namespace std;
 using namespace taso;
 
@@ -419,7 +420,7 @@ void Graph::optimize_on_step(float alpha, int budget){
       xfers.push_back(GraphXfer::create_conv_relu(model, i, i, pad_mode));
       xfers.push_back(GraphXfer::create_conv_batch(model, i, i, pad_mode));
       xfers.push_back(GraphXfer::create_conv_mul(model, i, i, pad_mode));
-      xfers.push_back(GraphXfer::create_conv_add(model, i, i, pad_mode));
+      // xfers.push_back(GraphXfer::create_conv_add(model, i, i, pad_mode));
     }
   xfers.push_back(GraphXfer::create_enlarge_merge_convs(model, AC_MODE_NONE));
   xfers.push_back(GraphXfer::create_enlarge_merge_convs(model, AC_MODE_RELU));
@@ -460,9 +461,6 @@ void Graph::optimize_on_step(float alpha, int budget){
 
   counter = 0;
   maxNumOps = inEdges.size();
-  //long long start_time = microsecond_timer();
-  ofstream timer_fs;
-  timer_fs.open("timer.txt");
   printf("\n        ===== Start Cost-Based Backtracking Search =====\n");
 }
 
@@ -504,14 +502,17 @@ bool Graph::optimize_next_step(float alpha, int budget){
     xfers[i]->run(0, subGraph, temp, hashmap, bestGraph->total_cost() * alpha, 2 * maxNumOps);
   }
   
+  float beta = 0.6;
+  int cnt=0, maxVolume = std::ceil(beta * temp.size());
   transGraphs.clear();
-  while(!temp.empty()){
+  while(cnt < maxVolume){
     // candidates.push(temp.top());
     // std::printf("%3f ",temp.top()->preprocess_weights()->total_cost());
     transGraphs.push_back(temp.top());
     temp.pop();
+    cnt++;
   }
-  printf("\n");
+  // printf("\n");
   if (bestGraph != subGraph) {
     delete subGraph;
   }

@@ -90,8 +90,9 @@ for i in range(3):
         cur = t
     out_channels *= 2
     input = reduction_cell(graph, prev, cur, out_channels)
-# new_graph = ts.optimize(graph, alpha=1, budget=100, input_size=(1,3,224,224))
-new_graph = ts.optimize(graph, alpha=1, budget=100, input_size=(1,3,224,224), inMPL=True)
-onnx_model = ts.export_onnx(new_graph)
-onnx.checker.check_model(onnx_model)
-onnx.save(onnx_model, "nasneta_taso.onnx")
+
+# graph = ts.optimize(graph, alpha=1, budget=100, input_size=(1,3,224,224))
+graph = ts.optimize(graph, alpha=1.3, budget=100, input_size=(1,3,224,224), inMPL=True)
+
+onnx_model = ts.export_onnx(graph)
+onnx.save(onnx_model, "nasneta_opt.onnx")

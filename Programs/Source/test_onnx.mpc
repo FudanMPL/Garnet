@@ -1,23 +1,17 @@
 from Compiler.tensor import Tensor, reset_gloabal_store, reset_op_id
 import onnx
 from Compiler.library import *
+from Compiler.types import *
 program.use_trunc_pr = True
-print_ln('conv!!\n')
 
-
+from Compiler.Convert.model import ConvertModel
 onnx_model = onnx.load("example.onnx")
-onnx_model = onnx.load("example.onnx")
-from Convert.model import ConvertModel
-print_ln('conv!!\n')
-
 model = ConvertModel(onnx_model)
 print(model)
-print_ln('conv!!\n')
+
 x = MultiArray([1,32,10,10], sfix)
 @for_range(x.total_size())
 def _(i):
     x.assign_vector(sfix(i/10), i)
-print_ln('conv!!\n')
-    
 input = Tensor(x)
 y= model(input)

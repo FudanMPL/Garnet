@@ -647,8 +647,8 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0], 
             inputs = input_value.get_vector(i*size_,size_).v # B H W C/G
             weights = weight_value.get_part_vector(i*int(n_channels_out/groups)+j).v # N WH WW C/G
             res = sint(size = output_h * output_w * part_size) # B, OUT_W, OUT_H
-            # print(n_channels_in, n_channels_out, groups, weight_value.sizes)
-            # print(weight_value.sizes[1:], weights_h, weights_w, n_channels_in_group)
+            print(n_channels_in, n_channels_out, groups, weight_value.sizes)
+            print(weight_value.sizes[1:], weights_h, weights_w, n_channels_in_group)
             conv2ds(res, inputs, weights, output_h, output_w,
                     inputs_h, inputs_w, weights_h, weights_w,
                     stride_h, stride_w, n_channels_in_group, padding_h, padding_w,
@@ -1499,7 +1499,9 @@ def gelu(input, approximate='tanh'):
 def cat(tensors, dim=0, out=None):
     assert out is None
     out = tensors[0]
+    print('concat shape:')
     for i in range(1, len(tensors)):
+        print(tensors[i].shape)
         out = out.concat(tensors[i], dim=dim)
     return out
 
