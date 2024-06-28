@@ -1,17 +1,17 @@
 /*
- *VssMC.cpp
+ *VssFieldMC.cpp
  *
  */
 
-#ifndef PROTOCOLS_VSSMC_HPP_
-#define PROTOCOLS_VSSMC_HPP_
+#ifndef PROTOCOLS_VSSFIELDMC_HPP_
+#define PROTOCOLS_VSSFIELDMC_HPP_
 
-#include "VssMC.h"
+#include "VssFieldMC.h"
 
 #include "MAC_Check.hpp"
 
 template<class T>
-void VssMC<T>::init_open(const Player& P, int n)
+void VssFieldMC<T>::init_open(const Player& P, int n)
 {
     MAC_Check_Base<T>::init_open(P, n);
     lengths.clear();
@@ -19,20 +19,20 @@ void VssMC<T>::init_open(const Player& P, int n)
 }
 
 template<class T>
-void VssMC<T>::prepare_open(const T& secret, int n_bits)
+void VssFieldMC<T>::prepare_open(const T& secret, int n_bits)
 {
     this->values.push_back(secret);
     lengths.push_back(n_bits);
 }
 
 template<class T>
-void VssMC<T>::exchange(const Player& P)
+void VssFieldMC<T>::exchange(const Player& P)
 {
     this->run(this->values, P);
 }
 
 template<class T>
-void DirectVssMC<T>::POpen_(vector<typename T::open_type>& values,
+void DirectVssFieldMC<T>::POpen_(vector<typename T::open_type>& values,
         const vector<T>& S, const PlayerBase& P)
 {
     this->values.clear();
@@ -46,14 +46,14 @@ void DirectVssMC<T>::POpen_(vector<typename T::open_type>& values,
 }
 
 template<class T>
-void DirectVssMC<T>::exchange_(const PlayerBase& P) // 交换value
+void DirectVssFieldMC<T>::exchange_(const PlayerBase& P)
 {
     Bundle<octetStream> oss(P);
     oss.mine.reserve(this->values.size());
     assert(this->values.size() == this->lengths.size());
     for (size_t i = 0; i < this->lengths.size(); i++)
         this->values[i].pack(oss.mine, this->lengths[i]);
-    P.unchecked_broadcast(oss); // 对oss进行广播
+    P.unchecked_broadcast(oss);
     size_t n = P.num_players();
     size_t me = P.my_num();
     for (size_t i = 0; i < this->lengths.size(); i++)
@@ -67,7 +67,7 @@ void DirectVssMC<T>::exchange_(const PlayerBase& P) // 交换value
 }
 
 template<class T>
-void DirectVssMC<T>::POpen_Begin(vector<typename T::open_type>& values,
+void DirectVssFieldMC<T>::POpen_Begin(vector<typename T::open_type>& values,
         const vector<T>& S, const Player& P)
 {
     values.clear();
@@ -79,7 +79,7 @@ void DirectVssMC<T>::POpen_Begin(vector<typename T::open_type>& values,
 }
 
 template<class T>
-void DirectVssMC<T>::POpen_End(vector<typename T::open_type>& values,
+void DirectVssFieldMC<T>::POpen_End(vector<typename T::open_type>& values,
         const vector<T>&, const Player& P)
 {
     Bundle<octetStream> oss(P);

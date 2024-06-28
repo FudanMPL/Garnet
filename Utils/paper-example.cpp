@@ -51,8 +51,8 @@ int main(int argc, char** argv)
         run<Spdz2kShare<64, 64>>(argv, 0);
     else if (protocol == "Semi2k")
         run<Semi2kShare<64>>(argv, 0);
-    else if (protocol == "Vss2k")
-        run<Vss2kShare<64>>(argv, 0);
+    // else if (protocol == "Vss2k")
+    //     run<Vss2kShare<64>>(argv, 0);
     else if(protocol == "Sml")
         run<SmlShare<64>>(argv, 0);
     else if (protocol == "Shamir" or protocol == "MalShamir")

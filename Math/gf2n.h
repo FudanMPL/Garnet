@@ -13,6 +13,7 @@ using namespace std;
 #include "Math/bigint.h"
 #include "Math/ValueInterface.h"
 
+
 class gf2n_short;
 class P2Data;
 class Bit;
@@ -139,6 +140,7 @@ protected:
     { add(os.consume(size())); }
   void sub(const gf2n_& x,const gf2n_& y)
     { a=x.a^y.a; }
+
   // = x * y
   gf2n_& mul(const gf2n_& x,const gf2n_& y);
 
