@@ -237,7 +237,6 @@ semi-party.x: $(OT)  $(GC_SEMI)
 semi2k-party.x: CFLAGS += -D ENABLE_PSI=true
 semi2k-party.x: $(TOOLS_PSI) $(OT) $(GC_SEMI)
 semi2k-with-conversion-party.x: $(OT) $(GC_SEMI)
-# aby2-party.x: GC/square64.o $(OT) $(GC_SEMI)
 sml-party.x:  CFLAGS += -D ENABLE_PSI=true
 sml-party.x: $(TOOLS_PSI) $(OT) $(GC_SEMI) 
 vss-party.x: $(OT) $(GC_SEMI)
