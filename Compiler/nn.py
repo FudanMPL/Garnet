@@ -1183,9 +1183,10 @@ class ModuleList(Module):
 
 class Linear(Module):
     def __init__(self, in_features: int, out_features: int, bias: bool = True,
-                 device=None, dtype=None) -> None:
+                 device=None, dtype=None, dp=False) -> None:
         self.in_features = in_features
         self.out_features = out_features
+        self.dp = dp
         super().__init__()
         self.weight = Parameter(Tensor([out_features, in_features]))
         if bias:
@@ -1196,6 +1197,8 @@ class Linear(Module):
     
         
     def forward(self, x):
+        if self.dp:
+            return F.dplinear(x, self.weight, self.bias)
         return F.linear(x, self.weight, self.bias)
     
     def extra_repr(self) -> str:

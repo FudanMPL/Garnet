@@ -1968,6 +1968,22 @@ class _secret(_arithmetic_register, _secret_structure):
 
     @vectorized_classmethod
     @set_instruction_type
+    def get_gaussian(cls, mean, variance, fraction):
+        """ Secret gaussian noise according to security model.
+        
+        :return: gaussian noise
+        :param size: vector size (int, default 1)
+
+        :param mean: the mean of Gaussian distribution
+        :param variance: the variance of Gaussian distribution
+        :param fraction: the number of bit of fractional part
+        """
+        res = cls()
+        gaussian(res, mean, variance, fraction)
+        return res
+
+    @vectorized_classmethod
+    @set_instruction_type
     def get_random_square(cls):
         """ Secret random square according to security model.
 
