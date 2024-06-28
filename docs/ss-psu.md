@@ -55,7 +55,7 @@ for x in table1:
 union_id, flag_id = ss_psu(table0, table1) # 进行PSU并合并两个数据表
 ```
 
-该代码最终可以获得密态下的合并表格（merge_table），以及密态下的交集中的数据条目（n）。用户可以使用该表格进行下一步的运算。
+该代码最终可以获得密态下的并集id（union_id），以及密态下的并集中指示id是否该被抛弃的标记（flag_id）。用户可以使用该表格进行下一步的运算。
 
 ### 编译
 配置好上述脚本后，即可运行以下命令获得编译后的二进制文件。
@@ -66,7 +66,7 @@ python ./compile.py test_psu -R 64
 
 ### 运行
 
-如果要运行两方半诚实场景下的PSI，则使用以下命令
+如果要运行两方半诚实场景下的PSU，则使用以下命令
 
 ```
 ./Scripts/semi2k.sh test_psu
