@@ -36,6 +36,9 @@ make -j 8 tldr
 
 ## 历史发布
 
+#### 2024年7月份发布: 
+
+* [SecureML协议](./docs/knn.md)
 
 #### 2024年1月份发布: 
 
@@ -72,6 +75,8 @@ make -j 8 tldr
 * [SecureML协议](./docs/secureML.md)
 * [预训练模型安全微调](./docs/pretrain.md)
 * [XGBoost模型安全训练](./docs/xgboost-training.md)
+
+
 
 
 
