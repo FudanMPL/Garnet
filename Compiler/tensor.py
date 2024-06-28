@@ -3132,10 +3132,12 @@ class Tensor():
                 inter_broadcast_sub=operation.intermediate[4]
                 dl_dy.element_wise_mul(output.value,inter_inital0 )
                 inter_inital0.sum(dim,res=inter_sum,keepdims=True)
+                inter_inital0.print_reveal_nested()
+                
                 boardcasted_multiarray_sub(dl_dy, inter_sum,inter_inital0)
+                
                 output.value.element_wise_mul(inter_inital0, inter_inital0)
                 # print_ln('softmax backward:end:')
-                # inter_inital0.print_reveal_nested()
                 dl_d[operation.inputs[0]][:] += inter_inital0[:]
             else:
                 res = output.value[:]*(dl_dy[:]-sum(output.value[:]*dl_dy[:]))

@@ -645,11 +645,12 @@ def test_softmax():
     #             x[i][j][k] = sfix(i-j-k)
     # x.print_reveal_nested()
 
-    y = MultiArray([3, 4,2], sfix)
-    for i in range(0,3):
-        for  j in range(0,4):
-            for k in range(2):
-                    y[i][j][k] = sfix(i+j+k)
+    y = MultiArray([2,2], sfix)
+    mm = 0
+    for  j in range(0,2):
+        for k in range(2):
+                y[j][k] = sfix(mm+1)
+                mm +=1
     y.print_reveal_nested()
 
     input1 = Tensor(x, req_grad = True)
@@ -658,11 +659,11 @@ def test_softmax():
     # out = output*input2
     # tensor.train()
     # tensor.reset_op_id()
-    output = input1.softmax(dim=-1)
+    output = input2.softmax(dim=-1)
     # out = output*input2
-    # output.value.print_reveal_nested()
-    # out.backward()
-    # input1.grad.print_reveal_nested()
+    output.value.print_reveal_nested()
+    output.backward()
+    input2.grad.print_reveal_nested()
 
 
 
@@ -744,13 +745,14 @@ def test_softmax_0():
         for  j in range(0,4):
             for k in range(2):
                 x[i][j][k] = sfix(1)
-    x.print_reveal_nested()
+    # x.print_reveal_nested()
 
-    y = MultiArray([3, 4,2], sfix)
-    for i in range(0,3):
-        for  j in range(0,4):
-            for k in range(2):
-                    y[i][j][k] = sfix(1)
+    y = MultiArray([2,2], sfix)
+    mm = 0
+    for  j in range(0,2):
+        for k in range(2):
+                y[j][k] = sfix(mm+1)
+                mm +=1
     y.print_reveal_nested()
 
     input1 = Tensor(x, req_grad = True)
@@ -759,11 +761,11 @@ def test_softmax_0():
     # out = output*input2
     # tensor.train()
     # tensor.reset_op_id()
-    output = F.softmax(input1,dim=0)
+    output = F.softmax(input2,dim=0)
     # out = output*input2
-    # out.value.print_reveal_nested()
-    # out.backward()
-    # input1.grad.print_reveal_nested()
+    output.value.print_reveal_nested()
+    output.backward()
+    input2.grad.print_reveal_nested()
 
 #test_softmax_0()
 
@@ -801,13 +803,14 @@ def test_log_softmax_0():
         for  j in range(0,4):
             for k in range(2):
                 x[i][j][k] = sfix(i-j-k)
-    x.print_reveal_nested()
+    # x.print_reveal_nested()
 
-    y = MultiArray([3, 4,2], sfix)
-    for i in range(0,3):
-        for  j in range(0,4):
-            for k in range(2):
-                    y[i][j][k] = sfix(i+j+k)
+    y = MultiArray([2,2], sfix)
+    mm = 0
+    for  j in range(0,2):
+        for k in range(2):
+                y[j][k] = sfix(mm+1)
+                mm +=1
     y.print_reveal_nested()
 
     input1 = Tensor(x, req_grad = True)
@@ -816,11 +819,12 @@ def test_log_softmax_0():
     # out = output*input2
     # tensor.train()
     # tensor.reset_op_id()
-    output = F.log_softmax(input1,dim=1)
+    output = F.log_softmax(input2,dim=1)
     # out = output*input2
-    # out.value.print_reveal_nested()
-    # out.backward()
-    # input1.grad.print_reveal_nested()
+    output.value.print_reveal_nested()
+    output.backward()
+    input2.grad.print_reveal_nested()
+    print(sfix.k)
 
 
 @autograd_function
@@ -854,7 +858,7 @@ def test_logsoftmax_F_Array():
 
 # test_softmax_0()
 
-# test_log_softmax_0()
+test_log_softmax_0()
 
 
 
@@ -875,7 +879,7 @@ def test_logsoftmax_F_Array():
 
 # test_normalize()
 
-test_avgpool2d()
+# test_avgpool2d()
 
 # test_maxpool2d()
 

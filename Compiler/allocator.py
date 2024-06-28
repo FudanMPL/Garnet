@@ -302,7 +302,6 @@ def determine_scope(block, options):
         # print(n, instr)
         outputs,inputs = instr.get_def(), instr.get_used()
         for reg in inputs:
-            print(reg)
             if reg.vector and instr.is_vec():
                 for i in reg.vector:
                     read(i, n)
