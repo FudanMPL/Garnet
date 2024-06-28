@@ -530,6 +530,7 @@ class VirtualTwoPartyPlayer : public TwoPartyPlayer
   mutable Lock lock;
 
 public:
+  mutable int VirtualTwoPartyPlayer_Round;
   VirtualTwoPartyPlayer(Player& P, int other_player);
 
   // emulate RealTwoPartyPlayer
