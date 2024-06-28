@@ -2129,14 +2129,12 @@ def ss_psi_merge(*tables):
 
 
 def ss_psu(*tables):
-    party_number = len(tables)
     num = 0
     for table in tables:
         num = num + len(table)
     # merge all the table into one table
-    print(num)
-    ids = tables[0].value_type.Array(num,1)
-
+    ids=Array(num,tables[0].value_type)
+    flag_ids = Array(num,tables[0].value_type)
     # merge tables
     num_count = 0
     for table in tables:
@@ -2144,22 +2142,14 @@ def ss_psu(*tables):
             ids[num_count] = ele[0]
             num_count = num_count + 1
     
-    print_ln("ids = %s",ids.reveal())
     # sort
     ids.sort()
-    print_ln("ids sort = %s",ids.reveal())
-    
-    # minor
-    flag_ids = tables[0].value_type.Array(num,1)
     # randomfulls(flag_ids[0])
     flag_ids[0] = sint.get_random()
 
-    for i in range(0,num):
-        print_ln("%s",ids[i].reveal())
     for i in range(1,num):
         flag_ids[i] = ids[i]-ids[i-1]
-        print_ln("id [ %s , %s ]",ids[i].reveal(),ids[i-1].reveal())
-    print_ln("flag ids = %s", flag_ids.reveal())
+    
 
     # # mul r
     # # sint.get_random_int()
@@ -2168,13 +2158,8 @@ def ss_psu(*tables):
     result = tables[0].value_type.Matrix(num,2)
     result.set_column(0,flag_ids.get_vector())
     result.set_column(1,ids.get_vector())
-    print_ln("result = %s", result.reveal())
-
     # shuffle
     result.secure_shuffle()
-    print_ln("result shuffle = %s", result.reveal())
-
     # reveal r
     plain_union_r = result.get_column(0).reveal()
-    print_ln("%s",plain_union_r)
     return result.get_column(1),plain_union_r

@@ -7,4 +7,4 @@ for x in table0:
 for x in table1:
     x.input_from(1) # 从第1方读入数据
 
-union_id, flag_id = ss_psu(table0, table1) # 进行PSI并合并两个数据表
+union_id, flag_id = ss_psu(table0, table1) # 进行PSU并合并两个数据表
