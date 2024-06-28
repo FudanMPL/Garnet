@@ -5807,12 +5807,7 @@ class Array(_vectorizable):
         def f(i):
             self[i] = mem_value
         return self
-   # def assign_part_vector(self,vector,base=0):
-   #     #added by zhou,For elements at the base position, replace them, such as a=[1,2,3,4] (sfix), 
-   #     # and b is in the form of sfix [12,13] using a.assign_ Part (b, 2), a will become [1,2,12,13]
-   #     print(123)
-   #     assert self.value_type.n_elements()==1
-   #     vector.store_in_mem(self.address+base)
+   
     def get_vector(self, base=0, size=None):
         """ Return vector with content.
 
@@ -5837,7 +5832,13 @@ class Array(_vectorizable):
         :returns: Array of same type
         """
         return Array(size, self.value_type, self.get_address(base))
-    
+       
+    # def assign_part_vector(self,vector,base=0):
+    #     #added by zhou,For elements at the base position, replace them, such as a=[1,2,3,4] (sfix), 
+    #     # and b is in the form of sfix [12,13] using a.assign_ Part (b, 2), a will become [1,2,12,13]
+    #     print(123)
+    #     assert self.value_type.n_elements()==1
+    #     vector.store_in_mem(self.address+base)
     
     def get(self, indices):
         """ Vector from arbitrary indices.
