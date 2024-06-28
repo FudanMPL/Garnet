@@ -18,6 +18,7 @@ using namespace std;
 void test_Z2();
 const int K=64;//环大小
 const int k_const=5;//knn里面的k值 
+string dataset_name="chronic";//数据集名称，自动用于后续的文件名生成
 
 int playerno;
 ez::ezOptionParser opt;
@@ -280,8 +281,8 @@ void KNN_party_optimized::fake_load_triples()
             m_Train_Triples_1[i].resize(num_features);
             m_Test_Triples[i].resize(num_features);
         }
-        // ifstream file_Train_Triples_0("./Player-Data/Knn-Data/mnist-data/P0-Train-Triples", std::ios::binary),file_Test_Triples_0("./Player-Data/Knn-Data/mnist-data/P0-Test-Triples", std::ios::binary),
-        //     file_Train_Triples_1("./Player-Data/Knn-Data/mnist-data/P1-Train-Triples", std::ios::binary);
+        // ifstream file_Train_Triples_0("./Player-Data/Knn-Data/"+dataset_name+"-data/P0-Train-Triples", std::ios::binary),file_Test_Triples_0("./Player-Data/Knn-Data/"+dataset_name+"-data/P0-Test-Triples", std::ios::binary),
+        //     file_Train_Triples_1("./Player-Data/Knn-Data/"+dataset_name+"-data/P1-Train-Triples", std::ios::binary);
         // for(int i=0;i<num_features;i++)
         // {
         //      file_Test_Triples_0.read(reinterpret_cast<char*>(&m_Test_Triples_0[i]), sizeof(Z2<K>));
@@ -311,7 +312,7 @@ void KNN_party_optimized::fake_load_triples()
             m_Train_Triples_1[i].resize(num_features);
             m_Test_Triples[i].resize(num_features);
         }
-        // ifstream file_Train_Triples_1("./Player-Data/Knn-Data/mnist-data/P1-Train-Triples", std::ios::binary),file_Test_Triples_1("./Player-Data/Knn-Data/mnist-data/P1-Test-Triples", std::ios::binary);
+        // ifstream file_Train_Triples_1("./Player-Data/Knn-Data/"+dataset_name+"-data/P1-Train-Triples", std::ios::binary),file_Test_Triples_1("./Player-Data/Knn-Data/"+dataset_name+"-data/P1-Test-Triples", std::ios::binary);
         // for(int i=0;i<num_features;i++)
         // {
         //     file_Test_Triples_1.read(reinterpret_cast<char*>(&m_Test_Triples_0[i]), sizeof(Z2<K>));
@@ -356,8 +357,8 @@ void KNN_party_optimized::load_triples()
             m_Train_Triples_1[i].resize(num_features);
             m_Test_Triples[i].resize(num_features);
         }
-        ifstream file_Train_Triples_0("./Player-Data/Knn-Data/mnist-data/P0-Train-Triples", std::ios::binary),file_Test_Triples_0("./Player-Data/Knn-Data/mnist-data/P0-Test-Triples", std::ios::binary),
-            file_Train_Triples_1("./Player-Data/Knn-Data/mnist-data/P1-Train-Triples", std::ios::binary);
+        ifstream file_Train_Triples_0("./Player-Data/Knn-Data/"+dataset_name+"-data/P0-Train-Triples", std::ios::binary),file_Test_Triples_0("./Player-Data/Knn-Data/"+dataset_name+"-data/P0-Test-Triples", std::ios::binary),
+            file_Train_Triples_1("./Player-Data/Knn-Data/"+dataset_name+"-data/P1-Train-Triples", std::ios::binary);
         for(int i=0;i<num_features;i++)
         {
              file_Test_Triples_0.read(reinterpret_cast<char*>(&m_Test_Triples_0[i]), sizeof(Z2<K>));
@@ -387,7 +388,7 @@ void KNN_party_optimized::load_triples()
             m_Train_Triples_1[i].resize(num_features);
             m_Test_Triples[i].resize(num_features);
         }
-        ifstream file_Train_Triples_1("./Player-Data/Knn-Data/mnist-data/P1-Train-Triples", std::ios::binary),file_Test_Triples_1("./Player-Data/Knn-Data/mnist-data/P1-Test-Triples", std::ios::binary);
+        ifstream file_Train_Triples_1("./Player-Data/Knn-Data/"+dataset_name+"-data/P1-Train-Triples", std::ios::binary),file_Test_Triples_1("./Player-Data/Knn-Data/"+dataset_name+"-data/P1-Test-Triples", std::ios::binary);
         for(int i=0;i<num_features;i++)
         {
             file_Test_Triples_1.read(reinterpret_cast<char*>(&m_Test_Triples_0[i]), sizeof(Z2<K>));
@@ -428,8 +429,8 @@ void KNN_party_optimized::generate_triples_save_file()
         vector<vector<Z2<K>>>Test_Triples_0(num_train_data+1,vector<Z2<K>>(num_features,Z2<K>(0)) );
         vector<vector<Z2<K>>>Train_Triples_1(num_train_data,vector<Z2<K>>(num_features,Z2<K>(0)) );
         vector<vector<Z2<K>>>Test_Triples_1(num_train_data+1,vector<Z2<K>>(num_features,Z2<K>(0)) );
-        ofstream file_Train_Triples_0("./Player-Data/Knn-Data/mnist-data/P0-Train-Triples", std::ios::binary),file_Test_Triples_0("./Player-Data/Knn-Data/mnist-data/P0-Test-Triples", std::ios::binary),
-            file_Train_Triples_1("./Player-Data/Knn-Data/mnist-data/P1-Train-Triples", std::ios::binary),file_Test_Triples_1("./Player-Data/Knn-Data/mnist-data/P1-Test-Triples", std::ios::binary);
+        ofstream file_Train_Triples_0("./Player-Data/Knn-Data/"+dataset_name+"-data/P0-Train-Triples", std::ios::binary),file_Test_Triples_0("./Player-Data/Knn-Data/"+dataset_name+"-data/P0-Test-Triples", std::ios::binary),
+            file_Train_Triples_1("./Player-Data/Knn-Data/"+dataset_name+"-data/P1-Train-Triples", std::ios::binary),file_Test_Triples_1("./Player-Data/Knn-Data/"+dataset_name+"-data/P1-Test-Triples", std::ios::binary);
         
         for(int i=0;i<num_features;i++)
         {
@@ -1278,7 +1279,7 @@ void KNN_party_optimized::compute_ESD_for_one_query(int idx_of_test)
 
 void KNN_party_base::read_meta_and_P0_sample_P1_query()
 {
-    std::ifstream meta_file ("Player-Data/Knn-Data/mnist-data/Knn-meta");
+    std::ifstream meta_file ("Player-Data/Knn-Data/"+dataset_name+"-data/Knn-meta");
     meta_file >> num_features;// 特征数
     meta_file >> num_train_data;
     meta_file >> num_test_data;
@@ -1288,7 +1289,7 @@ void KNN_party_base::read_meta_and_P0_sample_P1_query()
     meta_file.close();
     if(playerno==0)
     {
-        std::ifstream sample_file ("Player-Data/Knn-Data/mnist-data/P0-0-X-Train");//暂时写死为P0
+        std::ifstream sample_file ("Player-Data/Knn-Data/"+dataset_name+"-data/P0-0-X-Train");//暂时写死为P0
         for (int i = 0; i < num_train_data; i++)
         {
             Sample*sample_ptr=new Sample(num_features);
@@ -1300,7 +1301,7 @@ void KNN_party_base::read_meta_and_P0_sample_P1_query()
         }
         sample_file.close();
 
-        std::ifstream label_file ("Player-Data/Knn-Data/mnist-data/P0-0-Y-Train");//暂时写死为P0
+        std::ifstream label_file ("Player-Data/Knn-Data/"+dataset_name+"-data/P0-0-Y-Train");//暂时写死为P0
         for (int i = 0; i < num_train_data; i++){
             label_file>>m_sample[i]->label;
         }
@@ -1309,7 +1310,7 @@ void KNN_party_base::read_meta_and_P0_sample_P1_query()
     }
     else
     {
-        std::ifstream test_file ("Player-Data/Knn-Data/mnist-data/P1-0-X-Test");//暂时写死为P1
+        std::ifstream test_file ("Player-Data/Knn-Data/"+dataset_name+"-data/P1-0-X-Test");//暂时写死为P1
         for (int i = 0; i < num_test_data; i++)
         {
             Sample*test_ptr=new Sample(num_features);
@@ -1321,7 +1322,7 @@ void KNN_party_base::read_meta_and_P0_sample_P1_query()
         }
         test_file.close();
 
-        std::ifstream label_file ("Player-Data/Knn-Data/mnist-data/P1-0-Y-Test");//暂时写死为P1
+        std::ifstream label_file ("Player-Data/Knn-Data/"+dataset_name+"-data/P1-0-Y-Test");//暂时写死为P1
         for (int i = 0; i < num_test_data; i++){
             label_file>>m_test[i]->label;
         }
