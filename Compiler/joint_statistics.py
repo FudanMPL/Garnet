@@ -1,9 +1,7 @@
 from Compiler.types import Array 
-from Compiler.types import sint, regint, regint
-import math
-from Compiler import util
-from Compiler.group_ops import GroupSum, GroupPrefixSum, PrefixSum
-
+from Compiler.types import sint
+from Compiler.group_ops import GroupSum
+from Compiler.types import sfix  
 
     # start point
 def mean(self):
@@ -11,6 +9,8 @@ def mean(self):
     
     :returns: Mean value of the array elements.
     """
+    if not isinstance(self[0], sfix):
+        raise TypeError("This function can only be executed for arrays of type sfix.")
     # Ensure the array is not empty
     if self.length == 0:
         raise ValueError("Cannot compute mean of an empty array.")
@@ -30,6 +30,8 @@ def median(self):
     
     :returns: Median value of the array elements.
     """
+    if not isinstance(self[0], sfix):
+        raise TypeError("This function can only be executed for arrays of type sfix.")
     if self.length == 0:
         raise ValueError("Cannot compute median of an empty array.")
     self.sort()
@@ -46,6 +48,9 @@ def median(self):
     return median_value
 
 def mode(self):
+
+    if not isinstance(self[0], sfix):
+        raise TypeError("This function can only be executed for arrays of type sfix.")
     if self.length == 0:
         raise ValueError("Cannot compute median of an empty array.")
     self.sort()
@@ -75,128 +80,7 @@ def mode(self):
         mode = is_new_max * sorted_data[i] + (1 - is_new_max) * mode
     
     return mode
-
-# def mode(self):
-#     if self.length == 0:
-#         raise ValueError("Cannot compute mode of an empty array.")
-    
-#     self.sort()
-#     sorted_vector = self.get_vector()
-    
-#     modes = []
-#     max_count = 1
-#     current_count = 1
-#     current_value = sorted_vector[0]
-
-#     for i in range(1, self.length):
-#         is_same = int(sorted_vector[i] == current_value)
-#         current_count = current_count + is_same
-#         is_different = 1 - is_same
-        
-#         max_count_update = int(current_count > max_count)
-#         max_count = max_count * (1 - max_count_update) + current_count * max_count_update
-#         modes_update = max_count_update
-#         modes_reset = modes_update * [current_value]
-#         modes_extend = (int(current_count == max_count)) * [current_value] * (1 - max_count_update)
-        
-#         modes = modes_reset if max_count_update else (modes + modes_extend)
-        
-#         current_value = sorted_vector[i] * is_different + current_value * (1 - is_different)
-#         current_count = current_count * (1 - is_different) + is_different
-    
-#     final_modes_update = int(current_count > max_count)
-#     modes = (final_modes_update * [current_value]) + ((int(current_count == max_count)) * [current_value] * (1 - final_modes_update)) * (1 - final_modes_update) + modes * (1 - final_modes_update)
-
-#     return modes
-    
-# 
-
-# def mode(self):
-#         """Calculate the mode of the array using a secure method.
-
-#         :returns: Mode value of the array elements.
-#         """
-#         if self.length == 0:
-#             raise ValueError("Cannot compute mode of an empty array.")
-        
-#         vector = self.get_vector()
-#         n = self.length
-        
-#         # Phase 1: Find a candidate for the majority element using a secure method
-#         candidate = self.value_type(0)
-#         count = self.value_type(0)
-
-#         for num in vector:
-#             equal_count_zero = (count == 0)
-#             equal_num_candidate = (num == candidate)
-            
-#             candidate = equal_count_zero.if_else(num, candidate)
-#             count = equal_count_zero.if_else(
-#                 self.value_type(1), 
-#                 equal_num_candidate.if_else(count + 1, count - 1)
-#             )
-        
-#         return candidate
-
-# def count_elements(self):
-#     # Initialize an empty array for element counts
-#     element_counts = Array(len(self), sint, address=regint.Array(len(self)))  # adjust size and type as needed
-#     count_index = regint(0)
-
-#     # Iterate through the array elements
-#     i = regint(0)
-#     while_true = regint(1)  # 用于控制循环的逻辑变量
-#     while while_true:
-#         element = self[i]
-#         found = regint(0)
-#         j = regint(0)
-#         while_true_inner = regint(1)
-#         while while_true_inner:
-#             # Use an MPC-compatible comparison
-#             is_equal = (element_counts[j][0] == element)
-#             element_counts[j][1] = element_counts[j][1] + is_equal
-#             found = found + is_equal
-
-#             # Update j and check the condition
-#             j += 1
-#             while_true_inner = (j < count_index).if_else(regint(1), regint(0))
-
-#         # If not found, add a new element count
-#         is_new_element = (found == 0)
-#         element_counts[count_index][0] = is_new_element.if_else(element, element_counts[count_index][0])
-#         element_counts[count_index][1] = is_new_element.if_else(1, element_counts[count_index][1])
-#         count_index = count_index + is_new_element
-
-#         # Update i and check the condition
-#         i += 1
-#         while_true = (i < len(self)).if_else(regint(1), regint(0))
-
-#     return element_counts, count_index
-
-# def mode(self):
-#     element_counts, count_index = self.count_elements()
-#     max_count = sint(0)
-#     mode_element = sint(0)
-    
-#     i = regint(0)
-#     while_true = regint(1)
-#     while while_true:
-#         count = element_counts[i][1]
-#         is_max = (count > max_count)
-#         max_count = is_max.if_else(count, max_count)
-#         mode_element = is_max.if_else(element_counts[i][0], mode_element)
-
-#         # Update i and check the condition
-#         i += 1
-#         while_true = (i < count_index).if_else(regint(1), regint(0))
-    
-#     return mode_element
-# Existing methods...
-
-# end point
-
 Array.mean = mean
 Array.median = median
 Array.mode = mode
-# Array.unique_elements = unique_elements
-# Array.count_elements = count_elements
+
