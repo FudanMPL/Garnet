@@ -77,7 +77,7 @@ make -j 8 tldr
 （3） offline数据三元组以及函数秘密共享需要的离线数据的生成。为了方便实现，本文采用可信第三方生成模式，用户可以直接使用如下指令编译并运行对应的Machine/knn-party-offline.cpp代码：
 ```markdown
 make -j 8 knn-party-offline.x #编译knn-party-offline.cpp文件
-./knn-party-offline.x //生成对应需要的离线数据
+./knn-party-offline.x  #生成对应需要的离线数据
 ```
 
 （4） 在控制台上输入以下命令，生成证书及密钥
@@ -86,9 +86,9 @@ make -j 8 knn-party-offline.x #编译knn-party-offline.cpp文件
 ```
 （5） 如果是本地测试，可以直接打开两个命令行窗口，在编译knn-patry.x文件后，分别在两个命令行窗口中运行以下命令：
 ```markdown
-make -j 8 knn-party.x//编译knn-patry.x文件
-./knn-party.x 0 -pn 11126 -h localhost //第一个命令行窗口运行该指令，模拟参与方P0运行的命令
-./knn-party.x 1 -pn 11126 -h localhost//第二个命令行窗口运行该指令，模拟参与方P1运行的命令
+make -j 8 knn-party.x  #编译knn-patry.x文件
+./knn-party.x 0 -pn 11126 -h localhost  #第一个命令行窗口运行该指令，模拟参与方P0运行的命令
+./knn-party.x 1 -pn 11126 -h localhost  #第二个命令行窗口运行该指令，模拟参与方P1运行的命令
 ```
 （6）实验结果：
 ```markdown
