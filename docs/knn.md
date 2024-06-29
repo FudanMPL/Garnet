@@ -1,4 +1,4 @@
-##  运行KNN算法安全训练
+##  两方隐私保护KNN算法
 
 **模型介绍**:两方半诚实场景，Client-Server架构下的基于秘密共享技术的KNN（K-Nearest Neighbor）算法。
 
