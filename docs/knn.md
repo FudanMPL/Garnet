@@ -74,6 +74,7 @@ make clean
 make -j 8 tldr
 ```
 （2）准备输入数据，并放入到Player-Data目录下。具体输入数据规范见前面**输入文件格式规范**章节，或者直接从数据集下载地址下载，即[https://drive.google.com/drive/folders/1YhiUd44POknGhOE1NP36voe9RmeHwWHr?usp=sharing](https://drive.google.com/drive/folders/1YhiUd44POknGhOE1NP36voe9RmeHwWHr?usp=sharing)。
+
 （3） offline数据三元组以及函数秘密共享需要的离线数据的生成。为了方便实现，本文采用可信第三方生成模式，用户可以直接使用如下指令编译并运行对应的Machine/knn-party-offline.cpp代码：
 ```markdown
 make -j 8 knn-party-offline.x #编译knn-party-offline.cpp文件
