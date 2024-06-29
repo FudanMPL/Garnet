@@ -19,6 +19,7 @@ void test_Z2();
 const int K=64;//环大小
 const int k_const=5;//knn里面的k值 
 string dataset_name="chronic";//数据集名称，自动用于后续的文件名生成
+// string dataset_name="mnist";//数据集名称，自动用于后续的文件名生成
 
 int playerno;
 ez::ezOptionParser opt;
@@ -604,7 +605,6 @@ void KNN_party_SecKNN::run()
         for(int i=0;i<k_const;i++)
         {
             top_1(m_ESD_vec,num_train_data-i,true);//比较排序次数依次是279，278，277，276，275，每次比较排序需要用到的轮次为2（比较一轮+乘法一轮）
-            // cout<<"2  Total Round count = "<<player->VirtualTwoPartyPlayer_Round<< " online round"<<endl;  
         }
 
         // for(int i=0;i<num_train_data;i++)
@@ -618,14 +618,11 @@ void KNN_party_SecKNN::run()
             
         vector<Z2<K>>shares_selected_k;
         for(int i=0;i<k_const;i++)shares_selected_k.push_back(m_ESD_vec[m_ESD_vec.size()-1-i][1]);
-        // cout<<"3  Total Round count = "<<player->VirtualTwoPartyPlayer_Round<< " online round"<<endl;
 
         this->secure_frequency(shares_selected_k,m_shared_label_list_count_array);//20
-        cout<<"4  Total Round count = "<<player->VirtualTwoPartyPlayer_Round<< " online round"<<endl;
 
         for(int i=0 ; i< num_label-1 ; i++)//2
             SS_scalar(m_shared_label_list_count_array,i,num_label-1);
-        cout<<"5  Total Round count = "<<player->VirtualTwoPartyPlayer_Round<< " online round"<<endl;
         Z2<K>predicted_label=reveal_one_num_to(m_shared_label_list_count_array[num_label-1][1],1); 
         if(m_playerno)
         {
@@ -640,6 +637,10 @@ void KNN_party_SecKNN::run()
     cout<<"Total Round count = "<<player->VirtualTwoPartyPlayer_Round<< " online round"<<endl;
     std::cout << "Party total time = " << timer.elapsed() << " seconds" << std::endl;
     std::cout << "Party Data sent = " << timer.mb_sent() << " MB"<<std::endl;
+
+    std::cout<<"call_evaluate_nums : "<<call_evaluate_time<<std::endl;
+
+    std::cout << "在Evaluation函数中 Total elapsed time: " << total_duration.count() << " seconds" << std::endl;
 
 }
 
