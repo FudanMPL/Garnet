@@ -1072,7 +1072,7 @@ def _single_tensor_dpsgd(params: List[Tensor],
         #     noise1.assign_vector(line1, i)
         #     noise2.assign_vector(line2, i)
         # noise = noise1 + noise2
-        d_p = d_p + noise
+        d_p = d_p + total_noise
         
         # test
         if len(d_p.sizes) == 2:
