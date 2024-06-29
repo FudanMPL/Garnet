@@ -18,8 +18,6 @@ template <class T, int L>
 class FixedVec
 {
     typedef FixedVec This;
-
-
 public:
     array<T, L> v;
     typedef T value_type;
