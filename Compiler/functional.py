@@ -448,6 +448,24 @@ def linear(input, weight, bias=None):
     return output
 
 
+@buildingblock("dplinear")
+def dplinear(input, weight, bias=None):
+    assert isinstance(input,Tensor),"Invalid input"
+    assert isinstance(weight,Tensor),"Invalid weight"
+    assert input.shape[-1]==weight.shape[-1],"Invalid Dimension"
+    if len(input.sizes) > len(weight.sizes):
+        output=input.single_bmm(weight.transpose())
+    elif len(input.sizes) == len(weight.sizes):
+        output=input.dpmm(weight.dptranspose(batch_size=input.value.sizes[0]))
+    else:
+        raise CompilerError("the dimension of input must not smaller than the dimension of weight")
+    if bias is None:
+        pass
+    else:
+        output = dp_element_wise_add(output, bias)
+    return output
+
+
 def new_squant():
         class _(sfix):
             params = None
@@ -1376,7 +1394,10 @@ def nll_loss(input, target, weight=None,reduction='mean'):
     forward = get_forward()
     if prepare:
         assert target.sizes==input.sizes,"Dimension invalid"
-        new_value = Array(1, input.value.value_type)
+        if reduction == 'none':
+            new_value = Array(input.sizes[0], input.value.value_type)
+        else:
+            new_value = Array(1, input.value.value_type)
         output = Tensor(new_value, req_grad=input.req_grad)
         if isinstance(input.value,Array):
             inter = Array(input.value.length, input.value.value_type)
@@ -1400,9 +1421,16 @@ def nll_loss(input, target, weight=None,reduction='mean'):
         tmp1 = input.value.same_shape()
         tmp1[:] = input.value[:]*tmp
         # output.value[:]=sum(input.value[:]*tmp)
-        @for_range(tmp1.total_size())
-        def _(i):
-            output.value[:] += tmp1.get_vector(i,1)
+        if reduction == 'none':
+            numcls = tmp1.total_size() // tmp1.sizes[0]
+            @for_range(tmp1.sizes[0])
+            def _(i):
+                t = tmp1.get_vector(i * numcls, numcls)
+                output.value[i] = sum(t)
+        else:
+            @for_range(tmp1.total_size())
+            def _(i):
+                output.value[:] += tmp1.get_vector(i,1)
         tmp1.delete()
         operation.intermediate[0].assign_vector(tmp)
         if not forward:
@@ -1410,7 +1438,7 @@ def nll_loss(input, target, weight=None,reduction='mean'):
         if reduction == 'mean':
             output.value[:] *= 1 / input.sizes[0]
         else:
-            assert reduction == 'sum' , 'reduction should be mean or sum'
+            assert reduction == 'sum' or reduction == 'none', 'reduction should be mean or sum'
     set_opid(op_id+1)  # record the input and output of the op
     return output
 
@@ -1464,10 +1492,12 @@ def mse_loss(input, target, reduction='mean'):
     #         assert reduction == 'sum' , 'reduction should be mean or sum'
     #     set_opid(op_id+1)  # record the input and output of the op
     # return output
-    assert reduction == 'sum' or 'mean', 'reduction should be mean or sum'
+    assert reduction == 'sum' or 'mean' or 'none', 'reduction should be mean or sum or none'
     
     dx = input - target
     dx2 = dx * dx
+    if reduction == 'none':
+        return dx2
     out = dx2.sum()
     if reduction == 'mean':
         out /= input.value.total_size()
@@ -1482,7 +1512,7 @@ def binary_cross_entropy(input, target, weight=None):
 
 def cross_entropy(input, target, weight=None, reduction = 'mean'):
     tmp=log_softmax(input)
-    return nll_loss(tmp,target,weight)
+    return nll_loss(tmp,target,weight,reduction)
 
 @buildingblock("gelu")
 def gelu(input, approximate='tanh'):

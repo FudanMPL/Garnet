@@ -111,6 +111,9 @@
             Procp.DataF.get_three(DATA_TRIPLE, *a++, *b++, *c++)) \
     X(BIT, auto dest = &Procp.get_S()[r[0]], \
             Procp.DataF.get_one(DATA_BIT, *dest++)) \
+    X(GAUSSIAN, auto dest = &Procp.get_S()[r[0]]; auto op1 = int(n); \
+            auto op2 = int(start[0]); auto op3 = int(start[1]), \
+            Procp.get_gaussian(op1, op2, op3, *dest++)) \
     X(RANDOMFULLS, auto dest = &Procp.get_S()[r[0]], \
             *dest++ = Procp.DataF.get_random()) \
     X(GLDSI, auto dest = &Proc2.get_S()[r[0]]; \

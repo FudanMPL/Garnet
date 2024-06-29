@@ -1,4 +1,4 @@
-from Compiler.torch import *
+from Compiler.gtorch import *
 from Compiler.tensor import *
 from Compiler.types import *
 
@@ -394,3 +394,16 @@ def test_vstack():
 # test_unsqueeze()
 # test_vsplit()
 # test_vstack()
+
+
+def test_gaussian():
+    size = 2
+    mean = 3
+    variance = 4
+    fraction = 1
+    a = sint.get_gaussian(mean = mean, variance = variance, fraction = fraction, size = size)
+    res = Array(size, sint)
+    res.assign_vector(a)
+    res.print_reveal_nested()
+
+test_gaussian()
