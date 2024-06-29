@@ -1282,8 +1282,8 @@ class edabit(base.Instruction):
             print("Please config the cost of " + self.__class__.__name__ + " in cost_config.py")
             return
         res = cost_func(config.bit_length, config._security, config.computation_security, config.f, config.n_parties, len(self.args)-1)
-        req_node.increment(('online communication', 'bits'), res[0]*self.get_size() * self.get_repeat())
-        req_node.increment(('offline communication', 'bits'), res[2]*self.get_size() * self.get_repeat())
+        req_node.increment(('online communication', 'bits'), res[0]*self.get_size())
+        req_node.increment(('offline communication', 'bits'), res[2]*self.get_size())
         req_node.increment(('online', 'round'), res[1])
         req_node.increment(('offline', 'round'), res[3])
         req_node.increment(('edabit', len(self.args) - 1), self.get_size()) 
@@ -1312,8 +1312,8 @@ class sedabit(base.Instruction):
             print("Please config the cost of " + self.__class__.__name__ + " in cost_config.py")
             return
         res = res(config.bit_length, config._security, config.f, config.n_parties, len(self.args)-1)
-        req_node.increment(('online communication', 'bits'), res[0]*self.get_size() * self.get_repeat())
-        req_node.increment(('offline communication', 'bits'), res[2]*self.get_size() * self.get_repeat())
+        req_node.increment(('online communication', 'bits'), res[0]*self.get_size())
+        req_node.increment(('offline communication', 'bits'), res[2]*self.get_size())
         req_node.increment(('online', 'round'), res[1])
         req_node.increment(('offline', 'round'), res[3])
         req_node.increment(('sedabit', len(self.args) - 1), self.get_size())

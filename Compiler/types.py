@@ -6748,7 +6748,7 @@ class SubMultiArray(_vectorizable):
         :param res: matrix of matching dimension to store (grad_result+res)
         :param n_threads: number of threads (default: single thread)
         """
-        @library.for_range_multithread(n_threads, 1, self.sizes[1])
+        @library.for_range_multithread(n_threads, program.budget, self.sizes[1])
         def _(i):
             indices = [regint(i), regint.inc(self.sizes[0])]
             indices += [regint.inc(i) for i in other.sizes]
@@ -6765,7 +6765,7 @@ class SubMultiArray(_vectorizable):
         :param res: matrix of matching dimension to store result
         :param n_threads: number of threads (default: single thread)
         """
-        @library.for_range_multithread(n_threads, 1, self.sizes[0])
+        @library.for_range_multithread(n_threads, program.budget, self.sizes[0])
         def _(i):
             indices = [regint(i), regint.inc(self.sizes[1])]
             indices += [regint.inc(i) for i in reversed(other.sizes)]
@@ -6781,7 +6781,7 @@ class SubMultiArray(_vectorizable):
         :param res: matrix of matching dimension to store (grad_result + res)
         :param n_threads: number of threads (default: single thread)
         """
-        @library.for_range_multithread(n_threads, 1, self.sizes[0])
+        @library.for_range_multithread(n_threads, program.budget, self.sizes[0])
         def _(i):
             indices = [regint(i), regint.inc(self.sizes[1])]
             indices += [regint.inc(i) for i in reversed(other.sizes)]
@@ -7512,15 +7512,14 @@ class MultiArray(SubMultiArray):
                     summary[:] += input_perm.get_vector(i*stride+j, 1)
                 res.assign_vector(summary[:], i)
             summary.delete()
-            tmp = 1 / stride
             @library.multithread(1, res.total_size())
             def _(base, size):
-                res.assign_vector(res.get_vector(base, size)* tmp, base)
+                res.assign_vector(res.get_vector(base, size), base)
             if keepdims:
                 keep_sizes = self.sizes[:dim] + (1,) +self.sizes[dim+1:]
                 res.view(*keep_sizes)
         else:
-            res[:] = sum(self[:]) / self.total_size()
+            res[:] = sum(self[:])
             
         return res
 

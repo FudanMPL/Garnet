@@ -6,7 +6,7 @@ def draw_computingGraph(nodes_op, nodes_tensor, edges):
     print(nodes_tensor)
     print(edges)
         
-    plt.figure(figsize=(6, 6))
+    plt.figure(figsize=(8, 8))
     # 创建一个图形对象
     G = nx.DiGraph()
 

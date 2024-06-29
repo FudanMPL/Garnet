@@ -69,8 +69,8 @@ class Cost(object):
     def init(cls, program):
         for arg in program.args:
                 m = re.match('f([0-9]+)$', arg)
-        if m:
-                cls.f = int(m.group(1))
+                if m:
+                        cls.f = int(m.group(1))
         if program.options.ring:
             cls.bit_length = program.bit_length+1
         else:
@@ -119,7 +119,7 @@ class SecureML(Cost): #done
         "share": lambda bit_length, kappa_s , kapaa, precision, n_parties: (0, 0, 0, 0),
         "open" : lambda bit_length, kappa_s , kapaa, precision, n_parties: (bit_length*2, 1, 0, 0),
         "muls" : lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (bit_length*4, 1, bit_length * (bit_length+kapaa), 1),
-        "matmuls": lambda bit_length, kappa_s , kapaa, precision, n_parties, p ,q, r: (p*q*bit_length*2+p*r*bit_length*2, 1, p*q*r*bit_length * (bit_length+kapaa), 1),
+        "matmuls": lambda bit_length, kappa_s , kapaa, precision, n_parties, p ,q, r: (p*q*bit_length*2+q*r*bit_length*2, 1, p*q*r*bit_length * (bit_length+kapaa), 1),
         "TruncPr": lambda bit_length, kappa_s , kapaa, precision, n_parties: (0, 0, 0, 0)
    }
 

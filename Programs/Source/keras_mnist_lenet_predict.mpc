@@ -40,5 +40,5 @@ for var in model.trainable_variables:
 
 guesses = model.predict(test_samples, batch_size=1)
 
-print_ln('guess %s', guesses.reveal_nested()[:3])
-print_ln('truth %s', test_labels.reveal_nested()[:3])
+# print_ln('guess %s', guesses.reveal_nested()[:3])
+# print_ln('truth %s', test_labels.reveal_nested()[:3])
