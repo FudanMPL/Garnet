@@ -23,21 +23,20 @@ bool fileExists(const std::string& path) {
     return file.good();
 }
 
-int m_k; //定义KNN算法的K大小
 int m_playerno = 0;//player编号
 int num_features;// 特征数
 int num_train_data; // 训练集数据总量
 int num_test_data; // 测试集数据总量
 int num_label; // 训练集中label数量
-string dataset_name="mnist";
+string dataset_name="chronic";
+// string dataset_name="mnist";//数据集名称，自动用于后续的文件名生成
 
 void read_meta_data()
 {
-    string file_meta_file="Player-Data/Knn-Data/"+dataset_name+"-data/Knn-meta";
+    string file_meta_file="./Player-Data/Knn-Data/"+dataset_name+"-data/Knn-meta";
     if(fileExists(file_meta_file))
     {
         std::ifstream meta_file(file_meta_file);
-        meta_file >> m_k;
         meta_file >> num_features;// 特征数
         meta_file >> num_train_data;//训练集数据大小
         meta_file >> num_test_data;//测试集数据大小
@@ -56,7 +55,7 @@ void read_meta_data()
 
 
 
-int main(int argc, const char** argv)
+int main()
 {
     // if(fileExists("Player-Data/k0"))
     // {
