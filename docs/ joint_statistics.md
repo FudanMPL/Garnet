@@ -21,7 +21,7 @@ a_mode = a.mode().reveal()
 
 ## 场景示例
     编写以下mpc文件 其中a是元素类型为sfix的array，并对其进行求平均数，众数和中位数的操作
-### test代码
+### test_joint_statistics代码
 ```
 from Compiler.types import Array 
 import joint_statistics
@@ -48,11 +48,17 @@ for i in range(10):
 
 ### 编译mpc文件
 ```
-./compile.py -R 64 test
+./compile.py -R 64 test_joint_statistics
 ```
 
+
+### 编译使用的虚拟机
+
+```
+make -j 8 sml-party.x
+```
 ### 使用虚拟机运行mpc文件并查看结果
 ```
-./replicated-ring-party.x -I 1 test
-./replicated-ring-party.x -I 2 test
+./sml-party.x -I 0 test_joint_statistics
+./sml-party.x -I 1 test_joint_statistics
 ```
