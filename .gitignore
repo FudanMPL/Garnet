@@ -177,3 +177,6 @@ MPLTS/python/taso/_cython/core.cpp
 !MPLTS/requirements.txt
 ts.data
 ts.log
+
+
+!Garnet.png
