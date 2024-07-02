@@ -6,8 +6,11 @@
 
 本文针对两方基于加法秘密共享技术的隐私保护KNN协议实现，给出了两种实现方案，分别为 论文[SecKNN,2024‘TIFs](https://ieeexplore.ieee.org/document/10339363/footnotes#footnotes)
 的方案以及本文针对该论文的通信效率优化版本，优化方案在当前的数据集测试中均取得了符合实验预期的实验结果。
+
 ### 输入文件格式规范
+
 下面针对Chronic KIdney Disease dataset 数据集进行举例子。首先进行数据预处理，将原始数据集归一化到[0,10]的整数范围内。按照70%划分为训练集，30%划分为测试集。然后需要在/Player-Data目录下创建一个Knn-Data目录，针对当前数据集创建chronic-data目录。随后在该目录下面按照要求分别创建如下文件，并指定文件内容。
+
 #### /Player-Data/Knn-Data/chronic-data/Knn-meta：
 ```markdown
 24 280 120
