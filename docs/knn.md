@@ -140,3 +140,23 @@ Party Data sent = 18.4646 MB
 call_evaluate_nums : 337440
 在Evaluation函数中 Total elapsed time: 75.653 seconds
 ```
+
+### 实验结果
+**实验环境**：WAN环境，20ms时延，5Mbps带宽，2.4 GHz Intel Xeon CPU。
+**实验结果**：下面是针对两个主流数据集的实验运行结果以及比较，n为数据条数，d为每条数据的特征维度数。
+
+### Chronic Kidney Disease dataset 训练集数据: n=280, d=24, 参数 k 设置为 5, 针对一条测试集数据进行测试:
+
+|                   | SecKNN    | Our Scheme | Improvement  |
+|-------------------|-----------|------------|--------------|
+| Total online Rounds | 2793      | 112        | 24x          |
+| Data sent(MB)       | 0.153872  | 0.100      | 1.5x         |
+| total time(seconds) | 1.425     | 0.87       | 1.637x       |
+
+### MNIST 训练集数据: n=60000, d=784, 参数 k 设置为 5（明文下测试 k=1 时准确率最高，这里为了对齐 k，所以设置为 5）, 针对一条数据查询:
+
+|                   | SecKNN    | Our Scheme | Improvement  |
+|-------------------|-----------|------------|--------------|
+| Total online Rounds | 600089    | 269        | 2230x        |
+| Data sent(MB)       | 397.921   | 21.6012    | 22x          |
+| total time(seconds) | 12866.5   | 212.242    | 60x          |
