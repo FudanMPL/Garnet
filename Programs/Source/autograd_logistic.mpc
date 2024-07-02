@@ -3,7 +3,12 @@ from tensor import Tensor,autograd_function, reset
 import optimizer as optim
 import dataloader as dataloader
 import functional as F
+<<<<<<< HEAD
+# program.use_trunc_pr = True
+
+=======
 import tensor
+>>>>>>> main
 class LogisticRegression(nn.Module):
     def __init__(self, n_inputs, n_outputs):
         super(LogisticRegression, self).__init__()

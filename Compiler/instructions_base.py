@@ -134,6 +134,7 @@ opcodes = dict(
     SEDABIT = 0x5A,
     RANDOMS = 0x5B,
     RANDOMFULLS = 0x5D,
+    GAUSSIAN = 0x5E,
     # Input
     INPUT = 0x60,
     INPUTFIX = 0xF0,

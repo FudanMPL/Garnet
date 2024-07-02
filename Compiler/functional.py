@@ -1,5 +1,5 @@
 # from tensor import get_opid, Tensor, get_prepare, Operation, tensors, gradient_operation, op_id_store,fake_propagate, set_opid,dl_d
-from tensor import *
+from Compiler.tensor import *
 from glob import glob
 import math
 import re
@@ -18,7 +18,7 @@ from typing import List, NamedTuple, Callable, Dict, Optional, Union, Tuple, Any
 approx = False
 
 @buildingblock("relu-forward")
-def relu(input, inplace=False):  
+def relu(input, inplace=False): 
     # Considering that the saved memory overhead has very little impact on MPC computing performance, 
     #the inplace parameter is not considered
     op_id = get_opid()
@@ -38,10 +38,9 @@ def relu(input, inplace=False):
             new_value=MultiArray(list(input.shape) ,input.value.value_type)
             inter=MultiArray(list(input.shape) ,sint)
         output = Tensor(new_value, req_grad=input.req_grad)
-        if input.req_grad:
-            operation = Operation(inputs=[input.name], outputs=[output.name], propagate=propagate,intermediate=[inter])
-        else:
-            operation = Operation(inputs=[input.name], outputs=[output.name], propagate=fake_propagate,intermediate=[inter])
+        operation = Operation(inputs=[input.name], outputs=[output.name],
+                                  propagate=propagate if input.req_grad else fake_propagate,
+                                  intermediate=[inter], name='relu')
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
@@ -449,6 +448,24 @@ def linear(input, weight, bias=None):
     return output
 
 
+@buildingblock("dplinear")
+def dplinear(input, weight, bias=None):
+    assert isinstance(input,Tensor),"Invalid input"
+    assert isinstance(weight,Tensor),"Invalid weight"
+    assert input.shape[-1]==weight.shape[-1],"Invalid Dimension"
+    if len(input.sizes) > len(weight.sizes):
+        output=input.single_bmm(weight.transpose())
+    elif len(input.sizes) == len(weight.sizes):
+        output=input.dpmm(weight.dptranspose(batch_size=input.value.sizes[0]))
+    else:
+        raise CompilerError("the dimension of input must not smaller than the dimension of weight")
+    if bias is None:
+        pass
+    else:
+        output = dp_element_wise_add(output, bias)
+    return output
+
+
 def new_squant():
         class _(sfix):
             params = None
@@ -597,6 +614,10 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0], 
     init_op_id = get_init_op_id()
     forward = get_forward()
     if prepare:
+        if isinstance(input, tuple):
+            input, weight = input
+        print("conv_in_size: ", input.shape)
+        print("conv_w_size: ", weight.shape)
         assert isinstance(input, Tensor) and isinstance(weight, Tensor) ,"Invalid Input and weight"
         assert len(input.shape)==4 and len(weight.shape)==4,"Invalid Dimension input and weight"
         out_shape=[input.shape[0],weight.shape[0],(input.shape[2]+2*padding[0]-weight.shape[2])//stride[0]+1,
@@ -604,9 +625,9 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0], 
         new_value=MultiArray(out_shape,input.value.value_type)
         output = Tensor(new_value, req_grad=input.req_grad or weight.req_grad)
         if input.req_grad or weight.req_grad:
-            operation = Operation(inputs=[input.name,weight.name], outputs=[output.name], propagate=propagate)
+            operation = Operation(inputs=[input.name,weight.name], outputs=[output.name], propagate=propagate, name='conv')
         else:
-            operation = Operation(inputs=[input.name,weight.name], outputs=[output.name], propagate=fake_propagate)
+            operation = Operation(inputs=[input.name,weight.name], outputs=[output.name], propagate=fake_propagate, name='conv')
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
@@ -644,6 +665,8 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0], 
             inputs = input_value.get_vector(i*size_,size_).v # B H W C/G
             weights = weight_value.get_part_vector(i*int(n_channels_out/groups)+j).v # N WH WW C/G
             res = sint(size = output_h * output_w * part_size) # B, OUT_W, OUT_H
+            print(n_channels_in, n_channels_out, groups, weight_value.sizes)
+            print(weight_value.sizes[1:], weights_h, weights_w, n_channels_in_group)
             conv2ds(res, inputs, weights, output_h, output_w,
                     inputs_h, inputs_w, weights_h, weights_w,
                     stride_h, stride_w, n_channels_in_group, padding_h, padding_w,
@@ -806,14 +829,16 @@ def max_pool2d(input, kernel_size=2, stride=2, padding=0, training = False):
             strides = (1, 1, stride[0], stride[0])
             output_shape = [int(math.ceil(input.shape[i] / strides[i])) for i in range(4)]
         else:
-            output_shape = [input.shape[0],input.shape[1],(input.shape[2]-kernel_size[0])//stride[0]+1,
-                            (input.shape[3]-kernel_size[1])//stride[1]+1 ]
+            output_shape = [input.shape[0],input.shape[1],(input.shape[2]-kernel_size[0]+2*padding[0])//stride[0]+1,
+                            (input.shape[3]-kernel_size[1]+2*padding[1])//stride[1]+1 ]
              #out_shape.size:[Batch_size,out_channel,H_out,W_out]
         new_value=MultiArray(output_shape,input.value.value_type)
         output = Tensor(new_value, req_grad=input.req_grad)
         comparisons = MultiArray([input.shape[0],input.shape[1],
                                        output_shape[2], output_shape[3],
                                        kernel_size[0] * kernel_size[1]], sint)
+        print("maxpool_in_size: ", input.shape)
+        print("maxpool_out_size: ", output.shape)
         if input.req_grad:
             operation = Operation(inputs=[input.name], outputs=[output.name], propagate=propagate,
                                   intermediate=[stride, kernel_size,padding,comparisons])
@@ -883,6 +908,7 @@ def max_pool2d(input, kernel_size=2, stride=2, padding=0, training = False):
                                              [w_in * w], h_in, w_in, h, w])
                     process(pool, bi, k, i, j,operation.intermediate[3],output.value,training)
     set_opid(op_id+1)  # record the input and output of the op
+    print("maxpool_out_size_true: ", output.shape)
     return output
 
     
@@ -955,8 +981,12 @@ def avg_pool2d(input, kernel_size, stride=None, padding=0,):
     if prepare:
         if isinstance(kernel_size, int):
             kernel_size = (1,kernel_size, kernel_size,1)
+        if isinstance(kernel_size, tuple) and len(kernel_size)==2:
+            kernel_size = (1,kernel_size[0], kernel_size[1],1)
         if isinstance(stride, int):
             stride = (1,stride, stride,1)
+        if isinstance(stride, tuple) and len(stride)==2:
+            stride = (1, stride[0], stride[1], 1)
         if stride == None:
             stride = kernel_size
         padding = padding.upper() if isinstance(padding, str) else padding
@@ -973,18 +1003,18 @@ def avg_pool2d(input, kernel_size, stride=None, padding=0,):
             if isinstance(padding, int):
                 padding = [padding, padding]
             output_shape = [input.shape[0],input.shape[1]] + [
-                (input.shape[2] + 2 * padding[0] - kernel_size[1]) //stride [1] + 1,
-                (input.shape[3] + 2 * padding[1] - kernel_size[2]) //stride [2] + 1] 
+                (input.shape[2] + 2 * padding[0] - kernel_size[0]) //stride [0] + 1,
+                (input.shape[3] + 2 * padding[1] - kernel_size[1]) //stride [1] + 1] 
              #out_shape.size:[Batch_size,H_out,W_out,out_channel]
              
         new_value=MultiArray(output_shape,input.value.value_type)
         output = Tensor(new_value, req_grad=input.req_grad)
         if input.req_grad:
             operation = Operation(inputs=[input.name], outputs=[output.name], propagate=propagate,
-                                  intermediate=[stride, kernel_size,padding])
+                                  intermediate=[stride, kernel_size,padding], name='avgpool')
         else:
             operation = Operation(inputs=[input.name], outputs=[output.name], propagate=fake_propagate,
-                                  intermediate=[stride, kernel_size,padding])
+                                  intermediate=[stride, kernel_size,padding], name='avgpool')
         gradient_operation.append(operation)
         operation_id = len(gradient_operation) - 1
         op_id_store[op_id] = operation_id
@@ -1002,8 +1032,8 @@ def avg_pool2d(input, kernel_size, stride=None, padding=0,):
         
         # assert n_channels_in == n_channels_out
         padding_h, padding_w = (0, 0)
-        _,stride_h, stride_w,_ = operation.intermediate[0]
-        _,filter_h, filter_w,_ = operation.intermediate[1]
+        # _,stride_h, stride_w,_ = operation.intermediate[0]
+        # _,filter_h, filter_w,_ = operation.intermediate[1]
         
         pool_size=reduce(operator.mul,operation.intermediate[1])
         if not forward:
@@ -1014,6 +1044,9 @@ def avg_pool2d(input, kernel_size, stride=None, padding=0,):
         
         Y_sizes =[N,output_h, output_w,n_channels_out]  
         X_sizes =[N,inputs_h, inputs_w,n_channels_in]
+        
+        print("needpad:", strides, Y_sizes, ksize, X_sizes)
+        # needpad: (1, 1) [1, 35, 35, 192] (3, 3) [1, 35, 35, 192]
         need_padding = [strides[i] * (Y_sizes[i] - 1) + ksize[i] >
                         X_sizes[i] for i in range(4)]
         @for_range_opt_multithread(n_threads,[N, n_channels_in])
@@ -1361,7 +1394,10 @@ def nll_loss(input, target, weight=None,reduction='mean'):
     forward = get_forward()
     if prepare:
         assert target.sizes==input.sizes,"Dimension invalid"
-        new_value = Array(1, input.value.value_type)
+        if reduction == 'none':
+            new_value = Array(input.sizes[0], input.value.value_type)
+        else:
+            new_value = Array(1, input.value.value_type)
         output = Tensor(new_value, req_grad=input.req_grad)
         if isinstance(input.value,Array):
             inter = Array(input.value.length, input.value.value_type)
@@ -1385,9 +1421,16 @@ def nll_loss(input, target, weight=None,reduction='mean'):
         tmp1 = input.value.same_shape()
         tmp1[:] = input.value[:]*tmp
         # output.value[:]=sum(input.value[:]*tmp)
-        @for_range(tmp1.total_size())
-        def _(i):
-            output.value[:] += tmp1.get_vector(i,1)
+        if reduction == 'none':
+            numcls = tmp1.total_size() // tmp1.sizes[0]
+            @for_range(tmp1.sizes[0])
+            def _(i):
+                t = tmp1.get_vector(i * numcls, numcls)
+                output.value[i] = sum(t)
+        else:
+            @for_range(tmp1.total_size())
+            def _(i):
+                output.value[:] += tmp1.get_vector(i,1)
         tmp1.delete()
         operation.intermediate[0].assign_vector(tmp)
         if not forward:
@@ -1395,7 +1438,7 @@ def nll_loss(input, target, weight=None,reduction='mean'):
         if reduction == 'mean':
             output.value[:] *= 1 / input.sizes[0]
         else:
-            assert reduction == 'sum' , 'reduction should be mean or sum'
+            assert reduction == 'sum' or reduction == 'none', 'reduction should be mean or sum'
     set_opid(op_id+1)  # record the input and output of the op
     return output
 
@@ -1449,10 +1492,12 @@ def mse_loss(input, target, reduction='mean'):
     #         assert reduction == 'sum' , 'reduction should be mean or sum'
     #     set_opid(op_id+1)  # record the input and output of the op
     # return output
-    assert reduction == 'sum' or 'mean', 'reduction should be mean or sum'
+    assert reduction == 'sum' or 'mean' or 'none', 'reduction should be mean or sum or none'
     
     dx = input - target
     dx2 = dx * dx
+    if reduction == 'none':
+        return dx2
     out = dx2.sum()
     if reduction == 'mean':
         out /= input.value.total_size()
@@ -1467,7 +1512,7 @@ def binary_cross_entropy(input, target, weight=None):
 
 def cross_entropy(input, target, weight=None, reduction = 'mean'):
     tmp=log_softmax(input)
-    return nll_loss(tmp,target,weight)
+    return nll_loss(tmp,target,weight,reduction)
 
 @buildingblock("gelu")
 def gelu(input, approximate='tanh'):
@@ -1480,3 +1525,15 @@ def gelu(input, approximate='tanh'):
         factor = factor.Hardtanh()
     factor += 1
     return factor * input * 0.5
+
+def cat(tensors, dim=0, out=None):
+    assert out is None
+    out = tensors[0]
+    print('concat shape:')
+    for i in range(1, len(tensors)):
+        print(tensors[i].shape)
+        out = out.concat(tensors[i], dim=dim)
+    return out
+
+def enlarge(weight1, weight2):
+    return weight2

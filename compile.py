@@ -42,4 +42,4 @@ if __name__ == "__main__":
     compiler = Compiler()
     main(compiler)
     end_time = time.time()
-    print('compiling time: ' + str(end_time - start_time)) 
+    print('Compiling time: %.6f (ms)'%((end_time - start_time)*1000)) 

@@ -1,6 +1,6 @@
-## 运行基于Secret Sharing 的多方PSU
+## 运行基于Secret Sharing 的多方隐私集合求并
 
-ss-psu代码源码在文件`Compiler/library.py`中
+多方隐私集合求并代码源码在文件`Compiler/library.py`中的ss_psu函数中
 
 ### 编译虚拟机
 

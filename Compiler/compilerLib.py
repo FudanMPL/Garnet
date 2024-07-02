@@ -3,6 +3,7 @@ import os
 import re
 import sys
 import tempfile
+import json
 from optparse import OptionParser
 
 
@@ -421,12 +422,20 @@ class Compiler:
     def finalize_compile(self):
         self.prog.finalize()
 
+        profiling_result = {}
         if self.prog.req_num:
             print("Program requires at most:")
             for x in self.prog.req_num.pretty():
                 if "online" in x or  "offline" in x:
                     print(x)
-
+                    # store profiling result json
+                    parts = x.split()
+                    k = ' '.join(parts[1:])
+                    v = int(parts[0])
+                    profiling_result[k] = v
+        with open('profiling_result.json', 'w') as json_file:
+            json.dump(profiling_result, json_file, indent=4)
+        
         if self.prog.verbose:
             print("Program requires:", repr(self.prog.req_num))
             print("Cost:", 0 if self.prog.req_num is None else self.prog.req_num.cost())
