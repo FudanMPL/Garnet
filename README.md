@@ -60,7 +60,14 @@ sudo docker run --cap-add=NET_ADMIN -it garnet bash
 
 #### 2024年7月份发布: 
 
-* [通信效率优化的两方KNN算法](./docs/knn.md)
+* [通信效率优化的两方KNN协议](./docs/knn.md)
+* [可配置特权方的n方安全多方计算协议](./docs/ruyi.md)
+* [数据联合统计分析](./docs/joint_statisstics.md)
+* [差分隐私随机梯度下降协议（论文PEA，S&P 2023）](./docs/dpsgd.md)
+* [隐私集合求并](./docs/ss-psu.md)
+* [神经网络计算图优化](./docs/mpt.md)
+
+
 
 #### 2024年1月份发布: 
 
