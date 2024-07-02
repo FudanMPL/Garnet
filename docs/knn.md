@@ -1,4 +1,4 @@
-##  两方隐私保护KNN协议
+##  安全高效的两方KNN协议
 
 **模型介绍**:两方半诚实场景，Client-Server架构下的基于秘密共享技术的KNN（K-Nearest Neighbor）协议。
 
