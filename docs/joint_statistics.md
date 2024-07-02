@@ -1,10 +1,10 @@
 ## 联合统计模块
 
-    联合统计（Joint Statistics）是多方安全计算（Multi-Party Computation, MPC）中的一个重要功能。它允许多个参与方在不泄露各自私有数据的情况下，共同计算出涉及这些数据的统计结果。联合统计可以应用于许多多方计算场景中。在本次更新中，我们为Garnet中增加了求平均数，求中位数，求众数的功能。
+联合统计（Joint Statistics）是多方安全计算（Multi-Party Computation, MPC）中的一个重要功能。它允许多个参与方在不泄露各自私有数据的情况下，共同计算出涉及这些数据的统计结果。联合统计可以应用于许多多方计算场景中。在本次更新中，我们为Garnet中增加了求平均数，求中位数，求众数的功能。
 
 ## 使用方法
 
-    其具体使用方法如下：
+其具体使用方法如下：
 
 ### 导入相关的包
 ```
@@ -22,7 +22,9 @@ a_mode = a.mode().reveal()
 ```
 
 ## 场景示例
-    编写以下mpc文件 其中a是元素类型为sfix的array，并对其进行求平均数，众数和中位数的操作
+    
+编写以下mpc文件 其中a是元素类型为sfix的array，并对其进行求平均数，众数和中位数的操作
+
 ### test_joint_statistics代码
 ```
 from Compiler.types import Array 
