@@ -64,7 +64,7 @@ sudo docker run --cap-add=NET_ADMIN -it garnet bash
 * [安全高效的两方KNN协议](./docs/knn.md)
 * [差分隐私随机梯度下降协议（论文PEA，S&P 2023）](./docs/dpsgd.md)
 * [可配置特权方的n方安全多方计算协议](./docs/ruyi.md)
-* [数据联合统计分析协议](./docs/joint_statistics.md)
+* [数据联合统计分析协议](docs/joint_statistics.md)
 * [隐私集合求并](./docs/ss-psu.md)
 
 
