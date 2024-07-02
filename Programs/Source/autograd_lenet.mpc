@@ -1,9 +1,9 @@
 
-import nn as nn
-from tensor import Tensor,autograd_function
-import optimizer as optim
-import dataloader as dataloader
-import functional as F
+import Compiler.nn as nn
+from Compiler.tensor import Tensor,autograd_function
+import Compiler.optimizer as optim
+import Compiler.dataloader as dataloader
+import Compiler.functional as F
 program.use_trunc_pr = True
 
 class LeNet(nn.Module):
@@ -17,7 +17,7 @@ class LeNet(nn.Module):
             nn.Relu(),
             nn.AvgPool2d(2, 2))
         self.fc = nn.Sequential(
-            nn.Linear(16*4*4, 120),
+            nn.Linear(16*20*4, 120),
             nn.Relu(),
             nn.Linear(120, 84),
             nn.Relu())
@@ -29,11 +29,12 @@ class LeNet(nn.Module):
         output = self.fc1(output)
         return output
 
+
 model = LeNet()
 crossloss = nn.CrossEntropyLoss()
 
-x = MultiArray([128,1,28,28], sfix)
-y = MultiArray([128,10], sfix)
+x = MultiArray([1,1,28,28], sfix)
+y = MultiArray([1,10], sfix)
 
 # @for_range(x.total_size())
 # def _(i):
@@ -42,7 +43,7 @@ y = MultiArray([128,10], sfix)
 # for i in range(10):
 #     y[i][i//3] = 1
 
-dataload = dataloader.DataLoader(x, y, batch_size = 128)
+dataload = dataloader.DataLoader(x, y, batch_size = 1)
 optimizer = optim.SGD(model.parameters(), lr = 0.01)
 params = list(model.parameters())
 for i in params:

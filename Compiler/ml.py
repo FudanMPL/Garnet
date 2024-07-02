@@ -213,6 +213,7 @@ class Tensor(MultiArray):
         self.alloc()
         super(Tensor, self).input_from(*args, **kwargs)
 
+
     def __getitem__(self, *args):
         self.alloc()
         return super(Tensor, self).__getitem__(*args)
@@ -273,6 +274,96 @@ class NoVariableLayer(Layer):
 
     nablas = lambda self: ()
     reset = lambda self: None
+
+
+class LinearOutput(NoVariableLayer):
+    """ Fixed-point linear regression output layer.
+
+
+    """
+    n_outputs = 2
+
+
+
+    def __init__(self, N, debug=False):
+        self.N = N
+        self.X = sfix.Array(N)
+        self.Y = sfix.Array(N)
+        self.nabla_X = sfix.Array(N)
+        self.l = MemValue(sfix(-1))
+        self.e_x = sfix.Array(N)
+        self.debug = debug
+        self.weights = None
+        self.compute_loss = True
+        self.d_out = 1
+        self.approx = None
+
+    def divisor(self, divisor, size):
+        return cfix(1.0 / divisor, size=size)
+
+    @buildingblock("Output")
+    def _forward(self, batch):
+
+        N = len(batch)
+        mse = sfix.Array(N)
+        @multithread(self.n_threads, N)
+        def _(base, size):
+            x = self.X.get_vector(base, size)
+            y = self.Y.get(batch.get_vector(base, size))
+            mse.assign(y - x, base)
+        self.l.write(sum(mse) * \
+                     self.divisor(N, 1))
+
+    def eval(self, size, base=0, top=False):
+        assert not top
+        return self.X.get_vector(base, size)
+
+    
+    @buildingblock("Output")
+    def backward(self, batch):
+        N = len(batch)
+        @multithread(self.n_threads, N)
+        def _(base, size):
+            diff = self.eval(size, base) - \
+                   self.Y.get(batch.get_vector(base, size))
+            if self.weights is not None:
+                assert N == len(self.weights)
+                diff *= self.weights.get_vector(base, size)
+                assert self.weight_total == N
+            self.nabla_X.assign(diff, base)
+
+
+    # def set_weights(self, weights):
+    #     assert sfix.f == cfix.f
+    #     self.weights = cfix.Array(len(weights))
+    #     self.weights.assign(weights)
+    #     self.weight_total = sum(weights)
+
+    # def average_loss(self, N):
+    #     return self.l.reveal()
+
+    # def reveal_correctness(self, n=None, Y=None, debug=False):
+    #     if n is None:
+    #         n = self.X.sizes[0]
+    #     if Y is None:
+    #         Y = self.Y
+    #     n_correct = MemValue(0)
+    #     n_printed = MemValue(0)
+    #     @for_range_opt(n)
+    #     def _(i):
+    #         truth = Y[i].reveal()
+    #         b = self.X[i].reveal()
+    #         if debug:
+    #             nabla = self.nabla_X[i].reveal()
+    #         guess = b > 0
+    #         correct = truth == guess
+    #         n_correct.iadd(correct)
+    #         if debug:
+    #             to_print = (1 - correct) * (n_printed < 10)
+    #             n_printed.iadd(to_print)
+    #             print_ln_if(to_print, '%s: %s %s %s %s',
+	#                     i, truth, guess, b, nabla)
+    #     return n_correct
 
 class Output(NoVariableLayer):
     """ Fixed-point logistic regression output layer.
@@ -2043,7 +2134,7 @@ class Conv2d(ConvBase):
                 conv2ds(res, inputs, weights, output_h, output_w,
                         inputs_h, inputs_w, weights_h, weights_w,
                         stride_h, stride_w, n_channels_in, padding_h, padding_w,
-                        part_size)
+                        part_size, -1)
                 if self.bias_before_reduction:
                     res += self.bias.expand_to_vector(j, res.size).v
                 else:
@@ -2175,7 +2266,7 @@ class FixConv2d(Conv2d, FixBase):
             res = sint(size = weights_h * weights_w)
             conv2ds(res, inputs, nabla_outputs, weights_h, weights_w, inputs_h,
                     inputs_w, output_h, output_w, -stride_h, -stride_w, N,
-                    padding_h, padding_w, 1) 
+                    padding_h, padding_w, 1, -1) 
             reduced = unreduced_sfix._new(res).reduce_after_mul()
             self.nabla_weights.assign_vector_by_indices(reduced, j, None, None, i)
 
@@ -2210,7 +2301,7 @@ class FixConv2d(Conv2d, FixBase):
                         reverse_weights[j].get_vector().pre_mul(),
                         padded_h, padded_w, output_h, output_w,
                         weights_h, weights_w, 1, 1, n_channels_out,
-                        weights_h - 1, weights_w - 1, 1)
+                        weights_h - 1, weights_w - 1, 1, -1)
                 output.assign_vector_by_indices(
                     unreduced_sfix._new(res).reduce_after_mul(),
                     i, None, None, j)
@@ -2272,7 +2363,7 @@ class QuantDepthwiseConv2d(QuantConvBase, Conv2d):
                 res = sint(size = output_h * output_w)
                 conv2ds(res, inputs, weights, output_h, output_w,
                         inputs_h, inputs_w, weights_h, weights_w,
-                        stride_h, stride_w, 1, padding_h, padding_w, 1)
+                        stride_h, stride_w, 1, padding_h, padding_w, 1, -1)
                 res += self.bias.expand_to_vector(j, res.size).v
                 self.unreduced.assign_vector_by_indices(res, 0, None, None, j)
             self.reduction()
@@ -2499,7 +2590,6 @@ class Optimizer:
 
     def reset(self):
         """ Initialize weights. """
-        print('innnnn')
         for layer in self.layers:
             layer.reset()
         self.i_epoch.write(0)
@@ -2872,7 +2962,6 @@ class Optimizer:
             program.options.keep_cisc = 'FPDiv,exp2_fx,log2_fx'
         model_input = 'model_input' in program.args
         acc_first = model_input and not 'train_first' in program.args
-        print(model_input)
         if model_input:
             for layer in self.layers:
                 layer.input_from(0)
@@ -3143,7 +3232,6 @@ class SGD(Optimizer):
 
         :param X_by_label: if given, set training data by public labels for balancing
         """
-        print('innnnnnnn1')
         self.X_by_label = X_by_label
         if X_by_label is not None:
             for label, X in enumerate(X_by_label):

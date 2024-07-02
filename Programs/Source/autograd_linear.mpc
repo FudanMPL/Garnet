@@ -1,8 +1,8 @@
-import nn as nn
-import optimizer as optim
-import dataloader as dataloader
-import functional as F
-from tensor import Tensor,autograd_function
+import Compiler.nn as nn
+import Compiler.optimizer as optim
+import Compiler.dataloader as dataloader
+import Compiler.functional as F
+from Compiler.tensor import Tensor,autograd_function
 
 class LogisticRegression(nn.Module):
     def __init__(self):

@@ -1,7 +1,24 @@
-a = sint.get_input_from(0) # 从第0方读入，该函数会自动调用秘密共享的过程
-b = sint.get_input_from(1) # 从第1方读入，该函数会自动调用秘密共享的过程
-comparison_result = a > b # 比较a和b的大小，得到比较的结果
-res = comparison_result * a + (1 - comparison_result) * b # 使用比较结果，计算秘密分享下的较大值
-res_plaintext = res.reveal() # 将秘密分享下的较大值还原成明文
-print_ln("res = %s", res_plaintext) # 打印最终的结果
 
+@buildingblock("test")
+def test(actual, expected):
+
+    # you can reveal a number in order to print it
+
+    actual = actual.reveal()
+    print_ln('expected %s, got %s', expected, actual)
+
+
+a = sint(1)
+b = sint(2)
+c=a>b
+d=a<b
+test(a > b, 1)
+test(a < b, 1)
+from sorting import radix_sort
+import mpc_math
+a = sfix([1,2,3])
+
+print_ln("a = %s",a.reveal())
+ab = sfix([3, 2, 1])
+c = mpc_math.log_fx(a, 2)
+print_ln("c = %s",c.reveal())

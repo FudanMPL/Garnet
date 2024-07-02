@@ -9,7 +9,7 @@
 #include "SPDZ.h"
 #include "Processor/TruncPrTuple.h"
 
-#include "Tools/SimpleIndex.h"
+#include "Tools_PSI/SimpleIndex.h"
 #include "cryptoTools/Common/CuckooIndex.h"
 #include "OT/OTExtension.h"
 #include "OT/OTExtensionWithMatrix.h"
@@ -18,7 +18,6 @@
 #define RECEIVER_P 0
 
 typedef uint64_t idtype;
-
 
 /**
  * Dishonest-majority protocol for computation modulo a power of two
@@ -103,8 +102,13 @@ public:
   template <class U>
   void psi(const vector<typename T::clear> &source, const Instruction &instruction, U &proc)
   {
+    // if constexpr (typeid(T) == typeid(SemiShare))
+    // {
+    //   throw not_implemented();
+    // }
     // octetStream cs;
     // int r0 = instruction.get_r(0);
+#ifdef ENABLE_PSI
     octetStream cs0, cs, cs2;
     auto res = proc.C.begin() + (instruction.get_r(0));
 
@@ -424,11 +428,15 @@ public:
       }
     }
     // return 0;
+#else
+    throw not_implemented();
+#endif
   }
 
   template <class U>
   void psi_align(const vector<typename T::clear> &source, const Instruction &instruction, U &proc)
   {
+#ifdef ENABLE_PSI
     // cout << "psi_align" << endl;
     typedef uint64_t idtype;
 #define RECEIVER_P 0
@@ -596,6 +604,9 @@ public:
         }
       }
     }
+#else
+    throw not_implemented();
+#endif
   }
 
   template <class U>

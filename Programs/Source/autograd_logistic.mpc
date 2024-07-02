@@ -1,10 +1,14 @@
 import nn as nn
-from tensor import Tensor,autograd_function
+from tensor import Tensor,autograd_function, reset
 import optimizer as optim
 import dataloader as dataloader
 import functional as F
-program.use_trunc_pr = True
+<<<<<<< HEAD
+# program.use_trunc_pr = True
 
+=======
+import tensor
+>>>>>>> main
 class LogisticRegression(nn.Module):
     def __init__(self, n_inputs, n_outputs):
         super(LogisticRegression, self).__init__()
@@ -13,19 +17,62 @@ class LogisticRegression(nn.Module):
         out = F.sigmoid(self.linear(x))
         return out
 
-x = Tensor([5, 10]).get_input_from(0)
-y = Tensor([5, 2]).get_input_from(0)
-dataloader = dataloader.DataLoader(x, y, batch_size = 1)
-model = LogisticRegression(10, 2)
+
+approx = 5
+n_examples = 60000
+n_features = 28 ** 2
+n_epochs = 10
+batch_size = 64
+n_test = 10000
+
+y = MultiArray([n_examples, 1], value_type=sfix)
+x = MultiArray([n_features, n_examples], value_type=sfix)
+y.input_from(0)
+x.input_from(0)
+x = x.transpose()
+
+
+y = Tensor(y)
+x = Tensor(x)
+
+
+loader = dataloader.DataLoader(x, y, batch_size = 64)
+model = LogisticRegression(784, 1)
+
 optimizer = optim.SGD(model.parameters(), lr = 0.01)
 criterion = nn.CrossEntropyLoss()
 model.train()
-@for_range(5)
-def _(i):
-    x, labels = dataloader[i]
-    optimizer.zero_grad()
-    output = model(x)
-    loss = criterion(output, labels)
-    loss.print_reveal_nested()
-    loss.backward()
-    optimizer.step()
+
+@for_range(1)
+def _(j):
+    @for_range(938)
+    def _(i):
+        x, labels = loader[i]
+        optimizer.zero_grad()
+        output = model(x)
+        loss = criterion(output, labels)
+        loss.print_reveal_nested()
+        loss.backward()
+        optimizer.step()
+test_y = MultiArray([n_test, 1], value_type=sfix)
+test_x = MultiArray([n_features, n_test], value_type=sfix)
+test_y.input_from(1)
+test_x.input_from(1)
+test_x = test_x.transpose()
+reset()
+test_y = Tensor(test_y)
+test_x = Tensor(test_x)
+
+
+
+loader = dataloader.DataLoader(test_x, test_y, batch_size = n_test)
+x, labels = loader[0]
+output = model(x).value.get_vector().reveal()
+n_correct = cfix(0)
+
+
+test_y = test_y.value.get_vector().reveal()
+for i in range(n_test):
+    n_correct += test_y[i] == (output[i] > 0.5)
+
+print_ln('acc: %s (%s/%s)', n_correct / n_test, n_correct, n_test)

@@ -44,6 +44,20 @@ const char* TreeVss_Sum<T>::mc_timer_names[] = {
         "waiting for select()"
 };
 
+template<class T>
+const char* TreeVssField_Sum<T>::mc_timer_names[] = {
+        "sending",
+        "receiving and adding",
+        "broadcasting",
+        "receiving summed values",
+        "random seed",
+        "commit and open",
+        "wait for summer thread",
+        "receiving",
+        "summing",
+        "waiting for select()"
+};
+
 template<class U>
 void Tree_MAC_Check<U>::setup(Player& P)
 {
@@ -370,7 +384,7 @@ Direct_MAC_Check<T>::~Direct_MAC_Check() {
 }
 
 template<class T>
-void direct_add_openings(vector<T>& values, const PlayerBase& P, vector<octetStream>& os)
+void direct_add_openings(vector<T>& values, const PlayerBase& P, vector<octetStream>& os) //将os向量中的数据添加到values向量中
 {
   size_t n = P.num_players();
   size_t me = P.my_num();
@@ -391,6 +405,7 @@ void Direct_MAC_Check<T>::pre_exchange(const Player& P)
   for (auto& x : this->values)
     x.pack(oss[P.my_num()]);
 }
+
 
 
 template<class T>

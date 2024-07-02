@@ -1226,6 +1226,7 @@ def multithread(n_threads, n_items=None, max_size=None):
         return map_reduce(n_threads, None, n_items, initializer=lambda: [],
                           reducer=None, looping=False)
     else:
+        max_size = max(1, max_size)
         def wrapper(function):
             @multithread(n_threads, n_items)
             def new_function(base, size):
@@ -2076,6 +2077,11 @@ def stop_profiling():
     # instructions.program.is_profiling = False
 
 
+def print_both(s, end='\n'):
+    """ Print line during compilation and execution. """
+    print(s, end=end)
+    print_str(s + end)
+
 def ss_psi_merge(*tables):
     from Compiler.sorting import gen_perm_by_radix_sort, SortPerm
     from Compiler.group_ops import GroupSum
@@ -2098,7 +2104,6 @@ def ss_psi_merge(*tables):
                 final_table[num_count][attr_count + i] = ele[i]
             num_count = num_count + 1
         attr_count = attr_count + table_attr - 1  # the id column should not be added
-
     ids = final_table.get_column(0)
     perm = gen_perm_by_radix_sort(ids)
     for i in range(attr):
@@ -2128,3 +2133,38 @@ def debug_point():
     """
     return
 
+def ss_psu(*tables):
+    num = 0
+    for table in tables:
+        num = num + len(table)
+    # merge all the table into one table
+    ids=Array(num,tables[0].value_type)
+    flag_ids = Array(num,tables[0].value_type)
+    # merge tables
+    num_count = 0
+    for table in tables:
+        for ele in table:
+            ids[num_count] = ele[0]
+            num_count = num_count + 1
+    
+    # sort
+    ids.sort()
+    # randomfulls(flag_ids[0])
+    flag_ids[0] = sint.get_random()
+
+    for i in range(1,num):
+        flag_ids[i] = ids[i]-ids[i-1]
+    
+
+    # # mul r
+    # # sint.get_random_int()
+                                                                                                                                                                                     
+    # concate
+    result = tables[0].value_type.Matrix(num,2)
+    result.set_column(0,flag_ids.get_vector())
+    result.set_column(1,ids.get_vector())
+    # shuffle
+    result.secure_shuffle()
+    # reveal r
+    plain_union_r = result.get_column(0).reveal()
+    return result.get_column(1),plain_union_r

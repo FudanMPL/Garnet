@@ -17,6 +17,11 @@
 #include <sodium.h>
 #include <string>
 
+#include <random>
+#include <chrono>
+#include <iostream>
+#include <math.h>
+
 template <class T>
 SubProcessor<T>::SubProcessor(ArithmeticProcessor &Proc, typename T::MAC_Check &MC,
                               Preprocessing<T> &DataF, Player &P) : SubProcessor<T>(MC, DataF, P, &Proc)
@@ -971,6 +976,53 @@ void SubProcessor<T>::send_personal(const vector<int> &args)
     if (args[i + 1] == P.my_num())
       for (int j = 0; j < args[i]; j++)
         C[args[i + 2] + j].unpack(to_receive[args[i + 3]]);
+}
+
+template <class T>
+void SubProcessor<T>::get_gaussian(int mean, int variance, int fraction, T &res)
+{
+  cout << mean << endl << variance << endl;
+  double new_mean = mean / pow(2, fraction);
+  double new_variance = variance / pow(2, fraction);
+  cout << new_mean << endl << new_variance << endl;
+
+  unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+  std::default_random_engine generator(seed);
+  std::normal_distribution<double> distribution(mean, sqrt(variance / P.num_players()));
+  
+  // double noise = distribution(generator);
+  // cout << noise << endl;
+  // res = noise;
+
+  // vector<vector<T>> tmp;
+  T tmp_res;
+  input.reset_all(P);
+  for (int i = 0; i < P.num_players(); i ++)
+  {
+    if (i == P.my_num())
+    {
+      double noise = distribution(generator);
+      cout << noise << endl;
+      int new_noise = noise * pow(2, fraction);
+      cout << new_noise << endl;
+      input.add_mine(new_noise);
+    }
+    else
+    {
+      input.add_other(i);
+    }
+  }
+  input.exchange();
+
+  for (int i = 0; i < P.num_players(); i ++)
+  {
+    for (int j = 0; j < P.num_players(); j ++)
+    {
+      tmp_res += input.finalize(i);
+    }
+  }
+  tmp_res = tmp_res >> fraction;
+  res = tmp_res;
 }
 
 template <class sint, class sgf2n>

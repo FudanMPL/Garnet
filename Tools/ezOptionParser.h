@@ -1776,7 +1776,6 @@ OptionGroup * ezOptionParser::get(const char * name) {
   if (optionGroupIds.count(name)) {
     return groups[optionGroupIds[name]];
   }
-  
   return 0;
 };
 /* ################################################################### */

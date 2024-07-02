@@ -45,13 +45,14 @@
     </div>
     <el-dialog v-model="resultDialogVisible" title="执行结果：" width="60%" :before-close="resultDialogClose">
       <el-col :span="20" :offset="2">
+        <span class="formatted-text">{{ readmeMessage }}</span>
         <el-table :data="result1Data" style="width: 100%" max-height="400">
           <el-table-column v-for="i in column" :key="i" :prop="i" label='' width="180" />
         </el-table>
       </el-col>
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="resultDialogVisible = false">好的</el-button>
+          <!-- <el-button @click="resultDialogVisible = false">好的</el-button> -->
           <el-button type="primary" @click="downloadResultFile" :disabled="downloadDisabled">
             下载
           </el-button>
@@ -281,6 +282,7 @@ const testResultUrl = ref('/task/remote/results/')
 //结果弹窗的关闭逻辑
 const resultDialogClose = () => {
   resultDialogVisible.value = false
+  readmeMessage.value = ''
 }
 //查询是否已完成的逻辑
 const handleResult = async (id, status) => {
@@ -398,6 +400,7 @@ async function sleep(ms) {
 
 const feedbackDialogVisible = ref(false)
 const feedbackMessage = ref()
+const readmeMessage = ref()
 const nowTaskID = ref()
 const nowFileID = ref()
 const fileTotask = async () => {
@@ -489,36 +492,37 @@ const result1Data = ref([]);
 const result1 = ref();
 const column = ref();
 
-const transformData = (rowData) => {
+const transformData=(rowData)=>{
 
-  const lines = rowData.value.trim().split('\n');
-  const data: any = [];
-  let isDataSection = false;
+const lines = rowData.value.trim().split('\n');
+const data:any= [];
+let isDataSection = false;
 
-  for (const line of lines) {
-    if (line.startsWith('========')) {
-      isDataSection = !isDataSection;
-    } else if (isDataSection && line.trim() !== '') {
-      const values = (line.trim() as string).split(/\s+/); // 使用类型断言确保 line 是字符串
-
-      // const rowData = {
-      //   startPrescriptionNumber: values[0],
-      //   startDate: values[1],
-      //   endPrescriptionNumber: values[2],
-      //   endDate: values[3],
-      //   patientID: values[4],
-      //   exceedingMultiple: values[5]
-      // };
-      const rowData = {};
-      for (let i = 1; i <= values.length; i++) {
-        rowData[String(i)] = values[i - 1].replace(",", "");
-      }
-      data.push(rowData);
-    }
-
+for (const line of lines) {
+  // 如果检测到***开头的 是readme 直接打印出来
+  if (line.startsWith('***')) {
+    // 读取 readme 信息 将line前*号的内容过滤掉
+    // 并且加入到readmeMessage中 而不是替换
+    readmeMessage.value += line.replace(/^\*+/, '') + '\n';
   }
-  column.value = Object.keys(data[0]).length;
-  result1Data.value = data;
+      if (line.startsWith('====') ) {
+        isDataSection = !isDataSection;
+      } else if (isDataSection && line.trim() !== '') {
+        const values = (line.trim() as string).split(/\s+/); // 使用类型断言确保 line 是字符串
+        const rowData = {};
+        
+        for (let i = 1; i <= values.length;i++){
+          rowData[String(i)] = values[i-1].replace(",", "");
+        }
+
+        
+        data.push(rowData);
+        if(i>=101){break;}
+      }
+
+    }
+    column.value = Object.keys(data[0]).length; 
+    result1Data.value = data;
 }
 
 const downloadLink = ref();

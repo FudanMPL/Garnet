@@ -4,6 +4,8 @@ MATH = $(patsubst %.cpp,%.o,$(wildcard Math/*.cpp))
 
 TOOLS = $(patsubst %.cpp,%.o,$(wildcard Tools/*.cpp))
 
+TOOLS_PSI = $(patsubst %.cpp,%.o,$(wildcard Tools_PSI/*.cpp))
+
 NETWORK = $(patsubst %.cpp,%.o,$(wildcard Networking/*.cpp))
 
 PROCESSOR = $(patsubst %.cpp,%.o,$(wildcard Processor/*.cpp)) 
@@ -214,6 +216,10 @@ tree-inference.x: Machines/tree-inference.cpp  $(MINI_OT) $(SHAREDLIB)
 	$(CXX) -o $@ $(CFLAGS) $^ $(LDLIBS)
 
 
+knn-party.x: Machines/knn-party.cpp  $(MINI_OT) $(SHAREDLIB) $(MATH)
+	$(CXX)  -o $@ $(CFLAGS) $^ $(LDLIBS)  $(SHAREDLIB)
+
+
 tree-inference.x:   Machines/tree-inference.cpp
 replicated-bin-party.x: GC/square64.o
 replicated-ring-party.x: GC/square64.o
@@ -228,10 +234,12 @@ tinier-party.x: $(OT)
 spdz2k-party.x: $(TINIER) $(patsubst %.cpp,%.o,$(wildcard Machines/SPDZ2*.cpp))
 static/spdz2k-party.x: $(patsubst %.cpp,%.o,$(wildcard Machines/SPDZ2*.cpp))
 semi-party.x: $(OT)  $(GC_SEMI)
-semi2k-party.x: CFLAGS+=-DENABLE_SIMPLEINDEX
-semi2k-party.x: $(OT) $(GC_SEMI)
+semi2k-party.x: CFLAGS += -D ENABLE_PSI=true
+semi2k-party.x: $(TOOLS_PSI) $(OT) $(GC_SEMI)
 semi2k-with-conversion-party.x: $(OT) $(GC_SEMI)
-sml-party.x: $(OT) $(GC_SEMI) 
+sml-party.x:  CFLAGS += -D ENABLE_PSI=true
+sml-party.x: $(TOOLS_PSI) $(OT) $(GC_SEMI) 
+vss-field-party.x: $(OT) $(GC_SEMI)
 vss-party.x: $(OT) $(GC_SEMI)
 fss-ring-party.x: GC/square64.o
 hemi-party.x: $(FHEOFFLINE) $(GC_SEMI) $(OT)
@@ -388,5 +396,8 @@ deps/simde/simde:
 	git submodule update --init deps/simde || git clone https://github.com/simd-everywhere/simde deps/simde
 
 
-clean:
+clean-deps:
+	-rm -rf local/lib/liblibOTe.* deps/libOTe/out deps/SimplestOT_C
+
+clean: clean-deps
 	-rm -f */*.o *.o */*.d *.d *.x core.* *.a gmon.out */*/*.o static/*.x *.so

@@ -139,11 +139,18 @@ Compiler/DL/data/*
 Compiler/DL/AvgFeature-All/*
 Compiler/DL/checkpoint/*
 
-#GFA temp
+# GFA temp file
 Compiler/GFA/*.json
 *.json
 
 *.dSYM
+*.onnx
+
+#GarnetUI
+GarnetUI/ui/db.sqlite3 
+GarnetUI/ui/Model/migrations
+GarnetUI/.venv/*
+GarnetUI/ui/uploads/data
 
 #GarnetUI loaddata
 !GarnetUI/ui/mpc.json
@@ -153,3 +160,20 @@ Compiler/GFA/*.json
 !GarnetUI/Vue3-garnet-ui/.prettierrc.json
 !GarnetUI/Vue3-garnet-ui/package-lock.json
 !GarnetUI/Vue3-garnet-ui/package.json
+
+#GarnetUI Input Output
+Input/*
+!Input/.gitkeep
+Output/*
+!Output/.gitkeep
+
+# graph optimize temp dir
+MPLTS/build
+MPLTS/python/build
+MPLTS/python/dist
+MPLTS/python/taso.egg-info
+MPLTS/python/taso/_cython/core.cpp
+!MPLTS/CMakeLists.txt
+!MPLTS/requirements.txt
+ts.data
+ts.log

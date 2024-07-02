@@ -1,9 +1,9 @@
-import tensor as TS
+import Compiler.tensor as TS
 import warnings
 import functools
 from collections import OrderedDict, namedtuple
 from typing import Union, Tuple, Any, Callable, Iterable,Iterator, Set, Optional, overload, TypeVar, Mapping, Dict, List
-from tensor import Tensor
+from Compiler.tensor import Tensor
 import math
 import re
 from itertools import islice, repeat, chain
@@ -87,6 +87,7 @@ class Parameter(Tensor):
         
         self.shape = data.shape
         TS.tensors[self.name] = self
+        self.subTensor = data.subTensor
         self.set_req_grad(True)
         
     # def __new__(cls, data=None, requires_grad=True):
@@ -114,6 +115,7 @@ class Module():
         self._non_persistent_buffers_set: Set[str] = set()
         self.main = False
         self.prepare = False
+        
 
     def register_buffer(self, name: str, tensor: Optional[Tensor], persistent: bool = True) -> None:
         r"""Adds a buffer to the module.
@@ -816,9 +818,12 @@ class Module():
             return result
         if self.main:
             TS.reset_op_id()
+        print("forward: ", self.forward)
+        print("args: ", args, kwargs)
         forward_call = self.forward
         break_point()
         result = forward_call(*args, **kwargs)
+        print("output: ", result)
         break_point()
 
         return result
@@ -1181,9 +1186,10 @@ class ModuleList(Module):
 
 class Linear(Module):
     def __init__(self, in_features: int, out_features: int, bias: bool = True,
-                 device=None, dtype=None) -> None:
+                 device=None, dtype=None, dp=False) -> None:
         self.in_features = in_features
         self.out_features = out_features
+        self.dp = dp
         super().__init__()
         self.weight = Parameter(Tensor([out_features, in_features]))
         if bias:
@@ -1194,6 +1200,8 @@ class Linear(Module):
     
         
     def forward(self, x):
+        if self.dp:
+            return F.dplinear(x, self.weight, self.bias)
         return F.linear(x, self.weight, self.bias)
     
     def extra_repr(self) -> str:
@@ -1376,9 +1384,9 @@ class Conv2d(_ConvNd):
 
     def __init__(
         self,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: int,
+        in_channels: int = 2,
+        out_channels: int = 2,
+        kernel_size: int = 2,
         stride: int = 1,
         padding: Union[str, int] = 0,
         dilation: int = 1,
@@ -1405,7 +1413,12 @@ class Conv2d(_ConvNd):
         return F.conv2d(input, weight, bias, self.stride,
                         self.padding, groups = self.groups)
     
-    def forward(self, input: Tensor) -> Tensor:
+    def forward(self, input: Tensor, weight: Optional[Tensor] = None) -> Tensor:
+        if weight is not None:
+            print(self.in_channels, self.out_channels, input.shape, weight.shape)
+            self.in_channels = weight.shape[0]
+            self.out_channels = weight.shape[1]
+            return self._conv_forward(input, weight, self.bias)
         return self._conv_forward(input, self.weight, self.bias)
 
 class _NormBase(Module):

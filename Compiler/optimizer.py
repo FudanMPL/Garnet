@@ -1,8 +1,8 @@
 import warnings
 from typing import Any, Callable, Dict, List, Tuple
 from collections import OrderedDict, defaultdict, abc as container_abcs
-from tensor import *
-import tensor as TS
+from Compiler.tensor import *
+import Compiler.tensor as TS
 from copy import deepcopy
 from itertools import chain
 class _RequiredParameter:
@@ -813,3 +813,297 @@ def _multi_tensor_adam(params: List[Tensor],
                        capturable: bool,
                        differentiable: bool):
     pass
+
+
+class DPSGD(Optimizer):
+    # 将所有优化参数的值作为默认值传递给父类的defaults
+    def __init__(self, params, sigma=1, grad_clip_bound=3, epsilon=2, delta=0, iterations=required, lr=required, momentum=0, dampening=0,
+                 weight_decay=0, nesterov=False, *, maximize: bool = False, foreach: Optional[bool] = None,
+                 differentiable: bool = False):
+        if lr is not required and lr < 0.0:
+            raise ValueError("Invalid learning rate: {}".format(lr))
+        if momentum < 0.0:
+            raise ValueError("Invalid momentum value: {}".format(momentum))
+        if weight_decay < 0.0:
+            raise ValueError("Invalid weight_decay value: {}".format(weight_decay))
+        
+        defaults = dict(lr=lr, momentum=momentum, dampening=dampening,
+                weight_decay=weight_decay, nesterov=nesterov,
+                maximize=maximize, foreach=foreach,
+                differentiable=differentiable, sigma=sigma, grad_clip_bound=grad_clip_bound, epsilon=epsilon, delta=delta, iterations=iterations)
+        if nesterov and (momentum <= 0 or dampening != 0):
+            raise ValueError("Nesterov momentum requires a momentum and zero dampening")
+        super().__init__(params, defaults)
+        if momentum != 0:
+            for group in self.param_groups:
+                self.init_momentum(group)
+        self.iter = regint(0)
+        
+    def __setstate__(self, state):
+        super().__setstate__(state)
+        for group in self.param_groups:
+            group.setdefault('nesterov', False)
+            group.setdefault('maximize', False)
+            group.setdefault('differentiable', False)
+
+    def init_momentum(self, group):
+        for p in group['params']:
+            if p.grad is not None:
+                state = self.state[p]
+                buf = p.grad.same_shape()
+                buf.assign_all(0)
+                state['momentum_buffer'] = buf
+                
+                
+    def _init_group(self, group, params_with_grad, d_p_list, momentum_buffer_list):
+        has_sparse_grad = False
+        for p in group['params']:
+            if p.grad is not None:
+                params_with_grad.append(p)
+                d_p_list.append(p.grad)
+                # print(p)
+                # print(p.grad)
+
+                state = self.state[p]
+                if group['momentum'] !=0:
+                    if 'momentum_buffer' not in state:
+                        raise CompilerError("momentum should be inited")
+                    else:
+                        momentum_buffer_list.append(state['momentum_buffer'])
+
+        return has_sparse_grad
+    @buildingblock("dpsgd")
+    def step(self, closure=None):
+        """Performs a single optimization step.
+
+        Args:
+            closure (Callable, optional): A closure that reevaluates the model
+                and returns the loss.
+        """
+        loss = None
+        # if closure is not None:
+        #     with torch.enable_grad():
+        #         loss = closure()
+
+        for group in self.param_groups:
+            params_with_grad = [] # 存放具有梯度的模型参数
+            d_p_list = [] # 存放梯度
+            momentum_buffer_list = [] # 存放动量值b
+
+            has_sparse_grad = self._init_group(group, params_with_grad, d_p_list, momentum_buffer_list)
+
+            dpsgd(params_with_grad,
+                d_p_list,
+                momentum_buffer_list,
+                iter=self.iter,
+                weight_decay=group['weight_decay'],
+                momentum=group['momentum'],
+                lr=group['lr'],
+                dampening=group['dampening'],
+                nesterov=group['nesterov'],
+                maximize=group['maximize'],
+                sigma=group['sigma'],
+                grad_clip_bound=group['grad_clip_bound'],
+                epsilon=group['epsilon'],
+                delta=group['delta'],
+                iterations=group['iterations'],
+                has_sparse_grad=has_sparse_grad,
+                foreach=group['foreach'],)
+
+            # update momentum_buffers in state
+            for p, momentum_buffer in zip(params_with_grad, momentum_buffer_list):
+                state = self.state[p]
+                state['momentum_buffer'] = momentum_buffer
+
+        return loss
+    
+def dpsgd(params: List[Tensor],
+        d_p_list: List[Tensor],
+        momentum_buffer_list: List[Optional[Tensor]],
+        iter: int,
+        # kwonly args with defaults are not supported by functions compiled with torchscript issue #70627
+        # setting this as kwarg for now as functional API is compiled by torch/distributed/optim
+        has_sparse_grad: bool = None,
+        foreach: Optional[bool] = None,
+        *,
+        weight_decay: float,
+        momentum: float,
+        lr: float,
+        dampening: float,
+        nesterov: bool,
+        maximize: bool,
+        sigma: float,
+        grad_clip_bound: float,
+        epsilon: float,
+        delta: float,
+        iterations: int):
+    r"""Functional API that performs DPSGD algorithm computation.
+
+    
+    """
+
+    # if foreach is None:
+    #     # why must we be explicit about an if statement for torch.jit.is_scripting here?
+    #     _, foreach = _default_to_fused_or_foreach(params, differentiable=False, use_fused=False)
+
+
+    if foreach:
+        func = _multi_tensor_dpsgd
+    else:
+        func = _single_tensor_dpsgd
+
+    func(params,
+         d_p_list,
+         momentum_buffer_list,
+         iter = iter,
+         weight_decay=weight_decay,
+         momentum=momentum,
+         lr=lr,
+         dampening=dampening,
+         nesterov=nesterov,
+         has_sparse_grad=has_sparse_grad,
+         maximize=maximize,
+         sigma=sigma,
+         grad_clip_bound=grad_clip_bound,
+         epsilon=epsilon,
+         delta=delta,
+         iterations=iterations)
+
+def _single_tensor_dpsgd(params: List[Tensor],
+                       d_p_list: List[MultiArray],
+                       momentum_buffer_list: List[Optional[MultiArray]],
+                       iter,
+                       *,
+                       weight_decay: float,
+                       momentum: float,
+                       lr: float,
+                       dampening: float,
+                       nesterov: bool,
+                       maximize: bool,
+                       has_sparse_grad: bool,
+                       sigma: float,
+                       grad_clip_bound: float,
+                       epsilon: float,
+                       delta: float,
+                       iterations: int):
+    for i, param in enumerate(params):
+        d_p = d_p_list[i] if not maximize else -d_p_list[i]
+
+
+        if weight_decay != 0:
+            # d_p = d_p.add(param, alpha=weight_decay)
+            @for_range(d_p.sizes[0])
+            def _(i):
+                d_p[i][:] = d_p[i][:] + param.value[:] * weight_decay
+
+        if momentum != 0:
+            buf = momentum_buffer_list[i]
+            @if_e(iter == 0)
+            def _():
+                buf[:] = d_p[:]
+            @else_
+            def _():
+                buf[:] = buf[:] * momentum + d_p[:] * (1 - dampening)
+            if nesterov:
+                # d_p = d_p.add(buf, alpha=momentum)
+                d_p[:] = d_p[:] + buf[:] * momentum
+            else:
+                d_p[:] = buf[:]
+
+        # clip gradient
+        d_p_dot = Array(d_p.sizes[0], sfix)
+        d_p_dot.assign_all(0)
+        d_p_invnorm = Array(d_p.sizes[0], sfix)
+        d_p_invnorm.assign_all(0)
+        is_clip = Array(d_p.sizes[0], sint)
+        is_clip.assign_all(0)
+        d_p_clipped = MultiArray(d_p.sizes, sfix)
+        d_p_clipped.assign_all(0)
+        @for_range(d_p.sizes[0])
+        def _(i):
+            stride = d_p.total_size() // d_p.sizes[0]
+            @for_range(stride)
+            def _(j):
+                v = d_p.get_vector(i * stride + j, 1)
+                d_p_dot[i] += v[0] * v[0]
+        # d_p_invnorm = d_p_dot.invsqrt()
+        @multithread(1, d_p_invnorm.total_size())
+        def _(base, size):
+            d_p_invnorm.assign_vector(mpc_math.InvertSqrt(d_p_dot.get_vector(base, size)+1e-12) , base)
+        @for_range(d_p.sizes[0])
+        def _(i):
+            is_clip[i] = d_p_invnorm[i] * grad_clip_bound < 1
+            d_p_clipped[i][:] = d_p[i][:] * (d_p_invnorm[i] * grad_clip_bound)
+            d_p[i][:] = d_p[i][:] * (1 - is_clip[i]) + d_p_clipped[i][:] * is_clip[i]
+        
+        # add noise
+        # if sigma < grad_clip_bound * math.sqrt(iterations * math.log(1 / delta)) / epsilon:
+        #     raise ValueError("Invalid sigma")
+        # d_p[:] = d_p[:] + torch.normal(mean=0.0, std=sigma, size=d_p[:].shape)
+        file_count_path = os.path.join(os.path.dirname(__file__), "../Utils/gauss_test/file_count.txt")
+        try:
+            with open(file_count_path, 'r') as f:
+                num_files = int(f.read().strip())
+            print(f"Number of files generated: {num_files}")
+        except FileNotFoundError:
+            print(f"File {file_count_path} not found")
+        except ValueError:
+            print("File count is not an integer")
+        
+        total_noise = MultiArray(d_p.sizes, sfix)
+        total_noise.assign_all(0)
+        for i in range(1, num_files + 1):
+            file_path = os.path.join(os.path.dirname(__file__), f"../Utils/gauss_test/data{i}.txt")
+            with open(file_path, 'r') as file:
+                noise = MultiArray(d_p.sizes, sfix)
+                for j in range(d_p.total_size()):
+                    line = eval(file.readline())
+                    noise.assign_vector(line, j)
+                noise = total_noise + noise
+        # file_path1 = os.path.join(os.path.dirname(__file__), "../Utils/gauss_test/data1.txt")
+        # file_path2 = os.path.join(os.path.dirname(__file__), "../Utils/gauss_test/data2.txt")
+        # file1 = open(file_path1, 'r')
+        # file2 = open(file_path2, 'r')
+        # noise1 = MultiArray(d_p.sizes, sfix)
+        # noise2 = MultiArray(d_p.sizes, sfix)
+        # for i in range(d_p.total_size()):
+        #     line1 = eval(file1.readline())
+        #     line2 = eval(file2.readline())
+        #     noise1.assign_vector(line1, i)
+        #     noise2.assign_vector(line2, i)
+        # noise = noise1 + noise2
+        d_p = d_p + noise
+        
+        # test
+        if len(d_p.sizes) == 2:
+            new_d_p = Array(d_p.sizes[1], value_type=d_p.value_type)
+        else:
+            new_d_p = MultiArray([d_p.sizes[i] for i in range(1, len(d_p.sizes))], value_type=d_p.value_type)
+        new_d_p.assign_all(0)
+        @for_range(d_p.sizes[0])
+        def _(i):
+            new_d_p[:] += d_p[i][:]
+        new_d_p[:] /= d_p.sizes[0]
+        param.value[:] = param.value[:] -  new_d_p[:] * lr
+        break_point()
+
+    iter.update(iter + 1)
+
+def _multi_tensor_dpsgd(params: List[Tensor],
+                      grads: List[MultiArray],
+                      momentum_buffer_list: List[Optional[MultiArray]],
+                      *,
+                      weight_decay: float,
+                      momentum: float,
+                      lr: float,
+                      dampening: float,
+                      nesterov: bool,
+                      maximize: bool,
+                      has_sparse_grad: bool,
+                      sigma: float,
+                      grad_clip_bound: float,
+                      epsilon: float,
+                      delta: float,
+                      iterations: int):
+
+    raise NotImplementedError
