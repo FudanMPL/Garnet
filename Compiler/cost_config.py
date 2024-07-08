@@ -86,7 +86,13 @@ class Cost(object):
     def set_precision(self, precision):
         Cost.f = precision
         Cost.subcls.update_cost()
-
+    @classmethod
+    def set_bit_length(self, bit_length, program):
+        if program.options.ring:
+            Cost.bit_length = bit_length+1
+        else:
+            Cost.bit_length = bit_length
+        Cost.subcls.update_cost()
     cost_dict_constasnt_func = {
         "triple":lambda bit_length, kappa_s ,kapaa, precision, n_parties: (0, 0, bit_length * (bit_length+kapaa), 1), # currently, only for two party
         "sedabit": lambda bit_length,  kappa_s ,kapaa, precision, n_parties, len: (0, 0, 0, 0),

@@ -492,10 +492,6 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0], 
 
         stride_h, stride_w = stride
         padding_h, padding_w = padding
-        print("padding:",padding)
-        print("conv backward")
-        print(input.shape)
-        print(weight.shape)
         n_threads=8 if input.numel() > 2**20 else 1
         if weight.req_grad:
             batch=Array.create_from(regint.inc(N))
@@ -616,8 +612,6 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0], 
     if prepare:
         if isinstance(input, tuple):
             input, weight = input
-        print("conv_in_size: ", input.shape)
-        print("conv_w_size: ", weight.shape)
         assert isinstance(input, Tensor) and isinstance(weight, Tensor) ,"Invalid Input and weight"
         assert len(input.shape)==4 and len(weight.shape)==4,"Invalid Dimension input and weight"
         out_shape=[input.shape[0],weight.shape[0],(input.shape[2]+2*padding[0]-weight.shape[2])//stride[0]+1,
@@ -640,8 +634,6 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0], 
         _, _,weights_h, weights_w= weight.shape
         N,  n_channels_in,inputs_h, inputs_w = input.shape
         _,  n_channels_out,output_h, output_w = output.shape #B C H W
-        print("conv-forward")
-        print(output.shape)
         input.value.view(N, groups, int(n_channels_in/groups), inputs_h, inputs_w) # N G C/G H W
         input_value = MultiArray([groups, N, inputs_h, inputs_w, int(n_channels_in/groups)], input.value.value_type) # G B H W C/G
         input.value.permute_without_malloc(input_value, [1,0,3,4,2]) # # G B H W C/G
@@ -665,8 +657,6 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0], 
             inputs = input_value.get_vector(i*size_,size_).v # B H W C/G
             weights = weight_value.get_part_vector(i*int(n_channels_out/groups)+j).v # N WH WW C/G
             res = sint(size = output_h * output_w * part_size) # B, OUT_W, OUT_H
-            print(n_channels_in, n_channels_out, groups, weight_value.sizes)
-            print(weight_value.sizes[1:], weights_h, weights_w, n_channels_in_group)
             conv2ds(res, inputs, weights, output_h, output_w,
                     inputs_h, inputs_w, weights_h, weights_w,
                     stride_h, stride_w, n_channels_in_group, padding_h, padding_w,
@@ -1045,7 +1035,7 @@ def avg_pool2d(input, kernel_size, stride=None, padding=0,):
         Y_sizes =[N,output_h, output_w,n_channels_out]  
         X_sizes =[N,inputs_h, inputs_w,n_channels_in]
         
-        print("needpad:", strides, Y_sizes, ksize, X_sizes)
+        # print("needpad:", strides, Y_sizes, ksize, X_sizes)
         # needpad: (1, 1) [1, 35, 35, 192] (3, 3) [1, 35, 35, 192]
         need_padding = [strides[i] * (Y_sizes[i] - 1) + ksize[i] >
                         X_sizes[i] for i in range(4)]
@@ -1529,9 +1519,7 @@ def gelu(input, approximate='tanh'):
 def cat(tensors, dim=0, out=None):
     assert out is None
     out = tensors[0]
-    print('concat shape:')
     for i in range(1, len(tensors)):
-        print(tensors[i].shape)
         out = out.concat(tensors[i], dim=dim)
     return out
 
