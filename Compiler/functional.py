@@ -1195,7 +1195,11 @@ def batch_norm(input, running_mean, running_var, running_std = None, weight=None
         x_var = running_var    
     x_var = x_var + eps # todo
     if  training or running_std is None:
-        output = (input - x_mean) * x_var.invsqrt() #9s 5s 4s
+        if running_std is not None:
+            running_std = x_var.invsqrt()
+            output = (input - x_mean) * running_std #9s 5s 4s
+        else:
+             output = (input - x_mean) * x_var.invsqrt()
     else:
         output = (input - x_mean) * running_std #9s 5s 4s
     # output = (input - x_mean) / x_var
