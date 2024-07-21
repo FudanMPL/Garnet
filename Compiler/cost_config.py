@@ -170,6 +170,7 @@ def cryptflow2_search(l,kappa):
     for i in range(1, 10):
         res = min(res, cryptflow2_cost(l, i, kappa))  
     return res 
+
 class CryptoFlow2(Cost):
     cost_dict_func = {
         "share": lambda bit_length,  kappa_s ,kapaa, precision, n_parties: (0, 0, 0, 0),
@@ -222,9 +223,3 @@ protocol_store = {
 
 def get_cost_config(name):
     return protocol_store[name]
-
-
-
-if __name__ == "__main__":
-    print(128*59+4*59)
-    print(cryptflow2_cost(32, 7, 128))

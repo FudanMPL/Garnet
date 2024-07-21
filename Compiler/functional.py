@@ -985,7 +985,7 @@ def avg_pool2d(input, kernel_size, stride=None, padding=0,):
         assert len(input.shape)==4,"Invalid Dimension input"
 
         if padding == 'SAME':
-            output_shape = [int(math.ceil(input.shape[i] / strides[i])) for i in range(4)]
+            output_shape = [int(math.ceil(input.shape[i] / stride[i])) for i in range(4)]
             padding = [0, 0]
         else:
             if padding == 'VALID':
@@ -993,8 +993,8 @@ def avg_pool2d(input, kernel_size, stride=None, padding=0,):
             if isinstance(padding, int):
                 padding = [padding, padding]
             output_shape = [input.shape[0],input.shape[1]] + [
-                (input.shape[2] + 2 * padding[0] - kernel_size[0]) //stride [0] + 1,
-                (input.shape[3] + 2 * padding[1] - kernel_size[1]) //stride [1] + 1] 
+                (input.shape[2] + 2 * padding[0] - kernel_size[0]) //stride [1] + 1,
+                (input.shape[3] + 2 * padding[1] - kernel_size[1]) //stride [2] + 1] 
              #out_shape.size:[Batch_size,H_out,W_out,out_channel]
              
         new_value=MultiArray(output_shape,input.value.value_type)

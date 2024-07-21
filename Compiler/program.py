@@ -201,7 +201,15 @@ class Program(object):
         types.program = self
         comparison.program = self
         comparison.set_variant(options)
+    
+    def set_protocol(self, protocol):
+        self.protocol = protocol
+        self.cost_config = get_cost_config(self.protocol)
+        self.cost_config.init(self)
+
         
+        
+    
     def get_cost(self, name):
         return self.cost_config.get_cost(name)
         
@@ -836,7 +844,7 @@ class Tape:
         def expand_cisc(self):
             new_instructions = []
             if self.parent.program.options.keep_cisc is not None:
-                skip = [ "Trunc", "LTZ","MTS"]
+                skip = [ "Trunc", "MTS"]
                 skip += self.parent.program.options.keep_cisc.split(",")
             else:
                 skip = []
@@ -979,7 +987,6 @@ class Tape:
                     ]
         if not (options.merge_opens and self.merge_opens):
             print("Not merging instructions in tape %s" % self.name)
-
         if options.cisc:
             self.expand_cisc()
 

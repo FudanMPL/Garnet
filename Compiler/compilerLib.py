@@ -4,8 +4,7 @@ import re
 import sys
 import tempfile
 import json
-from optparse import OptionParser
-
+from optparse import OptionParser, Values
 
 
 from Compiler.exceptions import CompilerError
@@ -15,7 +14,7 @@ from .program import Program, defaults
 
 
 class Compiler:
-    def __init__(self, custom_args=None, usage=None):
+    def __init__(self, custom_args=None, usage=None, parse_input = True):
         if usage:
             self.usage = usage
         else:
@@ -23,6 +22,7 @@ class Compiler:
         self.custom_args = custom_args
         self.build_option_parser()
         self.VARS = {}
+        self.parse_input =parse_input
 
     def build_option_parser(self):
         parser = OptionParser(usage=self.usage)
@@ -314,7 +314,13 @@ class Compiler:
                 del self.VARS[i]
 
     def prep_compile(self, name=None):
-        self.parse_args()
+        if self.parse_input:
+            self.parse_args()
+            print(self.options)
+            print(self.args)
+        else:
+            self.options = Values(self.parser.defaults)
+            self.args = []
         if len(self.args) < 1 and name is None:
             self.parser.print_help()
             exit(1)
