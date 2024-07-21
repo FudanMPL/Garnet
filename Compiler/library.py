@@ -2127,6 +2127,11 @@ def ss_psi_merge(*tables):
         final_table.set_column(i, perm.apply(final_table.get_column(i)).get_vector())
     return final_table, sum(in_intersection)
 
+def debug_point():
+    """
+    Insert debug point for debug with ide
+    """
+    return
 
 def ss_psu(*tables):
     num = 0

@@ -1,3 +1,4 @@
+
 @buildingblock("test")
 def test(actual, expected):
 
@@ -5,7 +6,6 @@ def test(actual, expected):
 
     actual = actual.reveal()
     print_ln('expected %s, got %s', expected, actual)
-
 
 
 a = sint(1)

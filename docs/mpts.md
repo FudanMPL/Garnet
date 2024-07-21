@@ -1,6 +1,10 @@
 # 计算图优化模块
 
-MPTS计算图优化模块是[TASO](https://github.com/jiazhihao/TASO)在MPL框架中的拓展，以通信量和通信轮次为优化目标优化输入的计算图，在不影响计算结果的条件下进行模型结构的等价变换。
+MPTS计算图优化模块是[TASO](https://github.com/jiazhihao/TASO)在MPL框架中的拓展，以通信量和通信轮次为优化目标优化输入的计算图，在不影响计算结果的条件下优化输入的模型结构。
+
+## 功能介绍
+
+《TASO: The Tensor Algebra SuperOptimizer for Deep Learning》是Zhihao Jia等发表于SOSP 2019上的文章，使用自动生成的子图转换规则来搜索与原始DNN模型等价的潜在搜索空间中的计算图。转换规则由一组等价的源图和目标图组成，两者均为DNN算子连接成的1-3层深度的有向无环图，计算图优化通过迭代地匹配并应用转换规则可发现更大的搜索空间。MPTS计算图优化模块继承了TASO中的134条优化规则，拓展了基于通信量和通信轮次的开销模型，并实现了考虑通信成本和浮点数计算次数的搜索减枝算法，提高了其搜索的收敛速度。
 
 ## 环境配置
 
@@ -27,11 +31,18 @@ pip install -r MPLTS/requirements.txt
 
 
 ## 运行优化样例
-以resnet和nasnet的单个块为例优化模型结构。
+目前MPLTS支持了基本的卷积块和激活函数，以resnet18和resnet50的单个块为例优化模型结构。在实验中我们尝试SNL和Copriv论文中的两类线性化的卷积神经网络进行优化。
 ```
-python MPLTS/examples/resnet_block.py -R 64 -Q ABY3
-python MPLTS/examples/nasnet_block.py -R 64 -Q ABY3
+python MPLTS/examples/resnet18.py -R 64 -Q ABY3
+python MPLTS/examples/resnet50.py -R 64 -Q ABY3
 ```
+
+优化效率
+| 模型    | 通信量优化 | 通信轮次优化 | 总通信量优化 | 总通信轮次优化 |
+| --------- | ------ | -------- | -------- | ---------- |
+| ResNet-18 | 1.744x | 1.013x   | 1.295x   | 1.080x     |
+| ResNet-50 | 1.337x | 1.011x   | 1.107x   | 1.497x     |
+
 
 ## 使用优化模型推理
 首先模型载入Garnet框架。

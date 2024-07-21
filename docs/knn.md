@@ -1,13 +1,20 @@
-##  两方隐私保护KNN算法
+##  安全高效的两方KNN协议
 
-**模型介绍**:两方半诚实场景，Client-Server架构下的基于秘密共享技术的KNN（K-Nearest Neighbor）算法。
+**模型介绍**:两方半诚实场景，Client-Server架构下的基于秘密共享技术的KNN（K-Nearest Neighbor）算法。  
+**通信优化方法**：  
+1. 双方场景下欧几里得距离通信优化。根据平方乘的运算特点设计一个新的离线三元组，使得欧几里得距离计算在在线阶段的通信量和通信轮次降低为零。
+2. top-k 协议的通信轮次优化。基于分治排序的思想设计出一个高效的 top-k 协议。相比于最新的 top-k 协议[SecKNN,TIFs'24](https://ieeexplore.ieee.org/document/10339363/footnotes#footnotes)，可以在通信总量不变的情况下，将选择 k 个最小距离的通信轮次由 O(kn) 降低到 O(k log n)。
 
-利用Garnet系统接口，本文实现了一个两方下隐私保护的KNN算法。本文使用了固定的场景：参与方P0拥有训练数据集**D**，参与方P1拥有多个无标签的特征向量**Q**，P0和P1共同在数据集**D**中运行隐私保护的KNN算法来获得**Q**中每一条数据的分类结果。可以保证参与方P1无法获取到除了预测结果之外的其他信息，参与方P0无法获取到包括预测结果在内的任何信息。所有运算默认在环上进行。
 
-本文针对两方基于加法秘密共享技术的隐私保护KNN算法实现，给出了两种实现方案，分别为 论文[SecKNN,2024‘TIFs](https://ieeexplore.ieee.org/document/10339363/footnotes#footnotes)
+利用Garnet系统接口，本文实现了一个两方下隐私保护的KNN协议。本文使用了固定的场景：参与方P0拥有训练数据集**D**，参与方P1拥有多个无标签的特征向量**Q**，P0和P1共同在数据集**D**中运行隐私保护的KNN协议来获得**Q**中每一条数据的分类结果。可以保证参与方P1无法获取到除了预测结果之外的其他信息，参与方P0无法获取到包括预测结果在内的任何信息。所有运算默认在环上进行。
+
+本文针对两方基于加法秘密共享技术的隐私保护KNN算法实现，给出了两种实现方案，分别为 论文[SecKNN,TIFs'24](https://ieeexplore.ieee.org/document/10339363/footnotes#footnotes)
 的方案以及本文针对该论文的通信效率优化版本，优化方案在当前的数据集测试中均取得了符合实验预期的实验结果。
+
 ### 输入文件格式规范
+
 下面针对Chronic KIdney Disease dataset 数据集进行举例子。首先进行数据预处理，将原始数据集归一化到[0,10]的整数范围内。按照70%划分为训练集，30%划分为测试集。然后需要在/Player-Data目录下创建一个Knn-Data目录，针对当前数据集创建chronic-data目录。随后在该目录下面按照要求分别创建如下文件，并指定文件内容。
+
 #### /Player-Data/Knn-Data/chronic-data/Knn-meta：
 ```markdown
 24 280 120
@@ -53,7 +60,7 @@
 0
 ...
 ```
-该文件为参与方P1的输入测试集文件对应的标签，用于测试算法的准确率。文件数据维度为120 x 1。维度数分别与Knn-meta文件数值对应。
+该文件为参与方P1的输入测试集文件对应的标签，用于测试协议的准确率。文件数据维度为120 x 1。维度数分别与Knn-meta文件数值对应。
 
 
 **注：**
@@ -103,7 +110,7 @@ call_evaluate_nums : 337440
 可以看到在优化版本中，大部分时间为本地运算开销，通信开销在被优化后，基本可以忽略。
 
 ### 指定参数以及运行方案
-（1）如果需要自己指定数据集，以及计算环大小，KNN算法中k值大小，需要在Machines/knn-party.cpp代码文件中进行修改，寻找如下代码段进行修改：
+（1）如果需要自己指定数据集，以及计算环大小，KNN协议中k值大小，需要在Machines/knn-party.cpp代码文件中进行修改，寻找如下代码段进行修改：
 ```markdown
 const int K=64;//环大小
 const int k_const=5;//knn里面的k值 
@@ -116,7 +123,7 @@ string dataset_name="chronic";//数据集名称，自动用于后续的文件名
 随后，按照前面**代码运行流程**章节，从（3）开始运行即可。
 
 
-（2）如果需要指定运行论文[SecKNN,2024‘TIFs](https://ieeexplore.ieee.org/document/10339363/footnotes#footnotes)
+（2）如果需要指定运行论文[SecKNN,TIFs'24](https://ieeexplore.ieee.org/document/10339363/footnotes#footnotes)
 的实现方案，只需要在Machines/knn-party.cpp代码文件的main函数中修改为如下代码：
 ```markdown
 int main(int argc, const char** argv)
@@ -140,3 +147,23 @@ Party Data sent = 18.4646 MB
 call_evaluate_nums : 337440
 在Evaluation函数中 Total elapsed time: 75.653 seconds
 ```
+
+### 实验结果
+**实验环境**：WAN环境，20ms时延，5Mbps带宽，2.4 GHz Intel Xeon CPU。  
+**实验结果**：下面是针对两个主流数据集的实验运行结果以及比较，n为数据条数，d为每条数据的特征维度数。
+
+**Chronic Kidney Disease dataset训练集数据**： n=280, d=24, 参数 k 设置为 5, 针对一条数据的查询:
+
+|                   | SecKNN    | Our Scheme | Improvement  |
+|-------------------|-----------|------------|--------------|
+| Total online Rounds | 2793      | 112        | 24x          |
+| Data sent(MB)       | 0.153872  | 0.100      | 1.5x         |
+| total time(seconds) | 1.425     | 0.87       | 1.637x       |
+
+**MNIST 训练集数据**： n=60000, d=784, 参数 k 设置为 5（明文下测试 k=1 时准确率最高，这里为了对齐 k，所以设置为 5）, 针对一条数据的查询:
+
+|                   | SecKNN    | Our Scheme | Improvement  |
+|-------------------|-----------|------------|--------------|
+| Total online Rounds | 600089    | 269        | 2230x        |
+| Data sent(MB)       | 397.921   | 21.6012    | 22x          |
+| total time(seconds) | 12866.5   | 212.242    | 60x          |
