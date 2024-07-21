@@ -12,7 +12,7 @@
 
 ### 源码下载
 ```
-git clone git@github.com:FudanMPL/Garnet.git
+git clone https://github.com/FudanMPL/Garnet.git
 ```
 
 ### 外部库准备
@@ -41,7 +41,7 @@ make -j 8 tldr
 
 ### 源码下载
 ```
-git clone git@github.com:FudanMPL/Garnet.git
+git clone https://github.com/FudanMPL/Garnet.git
 ```
 
 ### 创建镜像和容器
