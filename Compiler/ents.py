@@ -413,7 +413,7 @@ def TreeTraining(x, y, h, binary=False):
 
 def output_tree(layers):
     """ Print decision tree output by :py:class:`TreeTrainer`. """
-    print_ln('full model %s', util.reveal(layers))
+    # print_ln('full model %s', util.reveal(layers))
     for i, layer in enumerate(layers[:-1]):
         print_ln('level %s:', i)
         for j, x in enumerate(('NID', 'AID', 'Thr')):
@@ -433,32 +433,6 @@ def pick(bits, x):
             return sum(aa * bb for aa, bb in zip(bits, x))
 
 
-def run_poplar(layers, data):
-    """ Run decision tree against sample data.
-
-    :param layers: tree output by :py:class:`TreeTrainer`
-    :param data: sample data (:py:class:`~Compiler.types.Array`)
-    :returns: binary label
-
-    """
-    h = len(layers) - 1
-    index = 0
-    for k, layer in enumerate(layers[:-1]):
-        assert len(layer) == 3
-        for x in layer:
-            assert len(x) <= 2 ** k
-        bits = layer[0].equal(index)
-        threshold = pick(bits, layer[2])
-        key_index = pick(bits, layer[1])
-        if key_index.is_clear:
-            key = data[key_index]
-        else:
-            key = pick(
-                oram.demux(key_index.bit_decompose(util.log2(len(data)))), data)
-        child = 2 * key > threshold
-        index += child * 2 ** k
-    bits = layers[h][0].equal(index)
-    return pick(bits, layers[h][1])
 
 
 # def test_poplar(name, layers, y, x, n_threads=None):

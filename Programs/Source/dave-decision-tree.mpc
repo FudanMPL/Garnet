@@ -1,0 +1,48 @@
+import ents, util
+
+ents.n_threads = 4
+ents.tree_h = 4
+
+
+
+party_number = int(program.args[1])
+feature_number = int(program.args[2]) # feature number including label
+ents.tree_h = int(program.args[3]) # tree height
+ents.n_threads = int(program.args[4]) # tree height
+assert len(program.args) >= 5 + party_number
+sample_number_from_party = []
+for i in range(party_number):
+    sample_number_from_party.append(int(program.args[5+i]))
+
+
+if party_number > 3:
+    print("no support party number > 3")
+    exit(1)
+if party_number == 3:
+    program.use_split(3)
+    program.use_trunc_pr=True
+else:
+    program.use_split(2)
+
+
+label = sint.Array(sum(sample_number_from_party))
+feature = sfix.Matrix(feature_number -1 , sum(sample_number_from_party))
+
+count = 0
+for k in range(party_number):    
+    for i in range(count, count + sample_number_from_party[k]):
+        for j in range(0, feature_number-1):
+            feature[j][i] = sfix.get_input_from(k)
+        label[i] = sint.get_input_from(k)
+    count = count + sample_number_from_party[k]
+
+
+trainer = ents.TreeTrainer(
+   feature, label, ents.tree_h, attr_lengths=None,
+   n_threads=ents.n_threads)
+
+layers = trainer.train()
+
+print_ln("==============tree structure================")
+ents.output_tree(layers)
+print_ln("============================================")

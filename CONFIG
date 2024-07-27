@@ -1,4 +1,4 @@
-
+MOD = -DRING_SIZE=32
 
 ROOT = .
 #OPTIM= -O3
