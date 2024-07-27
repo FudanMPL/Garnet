@@ -266,7 +266,8 @@ class Program(object):
             if prev and prev != ring_size:
                 raise CompilerError("cannot have different ring sizes")
         self.bit_length = ring_size - 1
-        self.cost_config.set_bit_length(self.bit_length, self)
+        if not self.cost_config is None:
+            self.cost_config.set_bit_length(self.bit_length, self)
         self.non_linear = Ring(ring_size)
         self.options.ring = str(ring_size)
 
