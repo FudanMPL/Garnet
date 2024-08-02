@@ -2085,7 +2085,7 @@ class Hardswish(Module):
 
     .. math::
         \text{Hardswish}(x) = \begin{cases}
-            0 & \text{if~} x \le -3, \\
+            0 & \text{if~} x \le -3, \\ 
             x & \text{if~} x \ge +3, \\
             x \cdot (x + 3) /6 & \text{otherwise}
         \end{cases}

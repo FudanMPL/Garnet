@@ -6,8 +6,10 @@ import Compiler.tensor as TS
 class DataLoader():
     def __init__(self, samples, labels, batch_size: Optional[int] = 1,
                  shuffle: Optional[bool] = None, drop_last: bool = False):
-        assert isinstance(samples, Array) or isinstance(samples, MultiArray) or isinstance(samples, Tensor)
-        assert isinstance(labels, Array) or isinstance(labels, MultiArray) or isinstance(labels, Tensor)
+        print(type(samples))
+        print(isinstance(samples, TS.Tensor))
+        assert isinstance(samples, Array) or isinstance(samples, MultiArray) or isinstance(samples, TS.Tensor)
+        assert isinstance(labels, Array) or isinstance(labels, MultiArray) or isinstance(labels, TS.Tensor)
         assert len(samples) == len(labels)
         
         self.size = len(samples)
