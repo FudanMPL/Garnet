@@ -957,7 +957,7 @@ from Compiler.types import *
 from Compiler.library import for_range
 import Compiler.dataloader as dataloader
 import Compiler.nn as nn
-from Compiler.Convert.model import ConvertModel
+from Compiler.onnxConverter.model import ConvertModel
 from Compiler.tensor import Tensor, reset_gloabal_store, reset_op_id
 import io
 import contextlib
@@ -967,15 +967,15 @@ working_directory = os.path.dirname(os.getcwd())
 ## piranha env
 # bandwidth = 1e9
 # ping_time = 0.2 * (1e-3)
-# # secureML LAN env
+# secureML LAN env
 # bandwidth = 1e9
 # ping_time = 0.17 * (1e-3)
-# secureML WAN env
+# # secureML WAN env
 bandwidth = 9 * 1e6
 ping_time = 0.72 * (1e-3)
 
-log_file = open('log', 'w')
-data_file = open('data', 'w')
+log_file = open('ts.log', 'w')
+data_file = open('ts.data', 'w')
 
 def profiling(graph, in_size, index):
     compiler = Compiler()
@@ -987,11 +987,6 @@ def profiling(graph, in_size, index):
         model = ConvertModel(onnx_model, fake_param=True)
         
         x = MultiArray(in_size, sfix)
-
-        @for_range(x.total_size())
-        def _(i):
-            x.assign_vector(sfix(i/10), i)
-
         input = Tensor(x, req_grad = True)
         model(input)
         
@@ -1009,10 +1004,10 @@ def profiling(graph, in_size, index):
     offcomm = int(re.search(r"(\d+) offline communication bits", result).group(1))
     return index, round, comm, offround, offcomm
     
-def MPCprofiling(subGraphs, in_size, fail_cost=1e9):
-    round_list = [-1] * len(subGraphs)
-    comm_list = [-1] * len(subGraphs)
-    delay_list = [-1] * len(subGraphs)
+def MPCprofiling(subGraphs, in_size, norm_rate=1):
+    # round_list = [-1] * len(subGraphs)
+    # comm_list = [-1] * len(subGraphs)
+    cost_list = [-1] * len(subGraphs)
     original_stdout = sys.stdout
     '''
     with ThreadPoolExecutor(max_workers=16) as executor:
@@ -1028,23 +1023,23 @@ def MPCprofiling(subGraphs, in_size, fail_cost=1e9):
     for i in tqdm(range(0, len(subGraphs)), leave=False):
         try:
             index,round,comm,offround,offcomm = profiling(subGraphs[i], in_size, i)
-            round_list[i] = round
-            comm_list[i] = comm
-            data_file.write('%d %d %d %d %f\n'%(round,comm,offround,offcomm, round * ping_time + comm / bandwidth))
-            if i%10==0:
-                data_file.flush()
+            round_total = round + offround
+            comm_total = comm + offcomm
+            lantency = round_total * ping_time + comm_total / bandwidth
+            cost = lantency / norm_rate
+            # round_list[i] = round
+            # comm_list[i] = comm
+            cost_list[i] = cost
+            data_file.write('%d %d %d %d %f\n'%(round,comm,round_total,comm_total,cost if norm_rate!=1 else 1))
+            data_file.flush()
         except Exception as e:
             log_file.write('############# '+str(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))+' ############\n')
             traceback_info = traceback.format_exc()
             log_file.write(str(traceback_info)+'\n')
     sys.stdout = original_stdout
-    print(round_list)
-    print(comm_list)
-    delay_list = [x * ping_time + y / bandwidth 
-                  if x!=-1 and y!=-1 else fail_cost 
-                  for x, y in zip(round_list, comm_list)]
-    print(delay_list)
-    return delay_list
+    # print(round_list)
+    # print(comm_list)
+    return cost_list
 
 def optimize(graph, input_size, alpha = 1.0, budget = 1000, inMPL = False, print_subst = False):
     if not inMPL:
@@ -1053,17 +1048,20 @@ def optimize(graph, input_size, alpha = 1.0, budget = 1000, inMPL = False, print
     in_size = list(input_size)
     
     graph.optimize_on_step(alpha, budget)
-    Cost_list = MPCprofiling([graph], in_size)
-    bestCost = Cost_list[0]
+    
     bestGraph = graph
     subGraphs = [graph]
+    Cost_list = MPCprofiling([graph], in_size, 1)
+    cost0 = Cost_list[0]
+    bestCost = Cost_list[0]
+    Cost_list = [1]
     
     try:
         while subGraphs is not None:
             subGraphs = graph.optimize_next_step(alpha, budget, Cost_list)
             if subGraphs is None:
                 break
-            Cost_list = MPCprofiling(subGraphs, in_size, bestCost*1.5)
+            Cost_list = MPCprofiling(subGraphs, in_size, cost0)
             for i in range(0,len(subGraphs)):
                 if Cost_list[i] < bestCost:
                     bestCost = Cost_list[i]

@@ -28,23 +28,23 @@ export LD_LIBRARY_PATH="/path/to/lib/:$LD_LIBRARY_PATH"
 
 ## Run example
 ```
-python MPLTS/examples/resnet50.py  -R 64 -Q -Z 3 ABY3
-python MPLTS/examples/resnext50.py -R 64 -Q -Z 3 ABY3
-python MPLTS/examples/inceptionv3.py -R 64 -Q -Z 3 ABY3
-python MPLTS/examples/nasnet_a.py -R 64 -Q -Z 3 ABY3
+python MPLTS/examples/resnet50.py  -R 64 -Q ABY3
+python MPLTS/examples/resnext50.py -R 64 -Z 3 -Q  ABY3
+python MPLTS/examples/inceptionv3.py -R 64 -Z 3 -Q ABY3
+python MPLTS/examples/nasnet_a.py -R 64 -Z 3 -Q ABY3
 python MPLTS/examples/batched_resnet.py
 ```
 
 
 ## Script: Show figure
 ```
-python MPLTS/experiments/run.py
+python MPLTS/Scripts/run.py
 ```
 
 ## Script: Check
 set up the [running environment](#appendix), check the result by running on the virtual machine.
 ```
-python MPLTS/experiments/check.py -R 64
+python MPLTS/Scripts/check.py -R 64
 ```
 
 

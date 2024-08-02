@@ -138,8 +138,6 @@ def reconst_dims(v1, v2):
     # v1, v2= input1.value, input2.value
     flag1, dim1 = check_subseq(v1.sizes, v2.sizes)
     flag2, dim2 = check_subseq(v2.sizes, v1.sizes)
-    print(v1.sizes, v2.sizes)
-    print(dim1, dim2)
     assert flag1 or flag2, "Invalid Dimension"
     # swap to ensure v1 size is bigger than v2 size
     dims = dim1
@@ -212,6 +210,119 @@ def element_wise_add(self, other):
                 new_value = MultiArray(self.value.sizes, predict_value_type(self.value, other.value))
             else:
                 new_value = MultiArray(other.value.sizes, predict_value_type(self.value, other.value))
+        else:
+            if self.value.total_size()>other.value.total_size():
+                new_value = Array(self.value.sizes[0], predict_value_type(self.value, other.value))
+            else:
+                new_value = Array(other.value.sizes[0], predict_value_type(self.value, other.value))
+        output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
+        dim, v1, v2 = reconst_dims(self.value, other.value)
+        target_size = v1.tuple_permute(v1.sizes, get_permute(len(v1.sizes), dim))
+        temp1 = MultiArray(target_size, v1.value_type)
+        target_size = v1.tuple_permute(v1.sizes, get_permute_d2front(len(v1.sizes), dim))
+        temp2 = MultiArray(target_size, predict_value_type(self.value, other.value))
+        # check whether require grad
+        operation = Operation(inputs=[self.name, other.name], outputs=[output.name],
+                              propagate=propagate if self.req_grad else fake_propagate,
+                              intermediate=[temp1, temp2], name='add')
+        gradient_operation.append(operation)
+        operation_id = len(gradient_operation) - 1
+        op_id_store[op_id] = operation_id
+
+    if not prepare or not forward:
+        operation = gradient_operation[op_id_store[op_id]]
+        inputs = operation.inputs
+        outputs = operation.outputs
+        input1 = tensors[inputs[0]]
+        input2 = tensors[inputs[1]]
+        output = tensors[outputs[0]]
+        temp1, temp2 = operation.intermediate
+        if not forward:
+            init_op_id += 1
+        # # permute input for boardcasted
+        # dims, v1, v2 = reconst_dims(input1.value, input2.value)
+        # v1.permute_without_malloc(temp1, get_permute(len(v1.sizes), dims))
+        # v1 = temp1
+        
+        # # element_wise_add
+        # len1, len2 = v1.total_size(), v2.total_size()
+        # @for_range(len1//len2)
+        # def _(i):
+        #     v3 = v1.get_vector(i*len2, len2) + v2.get_vector(0, len2)
+        #     temp2.assign_vector(v3, i*len2)
+        # break_point()
+        
+        # # permute back
+        # temp2.permute_without_malloc(output.value, get_permute_back(len(v1.sizes), dims))
+
+        boardcasted_multiarray_add(input1.value, input2.value, output.value)
+        
+    op_id += 1# record the input and output of the op
+    return output
+
+@buildingblock("dpadd-forward")
+def dp_element_wise_add(self, other):
+    # backward
+    @backwardbuildingblock(get_program().globalbuildingblock[:-14]+"-dpadd-backward")
+    def propagate(dl_doutputs, operation):
+        dl_dx, = dl_doutputs
+        inputs = operation.inputs
+        temp1, temp2 = operation.intermediate
+        dl_dself, dl_dother = (None, None)
+        if self.req_grad:
+            dl_dself = dl_d[inputs[0]]  # partial derivate of r = 1
+        if other.req_grad:
+            dl_dother = dl_d[inputs[1]]  # partial derivate of r = 1
+        
+        # swap to ensure v1 size is bigger than v2 size  
+        v1, v2 = dl_dself, dl_dother
+        req_grad1, req_grad2 = self.req_grad, other.req_grad
+        input1=tensors[operation.inputs[0]].value
+        input2=tensors[operation.inputs[1]].value
+        if input1.total_size()<input2.total_size():
+            v1, v2 = v2, v1
+            req_grad1, req_grad2 = req_grad2, req_grad1
+            input1, input2 = input2, input1
+        # v1 back directly 
+        if req_grad1:
+            v1[:] += dl_dx[:]
+        # broadcasted v2 back with reduce
+        if req_grad2:
+            # dims, input1, input2 = reconst_dims(input1, input2)
+            # dl_dx.permute_without_malloc(temp2, get_permute_d2front(len(input1.sizes), dims))
+            # dl_dx_pmt = temp2
+            
+            # stride = input1.total_size()//input2.total_size()
+            # vsum = Array(1, dl_dx_pmt.value_type)
+            
+            # @for_range(input2.total_size())
+            # def _(i):
+            #     vsum.assign_all(0)
+            #     @for_range(stride)
+            #     def _(j):
+            #         vsum[:] += dl_dx_pmt.get_vector(i*stride+j, 1)
+            #     # vsum = sum(dl_dx_pmt.get_vector(i*stride, stride))
+            #     v2.assign_vector(v2.get_vector(i, 1)+vsum[:], i) 
+            # vsum.delete()
+            # break_point()
+            v2[:] += dl_dx[:]
+        dl_dinputs = [dl_dself, dl_dother]
+        return dl_dinputs
+    # forward
+    global op_id
+    global init_op_id
+    if prepare:
+        if isinstance(self.value, MultiArray) or isinstance(other.value, MultiArray):
+            if self.value.total_size()>other.value.total_size():
+                new_value = MultiArray(self.value.sizes, predict_value_type(self.value, other.value))
+                new_grad = MultiArray(self.value.sizes, value_type=sfix)
+                new_grad.assign_all(0)
+                other.grad.delete()
+                other.grad = new_grad
+                dl_d[other.name] = other.grad
+            else:
+                new_value = MultiArray(other.value.sizes, predict_value_type(self.value, other.value))
+
         else:
             if self.value.total_size()>other.value.total_size():
                 new_value = Array(self.value.sizes[0], predict_value_type(self.value, other.value))
@@ -1869,7 +1980,6 @@ class Tensor():
         res_value = Array(size, value_type)
         @for_range(start, end, step)
         def _(i):
-            # res_value.assign_vector(value_type(i), i/step)
             res_value.assign_vector(value_type(i), (i - start)/step)
         res = Tensor(res_value, req_grad=req_grad)  
         return res
@@ -2073,6 +2183,61 @@ class Tensor():
         op_id += 1  # record the input and output of the op
         return output
     
+    @buildingblock("dpmm-forward")
+    def dpmm(self, other): #Two-dimension * two-dimension,return an output,whose type is Tensor.
+        # backward
+        @backwardbuildingblock(get_program().globalbuildingblock[:-13]+"-dpmm-backward")
+        def propagate(dl_doutputs, operation):
+            dl_dy, = dl_doutputs
+            input1 = tensors[operation.inputs[0]]
+            input2 = tensors[operation.inputs[1]]
+            if self.req_grad:
+                dl_dy.mul_trans_add_to(input2.value,dl_d[operation.inputs[0]],n_threads=10 if input1.shape[0]>=1000 else 1)
+                # C=AB partial derivate of dA=dC*B^T+dA
+            if other.req_grad:
+                res_grad = MultiArray([input1.sizes[0], input1.sizes[1], input2.sizes[1]], value_type=sfix) # batch_size * x_features * classes
+                @for_range(input1.sizes[0]) # 遍历每个样本
+                def _(i):
+                    @for_range(input1.sizes[1]) # 列向量(单个样本) * 行向量(单个样本的dl_dy)
+                    def _(j):
+                        x = input1.value.get_vector(i * input1.sizes[1] + j, 1)
+                        v = dl_dy.get_vector(i * input2.sizes[1], input2.sizes[1])
+                        res_grad.assign_vector(x * v, i * input1.sizes[1] * input2.sizes[1] + j * input2.sizes[1])
+                dl_d[operation.inputs[1]] += res_grad
+                # C=AB partial derivate of dB=A^T*dC+dB
+            
+        global op_id
+        global init_op_id
+        if prepare:
+            assert self.value.value_type==other.value.value_type,"Invalid Data Type"
+            assert len(self.shape)==len(other.shape)==2 and self.shape[1]==other.shape[0],"Invalid Dimension"
+            new_value = MultiArray([self.value.sizes[0], other.value.sizes[1]], self.value.value_type)
+            new_grad = MultiArray([self.value.sizes[0], self.value.sizes[1], other.value.sizes[1]], value_type=sfix)
+            new_grad.assign_all(0)
+            other.grad.delete()
+            other.grad = new_grad
+            dl_d[other.name] = other.grad
+
+            output = Tensor(new_value, req_grad=self.req_grad or other.req_grad)
+            operation = Operation(inputs=[self.name, other.name], outputs=[output.name],
+                                  propagate=propagate if self.req_grad or other.req_grad else fake_propagate)
+            gradient_operation.append(operation)
+            operation_id = len(gradient_operation) - 1
+            op_id_store[op_id] = operation_id
+            # op_id += 1
+        if not prepare or not forward:
+            operation = gradient_operation[op_id_store[op_id]]
+            inputs = operation.inputs
+            outputs = operation.outputs
+            input1 = tensors[inputs[0]]
+            input2 = tensors[inputs[1]]
+            output = tensors[outputs[0]]
+            if not forward:
+                init_op_id += 1
+            input1.value.mm(input2.value, output.value)
+        op_id += 1  # record the input and output of the op
+        return output
+
     @buildingblock("singlebmm-forward")
     def single_bmm(self, other: 'Tensor') -> 'Tensor':
         '''
@@ -2573,6 +2738,64 @@ class Tensor():
                 assert len(self.value.sizes) == 2, 'Invalid dimension'
                 new_sizes = [self.value.sizes[1], self.value.sizes[0]]
                 new_value = MultiArray(new_sizes, self.value.value_type)
+            output = Tensor(new_value, req_grad=self.req_grad)
+            if self.req_grad:
+                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
+            else:
+                operation = Operation(inputs=[self.name], outputs=[output.name], propagate=fake_propagate)
+            gradient_operation.append(operation)
+            operation_id = len(gradient_operation)-1
+            op_id_store[op_id] = operation_id
+            # op_id += 1
+        if not prepare or not forward:
+            operation = gradient_operation[op_id_store[op_id]]
+            input = tensors[operation.inputs[0]]
+            output = tensors[operation.outputs[0]]
+            if not forward:
+                init_op_id += 1
+            if len(self.shape) == 1:  # in this case:Array
+                output.value[:] = input.value[:]
+            else:
+                output.value = input.value.transpose()
+        op_id += 1
+        return output
+    
+    @buildingblock("dptranspose-forward")
+    def dptranspose(self, batch_size, *indexs):
+        if len(indexs)>0:
+            indexs = list(indexs)
+            new_index = []
+            for i in range(len(self.sizes)):
+                if i == indexs[0]%len(self.sizes):
+                    new_index.append(indexs[1]%len(self.sizes))
+                    continue
+                if i == indexs[1]%len(self.sizes):
+                    new_index.append(indexs[0]%len(self.sizes))
+                    continue
+                new_index.append(i)
+            return self.permute(*new_index)
+        @backwardbuildingblock(get_program().globalbuildingblock[:-18]+ "-transpose-backward")
+        def propagate(dl_doutputs, operation):
+            if isinstance(dl_doutputs[0], Array):
+                dl_d[operation.inputs[0]][:] += dl_doutputs[0][:]
+            else:
+                @for_range(dl_doutputs[0].sizes[0])
+                def _(i):
+                    dl_d[operation.inputs[0]][i][:] += dl_doutputs[0][i].transpose()[:]
+        global op_id
+        global init_op_id
+        if prepare:
+            if isinstance(self.value, Array):
+                new_value = Array(self.shape[0], self.value.value_type)
+            else:
+                assert len(self.value.sizes) == 2, 'Invalid dimension'
+                new_sizes = [self.value.sizes[1], self.value.sizes[0]]
+                new_value = MultiArray(new_sizes, self.value.value_type)
+                new_grad = MultiArray([batch_size, self.value.sizes[0], self.value.sizes[1]], value_type=sfix)
+                new_grad.assign_all(0)
+                self.grad.delete()
+                self.grad = new_grad
+                dl_d[self.name] = self.grad
             output = Tensor(new_value, req_grad=self.req_grad)
             if self.req_grad:
                 operation = Operation(inputs=[self.name], outputs=[output.name], propagate=propagate)
@@ -3417,7 +3640,7 @@ class Tensor():
             inter = operation.intermediate[0]  # reuse the intervalue in mem
             dl_dself = dl_d[inputs[0]]
 
-            dl_dself[:] += s.if_else(0, t.if_else(0, 1)) * dl_dx[:]
+            dl_dself[:] += s[:].if_else(0, t[:].if_else(0, 1)) * dl_dx[:]
             dl_dinputs = [dl_dself]
             return dl_dinputs
         # forward
@@ -3427,13 +3650,13 @@ class Tensor():
             if isinstance(self.value, Array):
                 new_value = Array(self.value.length, self.value.value_type)
                 inter = Array(self.value.length, self.value.value_type)
-                s = Array(self.value.length, self.value.value_type)
-                t = Array(self.value.length, self.value.value_type)
+                s = Array(self.value.length, sint)
+                t = Array(self.value.length, sint)
             else:
                 new_value = MultiArray(self.value.sizes, self.value.value_type)
                 inter = MultiArray(self.value.sizes, self.value.value_type)
-                s = MultiArray(self.value.sizes, self.value.value_type)
-                t = MultiArray(self.value.sizes, self.value.value_type)
+                s = MultiArray(self.value.sizes, sint)
+                t = MultiArray(self.value.sizes, sint)
             output = Tensor(new_value, req_grad=self.req_grad)
             
             operation = Operation(inputs=[self.name], outputs=[output.name],
@@ -3453,9 +3676,9 @@ class Tensor():
             if not forward:
                 init_op_id += 1 
             
-            s = input.value[:] < 0
-            t = input.value[:] > 6
-            output.value[:] = s.if_else(0, t.if_else(6, input.value[:]))
+            s[:] = input.value[:] < 0
+            t[:] = input.value[:] > 6
+            output.value[:] = s[:].if_else(0, t[:].if_else(6, input.value[:]))
             inter.assign_vector(output.value[:])
         op_id += 1
         # record the input and output of the op

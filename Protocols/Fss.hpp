@@ -155,7 +155,7 @@ void Fss<T>::distributed_comparison_function(SubProcessor<T> &proc, const Instru
     PRNG prng;
     prng.ReSeed();
     init(proc.DataF, proc.MC);    
-    typename T::clear result, r_tmp, dcf_u, dcf_v;
+    typename T::clear result, r_tmp, dcf_u, dcf_v; 
     auto& args = instruction.get_start();
     fstream r;
     octetStream cs[2], reshare_cs, t_cs; //cs0, cs1; 
@@ -199,8 +199,7 @@ void Fss<T>::distributed_comparison_function(SubProcessor<T> &proc, const Instru
             bigint dcf_res_u, dcf_res_v, dcf_res, dcf_res_reveal;
             dcf_res_u = this->evaluate(result, lambda);
             result += 1LL<<(lambda-1);
-            dcf_res_v = this->evaluate(result, lambda);
-        
+            dcf_res_v = this->evaluate(result, lambda); 
             auto size = dcf_res_u.get_mpz_t()->_mp_size;
             mpn_copyi((mp_limb_t*)dcf_u.get_ptr(), dcf_res_u.get_mpz_t()->_mp_d, abs(size));
             if(size < 0)
@@ -242,8 +241,9 @@ void Fss<T>::distributed_comparison_function(SubProcessor<T> &proc, const Instru
     P.send_to((P.my_num()+1)%P.num_players(), reshare_cs);
     P.receive_player((P.my_num()+2)%P.num_players(), reshare_cs);
     for(size_t i = 0; i < args.size(); i+= args[i]){
-        proc.S[args[i+2]][1].unpack(reshare_cs);   
+        proc.S[args[i+2]][1].unpack(reshare_cs);
     }
+    
     return;
 }
 

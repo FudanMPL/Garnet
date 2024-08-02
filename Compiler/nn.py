@@ -818,12 +818,9 @@ class Module():
             return result
         if self.main:
             TS.reset_op_id()
-        print("forward: ", self.forward)
-        print("args: ", args, kwargs)
         forward_call = self.forward
         break_point()
         result = forward_call(*args, **kwargs)
-        print("output: ", result)
         break_point()
 
         return result
@@ -1186,9 +1183,10 @@ class ModuleList(Module):
 
 class Linear(Module):
     def __init__(self, in_features: int, out_features: int, bias: bool = True,
-                 device=None, dtype=None) -> None:
+                 device=None, dtype=None, dp=False) -> None:
         self.in_features = in_features
         self.out_features = out_features
+        self.dp = dp
         super().__init__()
         self.weight = Parameter(Tensor([out_features, in_features]))
         if bias:
@@ -1199,6 +1197,8 @@ class Linear(Module):
     
         
     def forward(self, x):
+        if self.dp:
+            return F.dplinear(x, self.weight, self.bias)
         return F.linear(x, self.weight, self.bias)
     
     def extra_repr(self) -> str:
@@ -1412,7 +1412,6 @@ class Conv2d(_ConvNd):
     
     def forward(self, input: Tensor, weight: Optional[Tensor] = None) -> Tensor:
         if weight is not None:
-            print(self.in_channels, self.out_channels, input.shape, weight.shape)
             self.in_channels = weight.shape[0]
             self.out_channels = weight.shape[1]
             return self._conv_forward(input, weight, self.bias)

@@ -10,6 +10,6 @@ a = x[:]
 b = y[:]
 print_ln(' got %s', a.reveal())
 print_ln(' got %s', b.reveal())
-for i in range(12):
+for i in range(12):   
     c = sfix.matrix_mul(a, b, 3)
     print_ln(' got %s', c.reveal())

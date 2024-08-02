@@ -2104,7 +2104,6 @@ def ss_psi_merge(*tables):
                 final_table[num_count][attr_count + i] = ele[i]
             num_count = num_count + 1
         attr_count = attr_count + table_attr - 1  # the id column should not be added
-
     ids = final_table.get_column(0)
     perm = gen_perm_by_radix_sort(ids)
     for i in range(attr):
@@ -2129,3 +2128,38 @@ def ss_psi_merge(*tables):
     return final_table, sum(in_intersection)
 
 
+def ss_psu(*tables):
+    num = 0
+    for table in tables:
+        num = num + len(table)
+    # merge all the table into one table
+    ids=Array(num,tables[0].value_type)
+    flag_ids = Array(num,tables[0].value_type)
+    # merge tables
+    num_count = 0
+    for table in tables:
+        for ele in table:
+            ids[num_count] = ele[0]
+            num_count = num_count + 1
+    
+    # sort
+    ids.sort()
+    # randomfulls(flag_ids[0])
+    flag_ids[0] = sint.get_random()
+
+    for i in range(1,num):
+        flag_ids[i] = ids[i]-ids[i-1]
+    
+
+    # # mul r
+    # # sint.get_random_int()
+                                                                                                                                                                                     
+    # concate
+    result = tables[0].value_type.Matrix(num,2)
+    result.set_column(0,flag_ids.get_vector())
+    result.set_column(1,ids.get_vector())
+    # shuffle
+    result.secure_shuffle()
+    # reveal r
+    plain_union_r = result.get_column(0).reveal()
+    return result.get_column(1),plain_union_r

@@ -687,6 +687,7 @@ RealTwoPartyPlayer::~RealTwoPartyPlayer()
 
 void VirtualTwoPartyPlayer::send(octetStream& o) const
 {
+  VirtualTwoPartyPlayer_Round++;
   TimeScope ts(comm_stats["Sending one-to-one"].add(o));
   P.send_to_no_stats(other_player, o);
   comm_stats.sent += o.get_length();
@@ -708,7 +709,7 @@ void VirtualTwoPartyPlayer::send_receive_player(vector<octetStream>& o) const
 
 VirtualTwoPartyPlayer::VirtualTwoPartyPlayer(Player& P, int other_player) :
     TwoPartyPlayer(P.my_num()), P(P), other_player(other_player), comm_stats(
-        P.thread_stats.at(other_player))
+        P.thread_stats.at(other_player)) ,VirtualTwoPartyPlayer_Round(0)
 {
 }
 

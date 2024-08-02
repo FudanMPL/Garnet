@@ -1,0 +1,21 @@
+from Compiler.types import Array 
+import joint_statistics
+
+a = Array(10, sfix)
+for i in range(10):
+    if i < 5:
+        a[i] = i + 1
+    elif i == 8:
+        a[i] = 7
+    else:
+        a[i] = 6
+    print_ln("%s ", a[i].reveal())
+
+a_mean = a.mean().reveal()
+a_median = a.median().reveal()
+a_mode = a.mode().reveal()
+print_ln("%s",a_mean)
+print_ln("%s",a_median)
+print_ln("%s",a_mode)
+for i in range(10):
+    print_ln("%s ", a[i].reveal())

@@ -141,8 +141,8 @@ graph = inception_v3(batch_size=1)  # change batch_size from 4 to 8 would cause 
 onnx_model = taso.export_onnx(graph)
 onnx.save(onnx_model, "inceptionv3.onnx")
 
-graph = taso.optimize(graph, alpha=1e9, budget=1000, input_size=(1, 3, 299, 299))
-graph = taso.optimize(graph, alpha=1e9, budget=1000, input_size=(1, 3, 299, 299), inMPL=True)
+graph = taso.optimize(graph, alpha=1, budget=1000, input_size=(1, 3, 299, 299))
+# graph = taso.optimize(graph, alpha=1e9, budget=1000, input_size=(1, 3, 299, 299), inMPL=True)
 
 onnx_model = taso.export_onnx(graph)
 onnx.save(onnx_model, "inceptionv3_opt.onnx")

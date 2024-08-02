@@ -9,7 +9,7 @@ from onnx2pytorch.operations import (
     TopK,
 )
 
-from Compiler.Convert.Ops import split
+from Compiler.onnxConverter.Ops import split
 
 COMPOSITE_LAYERS = (nn.Sequential,)
 # MULTIOUTPUT_LAYERS = (nn.MaxPool2d, Loop, LSTMWrapper, split.Split, TopK)

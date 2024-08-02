@@ -46,14 +46,14 @@ void DirectVssMC<T>::POpen_(vector<typename T::open_type>& values,
 }
 
 template<class T>
-void DirectVssMC<T>::exchange_(const PlayerBase& P)
+void DirectVssMC<T>::exchange_(const PlayerBase& P) // 交换value
 {
     Bundle<octetStream> oss(P);
     oss.mine.reserve(this->values.size());
     assert(this->values.size() == this->lengths.size());
     for (size_t i = 0; i < this->lengths.size(); i++)
         this->values[i].pack(oss.mine, this->lengths[i]);
-    P.unchecked_broadcast(oss);
+    P.unchecked_broadcast(oss); // 对oss进行广播
     size_t n = P.num_players();
     size_t me = P.my_num();
     for (size_t i = 0; i < this->lengths.size(); i++)

@@ -58,6 +58,9 @@ sudo docker run --cap-add=NET_ADMIN -it garnet bash
 
 ## 历史发布
 
+#### 2024年7月份发布: 
+
+* [通信效率优化的两方KNN算法](./docs/knn.md)
 
 #### 2024年1月份发布: 
 
@@ -94,6 +97,8 @@ sudo docker run --cap-add=NET_ADMIN -it garnet bash
 * [SecureML协议](./docs/secureML.md)
 * [预训练模型安全微调](./docs/pretrain.md)
 * [XGBoost模型安全训练](./docs/xgboost-training.md)
+
+
 
 
 

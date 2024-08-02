@@ -448,6 +448,24 @@ def linear(input, weight, bias=None):
     return output
 
 
+@buildingblock("dplinear")
+def dplinear(input, weight, bias=None):
+    assert isinstance(input,Tensor),"Invalid input"
+    assert isinstance(weight,Tensor),"Invalid weight"
+    assert input.shape[-1]==weight.shape[-1],"Invalid Dimension"
+    if len(input.sizes) > len(weight.sizes):
+        output=input.single_bmm(weight.transpose())
+    elif len(input.sizes) == len(weight.sizes):
+        output=input.dpmm(weight.dptranspose(batch_size=input.value.sizes[0]))
+    else:
+        raise CompilerError("the dimension of input must not smaller than the dimension of weight")
+    if bias is None:
+        pass
+    else:
+        output = dp_element_wise_add(output, bias)
+    return output
+
+
 def new_squant():
         class _(sfix):
             params = None
@@ -474,10 +492,6 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0], 
 
         stride_h, stride_w = stride
         padding_h, padding_w = padding
-        print("padding:",padding)
-        print("conv backward")
-        print(input.shape)
-        print(weight.shape)
         n_threads=8 if input.numel() > 2**20 else 1
         if weight.req_grad:
             batch=Array.create_from(regint.inc(N))
@@ -598,8 +612,6 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0], 
     if prepare:
         if isinstance(input, tuple):
             input, weight = input
-        print("conv_in_size: ", input.shape)
-        print("conv_w_size: ", weight.shape)
         assert isinstance(input, Tensor) and isinstance(weight, Tensor) ,"Invalid Input and weight"
         assert len(input.shape)==4 and len(weight.shape)==4,"Invalid Dimension input and weight"
         out_shape=[input.shape[0],weight.shape[0],(input.shape[2]+2*padding[0]-weight.shape[2])//stride[0]+1,
@@ -622,8 +634,6 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0], 
         _, _,weights_h, weights_w= weight.shape
         N,  n_channels_in,inputs_h, inputs_w = input.shape
         _,  n_channels_out,output_h, output_w = output.shape #B C H W
-        print("conv-forward")
-        print(output.shape)
         input.value.view(N, groups, int(n_channels_in/groups), inputs_h, inputs_w) # N G C/G H W
         input_value = MultiArray([groups, N, inputs_h, inputs_w, int(n_channels_in/groups)], input.value.value_type) # G B H W C/G
         input.value.permute_without_malloc(input_value, [1,0,3,4,2]) # # G B H W C/G
@@ -647,8 +657,6 @@ def conv2d(input:Tensor, weight:Tensor, bias=None, stride=[1,1], padding=[0,0], 
             inputs = input_value.get_vector(i*size_,size_).v # B H W C/G
             weights = weight_value.get_part_vector(i*int(n_channels_out/groups)+j).v # N WH WW C/G
             res = sint(size = output_h * output_w * part_size) # B, OUT_W, OUT_H
-            # print(n_channels_in, n_channels_out, groups, weight_value.sizes)
-            # print(weight_value.sizes[1:], weights_h, weights_w, n_channels_in_group)
             conv2ds(res, inputs, weights, output_h, output_w,
                     inputs_h, inputs_w, weights_h, weights_w,
                     stride_h, stride_w, n_channels_in_group, padding_h, padding_w,
@@ -1027,7 +1035,7 @@ def avg_pool2d(input, kernel_size, stride=None, padding=0,):
         Y_sizes =[N,output_h, output_w,n_channels_out]  
         X_sizes =[N,inputs_h, inputs_w,n_channels_in]
         
-        print("needpad:", strides, Y_sizes, ksize, X_sizes)
+        # print("needpad:", strides, Y_sizes, ksize, X_sizes)
         # needpad: (1, 1) [1, 35, 35, 192] (3, 3) [1, 35, 35, 192]
         need_padding = [strides[i] * (Y_sizes[i] - 1) + ksize[i] >
                         X_sizes[i] for i in range(4)]
@@ -1187,7 +1195,11 @@ def batch_norm(input, running_mean, running_var, running_std = None, weight=None
         x_var = running_var    
     x_var = x_var + eps # todo
     if  training or running_std is None:
-        output = (input - x_mean) * x_var.invsqrt() #9s 5s 4s
+        if running_std is not None:
+            running_std = x_var.invsqrt()
+            output = (input - x_mean) * running_std #9s 5s 4s
+        else:
+             output = (input - x_mean) * x_var.invsqrt()
     else:
         output = (input - x_mean) * running_std #9s 5s 4s
     # output = (input - x_mean) / x_var
@@ -1376,7 +1388,10 @@ def nll_loss(input, target, weight=None,reduction='mean'):
     forward = get_forward()
     if prepare:
         assert target.sizes==input.sizes,"Dimension invalid"
-        new_value = Array(1, input.value.value_type)
+        if reduction == 'none':
+            new_value = Array(input.sizes[0], input.value.value_type)
+        else:
+            new_value = Array(1, input.value.value_type)
         output = Tensor(new_value, req_grad=input.req_grad)
         if isinstance(input.value,Array):
             inter = Array(input.value.length, input.value.value_type)
@@ -1400,9 +1415,16 @@ def nll_loss(input, target, weight=None,reduction='mean'):
         tmp1 = input.value.same_shape()
         tmp1[:] = input.value[:]*tmp
         # output.value[:]=sum(input.value[:]*tmp)
-        @for_range(tmp1.total_size())
-        def _(i):
-            output.value[:] += tmp1.get_vector(i,1)
+        if reduction == 'none':
+            numcls = tmp1.total_size() // tmp1.sizes[0]
+            @for_range(tmp1.sizes[0])
+            def _(i):
+                t = tmp1.get_vector(i * numcls, numcls)
+                output.value[i] = sum(t)
+        else:
+            @for_range(tmp1.total_size())
+            def _(i):
+                output.value[:] += tmp1.get_vector(i,1)
         tmp1.delete()
         operation.intermediate[0].assign_vector(tmp)
         if not forward:
@@ -1410,7 +1432,7 @@ def nll_loss(input, target, weight=None,reduction='mean'):
         if reduction == 'mean':
             output.value[:] *= 1 / input.sizes[0]
         else:
-            assert reduction == 'sum' , 'reduction should be mean or sum'
+            assert reduction == 'sum' or reduction == 'none', 'reduction should be mean or sum'
     set_opid(op_id+1)  # record the input and output of the op
     return output
 
@@ -1464,10 +1486,12 @@ def mse_loss(input, target, reduction='mean'):
     #         assert reduction == 'sum' , 'reduction should be mean or sum'
     #     set_opid(op_id+1)  # record the input and output of the op
     # return output
-    assert reduction == 'sum' or 'mean', 'reduction should be mean or sum'
+    assert reduction == 'sum' or 'mean' or 'none', 'reduction should be mean or sum or none'
     
     dx = input - target
     dx2 = dx * dx
+    if reduction == 'none':
+        return dx2
     out = dx2.sum()
     if reduction == 'mean':
         out /= input.value.total_size()
@@ -1482,7 +1506,7 @@ def binary_cross_entropy(input, target, weight=None):
 
 def cross_entropy(input, target, weight=None, reduction = 'mean'):
     tmp=log_softmax(input)
-    return nll_loss(tmp,target,weight)
+    return nll_loss(tmp,target,weight,reduction)
 
 @buildingblock("gelu")
 def gelu(input, approximate='tanh'):
