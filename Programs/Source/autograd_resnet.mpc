@@ -19,7 +19,7 @@ class Bottleneck(nn.Module):
         :param downsample:
         '''
         super(Bottleneck, self).__init__()
-        # self.extention=4
+        self.extention=4
         self.conv1=nn.Conv2d(inplanes,planes,kernel_size=1,stride=stride,bias=False)
         self.bn1=nn.BatchNorm2d(planes)
 
@@ -61,6 +61,29 @@ class Bottleneck(nn.Module):
         out=self.relu(out)
 
         return out
+class BasicBlock(nn.Module):
+    extention = 1
+
+    def __init__(self, in_planes, planes, stride=1):
+        super(BasicBlock, self).__init__()
+        self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(planes)
+        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(planes)
+
+        self.shortcut = nn.Sequential()
+        if stride != 1 or in_planes != self.extention*planes:
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_planes, self.extention*planes, kernel_size=1, stride=stride, bias=False),
+                nn.BatchNorm2d(self.extention*planes)
+            )
+
+    def forward(self, x):
+        out = F.relu(self.bn1(self.conv1(x)))
+        out = self.bn2(self.conv2(out))
+        out += self.shortcut(x)
+        out = F.relu(out)
+        return out
 
 
 class ResNet(nn.Module):
@@ -86,7 +109,7 @@ class ResNet(nn.Module):
         self.stage4=self.make_layer(self.block,512,layers[3],stride=2)
 
         #后续的网络
-        self.avgpool=nn.AvgPool2d(7)
+        # self.avgpool=nn.AvgPool2d(7)
         self.fc=nn.Linear(512*block.extention,num_class)
 
     def forward(self,x):
@@ -103,7 +126,7 @@ class ResNet(nn.Module):
         out=self.stage4(out)
 
         #分类
-        out=self.avgpool(out)
+        # out=self.avgpool(out)
         out=out.flatten(1,-1)
         out=self.fc(out)
 
@@ -129,7 +152,11 @@ class ResNet(nn.Module):
         # Conv Block输入和输出的维度（通道数和size）是不一样的，所以不能连续串联，他的作用是改变网络的维度
         # Identity Block 输入维度和输出（通道数和size）相同，可以直接串联，用于加深网络
         #Conv_block
-        conv_block=block(self.inplane,plane,stride=stride,downsample=downsample)
+        if type(block) == Bottleneck:
+            conv_block=block(self.inplane,plane,stride=stride,downsample=downsample)
+        else:
+            conv_block=block(self.inplane,plane,stride=stride)
+            
         block_list.append(conv_block)
         self.inplane=plane*block.extention
 
@@ -139,9 +166,9 @@ class ResNet(nn.Module):
 
         return nn.Sequential(*block_list)
 
-model=ResNet(Bottleneck,[3,4,6,3],1000)
-x = Tensor.ones(4, 3, 224, 224)
-labels = Tensor.ones(4, 1000)
+model=ResNet(BasicBlock,[2, 2, 2, 2],10)
+x = Tensor.ones(4, 3, 32, 32)
+labels = Tensor.ones(4, 10)
 crossloss = nn.CrossEntropyLoss()
 dataload = dataloader.DataLoader(x, labels, batch_size = 1, shuffle=False)
 optimizer = optim.SGD(model.parameters(), lr = 0.01)

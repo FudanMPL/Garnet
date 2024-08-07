@@ -90,14 +90,14 @@ class Block(nn.Module):
 
 
 class MobileNetV3_Small(nn.Module):
-    def __init__(self, num_classes=1000, act=nn.Hardswish):
+    def __init__(self, num_classes=10, act=nn.Hardswish):
         super(MobileNetV3_Small, self).__init__()
-        self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=2, padding=1, bias=False)
+        self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(16)
         # self.hs1 = act(inplace=True)
 
         self.bneck = nn.Sequential(
-            Block(3, 16, 16, 16, nn.ReLU, True, 2),
+            Block(3, 16, 16, 16, nn.ReLU, True, 1),
             Block(3, 16, 72, 24, nn.ReLU, False, 2),
             Block(3, 24, 88, 24, nn.ReLU, False, 1),
             Block(5, 24, 96, 40, act, True, 2),
@@ -117,11 +117,11 @@ class MobileNetV3_Small(nn.Module):
         self.gap = nn.AdaptiveAvgPool2d(1)
 
         self.linear3 = nn.Linear(576, 1280, bias=False)
-        self.bn3 = nn.BatchNorm1d(1280)
+        # self.bn3 = nn.BatchNorm1d(1280)
         self.hs3 = act(inplace=True)
         self.drop = nn.Dropout(0.2)
         self.linear4 = nn.Linear(1280, num_classes)
-        self.init_params()
+        # self.init_params()
 
     def init_params(self):
         for m in self.modules():
@@ -143,7 +143,7 @@ class MobileNetV3_Small(nn.Module):
 
         out = self.hs2(self.bn2(self.conv2(out)))
         out = self.gap(out).flatten(1)
-        out = self.drop(self.hs3(self.bn3(self.linear3(out))))
+        out = self.drop(self.hs3(self.linear3(out)))
 
         return self.linear4(out)
 
@@ -211,10 +211,21 @@ class MobileNetV3_Large(nn.Module):
         
         return self.linear4(out)
 
-net=MobileNetV3_Large()
-x = Tensor.ones(4, 3, 224, 224)
-labels = Tensor.ones(4, 1000)
-dataload = dataloader.DataLoader(x, labels, batch_size = 1, shuffle=False)
+net=MobileNetV3_Small()
+# x = Tensor.ones(1, 3, 32, 32)
+# labels = Tensor.ones(1, 10)
+# dataload = dataloader.DataLoader(x, labels, batch_size = 1, shuffle=False)
+# input, label = dataload.get_data(0)
+# output = net(input)
+x = Tensor.ones(128, 3, 32, 32)
+labels = Tensor.ones(128, 10)
+dataload = dataloader.DataLoader(x, labels, batch_size = 128, shuffle=False)
+crossloss = nn.CrossEntropyLoss()
+optimizer = optim.SGD(net.parameters(), lr = 0.01)
+
 input, label = dataload.get_data(0)
 output = net(input)
- 
+print(output.shape)
+loss = crossloss(output, label)
+optimizer.zero_grad()
+loss.backward()

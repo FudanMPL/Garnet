@@ -6,6 +6,7 @@ import functional as F
 import math
 import copy
 from collections import defaultdict
+program.use_trunc_pr = True
 
 def conv_bn(inp, oup, stride):
     return nn.Sequential(
@@ -105,7 +106,7 @@ class InvertedResidual(nn.Module):
 
 
 class ShuffleNetV2(nn.Module):
-    def __init__(self, n_class=1000, input_size=224, width_mult=1.):
+    def __init__(self, n_class=10, input_size=32, width_mult=1.):
         super(ShuffleNetV2, self).__init__()
         
         assert input_size % 32 == 0
@@ -128,8 +129,8 @@ class ShuffleNetV2(nn.Module):
 
         # building first layer
         input_channel = self.stage_out_channels[1]
-        self.conv1 = conv_bn(3, input_channel, 2)    
-        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.conv1 = conv_bn(3, input_channel, 1)    
+        # self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         
         self.features = []
         # building inverted residual blocks
@@ -150,17 +151,18 @@ class ShuffleNetV2(nn.Module):
 
         # building last several layers
         self.conv_last      = conv_1x1_bn(input_channel, self.stage_out_channels[-1])
-        self.globalpool = nn.Sequential(nn.AvgPool2d(int(input_size/32)))              
+        self.globalpool = nn.Sequential(nn.AdaptiveAvgPool2d(1))              
     
 	# building classifier
         self.classifier = nn.Sequential(nn.Linear(self.stage_out_channels[-1], n_class))
 
     def forward(self, x):
         x = self.conv1(x)
-        x = self.maxpool(x)
+        # x = self.maxpool(x)
         x = self.features(x)
         x = self.conv_last(x)
         x = self.globalpool(x)
+        
         x = x.view(-1, self.stage_out_channels[-1])
         x = self.classifier(x)
         return x
@@ -170,8 +172,14 @@ def shufflenetv2(width_mult=1.):
     return model
 
 net=shufflenetv2()
-x = Tensor.ones(4, 3, 224, 224)
-labels = Tensor.ones(4, 1000)
-dataload = dataloader.DataLoader(x, labels, batch_size = 1, shuffle=False)
+x = Tensor.ones(128, 3, 32, 32)
+labels = Tensor.ones(128, 10)
+dataload = dataloader.DataLoader(x, labels, batch_size = 128, shuffle=False)
+crossloss = nn.CrossEntropyLoss()
+optimizer = optim.SGD(net.parameters(), lr = 0.01)
+
 input, label = dataload.get_data(0)
 output = net(input)
+loss = crossloss(output, label)
+optimizer.zero_grad()
+loss.backward()

@@ -39,11 +39,11 @@ class VGG16(nn.Module):
         self.layer5 = vgg_conv_block([512,512,512], [512,512,512], [3,3,3], [1,1,1], 2, 2)
 
         # FC layers
-        self.layer6 = vgg_fc_layer(7*7*512, 4096)
-        self.layer7 = vgg_fc_layer(4096, 4096)
+        self.layer6 = vgg_fc_layer(512, 512)
+        self.layer7 = vgg_fc_layer(512, 512)
 
         # Final layer
-        self.layer8 = nn.Linear(4096, n_classes)
+        self.layer8 = nn.Linear(512, n_classes)
 
     def forward(self, x):
         out = self.layer1(x)
@@ -52,15 +52,20 @@ class VGG16(nn.Module):
         out = self.layer4(out)
         vgg16_features = self.layer5(out)
         out = vgg16_features.view(out.size(0), -1)
+        print(out.sizes)
         out = self.layer6(out)
         out = self.layer7(out)
         out = self.layer8(out)
 
         return  out
-x = Tensor.ones(128, 3, 224, 224)
-labels = Tensor.ones(128, 1000)
+# x = Tensor.ones(128, 3, 224, 224)
+# labels = Tensor.ones(128, 1000)
+# dataload = dataloader.DataLoader(x, labels, batch_size = 128)
+# model = VGG16(n_classes=1000)
+x = Tensor.ones(128, 3, 32, 32)
+labels = Tensor.ones(128, 10)
 dataload = dataloader.DataLoader(x, labels, batch_size = 128)
-model = VGG16(n_classes=1000)
+model = VGG16(n_classes=10)
 model.train()
 optimizer = optim.SGD(model.parameters(), lr = 0.01)
 crossloss = nn.CrossEntropyLoss()
