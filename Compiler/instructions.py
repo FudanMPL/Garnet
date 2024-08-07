@@ -3006,6 +3006,8 @@ class conv2ds(base.DataInstruction, base.VarArgsInstruction, base.Mergeable):
             res = cost_func(config.bit_length, config._security, config.computation_security, config.f, config.n_parties, args[14] * args[3] * args[4] , args[7] * args[8] * args[11], 1 )
             if program.protocol == 'CryptFlow2' and args[15] == 1:
                 req_node.increment(('online communication', 'bits'), args[14] * args[3] * args[4] * args[7] * args[8] * args[11] * config.bit_length * config.computation_security)
+                req_node.increment(('offline communication', 'bits'), res[2])
+                continue    
             req_node.increment(('online communication', 'bits'), res[0])
             req_node.increment(('offline communication', 'bits'), res[2])
             online_round = max(online_round, res[1])
