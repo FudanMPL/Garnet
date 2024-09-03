@@ -4,14 +4,14 @@ import tensor as tensor
 import functional as F
 program.use_fss_cmp = False
 program.options_from_args()
-BATCH_SIZE = 1
+BATCH_SIZE = 100
 INPUT_CHANNEL = 1
-OUTPUT_CHANNEL = 10
+OUTPUT_CHANNEL = 16
 OUTPUT_CHANNEL_1 = 16
-ROW = 8
-COL = 8
-KERNEL_ROW = 2
-KERNEL_COL = 2
+ROW = 28
+COL = 28
+KERNEL_ROW = 5
+KERNEL_COL = 5
 
 @autograd_function
 def test_rfss3conv2d_relu():
@@ -43,7 +43,7 @@ def test_rfss3conv2d_relu():
     weight1 = Tensor(weight_v1,req_grad = True)
     output=F.rfss3_conv2d_relu(input,weight,padding=[0,0], groups = 1)
     output_1 = F.rfss3_conv2d_relu(output, weight1, padding=[0,0], groups = 1)
-    output_1.backward()
+    # output_1.backward()
     output_1.value.print_reveal_nested()
     weight.grad.print_reveal_nested()
     # input.grad.print_reveal_nested()
@@ -79,11 +79,11 @@ def test_conv2d_relu():
     output=F.relu(output)
     output_1 = F.conv2d(output, weight1, padding=[0,0], groups = 1)
     output_1 = F.relu(output_1)
-    output_1.backward()
-    output_1.value.print_reveal_nested()
-    weight.grad.print_reveal_nested()
+    # output_1.backward()
+    # output_1.value.print_reveal_nested()
+    # weight.grad.print_reveal_nested()
     # input.grad.print_reveal_nested()
     
 
-test_rfss3conv2d_relu()
-# test_conv2d_relu()
+# test_rfss3conv2d_relu()
+test_conv2d_relu()

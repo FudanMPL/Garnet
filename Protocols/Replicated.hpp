@@ -300,10 +300,12 @@ void Replicated<T>::trunc_pr(const vector<int>& regs, int size, U& proc,
     bool compute = P.my_num() == comp_player;
     ArgList<TruncPrTupleWithGap<value_type>> infos(regs);
     auto& S = proc.get_S();
-
+    std::cout << "Entering trunc_pr in Replicated.hpp" << std::endl;
     octetStream cs;
     ReplicatedInput<T> input(P);
-
+    for (auto info : infos)
+        for(int i = 0; i < size; i++)
+            std::cout << "input is " << S[info.source_base + i] << std::endl;
     if (generate)
     {
         SeededPRNG G;
@@ -311,9 +313,16 @@ void Replicated<T>::trunc_pr(const vector<int>& regs, int size, U& proc,
             for (int i = 0; i < size; i++)
             {
                 auto r = G.get<value_type>();
+                std::cout << "r is " << r << " r_upper is " << info.upper(r) << std::endl;
+                std::cout << "small gap is " << info.small_gap() << std::endl;
+                // return (mask << (n_shift + 1)) >> (n_shift + m + 1);
+                // we get r[m, k-m-1]
                 input.add_mine(info.upper(r));
+                auto r_msb = info.msb(r);
+                std::cout << "msb r is " << r_msb << std::endl;
                 if (info.small_gap())
-                    input.add_mine(info.msb(r));
+                    input.add_mine(r_msb);
+                std::cout << "send value is " << r + S[info.source_base + i][0] << std::endl;
                 (r + S[info.source_base + i][0]).pack(cs);
             }
         P.send_to(comp_player, cs);
@@ -326,8 +335,15 @@ void Replicated<T>::trunc_pr(const vector<int>& regs, int size, U& proc,
         P.receive_player(gen_player, cs);
         for (auto info : infos)
             for (int i = 0; i < size; i++)
-            {
-                auto c = cs.get<value_type>() + S[info.source_base + i].sum();
+            {   
+                std::cout << "S is " << S[info.source_base + i] << std::endl;
+                std::cout << "sum of S is " << S[info.source_base + i].sum() << std::endl;
+                auto rec = cs.get<value_type>();
+                // c = x + r (opened value)
+                auto c = rec + S[info.source_base + i].sum();
+                std::cout << "rec is " << rec << " c is " << c << std::endl;
+                std::cout << "c upper is " << info.upper(c) << " MSB c is " << info.msb(c) << std::endl;
+                // c' = info.upper(c) 其实就是c[m, k-1]
                 input.add_mine(info.upper(c));
                 if (info.small_gap())
                     input.add_mine(info.msb(c));
@@ -344,14 +360,20 @@ void Replicated<T>::trunc_pr(const vector<int>& regs, int size, U& proc,
             this->trunc_pr_counter++;
             auto c_prime = input.finalize(comp_player);
             auto r_prime = input.finalize(gen_player);
+            std::cout << "c_prime is " << c_prime << " r_prime is " << r_prime << std::endl;
+            // 这里就是在算c[m,k-1] - r[m, k-1]，需要注意的是c'应该是秘密分享份额
             S[info.dest_base + i] = c_prime - r_prime;
+            std::cout << "S is " << S[info.dest_base + i] << std::endl;
 
             if (info.small_gap())
             {
                 auto c_dprime = input.finalize(comp_player);
                 auto r_msb = input.finalize(gen_player);
+                std::cout << "cdprime is " << c_dprime << " r_msb is " << r_msb << std::endl;
+                // 这里是 + (r_msb + c_dprime) << (k - m)
                 S[info.dest_base + i] += ((r_msb + c_dprime)
                         << (info.k - info.m));
+                std::cout << "S is " << S[info.dest_base + i] << std::endl;
                 prepare_mul(r_msb, c_dprime);
             }
         }
@@ -360,9 +382,13 @@ void Replicated<T>::trunc_pr(const vector<int>& regs, int size, U& proc,
 
     for (auto info : infos)
         for (int i = 0; i < size; i++)
-            if (info.small_gap())
-                S[info.dest_base + i] -= finalize_mul()
+            if (info.small_gap()){
+                auto res = finalize_mul();
+                std::cout << "res is " << res << std::endl;
+                // 最后 - (r_msb * c_dprime) << (k - m + 1)
+                S[info.dest_base + i] -= res
                         << (info.k - info.m + 1);
+            }
 }
 
 template<class T>

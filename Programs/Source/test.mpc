@@ -1,5 +1,7 @@
+program.use_trunc_pr = True
 
-s = sint(10, 10)
-
-print_ln("%s",s.reveal())
-
+sfix.set_precision(16,47)
+a = sfix(3.5)
+b = sfix(4.5)
+c = (a*b).reveal()
+print_ln("%s", c)

@@ -1,6 +1,6 @@
 include CONFIG
 
-CUDA=-lcudart -L/usr/local/cuda/lib64
+CUDA=  -lcudart -L/usr/local/cuda/lib64
 
 MATH = $(patsubst %.cpp,%.o,$(wildcard Math/*.cpp))
 
@@ -214,7 +214,7 @@ tree-inference.x: Machines/tree-inference.cpp  $(MINI_OT) $(SHAREDLIB)
 
 
 %.x: Machines/%.o $(MINI_OT) $(SHAREDLIB)
-	$(CXX) -o $@ $(CFLAGS) $^ -lcudart -L/usr/local/cuda/lib64 $(LDLIBS) $(SHAREDLIB)
+	$(CXX) -o $@ $(CFLAGS) $^ $(LDLIBS) $(SHAREDLIB)
 
 %-ecdsa-party.x: ECDSA/%-ecdsa-party.o ECDSA/P256Element.o $(VM)
 	$(CXX) -o $@ $(CFLAGS) $^ $(LDLIBS)
@@ -282,8 +282,10 @@ semi2k-with-conversion-party.x: $(OT) $(GC_SEMI)
 sml-party.x:  CFLAGS += -D ENABLE_PSI=true
 sml-party.x: $(TOOLS_PSI) $(OT) $(GC_SEMI) 
 vss-party.x: $(OT) $(GC_SEMI)
-fss-ring-party.x: GC/square64.o $(BUILD_DIR_DYNAMIC_DPF) $(SHAREDLIB) $(BUILD_DIR_DYNAMIC_DPF)/gpu.o
-	g++ -g Machines/fss-ring-party.cpp $(BUILD_DIR_DYNAMIC_DPF)/gpu.o $(BUILD_DIR_DYNAMIC_DPF)/interface.o -o fss-ring-party.x -lcudadevrt -lcudart -I/usr/local/cuda/include -L/usr/local/cuda/lib64 $(LDLIBS) $(SHAREDLIB) $(CFLAGS)
+# fss-ring-party.x: GC/square64.o $(BUILD_DIR_DYNAMIC_DPF) $(SHAREDLIB) $(BUILD_DIR_DYNAMIC_DPF)/gpu.o
+	# g++ -g Machines/fss-ring-party.cpp $(BUILD_DIR_DYNAMIC_DPF)/gpu.o $(BUILD_DIR_DYNAMIC_DPF)/interface.o -o fss-ring-party.x -lcudadevrt -lcudart -I/usr/local/cuda/include -L/usr/local/cuda/lib64 $(LDLIBS) $(SHAREDLIB) $(CFLAGS)
+fss-ring-party.x: GC/square64.o
+
 hemi-party.x: $(FHEOFFLINE) $(GC_SEMI) $(OT)
 temi-party.x: $(FHEOFFLINE) $(GC_SEMI) $(OT)
 soho-party.x: $(FHEOFFLINE) $(GC_SEMI) $(OT)

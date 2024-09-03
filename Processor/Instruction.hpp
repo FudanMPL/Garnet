@@ -1229,10 +1229,10 @@ inline void Instruction::execute(Processor<sint, sgf2n> &Proc) const
       return;
     // RFSS3 
     case CONV2DRELUTRUNCRFSS3S:
-      Proc.Procp.protocol.rfss3s_conv2d_relu_truncs(Proc.Procp, *this);
+      // Proc.Procp.protocol.rfss3s_conv2d_relu_truncs(Proc.Procp, *this);
       return;
     case FSS_CMP:
-      Proc.Procp.protocol.fss_cmp(Proc.Procp, *this);
+      // Proc.Procp.protocol.fss_cmp(Proc.Procp, *this);
       return;
     case TRUNC_PR:
       Proc.Procp.protocol.trunc_pr(start, size, Proc.Procp);

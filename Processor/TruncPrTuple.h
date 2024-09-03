@@ -43,11 +43,13 @@ public:
 
     T upper(T mask)
     {
+        std::cout << "n_shift is " << n_shift << " m is " << m << " k is " << k << std::endl;
         return (mask << (n_shift + 1)) >> (n_shift + m + 1);
     }
 
     T msb(T mask)
     {
+        std::cout << "n_shift is " << n_shift << " T::N_BITS is " << T::N_BITS << std::endl;
         return (mask << (n_shift)) >> (T::N_BITS - 1);
     }
 
