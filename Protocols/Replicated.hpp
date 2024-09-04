@@ -311,6 +311,7 @@ void Replicated<T>::trunc_pr(const vector<int>& regs, int size, U& proc,
             for (int i = 0; i < size; i++)
             {
                 auto r = G.get<value_type>();
+                // mask >> this->m
                 input.add_mine(info.upper(r));
                 if (info.small_gap())
                     input.add_mine(info.msb(r));

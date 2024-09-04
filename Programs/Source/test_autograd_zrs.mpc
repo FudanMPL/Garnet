@@ -487,19 +487,19 @@ def test_tanh():
 @autograd_function
 def test_conv2d():
     print_ln("test_conv2d:")
-    training_samples = MultiArray([4, 3,5, 5], sfix)
-    for i in range(0,4):
-        for j in range(0,3):
-            for k in range(0,5):
-                for m in range(5):
+    training_samples = MultiArray([200, 1, 28, 28], sfix)
+    for i in range(0,100):
+        for j in range(0,1):
+            for k in range(0,28):
+                for m in range(28):
                     training_samples[i][j][k][m]=i+j+k+m
 
 
     training_labels = MultiArray([4, 10], sint)
-    weight_v=MultiArray([3,3,3,3],sfix)
-    for i in range(0,3):
-        for j in range(0,3):
-            for k in range(0,3):
+    weight_v=MultiArray([16,1,5,5],sfix)
+    for i in range(0,16):
+        for j in range(0,1):
+            for k in range(0,5):
                 weight_v[i][0][j][k] = sfix(i+j+k)
 
     weight_v.print_reveal_nested()
@@ -507,9 +507,9 @@ def test_conv2d():
     weight=Tensor(weight_v,req_grad = True )
     output=F.conv2d(input,weight,padding=[2,2], groups = 1)
     output.backward()
-    output.value.print_reveal_nested()
-    weight.grad.print_reveal_nested()
-    input.grad.print_reveal_nested()
+    # output.value.print_reveal_nested()
+    # weight.grad.print_reveal_nested()
+    # input.grad.print_reveal_nested()
 
 
 
@@ -848,8 +848,7 @@ def test_logsoftmax_F_Array():
     output.backward()
     input1.grad.print_reveal_nested()
 
-
-# test_conv2d()
+test_conv2d()
 # test_logsoftmax_F_Array()
 
 # test_softmax_0()
@@ -877,7 +876,7 @@ def test_logsoftmax_F_Array():
 
 # test_avgpool2d()
 
-test_maxpool2d()
+# test_maxpool2d()
 
 # test_conv2d()
 # test_tanh()

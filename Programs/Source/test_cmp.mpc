@@ -1,0 +1,27 @@
+program.use_fss_cmp = True
+
+import Compiler.mpc_math
+import random
+import ml
+n = 100
+cnt = 0
+
+a = sfix.Array(n)
+b = sfix.Array(n)
+c = sfix.Array(n)
+for i in range(n):
+    a[i] = random.randint(-10000, 10000)/100000
+    b[i] = random.randint(-10000, 10000)/100000
+    # a[i] = 2
+    # b[i] = 1
+
+c[:] = a[:] > b[:]
+
+for i in range(n):
+    # c[i] = (a[i] > b[i])
+    clear_a = a[i].reveal()
+    clear_b = b[i].reveal()
+    d = (clear_a > clear_b)
+    if c[i].reveal() != d:
+        print_ln("a is %s, b is %s", a[i].reveal(), b[i].reveal())
+        print_ln("c is %s , d is %s, a-b is %s", c[i].reveal(), d, (a[i]-b[i]).reveal())

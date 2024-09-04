@@ -1,0 +1,7 @@
+A = sfix(2)
+B = sfix.Matrix(1000, 10000)
+
+for i in range(B.total_size()):
+    B.assign_vector(sfix(i), i)
+
+C.assign_vector(A.direct_mul(B))
