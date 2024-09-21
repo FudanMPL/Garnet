@@ -3915,6 +3915,11 @@ class cfix(_number, _structure):
     def load_int(self, v):
         self.v = cint(v) * (2 ** self.f)
 
+
+    def get_vector(self):
+        return self
+
+        
     @classmethod
     def conv(cls, other):
         if isinstance(other, cls):
@@ -6333,13 +6338,17 @@ class SubMultiArray(_vectorizable):
         # assert vector.size <= self.total_size()-base,"vector size with base cause a buffer overflow"
         self.value_type.conv(vector).store_in_mem(self.address + base)
 
-    def assign(self, other):
+    def assign(self, other, base=0):
         """ Assign container to content. Not implemented for floating-point.
 
         :param other: container of matching size and type """
-        if self.value_type.n_elements() > 1:
-            assert self.sizes == other.sizes
-        self.assign_vector(other.get_vector())
+        try:
+            if self.value_type.n_elements() > 1:
+                assert self.sizes == other.sizes
+            self.assign_vector(other.get_vector())
+        except:
+            for i, x in enumerate(other):
+                self[base + i].assign(x)
 
     def get_part_vector(self, base=0, size=None):
         """ Vector from range of the first dimension, including all
@@ -6961,10 +6970,13 @@ class SubMultiArray(_vectorizable):
             def _(i):
                 self[i].randomize(*args)
 
+    
+
     def reveal(self):
         """ Reveal to :py:obj:`MultiArray` of same shape. """
-        res = MultiArray(self.sizes, self.value_type.clear_type)
-        res[:] = self.get_vector().reveal()
+        v = self.get_vector().reveal()
+        res = MultiArray(self.sizes, type(v))
+        res[:] = v
         return res
 
     def reveal_list(self):

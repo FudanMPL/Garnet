@@ -7,12 +7,13 @@ ents.tree_h = 4
 
 party_number = int(program.args[1])
 feature_number = int(program.args[2]) # feature number including label
-ents.tree_h = int(program.args[3]) # tree height
-ents.n_threads = int(program.args[4]) # tree height
+ents.label_number = int(program.args[3]) # 标签种类数
+ents.tree_h = int(program.args[4]) # tree height
+ents.n_threads = int(program.args[5]) 
 assert len(program.args) >= 5 + party_number
 sample_number_from_party = []
 for i in range(party_number):
-    sample_number_from_party.append(int(program.args[5+i]))
+    sample_number_from_party.append(int(program.args[6+i]))
 
 
 if party_number > 3:
@@ -37,12 +38,15 @@ for k in range(party_number):
     count = count + sample_number_from_party[k]
 
 
-trainer = ents.TreeTrainer(
-   feature, label, ents.tree_h, attr_lengths=None,
-   n_threads=ents.n_threads)
+
+
+trainer = ents.DecisionTree(
+   feature, label, ents.tree_h)
 
 layers = trainer.train()
 
 print_ln("==============tree structure================")
 ents.output_tree(layers)
 print_ln("============================================")
+
+trainer.predict_all(feature, label)

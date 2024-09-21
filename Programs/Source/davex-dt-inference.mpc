@@ -1,0 +1,41 @@
+import ents, util, math
+
+
+m = int(program.args[1]) # 特征+标签数
+test_samples = int(program.args[2]) # 测试样本数
+ents.label_number = int(program.args[3]) # 标签种类数
+ents.tree_h = int(program.args[4]) # 树高
+
+n_threads = 4 # 最大线程数
+
+program.use_split(2)
+program.use_trunc_pr=True
+
+label = sint.Array(test_samples)
+feature = sfix.Matrix(m -1 , test_samples)
+
+count = 0
+  
+for i in range(test_samples):
+    for j in range(0, m-1):
+        feature[j][i] = sfix.get_input_from(1)
+    label[i] = sint.get_input_from(1)
+
+
+
+
+
+dt = ents.DecisionTree(
+   feature, label, ents.tree_h)
+
+dt.input_from(0)
+
+print_ln("==============tree structure================")
+ents.output_tree(dt.layers)
+print_ln("============================================")
+
+
+
+dt.predict_all(feature, label)
+
+
