@@ -30,11 +30,6 @@ dt = ents.DecisionTree(
 
 dt.input_from(0)
 
-print_ln("==============tree structure================")
-ents.output_tree(dt.layers)
-print_ln("============================================")
-
-
 
 dt.predict_all(feature, label)
 
