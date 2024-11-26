@@ -5,19 +5,20 @@ import Compiler.optimizer as optim
 import Compiler.dataloader as dataloader
 import Compiler.functional as F
 program.use_trunc_pr = True
-
+sfix.set_precision(23, 59)
+cfix.set_precision(23, 59)
 class LeNet(nn.Module):
     def __init__(self):
         super(LeNet, self).__init__()
         self.conv = nn.Sequential(
-            nn.Conv2d(1, 6, 5), # in_channels, out_channels, kernel_size
+            nn.Conv2d(1, 6, 5, padding=2), # in_channels, out_channels, kernel_size
             nn.Relu(),
             nn.AvgPool2d(2, 2), # kernel_size, stride
             nn.Conv2d(6, 16, 5),
             nn.Relu(),
             nn.AvgPool2d(2, 2))
         self.fc = nn.Sequential(
-            nn.Linear(16*20*4, 120),
+            nn.Linear(16*5*5, 120),
             nn.Relu(),
             nn.Linear(120, 84),
             nn.Relu())
@@ -33,8 +34,10 @@ class LeNet(nn.Module):
 model = LeNet()
 crossloss = nn.CrossEntropyLoss()
 
-x = MultiArray([1,1,28,28], sfix)
-y = MultiArray([1,10], sfix)
+x = MultiArray([60000,1,28,28], sfix)
+x.input_from(0)
+y = MultiArray([60000,10], sfix)
+y.input_from(0)
 
 # @for_range(x.total_size())
 # def _(i):
@@ -43,19 +46,20 @@ y = MultiArray([1,10], sfix)
 # for i in range(10):
 #     y[i][i//3] = 1
 
-dataload = dataloader.DataLoader(x, y, batch_size = 1)
+dataload = dataloader.DataLoader(x, y, batch_size = 128)
 optimizer = optim.SGD(model.parameters(), lr = 0.01)
 params = list(model.parameters())
-for i in params:
-    i.assign_all(0.1)
+# for i in params:
+#     i.assign_all(0.1)
 model.train()
 
-@for_range(1)
+@for_range(10)
 def _(i):
     input, label = dataload.get_data(0)
     output = model(input)
     loss = crossloss(output, label)
     optimizer.zero_grad()
     loss.backward()
+    print_ln("loss:%s", loss.reveal())
     optimizer.step()
    

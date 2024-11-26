@@ -219,13 +219,19 @@ public:
                 }
 #endif
                 int n_shift = regs[i + 3];
+#define ROUND_NEAREST_IN_EMULATION
 #ifdef ROUND_NEAREST_IN_EMULATION
+                // std::cout<< source <<std::endl;
                 res = source >> n_shift;
+                // std::cout<< res <<std::endl;
+
                 if (n_shift > 0)
                 {
                     bool overflow = T(source >> (n_shift - 1)).get_bit(0);
                     res += overflow;
                 }
+                // std::cout<< res <<std::endl;
+
 #else
                 if (TruncPrTupleWithGap<typename T::clear>(regs, i).big_gap())
                 {

@@ -1,8 +1,8 @@
 import nn as nn
-from tensor import Tensor,autograd_function
-import optimizer as optim
-import dataloader as dataloader
-import functional as F
+from Compiler.tensor import Tensor,autograd_function
+import Compiler.optimizer as optim
+import Compiler.dataloader as dataloader
+import Compiler.functional as F
 import math
 import copy
 

@@ -53,8 +53,8 @@ class VGG16(nn.Module):
         vgg16_features = self.layer5(out)
         out = vgg16_features.view(out.size(0), -1)
         print(out.sizes)
-        out = self.layer6(out)
-        out = self.layer7(out)
+        # out = self.layer6(out)
+        # out = self.layer7(out)
         out = self.layer8(out)
 
         return  out
@@ -76,5 +76,5 @@ def _(i):
     loss = crossloss(output, label)
     optimizer.zero_grad()
     loss.backward()
-    optimizer.step()
+    # optimizer.step()
    

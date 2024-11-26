@@ -51,7 +51,7 @@ class defaults:
     garbled = False
     prime = None
     galois = 40
-    budget = 10
+    budget = 100
     mixed = False
     edabit = False
     invperm = False
@@ -258,7 +258,8 @@ class Program(object):
             if prev and prev != ring_size:
                 raise CompilerError("cannot have different ring sizes")
         self.bit_length = ring_size - 1
-        self.cost_config.set_bit_length(self.bit_length, self)
+        if self.cost_config is not None:
+            self.cost_config.set_bit_length(self.bit_length, self)
         self.non_linear = Ring(ring_size)
         self.options.ring = str(ring_size)
 
@@ -551,6 +552,14 @@ class Program(object):
                 self.programs_dir + "/Public-Input/%s" % self.name, "w"
             )
         self.public_input_file.write("%s\n" % str(x))
+        
+    def get_binary_input_file(self, player):
+        key = player, 'bin'
+        if key not in self.input_files:
+            filename = 'Player-Data/Input-Binary-P%d-0' % player
+            print('Writing binary data to', filename)
+            self.input_files[key] = open(filename, 'wb')
+        return self.input_files[key]
 
     def set_bit_length(self, bit_length):
         """Change the integer bit length for non-linear functions."""

@@ -1,0 +1,88 @@
+import ml
+
+
+program.options_from_args()
+
+approx = 3
+n_examples = 60000
+n_features = 28 ** 2
+n_epochs = 1
+batch_size = 512
+n_test = 10000
+n_inner = 128
+sfix.set_precision(14, 32)
+cfix.set_precision(14, 32)
+program.use_trunc_pr = True
+
+ml.Layer.back_batch_size = batch_size
+
+
+
+training_samples = sfix.Tensor([60000, 28, 28])
+training_labels = sint.Tensor([60000, 10])
+
+test_samples = sfix.Tensor([10000, 28, 28])
+test_labels = sint.Tensor([10000, 10])
+
+training_labels.input_from(0)
+training_samples.input_from(0)
+
+test_labels.input_from(0)
+test_samples.input_from(0)
+
+from Compiler import ml
+tf = ml
+
+layers = [
+    tf.keras.layers.Conv2D(20, 5, 1, 'valid', activation='relu'),
+    tf.keras.layers.MaxPooling2D(2),
+    tf.keras.layers.Conv2D(50, 5, 1, 'valid', activation='relu'),
+    tf.keras.layers.MaxPooling2D(2),
+    tf.keras.layers.Flatten(),
+    # tf.keras.layers.Dropout(0.5),
+    tf.keras.layers.Dense(500, activation='relu'),
+    tf.keras.layers.Dense(10, activation='softmax')
+]
+model = tf.keras.models.Sequential(layers)
+
+optim =tf.keras.optimizers.SGD(momentum=0.9, learning_rate=0.01)
+
+model.compile(optimizer=optim)
+
+opt = model.fit(
+    training_samples,
+    training_labels,
+    epochs=10,
+    batch_size=128,
+    validation_data=(test_samples, test_labels)
+)
+
+for var in model.trainable_variables:
+    var.write_to_file()
+
+# res = sgd.eval(test_x)
+
+# for i in range(n_test):
+#     n_correct += test_y[i] == (res[i] >=0.5)
+
+
+# test_y = test_y
+
+# for i in range(n_test):
+#     n_correct += test_y[i] == (res[i] >=0.5)
+
+
+# print_ln('***准确率: %s (%s/%s)', n_correct / n_test, n_correct, n_test)
+
+
+# print_ln('======= 结果 ===========')
+
+
+
+# print_ln('序号      真实标签      预测标签')
+
+# for i in range(n_test):
+#     print_ln('%s       %s      %s', i, test_y[i], res[i] >=0.5)
+
+
+# print_ln('==========================')

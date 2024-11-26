@@ -6,14 +6,19 @@ import ml
 program.options_from_args()
 
 approx = 3
+program.use_trunc_pr = True
+
+sfix.set_precision(10, 30)
+cfix.set_precision(10, 30)
+# sfix.round_nearest = True
 
 if 'gisette' in program.args:
     print('Compiling for 4/9')
     N = 11791
     n_test = 1991
 else:
-    N = 12665
-    n_test = 2115
+    N = 60000
+    n_test = 10000
 
 n_examples = N
 n_features = 28 ** 2
@@ -21,12 +26,12 @@ n_features = 28 ** 2
 try:
     n_epochs = int(program.args[1])
 except:
-    n_epochs = 100
+    n_epochs = 1
 
 try:
     batch_size = int(program.args[2])
 except:
-    batch_size = N
+    batch_size = 512
 
 assert batch_size <= N
 ml.Layer.back_batch_size = batch_size
@@ -36,30 +41,34 @@ try:
 except:
     pass
 
-layers = [ml.Dense(N, n_features, 1),
-          ml.Output(N, approx=approx)]
+layers = [ml.Dense(N, n_features, 10),
+          ml.MultiOutput(N, 10)]
 
 layers[1].Y.input_from(0)
 layers[0].X.input_from(0)
+# Y = sint.Array(n_test, 10)
+# X = sfix.Matrix(n_test, n_features)
 
-Y = sint.Array(n_test)
-X = sfix.Matrix(n_test, n_features)
-Y.input_from(0)
-X.input_from(0)
+# Y.input_from(0)
+# X.input_from(0)
+# print_ln("B:%s", layers[0].X[0].get_vector().v.reveal())
 
 sgd = ml.SGD(layers, n_epochs, report_loss=True)
+
 sgd.reset()
+sgd.gamma = MemValue(cfix(0.01))
+# print_ln("B:%s", layers[0].X[0].get_vector().v.reveal())
 
 start_timer(1)
 sgd.run(batch_size)
 stop_timer(1)
 
-layers[0].X.assign(X)
-sgd.forward(n_test)
+# layers[0].X.assign(X)
+# sgd.forward(n_test)
 
-n_correct = cfix(0)
+# n_correct = cfix(0)
 
-for i in range(n_test):
-    n_correct += Y[i].reveal().bit_xor(layers[0].Y[i][0][0][0].reveal() < 0)
+# for i in range(n_test):
+#     n_correct += Y[i].reveal().bit_xor(layers[0].Y[i][0][0][0].reveal() < 0)
 
-print_ln('acc: %s (%s/%s)', n_correct / n_test, n_correct, n_test)
+# print_ln('acc: %s (%s/%s)', n_correct / n_test, n_correct, n_test)

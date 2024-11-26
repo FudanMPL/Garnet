@@ -1,0 +1,39 @@
+# @buildingblock("test")
+# def test(actual, expected):
+
+#     # you can reveal a number in order to print it
+
+#     actual = actual.reveal()
+#     print_ln('expected %s, got %s', expected, actual)
+
+
+
+# a = sint(1)
+# b = sint(2)
+# c=a>b
+# d=a<b
+# test(a > b, 1)
+# test(a < b, 1)
+# from sorting import radix_sort
+# import mpc_math
+# a = sfix([1,2,3])
+program.use_trunc_pr = True
+# sfix.round_nearest = True
+sfix.set_precision(4, 9)
+cfix.set_precision(4, 9)
+for i in range(129):
+    a = Array(1000, sfix)
+    b = Array(1000, sfix)
+    a.assign_all(-8+(i)*0.125)
+    b.assign_all(0.125)
+    c = a*b
+    # c = a*c*c*c
+    # print_ln("a = %s",a.reveal())
+    # print_ln("b = %s",b.reveal())
+    
+    print_ln("%s",c.reveal())
+
+    
+# ab = sfix([3, 2, 1])
+# c = mpc_math.log_fx(a, 2)
+# print_ln("c = %s",c.reveal())

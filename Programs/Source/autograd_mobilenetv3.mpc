@@ -53,7 +53,7 @@ class Block(nn.Module):
         self.conv3 = nn.Conv2d(expand_size, out_size, kernel_size=1, bias=False)
         self.bn3 = nn.BatchNorm2d(out_size)
         self.act3 = act(inplace=True)
-
+        self.use_residual = (stride == 1 and in_size == out_size)
         self.skip = None
         if stride == 1 and in_size != out_size:
             self.skip = nn.Sequential(
@@ -83,9 +83,9 @@ class Block(nn.Module):
         out = self.se(out)
         out = self.bn3(self.conv3(out))
         
-        if self.skip is not None:
-            skip = self.skip(skip)
-        return self.act3(out + skip)
+        if self.use_residual:
+            out = out + x
+        return self.act3(out)
 
 
 

@@ -1,5 +1,5 @@
 import nn as nn
-from tensor import Tensor,autograd_function
+from Compiler.tensor import Tensor,autograd_function
 import optimizer as optim
 import dataloader as dataloader
 import functional as F
@@ -111,7 +111,7 @@ class ShuffleNetV2(nn.Module):
         
         assert input_size % 32 == 0
         
-        self.stage_repeats = [4, 8, 4]
+        self.stage_repeats = [3, 7, 3]
         # index 0 is invalid and should never be called.
         # only used for indexing convenience.
         if width_mult == 0.5:
@@ -161,7 +161,9 @@ class ShuffleNetV2(nn.Module):
         # x = self.maxpool(x)
         x = self.features(x)
         x = self.conv_last(x)
+        print(x.shape)
         x = self.globalpool(x)
+        print(x.shape)
         
         x = x.view(-1, self.stage_out_channels[-1])
         x = self.classifier(x)
@@ -180,6 +182,8 @@ optimizer = optim.SGD(net.parameters(), lr = 0.01)
 
 input, label = dataload.get_data(0)
 output = net(input)
+print(output.shape)
+print(label.shape)
 loss = crossloss(output, label)
 optimizer.zero_grad()
 loss.backward()

@@ -2,60 +2,58 @@
 # see https://github.com/csiro-mlai/mnist-mpc for data preparation
 
 program.options_from_args()
+program.use_trunc_pr = True
 
-training_samples = MultiArray([60000, 28, 28], sfix)
-training_labels = MultiArray([60000, 10], sint)
+if False:
+    import torchvision
+    data = []
+    for train in True, False:
+        ds = torchvision.datasets.MNIST(root='/tmp', train=train, download=True)
+	# normalize to [0,1] before input
+        samples = sfix.input_tensor_via(0, ds.data / 255., binary=True)
+        labels = sint.input_tensor_via(0, ds.targets, binary=True, one_hot=True)
+        data += [(labels, samples)]
 
-test_samples = MultiArray([10000, 28, 28], sfix)
-test_labels = MultiArray([10000, 10], sint)
+    (training_labels, training_samples), (test_labels, test_samples) = data
+else:
+    training_samples = sfix.Tensor([60000, 28, 28])
+    training_labels = sint.Tensor([60000, 10])
 
-training_labels.input_from(0)
-training_samples.input_from(0)
+    test_samples = sfix.Tensor([10000, 28, 28])
+    test_labels = sint.Tensor([10000, 10])
 
-test_labels.input_from(0)
-test_samples.input_from(0)
+    training_labels.input_from(0)
+    training_samples.input_from(0)
+
+    test_labels.input_from(0)
+    test_samples.input_from(0)
 
 from Compiler import ml
 tf = ml
 
 layers = [
-    tf.keras.layers.BatchNorm2d(),
-    tf.keras.layers.Conv2D(20, 5, 2, padding=2, activation='relu'),
-]
-
-
-'''
-if 'batchnorm' in program.args:
-    layers += [tf.keras.layers.BatchNormalization()]
-
-layers += [
+    tf.keras.layers.Conv2D(20, 5, 1, 'valid', activation='relu'),
     tf.keras.layers.MaxPooling2D(2),
     tf.keras.layers.Conv2D(50, 5, 1, 'valid', activation='relu'),
-]
-'''
-
-
-if 'batchnorm' in program.args:
-    layers += [tf.keras.layers.BatchNormalization()]
-
-
-layers += [
+    tf.keras.layers.MaxPooling2D(2),
+    tf.keras.layers.Flatten(),
+    tf.keras.layers.Dropout(0.5),
+    tf.keras.layers.Dense(500, activation='relu'),
     tf.keras.layers.Dense(10, activation='softmax')
 ]
-
 model = tf.keras.models.Sequential(layers)
 
-optim = tf.keras.optimizers.Adam(amsgrad=True)
+optim =tf.keras.optimizers.SGD(momentum=0.9, learning_rate=0.01)
 
 model.compile(optimizer=optim)
-start_profiling()
+
 opt = model.fit(
     training_samples,
     training_labels,
-    epochs=1,
+    epochs=10,
     batch_size=128,
     validation_data=(test_samples, test_labels)
 )
-stop_profiling()
+
 for var in model.trainable_variables:
     var.write_to_file()

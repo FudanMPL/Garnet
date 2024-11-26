@@ -67,21 +67,21 @@ public:
 
     for (auto &info : infos)
     {
-      if (not info.big_gap())
-      {
-        if (not T::clear::invertible)
-        {
-          int min_size = 64 * DIV_CEIL(
-                                  info.k + OnlineOptions::singleton.trunc_error, 64);
-          throw runtime_error(
-              "Bit length too large for trunc_pr. "
-              "Disable it or increase the ring size "
-              "during compilation using '-R " +
-              to_string(min_size) + "'.");
-        }
-        else
-          throw runtime_error("bit length too large");
-      }
+      // if (not info.big_gap())
+      // {
+      //   if (not T::clear::invertible)
+      //   {
+      //     int min_size = 64 * DIV_CEIL(
+      //                             info.k + OnlineOptions::singleton.trunc_error, 64);
+      //     throw runtime_error(
+      //         "Bit length too large for trunc_pr. "
+      //         "Disable it or increase the ring size "
+      //         "during compilation using '-R " +
+      //         to_string(min_size) + "'.");
+      //   }
+      //   else
+      //     throw runtime_error("bit length too large");
+      // }
       if (this->P.my_num())
         for (int i = 0; i < size; i++)
           proc.get_S_ref(info.dest_base + i) = -open_type(

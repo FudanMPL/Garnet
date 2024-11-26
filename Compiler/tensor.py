@@ -3624,7 +3624,7 @@ class Tensor():
             
             s[:] = input.value[:] < min_val
             t[:] = input.value[:] > max_val
-            output.value[:] = s.if_else(min_val, t.if_else(max_val, input.value[:]))
+            output.value[:] = s[:].if_else(min_val, t[:].if_else(max_val, input.value[:]))
             inter.assign_vector(output.value[:])
         op_id += 1
         # record the input and output of the op

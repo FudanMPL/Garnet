@@ -4076,12 +4076,17 @@ class cfix(_number, _structure):
         op.__doc__ = __eq__.__doc__
     del op
     @classmethod
+    def get_limit(cls, x):
+        exp_limit = 2 ** (x.k - x.f - 1)
+        return math.log(exp_limit)
+    
+    @classmethod
     def exp_fx(cls, x,iter=9):
         n=1<<iter
         a=1+x/n
         for i in range(0,iter):
             a=a*a
-        return a
+        return (x > -cls.get_limit(x)).if_else(a, 0)
     @classmethod
     def newton_div(cls, x, y):
         sign = 1
@@ -4556,12 +4561,17 @@ class _fix(_single):
         """ Secret fixed-point negation. """
         return self._new(-self.v, k=self.k, f=self.f)
     @classmethod
+    def get_limit(cls, x):
+        exp_limit = 2 ** (x.k - x.f - 1)
+        return math.log(exp_limit)
+    
+    @classmethod
     def exp_fx(cls, x,iter=9):
         n=1<<iter
         a=1+x/n
         for i in range(0,iter):
             a=a*a
-        return a
+        return (x > -cls.get_limit(x)).if_else(a, 0)
     @classmethod
     def newton_div(cls, x, y):
         sign = 1
@@ -4593,9 +4603,9 @@ class _fix(_single):
         assert self.k == other.k
         assert self.f == other.f
         if isinstance(other, _fix):
-            # return sfix.newton_div(self, other)
-            recip = other.compute_reciprocal()
-            return self*recip
+            return sfix.newton_div(self, other)
+            # recip = other.compute_reciprocal()
+            # return self*recip
             # v = library.FPDiv(self.v, other.v, self.k, self.f, self.kappa,
             #                   nearest=self.round_nearest)
         elif isinstance(other, cfix):

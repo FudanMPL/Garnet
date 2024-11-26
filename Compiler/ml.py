@@ -80,7 +80,7 @@ def exp(x):
     if use_mux:
         return mpc_math.mux_exp(math.e, x)
     else:
-        return mpc_math.pow_fx(math.e, x)
+        return mpc_math.exp_fx(x)
 
 def get_limit(x):
     exp_limit = 2 ** (x.k - x.f - 1)
@@ -170,7 +170,7 @@ def softmax(x):
     return softmax_from_exp(exp_for_softmax(x)[0])
 
 def exp_for_softmax(x):
-    m = util.max(x) - get_limit(x[0]) + math.log(len(x))
+    m = util.max(x) #- get_limit(x[0]) + math.log(len(x))
     mv = m.expand_to_vector(len(x))
     try:
         x = x.get_vector()
@@ -598,7 +598,7 @@ class MultiOutput(MultiOutputBase):
                 e, m = exp_for_softmax(self.X[i])
                 self.exp[i].assign_vector(e)
                 if self.compute_loss:
-                    true_X = sfix.dot_product(self.Y[batch[i]], self.X[i])
+                    true_X = sfix.dot_product(self.Y[batch[i]], self.X[i])                 
                     tmp[i] = m + log_e(sum(e)) - true_X
                     self.true_X[i] = true_X
         self.l.write(sum(tmp.get_vector(0, N)) / N)
@@ -988,7 +988,8 @@ class Dense(DenseBase):
         d_out = self.d_out
         r = math.sqrt(6.0 / (d_in + d_out))
         print('Initializing dense weights in [%f,%f]' % (-r, r))
-        self.W.randomize(-r, r)
+        self.W.assign_all(0)        
+        # self.W.randomize(-r, r)
         self.b.assign_all(0)
 
     def input_from(self, player, raw=False):
@@ -2514,10 +2515,10 @@ class QuantSoftmax(QuantBase, BaseLayer):
 class Optimizer:
     """ Base class for graphs of layers. """
     n_threads = Layer.n_threads
-    always_shuffle = True
-    shuffle = True
+    always_shuffle = False
+    shuffle = False
     time_layers = False
-    revealing_correctness = False
+    revealing_correctness = True
     early_division = False
     output_diff = False
     output_grad = False
@@ -2552,7 +2553,7 @@ class Optimizer:
         self.X_by_label = None
         self.print_update_average = False
         self.print_random_update = False
-        self.print_losses = False
+        self.print_losses = True
         self.print_loss_reduction = False
         self.i_epoch = MemValue(0)
         self.stopped_on_loss = MemValue(0)
@@ -2844,15 +2845,17 @@ class Optimizer:
                     print_ln('loss reduction in batch %s: %s (%s - %s)', j,
                              before - after, before, after)
                 elif self.print_losses:
-                    print_str('\rloss in batch %s: %s/%s', j,
-                             self.layers[-1].average_loss(N),
-                             loss_sum.reveal() / (j + 1))
+                    # print_str('\rloss in batch %s: %s/%s', j,
+                    #          self.layers[-1].average_loss(N),
+                    #          loss_sum.reveal() / (j + 1))
+                    print_str(' %s ', self.layers[-1].average_loss(N))
                 if self.revealing_correctness:
                     part_truth = self.layers[-1].Y.same_shape()
                     part_truth.assign_vector(
                         self.layers[-1].Y.get_slice_vector(batch))
-                    self.n_correct.iadd(
-                        self.layers[-1].reveal_correctness(batch_size, part_truth))
+                    corr = self.layers[-1].reveal_correctness(batch_size, part_truth)
+                    print_str('%s\n', cfix(corr)/batch_size)
+                    self.n_correct.iadd(corr)
                 if stop_on_loss:
                     loss = self.layers[-1].average_loss(N)
                     res = (loss < stop_on_loss) * (loss >= -1)
@@ -3058,7 +3061,7 @@ class Optimizer:
             self.output_weights()
 
     def fit(self, X, Y, epochs=1, batch_size=bs_num, validation_data=(None, None),
-            program=None, reset=True, print_accuracy=False, print_loss=False):
+            program=None, reset=True, print_accuracy=True, print_loss=True):
         """ Train model.
 
         :param X: training sample data (sfix tensor)
@@ -3267,6 +3270,7 @@ class SGD(Optimizer):
                     v = pre_trunc.round(k, m, signed=True,
                                         nearest=sfix.round_nearest)
                 new = nabla_vector._new(v)
+                print_ln("momentum:%s", sum(red_old.reveal()))
                 diff = red_old - new
                 delta_theta.assign_vector(diff, base)
                 theta.assign_vector(theta.get_vector(base, size) +
