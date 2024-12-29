@@ -435,10 +435,10 @@ class Compiler:
                 if "online" in x or  "offline" in x:
                     print(x)
                     # store profiling result json
-                    parts = x.split()
-                    k = ' '.join(parts[1:])
-                    v = int(parts[0])
-                    profiling_result[k] = v
+                    # parts = x.split()
+                    # k = ' '.join(parts[1:])
+                    # v = int(parts[0])
+                    # profiling_result[k] = v
         with open('profiling_result.json', 'w') as json_file:
             json.dump(profiling_result, json_file, indent=4)
         
