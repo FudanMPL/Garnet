@@ -1181,39 +1181,121 @@ class ModuleList(Module):
 
     # remove forward alltogether to fallback on Module's _forward_unimplemented
 
+class LoRALayer():
+    def __init__(
+        self, 
+        lora_rank: int, 
+        lora_alpha: int, 
+        lora_dropout: float,
+        merge_weights: bool,
+    ):
+        self.lora_rank = lora_rank
+        self.lora_alpha = lora_alpha
+        # Optional dropout
+        # if lora_dropout > 0.:
+        #     self.lora_dropout = nn.Dropout(p=lora_dropout)
+        # else:
+        #     self.lora_dropout = lambda x: x
+        # Mark the weight as unmerged
+        self.merged = False
+        self.merge_weights = merge_weights
+
 class Linear(Module):
     def __init__(self, in_features: int, out_features: int, bias: bool = True,
-                 device=None, dtype=None, dp=False) -> None:
+        device=None, dtype=None, dp=False,
+        lora=False, lora_rank=4, lora_alpha=1.0,
+        lora_dropout: float = 0.,
+        merge_weights: bool = True,) -> None:
+        """
+        Linear layer with optional LoRA adaptation (conditionally frozen W).
+
+        :param in_features: Size of each input sample
+        :param out_features: Size of each output sample
+        :param bias: If True, adds a learnable bias to the output
+        :param dp: If True, use differential privacy
+        :param lora: If True, enable LoRA
+        :param lora_rank: Rank of the LoRA matrices
+        :param lora_alpha: Scaling factor for LoRA adaptation
+        """
         self.in_features = in_features
         self.out_features = out_features
         self.dp = dp
+
         super().__init__()
-        self.weight = Parameter(Tensor([out_features, in_features]))
+        LoRALayer.__init__(self, lora_rank=lora_rank, lora_alpha=lora_alpha, lora_dropout=lora_dropout,merge_weights=merge_weights)
+
+        # Main weight (W), requires_grad depends on LoRA mode
+        self.weight = Parameter(
+            Tensor([out_features, in_features]),
+            requires_grad=not lora  # Freeze weight only if LoRA is enabled
+        )
         if bias:
             self.bias = Parameter(Tensor([out_features]))
         else:
             self.register_parameter('bias', None)
-        self.reset_parameters()        
-    
-        
+
+        # LoRA matrices (trainable parameters if LoRA is enabled)
+        if self.lora:
+            self.lora_A = Parameter(Tensor([lora_rank, in_features]))  # A: rank x in_features
+            self.lora_B = Parameter(Tensor([out_features, lora_rank]))  # B: out_features x rank
+
+        self.reset_parameters()
+
     def forward(self, x):
+        """
+        Forward pass for the linear layer with optional LoRA adaptation.
+        """
+        # Select the correct linear operation (dp or normal)
         if self.dp:
-            return F.dplinear(x, self.weight, self.bias)
-        return F.linear(x, self.weight, self.bias)
-    
+            output = F.dplinear(x, self.weight, self.bias)
+        else:
+            output = F.linear(x, self.weight, self.bias)
+
+        # Apply LoRA adaptation if enabled
+        if self.lora:
+            if self.dp:
+                # LoRA adaptation with differential privacy
+                lora_update = F.dplinear(x, self.lora_A, None)  # x * A
+                lora_update = F.dplinear(lora_update, self.lora_B, None)  # (x * A) * B
+            else:
+                # Standard LoRA adaptation
+                lora_update = F.linear(x, self.lora_A, None)  # x * A
+                lora_update = F.linear(lora_update, self.lora_B, None)  # (x * A) * B
+
+            output += self.lora_alpha * lora_update
+
+        return output
+
     def extra_repr(self) -> str:
-        return 'in_features={}, out_features={}, bias={}'.format(
+        """
+        Additional representation for debugging/logging.
+        """
+        repr_str = 'in_features={}, out_features={}, bias={}'.format(
             self.in_features, self.out_features, self.bias is not None
         )
-        
-        
+        if self.lora:
+            repr_str += ', lora=True, lora_rank={}, lora_alpha={}'.format(
+                self.lora_rank, self.lora_alpha
+            )
+        return repr_str
+
     def reset_parameters(self) -> None:
-        # Setting a=sqrt(5) in kaiming_uniform is the same as initializing with
-        # uniform(-1/sqrt(in_features), 1/sqrt(in_features)). For details, see
-        # https://github.com/pytorch/pytorch/issues/57109
-        # self.weight.randomize(-math.sqrt(5), math.sqrt(5))
+        """
+        Initialize weights and biases, and LoRA parameters if enabled.
+        """
+        # Initialize main weight
+        bound = 1 / math.sqrt(self.in_features)
+        self.weight.randomize(-bound, bound)
+
+        # Initialize bias
         if self.bias is not None:
             self.bias.assign_all(0)
+
+        # Initialize LoRA matrices if enabled
+        if self.lora:
+            self.lora_A.randomize(-bound, bound)
+            self.lora_B.randomize(-bound, bound)
+
 
 class _ConvNd(Module):
     

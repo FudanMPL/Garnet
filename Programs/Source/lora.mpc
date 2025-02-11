@@ -1,0 +1,11 @@
+X = sfix.input_tensor_via(0, [[1, 2, 3], # 2 samples
+                              [11, 12, 13]])
+y = sint.input_tensor_via(0, [0, 1]) # 2 labels
+
+from Compiler import ml
+layers = [ml.Dense(2, 3, 1, lora=True, lora_rank=1),
+          ml.Output(2)]
+log = ml.SGD(layers=layers,n_epochs=1)
+log.fit(X, y,batch_size=2)
+
+print_ln('%s', log.run(batch_size=1))

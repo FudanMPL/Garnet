@@ -781,52 +781,149 @@ class Linear(Layer):
         progress('nabla W')
 
 
-class DenseBase(Layer):
-    thetas = lambda self: (self.W, self.b)
-    nablas = lambda self: (self.nabla_W, self.nabla_b)
+    
 
+class DenseBase(Layer):
+    def __init__(self, W, b,  lora=False,lora_A=None, lora_B=None, nabla_W=None, nabla_b=None, nabla_lora_A=None, nabla_lora_B=None):
+        self.lora = lora  # 传入的lora标志
+
+        # 必须传入的参数
+        self.W = W
+        self.b = b
+
+        # LoRA的参数，如果lora=True则传入lora_A, lora_B
+        self.lora_A = lora_A
+        self.lora_B = lora_B
+        self.lora_rank = lora_A.shape[1]
+
+        # LoRA的梯度，如果lora=True则传入
+        self.nabla_W = nabla_W
+        self.nabla_b = nabla_b
+        self.nabla_lora_A = nabla_lora_A
+        self.nabla_lora_B = nabla_lora_B
+
+    # @property
+    def thetas(self):
+        if self.lora:
+            return (self.W, self.b, self.lora_A, self.lora_B)
+        else:
+            return (self.W, self.b)
+
+    # @property
+    def nablas(self):
+        if self.lora:
+            return (self.nabla_W, self.nabla_b, self.nabla_lora_A, self.nabla_lora_B)
+        else:
+            return (self.nabla_W, self.nabla_b)
+        
     def output_weights(self):
         self.W.print_reveal_nested()
         print_ln('%s', self.b.reveal_nested())
 
-    def backward_params(self, f_schur_Y, batch):
+    def backward_params(self, f_schur_Y, batch,lora=False):
         N = len(batch)
         tmp = Matrix(self.d_in, self.d_out, unreduced_sfix)
 
-        A = sfix.Matrix(N, self.d_out, address=f_schur_Y.address)
-        B = sfix.Matrix(self.N, self.d_in, address=self.X.address)
-
+        _f_schur_Y = sfix.Matrix(N, self.d_out, address=f_schur_Y.address)
+        _X = sfix.Matrix(self.N, self.d_in, address=self.X.address)
+        
+        # 计算 W 的梯度，使用矩阵乘法nabla_W=X^T * f_schur_Y
         @multithread(self.n_threads, self.d_in)
         def _(base, size):
-            mp = B.direct_trans_mul(A, reduce=False,
+            #_f_schur_Y:N,d_out
+            #_X:N,d_in
+            #direct_trans_mul是：_X的转置乘以_f_schur_Y
+            #mp的形状是d_in,d_out
+            #tmp的形状是d_in,d_out
+            mp = _X.direct_trans_mul(_f_schur_Y, reduce=False,
                                     indices=(regint.inc(size, base),
                                              batch.get_vector(),
                                              regint.inc(N),
                                              regint.inc(self.d_out)))
             tmp.assign_part_vector(mp, base)
 
+        progress('tmp (matmul)')
         progress('nabla W (matmul)')
 
-        @multithread(self.n_threads, self.d_in * self.d_out,
-                     max_size=get_program().budget)
-        def _(base, size):
-            self.nabla_W.assign_vector(
-                tmp.get_vector(base, size).reduce_after_mul(), base=base)
+        if not lora:
+            @multithread(self.n_threads, self.d_in * self.d_out,
+                        max_size=get_program().budget)
+            def _(base, size):
+                self.nabla_W.assign_vector(
+                    tmp.get_vector(base, size).reduce_after_mul(), base=base)
+                
+            if self.print_random_update:
+                print_ln('backward %s', self)
+                i = regint.get_random(64) % self.d_in
+                j = regint.get_random(64) % self.d_out
+                print_ln('%s at (%s, %s): before=%s after=%s A=%s B=%s',
+                        str(self.nabla_W), i, j, tmp[i][j].v.reveal(),
+                        self.nabla_W[i][j].reveal(),
+                        _f_schur_Y.get_column(j).reveal(),
+                        _X.get_column_by_row_indices(
+                            batch.get_vector(), i).reveal())
+                print_ln('batch=%s B=%s', batch,
+                        [self.X[bi][0][i].reveal() for bi in batch])
 
-        if self.print_random_update:
-            print_ln('backward %s', self)
-            i = regint.get_random(64) % self.d_in
-            j = regint.get_random(64) % self.d_out
-            print_ln('%s at (%s, %s): before=%s after=%s A=%s B=%s',
-                     str(self.nabla_W), i, j, tmp[i][j].v.reveal(),
-                     self.nabla_W[i][j].reveal(),
-                     A.get_column(j).reveal(),
-                     B.get_column_by_row_indices(
-                         batch.get_vector(), i).reveal())
-            print_ln('batch=%s B=%s', batch,
-                     [self.X[bi][0][i].reveal() for bi in batch])
+                progress('nabla W')
+        else:
+            _lora_B= sfix.Matrix(self.lora_rank, self.d_out, address=self.lora_B.address)
+            _lora_A= sfix.Matrix(self.d_in,self.lora_rank, address=self.lora_A.address)
+            _nabla_lora_A = Matrix(self.d_in, self.lora_rank,unreduced_sfix)
+            _nabla_lora_B = Matrix(self.lora_rank, self.d_out, unreduced_sfix)
 
-        progress('nabla W')
+            _tmp=sfix.Matrix(self.d_in, self.d_out, address=tmp.address)
+            #Y=XW+XAB
+            # 计算 A 的梯度，使用矩阵乘法: nabla_lora_A = X^T * f_schur_Y *B^T= nabla_W *B^T
+            @multithread(self.n_threads, self.d_in)
+            def _(base, size):
+                nabla_lora_A_part = _tmp.direct_mul_trans(_lora_B, reduce=False,
+                                                    indices=(regint.inc(size, base),
+                                                             regint.inc(self.d_out),
+                                                            regint.inc(self.d_out),
+                                                            regint.inc(self.lora_rank)
+                                                           ))
+                _nabla_lora_A.assign_part_vector(nabla_lora_A_part, base)
+
+            @multithread(self.n_threads, self.d_in * self.lora_rank,
+                        max_size=get_program().budget)
+            def _(base, size):
+                self.nabla_lora_A.assign_vector(
+                    _nabla_lora_A.get_vector(base, size).reduce_after_mul(), base=base)
+            # 计算 B 的梯度： nabla_lora_B = A^T * nabla_W
+            @multithread(self.n_threads, self.lora_rank)
+            def _(base, size):
+                
+                nabla_lora_B_part = _lora_A.direct_trans_mul(_tmp, reduce=False,
+                                                            indices=(regint.inc(size, base),
+                                                                    regint.inc(self.d_in),
+                                                                    regint.inc(self.d_in),
+                                                                    regint.inc(self.d_out)))
+                _nabla_lora_B.assign_part_vector(nabla_lora_B_part, base)
+            
+            @multithread(self.n_threads, self.lora_rank * self.d_out,
+                        max_size=get_program().budget)
+            def _(base, size):
+                self.nabla_lora_B.assign_vector(
+                    _nabla_lora_B.get_vector(base, size).reduce_after_mul(), base=base)
+            progress('nabla A and B')
+
+
+            # print_ln("_lora_A %s", _lora_A.reveal_nested())
+            # print_ln("_lora_B %s", _lora_B.reveal_nested())
+            # print_ln("_tmp %s", _tmp.reveal_nested())
+            # 确保 A 和 B 的梯度在训练过程中被更新
+            if self.debug_output:
+                print_ln('dense nabla A %s', self.nabla_lora_A.reveal_nested())
+                print_ln('dense nabla B %s', self.nabla_lora_B.reveal_nested())
+
+        # print('f_chur_Y size %s', f_schur_Y.sizes)
+        # print('N %s', N)
+        # print('self.N %s', self.N)
+        # print('d %s', self.d)
+        # print('d_in %s', self.d_in)
+        # print('d_out %s', self.d_out)
+        # x=input()
 
         self.nabla_b.assign_vector(sum(sum(f_schur_Y[k][j].get_vector()
                                            for k in range(N))
@@ -851,8 +948,8 @@ class DenseBase(Layer):
                         print_ln('nabla W %s %s %s: %s', i, j, self.W.sizes, to_check)
                         print_ln('Y %s', [f_schur_Y[k][0][j].reveal()
                                           for k in range(N)])
-                        print_ln('X %s', [self.X[k][0][i].reveal()
-                                          for k in range(N)])
+                        # print_ln('X %s', [self.X[k][0][i].reveal()
+                        #                   for k in range(N)])
             @for_range_opt(self.d_out)
             def _(j):
                 to_check = self.nabla_b[j].reveal()
@@ -933,6 +1030,13 @@ class AffineTransform(Layer):
                         print_ln('W %s',
                                  [self.alpha[k][j].reveal() for k in range(self.d_in)])
 
+def apply_dropout(matrix, dropout_prob):
+    """应用dropout掩码，返回dropout后的矩阵"""
+    mask = MultiArray(matrix.sizes, sfix)
+    for i in range(mask.size):
+        mask[i] = 1 if random.random() > dropout_prob else 0  # dropout概率为 dropout_prob
+    return matrix * mask  # 元素乘法，dropout 掩码作用
+
 
 class Dense(DenseBase):
     """ Fixed-point dense (matrix multiplication) layer.
@@ -941,7 +1045,14 @@ class Dense(DenseBase):
     :param d_in: input dimension
     :param d_out: output dimension
     """
-    def __init__(self, N, d_in, d_out, d=1, activation='id', debug=False):
+    def __init__(self, N, d_in, d_out, d=1, 
+        lora=False, 
+        lora_rank: int = 0, 
+        lora_alpha: int = 1, 
+        lora_dropout: float = 0.,
+        merge_weights: bool = True,
+        activation='id', debug_output=False,debug=False):
+
         if activation == 'id':
             self.activation_layer = None
         elif activation == 'relu':
@@ -956,6 +1067,7 @@ class Dense(DenseBase):
         self.d_out = d_out
         self.d = d
         self.activation = activation
+        self.lora=lora
 
         self.X = MultiArray([N, d, d_in], sfix)
         self.Y = MultiArray([N, d, d_out], sfix)
@@ -969,6 +1081,7 @@ class Dense(DenseBase):
         self.nabla_b = sfix.Array(d_out)
 
         self.debug = debug
+        self.debug_output = debug_output
 
         l = self.activation_layer
         if l:
@@ -978,6 +1091,28 @@ class Dense(DenseBase):
         else:
             self.f_input = self.Y
 
+        if lora:
+            self.lora_rank = lora_rank
+            self.lora_alpha = lora_alpha
+            self.lora_dropout = lora_dropout
+            self.lora_A = Tensor([ d_in,lora_rank], sfix)  # r x in_features 的矩阵
+            self.nabla_lora_A = sfix.Matrix( d_in,lora_rank)  # r x in_features 的矩阵
+            self.lora_B = Tensor([ lora_rank,d_out,], sfix)  # out_features x r 的矩阵
+            self.nabla_lora_B = sfix.Matrix(lora_rank,d_out)  # out_features x r 的矩阵
+            self.scaling = self.lora_alpha / self.lora_rank
+            self.W0=self.W
+            # Optional dropout
+            # if lora_dropout > 0.:
+            #     self.lora_dropout = nn.Dropout(p=lora_dropout)
+            # else:
+            #     self.lora_dropout = lambda x: x
+            # Mark the weight as unmerged
+            self.merged = False
+            self.merge_weights = merge_weights
+            # Freezing the pre-trained weight matrix
+            # self.W.requires_grad = False
+        self.reset()
+
     def __repr__(self):
         return '%s(%s, %s, %s, activation=%s)' % \
             (type(self).__name__, self.N, self.d_in,
@@ -986,10 +1121,13 @@ class Dense(DenseBase):
     def reset(self):
         d_in = self.d_in
         d_out = self.d_out
-        r = math.sqrt(6.0 / (d_in + d_out))
-        print('Initializing dense weights in [%f,%f]' % (-r, r))
-        self.W.randomize(-r, r)
+        _r = math.sqrt(6.0 / (d_in + d_out))
+        print('Initializing dense weights in [%f,%f]' % (-_r, _r))
+        self.W.randomize(-_r, _r)
         self.b.assign_all(0)
+        if hasattr(self, 'lora_A'):
+            self.lora_A.randomize(-_r,_r)
+            self.lora_B.randomize(-_r,_r)
 
     def input_from(self, player, raw=False):
         self.W.input_from(player, raw=raw)
@@ -997,15 +1135,16 @@ class Dense(DenseBase):
             self.b.input_from(player, raw=raw)
 
     def compute_f_input(self, batch):
+        #batch存储 mini-batch 内的样本索引，用于从数据集中选取对应的样本
         N = len(batch)
         assert self.d == 1
+        # 如果启用了偏置，则初始化中间结果存储
         if self.input_bias:
             prod = MultiArray([N, self.d, self.d_out], sfix)
         else:
             prod = self.f_input
-        max_size = program.Program.prog.budget // self.d_out
-        
-        #标记一下，矩阵乘
+        max_size = get_program().budget
+        # 多线程计算 XW
         @multithread(self.n_threads, N, max_size)
         def _(base, size):
             X_sub = sfix.Matrix(self.N, self.d_in, address=self.X.address)
@@ -1013,19 +1152,91 @@ class Dense(DenseBase):
                 X_sub.direct_mul(self.W, indices=(
                     batch.get_vector(base, size), regint.inc(self.d_in),
                     regint.inc(self.d_in), regint.inc(self.d_out))), base)
+        if self.debug:
+            print_ln('XW: %s', prod.reveal_nested())
+        
+        if self.lora:
+            if self.input_bias:
+                prod_lora = MultiArray([N, self.d, self.d_out], sfix)
+            else:
+                prod_lora = self.f_input
 
-        if self.input_bias:
+            temp_lora = MultiArray([N, self.d, self.lora_B.sizes[0]], sfix)  # 临时存储 XA 的结果
+            lora_result = MultiArray([N, self.d,self.d_out],sfix)  # 临时存储 XAB
+
+            # 计算 XA
+            @multithread(self.n_threads, N, max_size)
+            def _(base, size):
+                X_sub = sfix.Matrix(self.N, self.d_in, address=self.X.address)
+                temp_lora.assign_part_vector(
+                    X_sub.direct_mul(self.lora_A, indices=(
+                        batch.get_vector(base, size), regint.inc(self.d_in),
+                        regint.inc(self.d_in), regint.inc(self.lora_rank))), base)
+            if self.debug:           
+                print_ln('XA: %s', temp_lora.reveal_nested())
+            # 计算 XA*B
+            @multithread(self.n_threads, N, max_size)
+            def _(base, size):
+                temp_lora_sub = sfix.Matrix(N, self.lora_rank, address=temp_lora.address)
+                lora_result.assign_part_vector(
+                    temp_lora_sub.direct_mul(self.lora_B, indices=(
+                       regint.inc(size, base), regint.inc(self.lora_rank),
+                        regint.inc(self.lora_rank), regint.inc(self.d_out))), base)
+            if self.debug:                    
+                print_ln('XAB: %s', lora_result.reveal_nested())
+
+
+            # 应用 lora_dropout，随机丢弃部分元素
+            if self.lora_dropout > 0.:
+                lora_result = apply_dropout(lora_result, self.lora_dropout)
+
+
+             # **LoRA 计算结果和 WX 相加**
             if self.d_out == 1:
                 @multithread(self.n_threads, N)
                 def _(base, size):
-                    v = prod.get_vector(base, size) + self.b.expand_to_vector(0, size)
-                    self.f_input.assign_vector(v, base)
+                    v = prod.get_vector(base, size) + self.lora_alpha *lora_result.get_vector(base, size)  # 逐元素相加
+                    prod_lora.assign_vector(v, base)
             else:
                 @for_range_multithread(self.n_threads, 100, N)
                 def _(i):
-                    v = prod[i].get_vector() + self.b.get_vector()
-                    self.f_input[i].assign_vector(v)
-        progress('f input')
+                    v = prod[i].get_vector() + self.lora_alpha *lora_result[i].get_vector()  # 逐行相加
+                    prod_lora[i].assign_vector(v)
+            if self.debug:                    
+                print_ln('XW+XAB: %s', prod_lora.reveal_nested())
+
+            # 偏置加法逻辑
+            if self.input_bias:
+                if self.d_out == 1:
+                    @multithread(self.n_threads, N)
+                    def _(base, size):
+                        v = prod_lora.get_vector(base, size) + self.b.expand_to_vector(0, size)
+                        self.f_input.assign_vector(v, base)
+                else:
+                    @for_range_multithread(self.n_threads, 100, N)
+                    def _(i):
+                        v = prod_lora[i].get_vector() + self.b.get_vector()
+                        self.f_input[i].assign_vector(v)
+            
+        else:
+            # 偏置加法逻辑
+            if self.input_bias:
+                if self.d_out == 1:
+                    @multithread(self.n_threads, N)
+                    def _(base, size):
+                        v = prod.get_vector(base, size) + self.b.expand_to_vector(0, size)
+                        self.f_input.assign_vector(v, base)
+                else:
+                    @for_range_multithread(self.n_threads, 100, N)
+                    def _(i):
+                        v = prod[i].get_vector() + self.b.get_vector()
+                        self.f_input[i].assign_vector(v)
+        if self.debug:
+            print_ln('dense f_input %s', self.f_input.reveal_nested())
+
+        progress('f input') 
+
+        
 
     @buildingblock("Dense")
     def _forward(self, batch=None):
@@ -1040,6 +1251,9 @@ class Dense(DenseBase):
             print_ln('dense W %s', self.W.reveal_nested())
             print_ln('dense b %s', self.b.reveal_nested())
             print_ln('dense Y %s', self.Y.reveal_nested())
+            if hasattr(self, 'lora_A'):
+                print_ln('dense lora_A %s', self.lora_A.reveal_nested())
+                print_ln('dense lora_B %s', self.lora_B.reveal_nested())
         if self.debug:
             limit = self.debug
             @for_range_opt(len(batch))
@@ -1051,8 +1265,8 @@ class Dense(DenseBase):
                     @if_(check)
                     def _():
                         print_ln('dense Y %s %s %s %s', i, j, self.W.sizes, to_check)
-                        print_ln('X %s', self.X[i].reveal_nested())
-                        print_ln('W %s',
+                        print_ln('dense X %s', self.X[i].reveal_nested())
+                        print_ln('dense W %s',
                                  [self.W[k][j].reveal() for k in range(self.d_in)])
     
     @buildingblock("Dense")
@@ -1094,7 +1308,7 @@ class Dense(DenseBase):
 
             progress('nabla X')
 
-        self.backward_params(f_schur_Y, batch=batch)
+        self.backward_params(f_schur_Y, batch=batch,lora=self.lora)
 
 class QuantizedDense(DenseBase):
     def __init__(self, N, d_in, d_out):
@@ -4069,3 +4283,4 @@ def layers_from_torch_select_const(sequence, net, modelnum, flag, data_input_sha
         if (modelnum == '0'):
             net.append(layers[-1])
     return net
+
