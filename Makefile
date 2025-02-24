@@ -401,3 +401,6 @@ clean-deps:
 
 clean: clean-deps
 	-rm -f */*.o *.o */*.d *.d *.x core.* *.a gmon.out */*/*.o static/*.x *.so
+
+clean-intermediate:
+	-rm -f */*.o *.o */*.d *.d */*/*.o
