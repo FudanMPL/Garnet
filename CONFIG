@@ -1,7 +1,7 @@
 MOD = -DRING_SIZE=32
 
 ROOT = .
-#OPTIM= -O3
+OPTIM= -O3
 #PROF = -pg
 #DEBUG = -DDEBUG
 GDEBUG = -g
