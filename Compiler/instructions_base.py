@@ -23,6 +23,8 @@ opcodes = dict(
     # PSI
     PSI=0x2a0,
     PSIALIGN=0x2a1,
+    MPSI=0x2a2,
+    # MPSIALIGN=0x2a3,
     # Change domain
     CSD = 0xf8,
     CMD = 0xf9,

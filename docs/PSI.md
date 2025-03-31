@@ -1,6 +1,6 @@
 # 使用PSI协议
 
-**1月份更新**：我们实现了一个基于OPRF的两方PSI协议和一个基于Secret sharing的多方PSI协议。
+**2024年1月份更新**：我们实现了一个基于OPRF的两方PSI协议和一个基于Secret sharing的多方PSI协议。
 
 
 ## 运行基于OPRF的两方PSI协议

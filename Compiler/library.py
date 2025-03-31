@@ -45,6 +45,22 @@ def PSI(n,f0,f1):
     # print_int(num)
     return fs,num
 
+def mPSI(n):
+    # tmp = cint(size=m)
+    # print("n=",n)
+    mpsi_risc(n)
+    break_point()
+    # print_str("psi end\n")
+    # print("tmp.size",tmp.size)
+    # tmp_array = Array.create_from(tmp)
+    # @for_range(m)
+    # def _(i):
+    #     print_int(tmp_array[i].to_regint())
+    #     print_str("\n")
+    # print_ln('psi=%s', tmp.reveal())
+
+    # return tmp
+
 def change_machine_domain(k):
     break_point()
     get_program().bit_length = k - 1

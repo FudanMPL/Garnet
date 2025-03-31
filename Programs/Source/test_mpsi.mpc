@@ -1,0 +1,7 @@
+n = 3
+
+print_str("begin psi\n")
+
+mPSI(n)
+
+print_str("end psi\n")
