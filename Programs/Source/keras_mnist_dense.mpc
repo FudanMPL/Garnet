@@ -3,17 +3,17 @@
 
 program.options_from_args()
 
-training_samples = sfix.Tensor([60000, 28, 28])
-training_labels = sint.Tensor([60000, 10])
+training_samples = sfix.Tensor([128, 28, 28])
+training_labels = sint.Tensor([128, 10])
 
-test_samples = sfix.Tensor([10000, 28, 28])
-test_labels = sint.Tensor([10000, 10])
+test_samples = sfix.Tensor([128, 28, 28])
+test_labels = sint.Tensor([128, 10])
 
-training_labels.input_from(0)
-training_samples.input_from(0)
+# training_labels.input_from(0)
+# training_samples.input_from(0)
 
-test_labels.input_from(0)
-test_samples.input_from(0)
+# test_labels.input_from(0)
+# test_samples.input_from(0)
 
 from Compiler import ml
 tf = ml
