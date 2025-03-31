@@ -62,7 +62,7 @@ sudo docker run --cap-add=NET_ADMIN -it garnet bash
 #### 2025年3月份发布: 
 
 * [DataFrame 数据结构](./docs/dataframe.md)
-* [数据联合统计分析补充](docs/joint_statistics2.md)
+* [数据联合统计分析算子补充](docs/joint_statistics2.md)
 * [3方隐私集合求交效率优化](./docs/mPSI.md)
 
 
