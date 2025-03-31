@@ -1,0 +1,35 @@
+from Compiler.types import dataframe, sint, sfix, schr, cchr
+from Compiler.library import print_ln, if_
+
+P0_ID0 = sfix.get_input_from(0)
+P0_ID1 = sfix.get_input_from(0)
+P0_ID2 = sfix.get_input_from(0)
+
+P0_Age0 = sint.get_input_from(0)
+P0_Age1 = sint.get_input_from(0)
+P0_Age2 = sint.get_input_from(0)
+
+P0_Weight0 = sint.get_input_from(0)
+P0_Weight1 = sint.get_input_from(0)
+P0_Weight2 = sint.get_input_from(0)
+
+P1_ID0 = sfix.get_input_from(1)
+P1_ID1 = sfix.get_input_from(1)
+P1_ID2 = sfix.get_input_from(1)
+
+P1_Salary0 = sfix.get_input_from(1)
+P1_Salary1 = sfix.get_input_from(1)
+P1_Salary2 = sfix.get_input_from(1)
+
+P1_Year0 = sint.get_input_from(1)
+P1_Year1 = sint.get_input_from(1)
+P1_Year2 = sint.get_input_from(1)
+
+df0 = dataframe(data=[[P0_ID0, None, P0_Weight0], [P0_ID1, P0_Age1, P0_Weight1], [P0_ID2, P0_Age2, P0_Weight2]], columns=['ID', 'Age', 'Weight'])
+df1 = dataframe(data=[[P1_ID0, P1_Salary0, P1_Year0], [P1_ID1, P1_Salary1, P1_Year1], [P1_ID2, P1_Salary2, P1_Year2]], columns=['ID', 'Salary', 'Year'])
+
+# union_df, n = df0.merge(obj=df1, on='ID', join='outer', inplace=False)
+
+for col in df0.columns:
+    for i in range(3):
+        print_ln("union_df[%s][%s]: %s", col, i, df0[col][i].reveal())

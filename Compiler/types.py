@@ -7873,3 +7873,576 @@ def getNamedTupleType(*names):
     return NamedTuple
 
 from . import library
+
+class series:
+    def __init__(self, data, index = None, name = None):
+        self.index = list(index) if index else list(range(len(data)))
+        self.value_type = None
+        if name:
+            for val in data:
+                if val is not None: self.value_type = type(val)
+        # self.value_type = value_type
+        self.data = list(data)
+        self.data=[self.convert_value(value) for value in self.data]
+        self.name = name
+
+        if index:
+            if len(self.index) != len(set(index)):
+                raise ValueError("Replicated indices. ") # replicated index name
+    
+    def convert_value(self, value):
+        if self.value_type and not isinstance(value, self.value_type):
+            try:
+                return self.value_type.conv(value)
+            except AttributeError:
+                raise TypeError(f"Cannot convert {type(value)} to {self.value_type}")
+        return value
+
+    def __getitem__(self, key):
+        if isinstance(key, int):  
+            if key not in self.index:
+                raise KeyError(f"Index {key} not found in Series index {self.index}")
+            idx = self.index.index(key)
+            return self.data[idx]
+        elif isinstance(key, str):
+            if key not in self.index:
+                raise KeyError(f"Key '{key}' not found in index {self.index}")
+            return self.data[self.index.index(key)]
+    
+    def __setitem__(self, key, value):
+        value = self.convert_value(value)
+        if key not in self.index:
+            raise KeyError(f"Index {key} not found in Series index {self.index}")
+        idx = self.index.index(key)
+        self.data[idx] = value
+
+class dataframe:
+    def __init__(self, data, columns, index = None):
+        if len(set(columns)) != len(columns):
+            raise ValueError("Replicated column name. ")
+    
+        if index and not all(isinstance(i, int) for i in index):
+            raise ValueError("Each index must be type integer.")
+
+        self.columns = columns
+        self.index = index if index else list(range(len(data)))
+        # self.index = list(range(len(data)))
+
+        max_len = max(len(row) for row in data)
+        padded_data = [row + [None] * (max_len - len(row)) for row in data]
+        transposed_data = list(zip(*padded_data))
+
+        self.value_types = []
+        self.data = {}
+
+        for col, col_data in zip(self.columns, transposed_data):
+            non_none_values = [val for val in col_data if val is not None]
+
+            if not non_none_values:
+                raise ValueError(f"Column '{col}' contains only None values; unable to determine type.")
+
+            first_type = type(non_none_values[0])
+            if not all(isinstance(val, first_type) for val in non_none_values):
+                raise TypeError(f"Column '{col}' contains mixed types: {[type(val) for val in non_none_values]}")
+
+            self.value_types.append(first_type)
+            self.data[col] = series(data=list(col_data), index=self.index, name=col)
+
+    def convert_value(self, value, value_type):
+        if not isinstance(value, value_type):
+            try:
+                return value_type.conv(value)
+            except AttributeError:
+                raise TypeError(f"Cannot convert {type(value)} to {value_type}")
+        return value
+
+    def drop(self, index=None, column=None, inplace=False):
+
+        if index is None and column is None:
+            raise ValueError("At least one of 'index' or 'column' must be specified.")
+
+        if not inplace:
+            df_copy = dataframe(
+                data=[[self.data[col].data[i] for col in self.columns] for i in range(len(self.index))],
+                columns=self.columns[:],
+                index=self.index[:]
+            )
+            return df_copy.drop(index=index, column=column, inplace=True)
+
+        if column is not None:
+            if isinstance(column, str):
+                column = [column]  
+            if not all(col in self.columns for col in column):
+                missing = [col for col in column if col not in self.columns]
+                raise KeyError(f"Columns {missing} not found in dataframe.")
+
+            self.columns = [col for col in self.columns if col not in column]
+            self.value_types = [self.value_types[i] for i, col in enumerate(self.columns) if col not in column]
+            self.data = {col: self.data[col] for col in self.columns}
+
+        if index is not None:
+            if isinstance(index, int):
+                index = [index]
+            elif isinstance(index, slice):
+                index = list(range(*index.indices(len(self.index))))
+            elif not isinstance(index, list):
+                raise TypeError("Index must be an int, list, or slice.")
+
+            invalid_indices = [i for i in index if i not in self.index]
+            if invalid_indices:
+                raise IndexError(f"Indices {invalid_indices} are out of range.")
+
+            remaining_indices = [i for i in self.index if i not in index]
+            # self.index = list(range(len(remaining_indices)))
+            self.index = remaining_indices
+            for col in self.columns:
+                self.data[col].data = [self.data[col].data[i] for i in remaining_indices]
+                self.data[col].index = self.index
+
+        return self 
+
+    def merge(self, obj, on, join='outer', inplace=False):
+        if join not in ['outer', 'inner']:
+            raise ValueError("The join type can only be 'inner' or 'outer'.")
+
+        if not isinstance(obj, list):
+            obj = [obj]
+
+        if not all(isinstance(df, dataframe) for df in obj):
+            raise TypeError("All elements in obj must be instances of dataframe.")
+    
+        new_columns = self.columns[:]
+        for df in obj:
+            for col in df.columns:
+                if col not in new_columns:
+                    new_columns.append(col)
+
+        new_value_types = []
+        for col in new_columns:
+            col_types = set()
+            if col in self.columns:
+                col_types.add(self.value_types[self.columns.index(col)])
+            for df in obj:
+                if col in df.columns:
+                    col_types.add(df.value_types[df.columns.index(col)])
+            
+            if len(col_types) > 1:
+                raise TypeError(f"Column '{col}' has inconsistent types across dataframes: {col_types}")
+            
+            new_value_types.append(next(iter(col_types)))
+
+        new_index = self.index[:]
+        max_index = max(self.index) if self.index else -1
+        for df in obj:
+            new_index += [max_index + 1 + i for i in range(len(df.index))]
+            max_index = new_index[-1]
+
+        new_data = {col: [None] * len(new_index) for col in new_columns}
+
+        for col in self.columns:
+            for i, v in enumerate(self.data[col].data):
+                new_data[col][i] = v
+
+        row_offset = len(self.index)
+        for df in obj:
+            for col in df.columns:
+                for i, v in enumerate(df.data[col].data):
+                    new_data[col][row_offset + i] = v
+            row_offset += len(df.index)
+
+        new_df = dataframe(
+            data=[list(row) for row in zip(*new_data.values())],
+            columns=new_columns,
+            index=new_index
+        )
+
+        if on not in new_df.columns:
+            raise ValueError(f"Column '{on}' does not exist in either dataframe.")
+
+        if inplace:
+            self.index = new_df.index
+            self.columns = new_df.columns
+            self.value_types = new_value_types
+            self.data = {col: series(new_df[col].data, index=new_df.index, name=col) for col in new_columns}
+
+            on_type = self.value_types[self.columns.index(on)]
+            if on_type is sint or on_type is sfix:
+                return self._ss_groupBy(on=on, party_number=len(obj) + 1, join=join)
+            elif on_type is cint or on_type is cfix:
+                return self._groupBy(on=on, party_number=len(obj) + 1, join=join)
+        else:
+            on_type = new_df.value_types[new_df.columns.index(on)]
+            if on_type is sint or on_type is sfix: 
+                return new_df._ss_groupBy(on=on, party_number=len(obj) + 1, join=join)
+            elif on_type is cint or on_type is cfix:
+                return new_df._groupBy(on=on, party_number=len(obj) + 1, join=join)
+
+    def _groupBy(self, on, party_number, join = 'outer'):
+        on_type = self.value_types[self.columns.index(on)]
+        on_array = on_type.Array(size=len(self.index))
+        for i in range(len(self.index)): on_array[i] = self[on][i]
+
+        inner_array = on_type.Array(size=len(self.index))
+        outer_array = on_type.Array(size=len(self.index))
+
+        for col in self.columns:
+            if col is on: continue
+            col_type = self.value_types[self.columns.index(col)]
+            col_array = col_type.Array(size=len(self.index))
+            for i in range(len(self.index)): col_array[i] = self[col][i]
+
+            for i in range(len(self.index)):
+                for j in range(i):
+                    @library.if_(on_array[i] == on_array[j])
+                    def body():
+                        inner_array[j] = inner_array[j] + 1
+                        outer_array[i] = outer_array[i] + 1
+
+                        tmp_i = col_array[i]
+                        tmp_j = col_array[j]
+                        # ne = col_array[j] != 0
+                        e = col_array[j] == 0
+                        col_array[i] = e * tmp_i + (1 - e) * tmp_j
+                        col_array[j] = e * tmp_i + (1 - e) * tmp_j
+
+            for i in range(len(self.index)): self[col][i] = col_array[i]
+        
+        # for i in range(len(self.index)): library.print_ln("inner_array[%s]: %s", i, inner_array[i])
+        # for i in range(len(self.index)): library.print_ln("outer_array[%s]: %s", i, outer_array[i])
+        self.index = list(range(len(self.index)))
+        for col in self.columns:
+            self[col].index = self.index
+        
+        # outer join
+        if join == 'outer': 
+            ct_array = cint.Array(size=1)
+            ct_array[0] = 0
+            for col in self.columns:
+                col_type = self.value_types[self.columns.index(col)]
+                col_array = col_type.Array(size=len(self.index))
+
+                idx = cint.Array(size=1)
+                idx[0] = 0
+                for i in range(len(self.index)):
+                    @library.if_(outer_array[i] == 0)
+                    def _body():
+                        col_array[idx[0]] = self[col][i]
+                        idx[0] = idx[0] + 1
+                ct_array[0] = idx[0]
+                
+                # for i in range(len(self.index)): library.print_ln("%s_array[%s]: %s", col, i, col_array[i].reveal())
+                for i in range(len(self.index)): self[col][i] = col_array[i]
+
+            return self, ct_array[0]
+
+        # inner join
+        elif join == 'inner':
+            party_number_cint = cint(party_number - 1)
+            col_num_without_on = cint(len(self.columns) - 1)
+            times = party_number_cint * col_num_without_on
+
+            ct_array = cint.Array(size=1)
+            ct_array[0] = 0
+
+            for col in self.columns:
+                col_type = self.value_types[self.columns.index(col)]
+                col_array = col_type.Array(size=len(self.index))
+
+                idx = cint.Array(size=1)
+                idx[0] = 0
+                for i in range(len(self.index)):
+                    @library.if_(inner_array[i] == times)
+                    def _body():
+                        col_array[idx[0]] = self[col][i]
+                        idx[0] = idx[0] + 1
+                ct_array[0] = idx[0]
+                
+                # for i in range(len(self.index)): library.print_ln("%s_array[%s]: %s", col, i, col_array[i].reveal())
+                for i in range(len(self.index)): self[col][i] = col_array[i]
+
+            return self, ct_array[0]
+
+    def _ss_groupBy(self, on, party_number, join = 'outer'):
+        from Compiler.sorting import gen_perm_by_radix_sort, SortPerm
+
+        if cint in self.value_types or cfix in self.value_types or cchr in self.value_types: 
+            raise ValueError(f"Cannot merge the tables with secret column '{on}' and clear text column.")
+
+        # sort
+        ids = self[on]
+        on_type = self.value_types[self.columns.index(on)]
+        ids_Array = sint.Array(size=len(self.index))
+        for i in range(len(self.index)): ids_Array[i] = ids.data[i]
+        
+        perm = gen_perm_by_radix_sort(ids_Array)
+        for col in self.columns:
+            col_value_type = self.value_types[self.columns.index(col)]
+            col_Array = col_value_type.Array(size=len(self.index))
+            for i in range(len(self.index)): col_Array[i] = self[col].data[i]
+            library.print_ln("%s:", col)
+            col_Array = perm.apply(col_Array)
+            for i in range(len(self.index)): self[col].data[i] = col_Array[i]
+
+        for i in range(len(self.index)): ids_Array[i] = self[on].data[i]
+        flag = sint.Array(size=len(self.index))
+        flag[0] = 1
+        flag.assign_vector(ids_Array.get_vector(size=len(ids_Array) - 1) !=
+                           ids_Array.get_vector(size=len(ids_Array) - 1, base=1), base=1)
+        
+        # 保留除0外第一个行的数据
+        for col in self.columns:
+            if col is on: continue
+            col_value_type = self.value_types[self.columns.index(col)]
+            col_Array = col_value_type.Array(size=len(self.index))
+            for i in range(len(self.index)): col_Array[i] = self[col].data[i]
+            
+            for i in range(len(self.index) - 1, -1, -1):
+                if i == 0: continue
+                j = i - 1
+                tmp_i = col_Array[i]
+                tmp_j = col_Array[j]
+                e = tmp_i == 0
+                e2 = tmp_j == 0
+                col_Array[i] = flag[i] * tmp_i + (1 - flag[i]) * ((1 - e) * e2 * tmp_i + (1 - (1 - e) * e2) * tmp_j)
+                col_Array[j] = flag[i] * tmp_j + (1 - flag[i]) * ((1 - e) * e2 * tmp_i + (1 - (1 - e) * e2) * tmp_j)
+            
+            for i in range(len(self.index)): self[col].data[i] = col_Array[i]
+        
+        self.index = list(range(len(self.index)))
+        for col in self.columns:
+            self[col].index = self.index
+
+        # outer join
+        if join == 'outer':
+            for col in self.columns:
+                col_value_type = self.value_types[self.columns.index(col)]
+                col_Array = col_value_type.Array(size=len(self.index))
+                for i in range(len(self.index)): col_Array[i] = self[col].data[i]
+                col_Array = col_Array * flag
+                for i in range(len(self.index)): self[col].data[i] = col_Array[i]
+            
+            perm = SortPerm(flag.get_vector().bit_not())
+            for col in self.columns:
+                col_value_type = self.value_types[self.columns.index(col)]
+                col_Array = col_value_type.Array(size=len(self.index))
+                for i in range(len(self.index)): col_Array[i] = self[col].data[i]
+                col_Array = perm.apply(col_Array)
+                for i in range(len(self.index)): self[col].data[i] = col_Array[i]
+
+            return self, sum(flag)
+        
+        # inner join
+        elif join == 'inner': 
+            in_intersection = sint.Array(size=len(self.index))
+            in_intersection.assign_vector(ids_Array.get_vector(size=len(ids_Array) - 1) ==
+                                ids_Array.get_vector(size=len(ids_Array) - 1, base=party_number - 1), base=0)
+            
+            for col in self.columns:
+                col_value_type = self.value_types[self.columns.index(col)]
+                col_Array = col_value_type.Array(size=len(self.index))
+                for i in range(len(self.index)): col_Array[i] = self[col].data[i]
+                col_Array = col_Array * in_intersection
+                for i in range(len(self.index)): self[col].data[i] = col_Array[i]
+            
+            perm = SortPerm(in_intersection.get_vector().bit_not())
+            for col in self.columns:
+                col_value_type = self.value_types[self.columns.index(col)]
+                col_Array = col_value_type.Array(size=len(self.index))
+                for i in range(len(self.index)): col_Array[i] = self[col].data[i]
+                col_Array = perm.apply(col_Array)
+                for i in range(len(self.index)): self[col].data[i] = col_Array[i]
+
+            return self, sum(in_intersection)
+
+    def __getitem__(self, key):
+        if isinstance(key, str): 
+            if key not in self.columns:
+                raise KeyError(f"Column '{key}' not found in dataframe.")
+            return self.data[key]
+        elif isinstance(key, list):
+            missing_cols = [col for col in key if col not in self.columns]
+            if missing_cols:
+                raise KeyError(f"Columns {missing_cols} not found in dataframe.")
+
+            new_data = {col: self.data[col] for col in key}
+            return dataframe(
+                data=[list(row) for row in zip(*[new_data[col].data for col in key])],
+                columns=key,
+                index=self.index[:]
+            )
+
+        else:
+            raise TypeError(f"Invalid key type: {type(key)}. Must be str or list of str.")
+
+    def __setitem__(self, key, value):
+        if isinstance(key, str): 
+            self._assign_single_column(key, value)
+            
+        elif isinstance(key, list):
+            if not isinstance(value, list) or not all(isinstance(row, list) for row in value):
+                raise TypeError("Value must be a list of lists for multiple column assignment.")
+
+            num_rows = len(value)
+            max_existing_rows = len(self.index)
+            max_new_rows = max(num_rows, max_existing_rows)
+            self._expand_index(max_new_rows)
+
+            col_data_dict = {col: [] for col in key}
+            for row in value:
+                for col, val in zip(key, row):
+                    col_data_dict[col].append(val)
+                for col in key[len(row):]:
+                    col_data_dict[col].append(None)
+
+            for col, col_values in col_data_dict.items():
+                self._assign_single_column(col, col_values, target_rows=max_new_rows)
+
+        else:
+            raise KeyError(f"Invalid key type: {type(key)}")
+
+    def _assign_single_column(self, col, value, target_rows=None):
+        num_values = len(value)
+        max_existing_rows = len(self.index)
+        
+        required_rows = max(num_values, max_existing_rows)
+        self._expand_index(required_rows)
+
+        if col in self.columns:
+            expected_type = self.data[col].value_type
+
+            self.data[col].data = value + [None] * (required_rows - num_values)
+            self.data[col].data = [self.convert_value(val, expected_type) 
+                                   for val in self.data[col].data]
+
+        else:
+            inferred_type = self._infer_column_type(value)
+            self.columns.append(col)
+            self.value_types.append(inferred_type)
+            self.data[col] = series(
+                value + [None] * (required_rows - num_values), 
+                index=self.index, 
+                name=col
+            )
+
+    def _expand_index(self, new_size):
+        if new_size <= len(self.index):
+            return
+        
+        max_index = 0
+        for i in self.index: max_index = max(max_index, i)
+        new_indices_num = new_size - len(self.index)
+        for i in range(0, new_indices_num):
+            self.index = self.index + [max_index + i + 1]
+        
+        # self.index = list(range(new_size))
+        for col in self.columns:
+            self.data[col].index = self.index
+            self.data[col].data.extend([None] * (new_size - len(self.data[col].data)))
+            self.data[col].data = [self.convert_value(val, self.value_types[self.columns.index(col)]) for val in self.data[col].data]
+
+    def _infer_column_type(self, col_data):
+        non_none_values = [val for val in col_data if val is not None]
+        if not non_none_values:
+            raise ValueError("At least one element is not None")
+        
+        first_type = type(non_none_values[0])
+        if not all(isinstance(v, first_type) for v in non_none_values):
+            raise TypeError(f"Column contains mixed types: {[type(v) for v in non_none_values]}")
+        
+        return first_type
+
+    @property
+    def shape(self):
+        num_rows = len(self.index)
+        num_cols = len(self.columns)
+        return (num_rows, num_cols)
+
+    @property
+    def loc(self):
+        return _dataframeLoc(self)
+    
+    # to check the table format for test
+    def __repr__(self):
+        return self._format_dataframe()
+
+    def _format_dataframe(self):
+        col_widths = [max(len(str(col)), max(len(str(val)) for val in self.data[col].data)) for col in self.columns]
+        index_width = max(len(str(idx)) for idx in self.index)  # 计算索引宽度
+
+        header = " " * (index_width + 2) + "  ".join(f"{col:<{col_widths[i]}}" for i, col in enumerate(self.columns))
+
+        rows = []
+        for i, idx in enumerate(self.index):
+            row_values = [str(self.data[col].data[i]) for col in self.columns]
+            formatted_row = f"{idx:<{index_width}}  " + "  ".join(f"{val:<{col_widths[j]}}" for j, val in enumerate(row_values))
+            rows.append(formatted_row)
+
+        return header + "\n" + "\n".join(rows)
+
+class _dataframeLoc:
+    def __init__(self, df):
+        self.df = df
+    
+    def convert_value(self, value, value_type):
+        if not isinstance(value, value_type):
+            try:
+                return value_type.conv(value)
+            except AttributeError:
+                raise TypeError(f"Cannot convert {type(value)} to {value_type}")
+        return value
+
+    def __getitem__(self, key):        
+        if isinstance(key, int):
+            if key not in self.df.index:
+                raise KeyError(f"Index {key} not found in DataFrame index {self.df.index}")
+            row_idx = self.df.index.index(key)
+            row_data = [self.df.data[col].data[row_idx] for col in self.df.columns]
+            return series(row_data, self.df.columns)
+
+        elif isinstance(key, list):
+            if not all(isinstance(i, int) for i in key):
+                raise TypeError("All elements in the index list must be integers")
+            invalid_indices = [i for i in key if i not in self.df.index]
+            if invalid_indices:
+                raise KeyError(f"Indices {invalid_indices} not found in dataframe index {self.df.index}")
+
+            row_indices = [self.df.index.index(i) for i in key]
+            new_data = [[self.df.data[col].data[i] for col in self.df.columns] for i in row_indices]
+            return dataframe(new_data, self.df.columns, index=key)
+
+        elif isinstance(key, slice): 
+            start, stop, step = key.indices(len(self.df.index))
+            stop =  stop + 1
+            selected_indices = self.df.index[start:stop:step]
+            return self[selected_indices] 
+
+        else:
+            raise TypeError("Index must be an int, list of ints, or slice")
+            
+    def __setitem__(self, key, value):
+        if not isinstance(value, list):
+            raise TypeError("Assigned value must be a list.")
+
+        num_cols = len(self.df.columns)
+
+        if len(value) > num_cols:
+            raise ValueError(f"Too many values: expected at most {num_cols}, but got {len(value)}.")
+
+        if key not in self.df.index:
+            self.df.index.append(key)
+            for col in self.df.columns:
+                self.df.data[col].index.append(key)
+
+            for i, col in enumerate(self.df.columns):
+                if i < len(value):
+                    val_i = self.convert_value(value[i], self.df.value_types[self.df.columns.index(col)])
+                    self.df.data[col].data.append(val_i)
+                else: 
+                    self.df.data[col].data.append(None)
+                    self.df.data[col][key] = self.convert_value(self.df.data[col][key], 
+                                                                self.df.value_types[self.df.columns.index(col)])
+        
+        else:
+            for col in self.df.columns:
+                idx = self.df.columns.index(col)
+                self.df[col].data[key] = self.convert_value(value[idx], self.df.value_types[idx])
