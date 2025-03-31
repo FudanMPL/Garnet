@@ -136,7 +136,7 @@ class LTask:
 
     def protocolCompile(self):
         return subprocess.Popen(
-            f"{settings.BASE_DIR}/scripts/run.sh test -e {self.protocol}.x || {settings.GARNETPATH} make -j 8 {self.protocol}.x",
+            f"{settings.BASE_DIR}/scripts/run.sh {settings.GARNETPATH}  test -e {self.protocol}.x || {settings.GARNETPATH} make -j 8 {self.protocol}.x",
             shell=True,
         )
 
@@ -158,6 +158,7 @@ class LTask:
                 p.wait()
         threads = []
         for i in range(0, self.pN):
+            # print(f"{settings.BASE_DIR}/scripts/run.sh {settings.GARNETPATH} ./{self.protocol}.x {os.path.splitext(self.mpc)[0]} -h localhost -p {i}  -IF {inputPrefix} -pn 7012 -OF  {outputPrefix} { self.protocol_parameters if self.protocol_parameters else ''}")
             inputPrefix = settings.GARNETPATH + "/Input/" + self.prefix
             outputPrefix = settings.GARNETPATH + "/Output/" + self.prefix
             threads.append(

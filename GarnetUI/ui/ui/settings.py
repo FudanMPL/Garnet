@@ -20,11 +20,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # region 需要自定义设置的内容
 # garnet文件夹
-GARNETPATH = "GARNETPATH"
+GARNETPATH = "/home/zw/Garnet"
 
 # Metadata
-NAME = "NAME"
-IPADDRESS = "IPADDRESS"
+NAME = "test312"
+IPADDRESS = "10.176.34.173"
 PORT = 8000
 
 # SECURITY WARNING: keep the secret key used in production secret!

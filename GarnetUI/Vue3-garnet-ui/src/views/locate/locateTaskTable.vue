@@ -51,9 +51,10 @@
     >
     <el-col :span="20" :offset="2">
       <span class="formatted-text">{{ readmeMessage }}</span>
-      <el-table :data="result1Data" style="width: 100%" max-height="400">
+      <!-- <el-table :data="result1Data" style="width: 100%" max-height="400">
       <el-table-column v-for="i in column" :key="i" :prop="i" label='' width="180" />
-      </el-table>
+      </el-table> -->
+      <span>任务已执行完成，可下载查看！</span>
     </el-col>
       <template #footer>
         <span class="dialog-footer">
@@ -221,7 +222,8 @@ const handleResult = async (id, status) => {
     const res = await request.get(testResultUrl.value)
     message.value = res.data
     result1.value = res.data
-    await transformData(result1)
+    console.log(result1.value)
+    // await transformData(result1)
     //console.log(result1Data.value)
     //console.log(column.value)
     resultDialogVisible.value = true
