@@ -45,6 +45,16 @@ class psi_risc(base.VarArgsInstruction):
     code = base.opcodes['PSI']
     arg_format = tools.cycle(['cw', 'int'])
 
+@base.vectorize
+class mpsi_risc(base.Instruction):
+    """ psi.
+    :param: number of parties (cint)
+    """
+    # __slots__ = []
+    code = base.opcodes['MPSI']
+    arg_format = ['int']
+
+
 # @base.vectorize
 class psi_align(base.VarArgsInstruction):
     """ psi.
@@ -67,7 +77,6 @@ class psi_align(base.VarArgsInstruction):
         assert len(args[1]) == args[2]
         assert len(args[0]) == args[2]*(args[3]+args[4])
         super(psi_align, self).__init__(*args, **kwargs)
-
 
 ###
 ### Change domain instructions

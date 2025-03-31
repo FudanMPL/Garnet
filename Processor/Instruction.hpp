@@ -136,6 +136,10 @@ inline void BaseInstruction::parse_operands(istream &s, int pos, int file_pos)
   case PREFIXSUMS:
     get_ints(r, s, 2);
     break;
+  // instructions with 2 register operand
+  //   r[0] = get_int(s);
+  //   r[1] = get_int(s);
+    // break;
   // instructions with 1 register operand
   case BIT:
   case BITB:
@@ -269,8 +273,12 @@ inline void BaseInstruction::parse_operands(istream &s, int pos, int file_pos)
   case START:
   case STOP:
   case PRINTFLOATPREC:
+  case MPSI:
   case CMD:
     n = get_int(s);
+    if(opcode == MPSI){
+      std::cout << n << std::endl;
+    }
     break;
   // instructions with no operand
   case TIME:
@@ -1191,14 +1199,17 @@ inline void Instruction::execute(Processor<sint, sgf2n> &Proc) const
     case GDOTPRODS:
       Proc.Proc2.dotprods(start, size);
       return;
-    #ifdef ENABLE_PSI
+    // #ifdef ENABLE_PSI
     case PSIALIGN:
       Proc.Procp.protocol.psi_align(Proc.Procp.get_C(), *this, Proc.Procp);
       return;
     case PSI:
       Proc.Procp.protocol.psi(Proc.Procp.get_C(), *this, Proc.Procp);
       return;
-    #endif
+    case MPSI:
+      Proc.Procp.protocol.mpsi(n, Proc.Procp);
+      return;
+    // #endif
     case MATMULS:
       Proc.Procp.matmuls(Proc.Procp.get_S(), *this);
       return;
