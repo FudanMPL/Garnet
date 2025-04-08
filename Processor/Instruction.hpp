@@ -1199,7 +1199,7 @@ inline void Instruction::execute(Processor<sint, sgf2n> &Proc) const
     case GDOTPRODS:
       Proc.Proc2.dotprods(start, size);
       return;
-    // #ifdef ENABLE_PSI
+    #ifdef ENABLE_PSI
     case PSIALIGN:
       Proc.Procp.protocol.psi_align(Proc.Procp.get_C(), *this, Proc.Procp);
       return;
@@ -1209,7 +1209,7 @@ inline void Instruction::execute(Processor<sint, sgf2n> &Proc) const
     case MPSI:
       Proc.Procp.protocol.mpsi(n, Proc.Procp);
       return;
-    // #endif
+    #endif
     case MATMULS:
       Proc.Procp.matmuls(Proc.Procp.get_S(), *this);
       return;
