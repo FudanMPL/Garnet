@@ -10,12 +10,12 @@
 
 且Python版本需要 >= 3.10.0。
 
-### 源码下载
+### 步骤 1：源码下载
 ```
 git clone https://github.com/FudanMPL/Garnet.git
 ```
 
-### 外部库准备
+### 步骤 2：外部库准备
 
 #### Linux
 ```
@@ -28,7 +28,7 @@ sudo apt-get install automake build-essential cmake git libboost-dev libboost-th
 brew install automake build-essential cmake git libboost-dev libboost-thread-dev libntl-dev libsodium-dev libssl-dev libtool m4 texinfo yasm
 ```
 
-### 初始编译（必须步骤）
+### 步骤 3：初始编译
 
 ```
 make clean-deps boost libote
@@ -39,12 +39,12 @@ make -j 8 tldr
 
 ## 部署方式二：用Docker部署
 
-### 源码下载
+### 步骤 1：源码下载
 ```
 git clone https://github.com/FudanMPL/Garnet.git
 ```
 
-### 创建镜像和容器
+### 步骤 2：创建镜像和容器
 
 ```
 sudo docker build -t garnet .
@@ -57,6 +57,14 @@ sudo docker run --cap-add=NET_ADMIN -it garnet bash
 
 
 ## 历史发布
+
+
+#### 2025年3月份发布: 
+
+* [DataFrame 数据结构](./docs/dataframe.md)
+* [数据联合统计分析算子补充](docs/joint_statistics2.md)
+* [3方隐私集合求交效率优化](./docs/mPSI.md)
+
 
 #### 2024年7月份发布: 
 
@@ -105,9 +113,6 @@ sudo docker run --cap-add=NET_ADMIN -it garnet bash
 * [SecureML协议](./docs/secureML.md)
 * [预训练模型安全微调](./docs/pretrain.md)
 * [XGBoost模型安全训练](./docs/xgboost-training.md)
-
-
-
 
 
 
