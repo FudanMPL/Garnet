@@ -6,6 +6,7 @@
 #ifndef PROTOCOLS_REPLICATED_H_
 #define PROTOCOLS_REPLICATED_H_
 
+#include <algorithm>
 #include <array>
 #include <assert.h>
 #include <cstdint>
@@ -235,7 +236,7 @@ public:
 #ifdef DEBUG
     cout << "Total lines read: " << m << endl;
 #endif
-    size_t mm = static_cast<size_t>(std::ceil(std::log2(m + 1)) * 2);
+    // size_t mm = 1ull << static_cast<size_t>(std::ceil(std::log2(m + 1)));
 #ifdef DEBUG
     cout << "Bin size: " << mm << endl;
 #endif
@@ -254,6 +255,8 @@ public:
     OT_ROLE ot_role;
     osuCrypto::CuckooIndex<> cuckoo;
     SimpleIndex sIdx;
+    uint expand = 10;
+    uint64_t mm;
 
     // std::vector<string> names;
     // int names_size = n-1;
@@ -269,25 +272,97 @@ public:
       // cuckoo.print();
       ot_role = RECEIVER;
 
-      int i = 1; // perform OTs with player 1
-      octetStream cs0, cs1, cs2;
+      int i = 1;
+      octetStream cs0;
       cs0.store(seed);
       for (int j = 1; j < n; j++) {
         proc.P.send_to(j, cs0);
       }
+      // std::cout << "receive maxbins" << std::endl;
+      octetStream cs_b;
+      proc.P.receive_player(my_num + 1, cs_b);
+      uint64_t maxBins;
+      cs_b.get(maxBins);
+      std::cout << "update maxBin: " << maxBins << std::endl;
+      mm = maxBins * expand;
+    } else if (my_num == 1) {
+      octetStream cs0, cs1, cs_v, cs_s;
+      proc.P.receive_player(RECEIVER_P, cs0);
+      int seed;
+      cs0.get(seed);
+      osuCrypto::block cuckooSeed(seed);
+      sIdx.init(params.numBins(), m, ssp, 3);
+      sIdx.insertItems(ids, cuckooSeed);
+      uint64_t maxBins = 0;
+      for (unsigned int i = 0; i < params.numBins(); i++) {
+        maxBins = max(maxBins, sIdx.mBinSizes[i]);
+      }
+      std::cout << "maxBins: " << maxBins << std::endl;
+
+      octetStream cs_bs[n - 2];
+      for (unsigned int i = 0; i < n - 2; i++) {
+        proc.P.receive_player(i + my_num + 1, cs_bs[i]);
+        uint64_t b;
+        cs_bs[i].get(b);
+        // std::cout << i << " " << b << std::endl;
+        maxBins = max(maxBins, b);
+      }
+      // octetStream cs_mb[n];
+      for (unsigned int i = 0; i < n; i++) {
+        if (i != my_num) {
+          // std::cout << "send to " << i << std::endl;
+          octetStream cs_mb;
+          cs_mb.store(maxBins);
+          proc.P.send_to(i, cs_mb);
+        }
+      }
+      std::cout << "update maxBin: " << maxBins << std::endl;
+      mm = maxBins * expand;
+    } else {
+      octetStream cs0, cs_b;
+      proc.P.receive_player(RECEIVER_P, cs0);
+      int seed;
+      cs0.get(seed);
+#ifdef DEBUG
+      std::cout << "Receive seed " << seed << std::endl;
+#endif
+      osuCrypto::block cuckooSeed(seed);
+      sIdx.init(params.numBins(), m, ssp, 3);
+      sIdx.insertItems(ids, cuckooSeed);
+      uint64_t maxBins = 0;
+      for (unsigned int i = 0; i < params.numBins(); i++) {
+        maxBins = max(maxBins, sIdx.mBinSizes[i]);
+        // if (sIdx.mBinSizes[i] > mm) {
+        //   cout << "exceed" << endl;
+        // }
+      }
+      std::cout << "maxBins: " << maxBins << std::endl;
+      cs_b.store(maxBins);
+      proc.P.send_to(RECEIVER_P + 1, cs_b);
+      octetStream cs_mb;
+      proc.P.receive_player(RECEIVER_P + 1, cs_mb);
+      cs_mb.get(maxBins);
+      std::cout << "update maxBin: " << maxBins << std::endl;
+      mm = maxBins * expand;
+    }
+
+    if (proc.P.my_num() == RECEIVER_P) {
 #ifdef DEBUG
       cout << "1.OPRF with:" << i << "-----------" << std::endl;
       cout << "(1) begin base ot \n";
 #endif
+      // perform OTs with player 1
       // string id_name = "Machine" + to_string(i);
-      RealTwoPartyPlayer *rP = new RealTwoPartyPlayer(proc.P.N, i, i);
+      RealTwoPartyPlayer *rP =
+          new RealTwoPartyPlayer(proc.P.N, RECEIVER_P + 1, "machine");
       BaseOT bot = BaseOT(nbase, 128, rP, INV_ROLE(ot_role));
       bot.exec_base();
 
+      octetStream cs1;
       int a = 3;
       cs1.store(a);
-      proc.P.send_to(i, cs1);
-      // cout << "(2) send sync" << a << endl;
+      proc.P.send_to(RECEIVER_P + 1, cs1);
+      cout << "send sync" << a << endl;
 
       // convert baseOT selection bits to BitVector
       // (not already BitVector due to legacy PVW code)
@@ -342,14 +417,14 @@ public:
 
       delete ot_ext;
       rP->~RealTwoPartyPlayer();
-#ifdef DEBUG
+      // #ifdef DEBUG
       cout << "2.receive okvs from:" << n - 1 << "-----------" << std::endl;
-#endif
+      // #endif
       octetStream cs_v, cs_s;
       proc.P.receive_player(n - 1, cs_v);
       vector<uint64_t> vs;
       uint64_t v;
-      for (unsigned int i = 0; i < params.numBins(); i++) {
+      for (unsigned int i = 0; i < params.numBins() * 3; i++) {
         cs_v.get(v);
         vs.push_back(v);
       }
@@ -359,8 +434,11 @@ public:
       vector<BitVector> S;
       vector<idtype> I; // intersection IDs
       idtype id;
+      uint64_t v1, v2, v3;
       for (unsigned int i = 0; i < params.numBins(); i++) {
-        v = vs[i];
+        v1 = vs[3 * i];
+        v2 = vs[3 * i + 1];
+        v3 = vs[3 * i + 2];
 #ifdef DEBUG
         cout << "Bin #" << i << endl;
 #endif
@@ -372,7 +450,7 @@ public:
           S.push_back(s_tmp);
         }
 
-        OKVSReceiver okvs_r(S, v);
+        OKVSReceiver okvs_r(S, v1, v2, v3, mm);
         if (!cuckoo.mBins[i].isEmpty()) {
           id = smallids[cuckoo.mBins[i].idx()];
           // std::cout << i << " " << id << " " << fk_id[i].str() << std::endl;
@@ -393,37 +471,28 @@ public:
       if (!outFile.is_open()) {
         std::cerr << "Cannot open: " << filename << std::endl;
       } else {
-
         for (const auto &id : I) {
           outFile << id << "\n";
         }
-
         outFile.close();
       }
 
     } else if (my_num == 1) {
-      octetStream cs0, cs1, cs_v, cs_s;
-      proc.P.receive_player(RECEIVER_P, cs0);
-      int seed;
-      cs0.get(seed);
-      osuCrypto::block cuckooSeed(seed);
-      sIdx.init(params.numBins(), m, ssp, 3);
-      sIdx.insertItems(ids, cuckooSeed);
-      // sIdx.print();
       ot_role = SENDER;
 #ifdef DEBUG
       cout << "Begin base ot \n";
 #endif
       // string id_name = "Machine" + to_string(proc.P.my_num());
       RealTwoPartyPlayer *rP =
-          new RealTwoPartyPlayer(proc.P.N, RECEIVER_P, my_num);
+          new RealTwoPartyPlayer(proc.P.N, RECEIVER_P, "machine");
       BaseOT bot = BaseOT(nbase, 128, rP, INV_ROLE(ot_role));
       bot.exec_base();
 
+      octetStream cs1;
       proc.P.receive_player(RECEIVER_P, cs1);
       int a;
       cs1.get(a);
-      // cout << "Receive sync" << a << endl;
+      cout << "Receive sync" << a << endl;
 
       BitVector baseReceiverInput = bot.receiver_inputs;
       baseReceiverInput.resize(nbase);
@@ -436,6 +505,10 @@ public:
       // ot_ext.check();
       bot.extend_length();
 
+      // #ifdef DEBUG
+      cout << "finish oprf with receiver\n";
+      // #endif
+
       BitVector key, temp;
       idtype id;
       // vector<vector<BitVector>> fkx(params.numBins());
@@ -443,6 +516,7 @@ public:
       vector<BitVector> Y;
       vector<uint64_t> X;
       std::unordered_set<uint64_t> X_tmp;
+      octetStream cs_s, cs_v;
       for (unsigned int i = 0; i < params.numBins(); i++) {
 #ifdef DEBUG
         cout << "Bin #" << i << endl;
@@ -480,12 +554,19 @@ public:
           // cout << "|   " << fkx[i][k].str() << endl;
         }
         std::vector<BitVector> S;
-        uint64_t v = 0;
-        OKVSSender::generateTable(X, Y, mm, S, v);
-        cs_v.store(v);
+        uint64_t v1 = 0;
+        uint64_t v2 = 0;
+        uint64_t v3 = 0;
+        OKVSSender::generateTable(X, Y, mm, S, v1, v2, v3);
+        cs_v.store(v1);
+        cs_v.store(v2);
+        cs_v.store(v3);
+        // if (i % 10000 == 0) {
+        //   cout << "finish build okvs " << i << endl;
+        // }
 // cs_s.store<BitVector>(s);
 #ifdef DEBUG
-        std::cout << "table:\n";
+        std::cout << "table, v: " << v1 << " " << v2 << " " << v3 << std::endl;
 #endif
         for (auto &s : S) {
           s.pack(cs_s);
@@ -494,42 +575,34 @@ public:
 #endif
         }
       }
+      std::cout << "begin send okvs\n";
       proc.P.send_to(my_num + 1, cs_v);
       proc.P.send_to(my_num + 1, cs_s);
       // for (BitVector fk : fs) {
       //   std::cout << fk.str() << std::endl;
       //   // fk.pack(cs2);
       // }
-
+      std::cout << "finish send okvs\n";
       delete ot_ext;
-      delete rP;
+      // delete rP;
 
     } else {
-      octetStream cs0;
-      proc.P.receive_player(RECEIVER_P, cs0);
-      int seed;
-      cs0.get(seed);
-#ifdef DEBUG
-      std::cout << "Receive seed " << seed << std::endl;
-#endif
-      osuCrypto::block cuckooSeed(seed);
-      sIdx.init(params.numBins(), m, ssp, 3);
-      sIdx.insertItems(ids, cuckooSeed);
-
       octetStream cs_v, cs_s;
       proc.P.receive_player(my_num - 1, cs_v);
-      proc.P.receive_player(my_num - 1, cs_s);
       octetStream cs_snew;
       uint64_t v;
+      uint64_t v1, v2, v3;
       idtype id;
       std::pair<uint64_t, BitVector> idx_tmp;
       vector<BitVector> S;
       vector<BitVector> newS;
       vector<uint64_t> vs;
-      for (unsigned int i = 0; i < params.numBins(); i++) {
+      for (unsigned int i = 0; i < params.numBins() * 3; i++) {
         cs_v.get(v);
         vs.push_back(v);
       }
+
+      proc.P.receive_player(my_num - 1, cs_s);
 
       // update S to newS
       // PRNG seed;
@@ -539,9 +612,12 @@ public:
       uint64_t rand_x[2];
       BitVector x_bitv;
       for (unsigned int i = 0; i < params.numBins(); i++) {
-        v = vs[i];
+        v1 = vs[i * 3];
+        v2 = vs[i * 3 + 1];
+        v3 = vs[i * 3 + 2];
 #ifdef DEBUG
-        cout << "Bin #" << i << ",  v: " << v << endl;
+        cout << "Bin #" << i << ",  v: " << v1 << " " << v2 << " " << v3
+             << endl;
 #endif
         S.clear();
         // S.resize(mm);
@@ -553,7 +629,7 @@ public:
           S.push_back(s_tmp);
         }
 
-        OKVSReceiver okvs_r(S, v);
+        OKVSReceiver okvs_r(S, v1, v2, v3, mm);
 
         newS.clear();
         // newS.resize(mm);
@@ -570,12 +646,9 @@ public:
 #endif
         for (unsigned int k = 0; k < sIdx.mBinSizes[i]; k++) { // each bin
           id = smallids[sIdx.mBins(i, k).idx()];
-#ifdef DEBUG
-          std::cout << id << ",";
-#endif
           idx_tmp = okvs_r.get(id);
 #ifdef DEBUG
-          std::cout << idx_tmp.first << "|" << idx_tmp.second.str()
+          std::cout << id << "," << idx_tmp.first << "|" << idx_tmp.second.str()
                     << std::endl;
 #endif
           newS[idx_tmp.first] = idx_tmp.second;
