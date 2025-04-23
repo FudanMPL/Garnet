@@ -1,0 +1,130 @@
+nohup: ignoring input
+--------DataSet:Spambase--------------
+Entering the KNN_party_optimized class:
+P0 read training file end!
+sample size:300
+test size:1
+Feature size:6
+Total Round count = 99 online round
+Party total time = 0.248337 seconds
+Party Data sent = 0.107816 MB
+call_evaluate_nums : 3028
+在Evaluation函数中 Total elapsed time: 0.242807 seconds
+-----------------------------------------------------
+nohup: ignoring input
+--------DataSet:Spambase--------------
+Entering the KNN_party_optimized class:
+P0 read training file end!
+sample size:600
+test size:1
+Feature size:6
+Total Round count = 109 online round
+Party total time = 0.473424 seconds
+Party Data sent = 0.215816 MB
+call_evaluate_nums : 6028
+在Evaluation函数中 Total elapsed time: 0.465466 seconds
+-----------------------------------------------------
+nohup: ignoring input
+--------DataSet:Spambase--------------
+Entering the KNN_party_optimized class:
+P0 read training file end!
+sample size:900
+test size:1
+Feature size:6
+Total Round count = 109 online round
+Party total time = 0.701885 seconds
+Party Data sent = 0.323816 MB
+call_evaluate_nums : 9028
+在Evaluation函数中 Total elapsed time: 0.691229 seconds
+-----------------------------------------------------
+nohup: ignoring input
+--------DataSet:Spambase--------------
+Entering the KNN_party_optimized class:
+P0 read training file end!
+sample size:1200
+test size:1
+Feature size:6
+Total Round count = 119 online round
+Party total time = 0.967804 seconds
+Party Data sent = 0.431816 MB
+call_evaluate_nums : 12028
+在Evaluation函数中 Total elapsed time: 0.952305 seconds
+-----------------------------------------------------
+nohup: ignoring input
+--------DataSet:Spambase--------------
+Entering the KNN_party_optimized class:
+P0 read training file end!
+sample size:1500
+test size:1
+Feature size:6
+Total Round count = 119 online round
+Party total time = 1.18094 seconds
+Party Data sent = 0.539816 MB
+call_evaluate_nums : 15028
+在Evaluation函数中 Total elapsed time: 1.16388 seconds
+-----------------------------------------------------
+nohup: ignoring input
+-----------DataSet:Spambase-----------------
+Entering the KNN_party_SecKNN class:
+P0 read training file end!
+sample size:300
+test size:1
+Feature size:6
+Total Round count = 2982 online round
+Party total time = 0.343993 seconds
+Party Data sent = 0.122216 MB
+call_evaluate_nums : 3028
+在Evaluation函数中 Total elapsed time: 0.276139 seconds
+-----------------------------------------------------
+nohup: ignoring input
+-----------DataSet:Spambase-----------------
+Entering the KNN_party_SecKNN class:
+P0 read training file end!
+sample size:600
+test size:1
+Feature size:6
+Total Round count = 5982 online round
+Party total time = 0.600353 seconds
+Party Data sent = 0.244616 MB
+call_evaluate_nums : 6028
+在Evaluation函数中 Total elapsed time: 0.473982 seconds
+-----------------------------------------------------
+nohup: ignoring input
+-----------DataSet:Spambase-----------------
+Entering the KNN_party_SecKNN class:
+P0 read training file end!
+sample size:900
+test size:1
+Feature size:6
+Total Round count = 8982 online round
+Party total time = 0.904961 seconds
+Party Data sent = 0.367016 MB
+call_evaluate_nums : 9028
+在Evaluation函数中 Total elapsed time: 0.717639 seconds
+-----------------------------------------------------
+nohup: ignoring input
+-----------DataSet:Spambase-----------------
+Entering the KNN_party_SecKNN class:
+P0 read training file end!
+sample size:1200
+test size:1
+Feature size:6
+Total Round count = 11982 online round
+Party total time = 1.18349 seconds
+Party Data sent = 0.489416 MB
+call_evaluate_nums : 12028
+在Evaluation函数中 Total elapsed time: 0.934252 seconds
+-----------------------------------------------------
+nohup: ignoring input
+-----------DataSet:Spambase-----------------
+Entering the KNN_party_SecKNN class:
+P0 read training file end!
+sample size:1500
+test size:1
+Feature size:6
+Total Round count = 14982 online round
+Party total time = 1.50231 seconds
+Party Data sent = 0.611816 MB
+call_evaluate_nums : 15028
+在Evaluation函数中 Total elapsed time: 1.19665 seconds
+-----------------------------------------------------
