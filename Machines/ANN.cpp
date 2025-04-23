@@ -1,6 +1,15 @@
 #include <iostream>
 #include <random>
 #include <chrono>
+#include <vector>
+#include <cmath>
+#include <cstdlib>
+#include <ctime>
+#include <limits>
+#include <fstream>
+#include <numeric>
+#include <omp.h>
+
 #include "../Networking/Player.h"
 #include "../Tools/ezOptionParser.h"
 #include "../Networking/Server.h"
@@ -19,8 +28,11 @@ void test_Z2();
 const int K=64;//环大小
 const int k_const=5;//knn里面的k值 
 
+int k_left=5,k_right=30;
 string dataset_name;
 string dir;
+typedef vector<int>Vec;
+typedef  long long ll;
 // string dataset_name="chronic";//数据集名称，自动用于后续的文件名生成
 // string dataset_name="mnist";//数据集名称，自动用于后续的文件名生成
 
@@ -35,24 +47,46 @@ long long call_evaluate_time=0;
 
 // 全局变量用于累计总运行时间
 std::chrono::duration<double> total_duration(0);
-
-class Sample{
+class Sample {
 public:
-    vector<int> features;
+    Vec features;
     int label;
-    Sample(int n):features(n){};
+    Sample() : label(0) {}
+    Sample(int n) : features(n),label(0) {};
+    Sample(Vec features_,int label_):features(features_),label(label_){};
 };
+
+struct Kmeans_Result {
+    int num_features, num_train_data, num_test_data;
+    vector<Sample> m_sample; // 训练集
+    vector<Sample> m_test;   // 测试集
+
+    Kmeans_Result(int features, int train_num, int test_num,
+                  const vector<Sample>& samples,
+                  const vector<Sample>& tests)
+        : num_features(features),
+          num_train_data(train_num),
+          num_test_data(test_num),
+          m_sample(samples),
+          m_test(tests) {}
+
+    Kmeans_Result() : num_features(0), num_train_data(0), num_test_data(0) {}
+
+  
+};
+
 
 class KNN_party_base
 {
 public:
+    Kmeans_Result result;               // ✅ 保存返回的结构体
     typedef Z2<K> additive_share;
     TimerWithComm timer;
     const int nplayers=2;
     int m_playerno = 0;//player编号
     int num_features;// 特征数
     int num_train_data; // 训练集数据总量
-    int num_test_data; //测试集数据总量
+    int num_test_data; // 测试集数据总量
     int num_label; // 训练集中label数量
 
     RealTwoPartyPlayer* m_player; // 通信模块
@@ -121,33 +155,12 @@ public:
     void test_cmp();
 
 };
-class KNN_party_SecKNN:public KNN_party_base
-{
-public:
-    vector<vector<additive_share>>m_train_additive_share_vec;
-    vector<vector<additive_share>>m_test_additive_share_vec;
-    vector<additive_share> m_train_label_additive_share_vec;
 
-    KNN_party_SecKNN(int playerNo):KNN_party_base(playerNo){
-        std::cout<<"Entering the KNN_party_SecKNN class:"<<std::endl;
-    }
-
-    //将所有数据都转成additive share形式，包括P0的训练集数据（使用aby论文里面的share协议，进行一轮的数据发送），P1的测试集数据（使用aby论文里面的share协议，进行一轮的数据发送）
-    //同时将测试集数据share，放入m_ESD_vec的第二列数据中。
-    void additive_share_all_data(); 
-
-    void compute_ESD_for_one_query(int idx_of_test);
-    void top_1(vector<array<Z2<K>,2>>&shares,int size_of_need_select,bool min_in_last=true);
-    void run();
-
-    void test_additive_share_all_data_function();
-
-    
-};
 
 class KNN_party_optimized:public KNN_party_base
 {
 public:
+    
     typedef FixedVec<Z2<K>,2> aby2_share;
     vector<vector<aby2_share>>m_train_aby2_share_vec;
     vector<vector<aby2_share>>m_test_aby2_share_vec;
@@ -184,37 +197,86 @@ public:
 };
 
 
+
+void save_result_to_file(const Kmeans_Result& result, const string& filename) {
+    ofstream out(filename);
+    if (!out.is_open()) {
+        cerr << "Failed to open file for writing: " << filename << endl;
+        return;
+    }
+
+    out << result.num_features << " " << result.num_train_data << " " << result.num_test_data << endl;
+
+    // 保存训练集
+    for (const auto& sample : result.m_sample) {
+        for (int val : sample.features)
+            out << val << " ";
+        out << sample.label << endl;
+    }
+
+    // 保存测试集
+    for (const auto& sample : result.m_test) {
+        for (int val : sample.features)
+            out << val << " ";
+        out << sample.label << endl;
+    }
+
+    out.close();
+    cout << "Saved Kmeans_Result to " << filename << endl;
+}
+
+Kmeans_Result load_result_from_file(const string& filename) {
+    ifstream in(filename);
+    if (!in.is_open()) {
+        cerr << "Failed to open file for reading: " << filename << endl;
+        exit(1);
+    }
+
+    Kmeans_Result result;
+    in >> result.num_features >> result.num_train_data >> result.num_test_data;
+
+    // 读取训练集
+    for (int i = 0; i < result.num_train_data; ++i) {
+        Vec features(result.num_features);
+        for (int j = 0; j < result.num_features; ++j) {
+            in >> features[j];
+        }
+        int label;
+        in >> label;
+        result.m_sample.emplace_back(features, label);
+    }
+
+    // 读取测试集
+    for (int i = 0; i < result.num_test_data; ++i) {
+        Vec features(result.num_features);
+        for (int j = 0; j < result.num_features; ++j) {
+            in >> features[j];
+        }
+        int label;
+        in >> label;
+        result.m_test.emplace_back(features, label);
+    }
+
+    in.close();
+    return result;
+}
+
+
+
 int main(int argc, const char** argv)
 {
     parse_argv(argc, argv);
-    // KNN_party_optimized party(playerno);
-
     dir="knn-1/";
     // vector<string>dataset_name_list={"Iris","Wine","Cancer","Spambase","Adult","Mnist","Dota2Games", "Toxicity", "arcene", "RNA-seq", "PEMS-SF"};
-    // vector<string>dataset_name_list={"Adult","Mnist","Dota2Games"};
-    // vector<string>dataset_name_list={ "Toxicity", "arcene", "RNA-seq", "PEMS-SF"};
-    vector<string>dataset_name_list={"Spambase"};
+    vector<string>dataset_name_list={"Mnist"};
     for(int i=0;i<dataset_name_list.size();i++){
         dataset_name=dataset_name_list[i];
-        cout<<"-----------DataSet:"<<dataset_name<<"-----------------"<<endl;
-        KNN_party_SecKNN party(playerno);
+        cout<<"--------DataSet:"<<dataset_name<<"--------------"<<endl;
+        KNN_party_optimized party(playerno);
         party.start_networking(opt);
-        // std::cout<<"Network Set Up Successful ! "<<std::endl;
+        std::cout<<"Network Set Up Successful ! "<<std::endl;
         party.run();
     }
-    // dataset_name="Wine";
-    //     cout<<"--------DataSet:"<<dataset_name<<endl;
-    //     party.run();
-
-    // dataset_name="iris";
-    // cout<<"--------DataSet:"<<dataset_name<<endl;
-    // party.run();
-    // // party.LabelCompute_test();
-    // // test_Z2();
-    // dataset_name="chronic";
-    // cout<<"--------DataSet:"<<dataset_name<<endl;
-    // party.run();
-    // party.test_cmp();
     return 0;
 }
 
@@ -222,6 +284,7 @@ void KNN_party_optimized::aby2_share_data_and_additive_share_label_list()
 {
     
     //aby2_share_data
+    cout<<"num_train_data:"<<num_train_data<<endl;
     m_train_aby2_share_vec.resize(num_train_data);
     for(int i=0;i<num_train_data;i++)
         m_train_aby2_share_vec[i].resize(num_features);
@@ -229,7 +292,6 @@ void KNN_party_optimized::aby2_share_data_and_additive_share_label_list()
     m_test_aby2_share_vec.resize(num_test_data);
     for(int i=0;i<num_test_data;i++)
         m_test_aby2_share_vec[i].resize(num_features);
-
     if(m_playerno==0)
     {
         octetStream os;
@@ -243,7 +305,7 @@ void KNN_party_optimized::aby2_share_data_and_additive_share_label_list()
             }
         }
         m_player->send(os);
-        cout<<"Train data aby2_share sending ended!"<<endl;
+        // cout<<"Train data aby2_share sending ended!"<<endl;
 
         os.clear();
         m_player->receive(os);
@@ -255,7 +317,7 @@ void KNN_party_optimized::aby2_share_data_and_additive_share_label_list()
                 m_test_aby2_share_vec[i][j][0].unpack(os);
             }
         }
-        cout<<"Test data aby2_share receiving ended!"<<endl;
+        // cout<<"Test data aby2_share receiving ended!"<<endl;
 
     }
     else
@@ -270,7 +332,7 @@ void KNN_party_optimized::aby2_share_data_and_additive_share_label_list()
                 m_train_aby2_share_vec[i][j][0].unpack(os);
             }
         }
-        cout<<"Train data aby2_share receiving ended!"<<endl;
+        // cout<<"Train data aby2_share receiving ended!"<<endl;
 
         os.clear();
         for(int i=0;i<num_test_data;i++)
@@ -283,7 +345,7 @@ void KNN_party_optimized::aby2_share_data_and_additive_share_label_list()
             }
         }
         m_player->send(os);
-        cout<<"Test data aby2_share  sending ended!"<<endl;
+        // cout<<"Test data aby2_share  sending ended!"<<endl;
 
     } 
 }
@@ -396,7 +458,7 @@ void KNN_party_optimized::load_triples()
         file_Train_Triples_0.close();
         file_Train_Triples_1.close();
         file_Test_Triples_0.close();
-        cout<<"P0 loading triple ended!"<<endl;
+        // cout<<"P0 loading triple ended!"<<endl;
     }
     else
     {
@@ -435,7 +497,7 @@ void KNN_party_optimized::load_triples()
         file_Train_Triples_1.close();
         file_Test_Triples_1.close();
 
-        cout<<"P1 loading triple ended!"<<endl;
+        // cout<<"P1 loading triple ended!"<<endl;
     }
 }
 
@@ -585,100 +647,14 @@ SignedZ2<K> KNN_party_base::reveal_one_num_to(SignedZ2<K> x,int playerID)
 }
 
 
-void KNN_party_SecKNN::run()
-{
-    read_meta_and_P0_sample_P1_query();
-    std::cout<<"sample size:"<<num_train_data<<std::endl;
-    std::cout<<"test size:"<<num_test_data<<std::endl;
-    std::cout<<"Feature size:"<<num_features<<std::endl;
-    
-    
-    // generate_triples_save_file();//这个函数必须独立运行，不能和后续load_triple一起使用。
-    // cout<<"\n generate_triples_save_file success!"<<endl;
-
-
-    additive_share_all_data(); //会进行一轮的通信，P0 share train data , at the same time, P1 share test data
-    cout<<std::flush;
-   
-    
-    timer.start(m_player->total_comm());
-
-    player->VirtualTwoPartyPlayer_Round=0;
-
-
-    int right_prediction_cnt=0;
-    for(int idx=0;idx<num_test_data;idx++)
-    {
-        for(int i=0;i<num_train_data;i++)//！！很重要的地方，每次排序会改变m_ESD_vec[i][1]的位置，所以需要重新进行赋值操作！！！
-            m_ESD_vec[i][1]=m_train_label_additive_share_vec[i];
-        Z2<K>tmp0( 0 );
-        compute_ESD_for_one_query(idx);
-        //  cout<<"Compute ESD' Round count = "<<player->VirtualTwoPartyPlayer_Round<< " online round"<<endl;
-
-        // for(int i=0;i<num_train_data;i++)
-        // {
-        //     tmp0=reveal_one_num_to(m_ESD_vec[i][0],0);
-        //     if(m_playerno==0)std::cout<<tmp0<<" ";
-        // }
-        // std::cout<<std::endl;
-        // std::cout<<std::endl;
-
-        // 选择top-k 最小的k个值放到最后面的k个位置
-        for(int i=0;i<k_const;i++)
-        {
-            top_1(m_ESD_vec,num_train_data-i,true);//比较排序次数依次是279，278，277，276，275，每次比较排序需要用到的轮次为2（比较一轮+乘法一轮）
-        }
-
-        // for(int i=0;i<num_train_data;i++)
-        // {
-        //     tmp0=reveal_one_num_to(m_ESD_vec[i][0],0);
-        //     if(m_playerno==0)std::cout<<tmp0<<" ";
-        // }
-        // std::cout<<std::endl;
-        // std::cout<<std::endl;
-        // cout<<"top_1 Round count = "<<player->VirtualTwoPartyPlayer_Round<< " online round"<<endl;
-            
-        vector<Z2<K>>shares_selected_k;
-        for(int i=0;i<k_const;i++)shares_selected_k.push_back(m_ESD_vec[m_ESD_vec.size()-1-i][1]);
-
-        this->label_compute(shares_selected_k,m_shared_label_list_count_array);//20
-
-        // cout<<"label_compute Round count = "<<player->VirtualTwoPartyPlayer_Round<< " online round"<<endl;
-
-        for(int i=0 ; i< k_const-1 ; i++)//2
-            SS_scalar(m_shared_label_list_count_array,i,k_const-1);
-        Z2<K>predicted_label=reveal_one_num_to(m_shared_label_list_count_array[k_const-1][1],1); 
-        if(m_playerno)
-        {
-            if(Z2<K>(m_test[idx]->label)==predicted_label)
-                right_prediction_cnt++;
-        } 
-        // if(idx%10==9){
-        //     cout<<"#";
-        // }
-    }
-
-    if(m_playerno)std::cout<<"\n预测准确率 : "<<double(right_prediction_cnt)/(double)num_test_data<<endl;
-
-    timer.stop(m_player->total_comm());
-    cout<<"Total Round count = "<<player->VirtualTwoPartyPlayer_Round<< " online round"<<endl;
-    std::cout << "Party total time = " << timer.elapsed() << " seconds" << std::endl;
-    std::cout << "Party Data sent = " << timer.mb_sent() << " MB"<<std::endl;
-
-    std::cout<<"call_evaluate_nums : "<<call_evaluate_time<<std::endl;
-
-    std::cout << "在Evaluation函数中 Total elapsed time: " << total_duration.count() << " seconds" << std::endl;
-    call_evaluate_time=0;
-    total_duration = std::chrono::duration<double>(0);
-    std::cout<<"-----------------------------------------------------"<<std::endl;
-
-}
 
 void KNN_party_optimized::run()
 {
     read_meta_and_P0_sample_P1_query();
-    std::cout<<"sample size:"<<m_sample.size()<<std::endl;
-    std::cout<<"test size:"<<m_test.size()<<std::endl;
+
+    std::cout<<"sample size:"<<num_train_data<<std::endl;
+    std::cout<<"test size:"<<num_test_data<<std::endl;
+    std::cout<<"Feature size:"<<num_features<<std::endl;
 
     // generate_triples_save_file();//这个函数必须独立运行，不能和后续load_triple一起使用。
     // cout<<"\n generate_triples_save_file success!"<<endl;
@@ -689,8 +665,6 @@ void KNN_party_optimized::run()
     fake_load_triples();
     aby2_share_data_and_additive_share_label_list();
     cout<<std::flush;
-   
-    
     timer.start(m_player->total_comm());
 
     player->VirtualTwoPartyPlayer_Round=0;
@@ -735,7 +709,7 @@ void KNN_party_optimized::run()
         top_1(m_shared_label_list_count_array,k_const,false);
         // cout<<"top_1 of K neighbors  Total Round count = "<<player->VirtualTwoPartyPlayer_Round<< " online round"<<endl;
         
-        Z2<K>predicted_label=reveal_one_num_to(m_shared_label_list_count_array[num_label-1][1],1); 
+        Z2<K>predicted_label=reveal_one_num_to(m_shared_label_list_count_array[k_const-1][1],1); 
         if(m_playerno)
         {
             if(Z2<K>(m_test[idx]->label)==predicted_label)
@@ -746,7 +720,7 @@ void KNN_party_optimized::run()
 
 
     if(m_playerno)
-        std::cout<<"\n预测准确率："<<double(right_prediction_cnt)/(double)num_test_data<<endl;
+        std::cout<<"\n预测准确率:"<<double(right_prediction_cnt)/(double)num_test_data<<endl;
 
     timer.stop(m_player->total_comm());
     cout<<"Total Round count = "<<player->VirtualTwoPartyPlayer_Round<< " online round"<<endl;
@@ -756,6 +730,10 @@ void KNN_party_optimized::run()
     std::cout<<"call_evaluate_nums : "<<call_evaluate_time<<std::endl;
 
     std::cout << "在Evaluation函数中 Total elapsed time: " << total_duration.count() << " seconds" << std::endl;
+    call_evaluate_time=0;
+    total_duration = std::chrono::duration<double>(0);
+
+    std::cout<<"-----------------------------------------------------"<<std::endl;
 
 
 }
@@ -974,13 +952,7 @@ void KNN_party_base::compare_in_vec(vector<array<Z2<K>,2>>&shares,const vector<i
 }
 
 
-void KNN_party_SecKNN::top_1(vector<array<Z2<K>,2>>&shares,int size_of_need_select,bool min_in_last)
-{
-    for(int i=0;i<size_of_need_select-1;i++)
-        SS_scalar(shares, i, size_of_need_select-1, !min_in_last);
-}
-
-
+ 
 
 void KNN_party_optimized::top_1(vector<array<Z2<K>,2>>&shares,int size_now,bool min_in_last)
 {
@@ -1052,22 +1024,7 @@ void KNN_party_base::SS_scalar(vector<Z2<K>>&shares,int first_idx,int second_idx
 
 }
 
-// void KNN_party_base::SS_vec( vector<Z2<K>>&shares,const vector<int>compare_idx_vec,const vector<Z2<K>>compare_res)
-// {
-//     assert(compare_idx_vec.size()&&compare_idx_vec.size()==compare_res.size());
-//     int size_of_cur_cmp=compare_idx_vec.size();
-//     vector<Z2<K>>tmp_ss;
-//     for(int i=0;i<size_of_cur_cmp;i++)tmp_ss.push_back(shares[compare_idx_vec[i]]);
-//     vector<Z2<K>>tmp_res(size_of_cur_cmp);
-//     mul_vector_additive(tmp_ss,compare_res,tmp_res,false);
-//     for(int i=0;i<size_of_cur_cmp/2;i++)
-//     {
-//         tmp_ss[2*i]=tmp_ss[2*i]-tmp_res[2*i]+tmp_res[2*i+1];
-//         tmp_ss[2*i+1]=tmp_ss[2*i+1] + tmp_res[2*i]-tmp_res[2*i+1];
-//     }
-//     for(int i=0;i<size_of_cur_cmp;i++)shares[compare_idx_vec[i]]=tmp_ss[i];
-// }
-
+        
 
 void KNN_party_base::SS_vec( vector<array<Z2<K>,2>>&shares,const vector<int>compare_idx_vec,const vector<Z2<K>>compare_res)
 {
@@ -1250,85 +1207,6 @@ Z2<K> KNN_party_base::secure_compare(Z2<K>x1,Z2<K>x2,bool greater_than)//x1>x2--
 
 }
 
-void KNN_party_SecKNN::compute_ESD_for_one_query(int idx_of_test)
-{
-    // cout<<"Enter compute_ESD_for_one_query"<<endl;
-    if(int(m_ESD_vec.size())!=num_train_data)
-        m_ESD_vec.resize(num_train_data);
-    vector< vector<Z2<K> > >Z(num_train_data , vector<Z2<K>>(num_features,Z2<K>(0)) );
-    Z2<K>r(0),r_square(0),tmp(0);//默认赋值为0
-
-    octetStream send_os,receive_os;
-    for(int i=0;i<num_train_data;i++)
-    {
-        for(int j=0;j<num_features;j++)
-        {
-            Z[i][j]=m_train_additive_share_vec[i][j]-m_test_additive_share_vec[idx_of_test][j]+r;
-            Z[i][j].pack(send_os);
-        }
-    }
-    m_player->send(send_os);
-
-    m_player->receive(receive_os);
-    for(int i=0;i<num_train_data;i++)
-    {
-        for(int j=0;j<num_features;j++)
-        {
-            tmp.unpack(receive_os);
-            Z[i][j] =Z[i][j]+  tmp ;
-        }
-    }
-    
-    for(int i=0;i<num_train_data;i++)
-    {
-        tmp=Z2<K>(0);
-        for(int j=0;j<num_features;j++)
-        {
-
-            tmp=tmp- Z2<K>(2)*Z[i][j]*r + r_square;
-            if(m_playerno)tmp=tmp+Z[i][j]*Z[i][j];
-        }
-        m_ESD_vec[i][0]=tmp;
-    }
-    // cout<<"compute_ESD_for_one_query ended!"<<endl;
-
-
-}
-
-
-void KNN_party_SecKNN::test_additive_share_all_data_function()
-{
-    Z2<K>tmp_0(0);
-    for(int i=0;i<10;i++)
-    {
-        for(int j=0;j<num_features;j++)
-        {
-            tmp_0=reveal_one_num_to(m_train_additive_share_vec[i][j],0);
-            if(m_playerno==0)assert(tmp_0==Z2<K>(m_sample[i]->features[j]));
-        }
-    }
-    std::cout<<std::endl;
-    std::cout<<std::endl;
-
-    for(int i=0;i<10;i++)
-    {
-        for(int j=0;j<num_features;j++)
-        {
-            tmp_0=reveal_one_num_to(m_test_additive_share_vec[i][j],0);
-            if(m_playerno==0)assert(tmp_0==Z2<K>(m_test[i]->features[j]));
-        }
-    }
-    std::cout<<std::endl;
-    std::cout<<std::endl;
-    for(int i=0;i<num_train_data;i++)
-    {
-        tmp_0=reveal_one_num_to(m_ESD_vec[i][1],0);
-        if(m_playerno==0) assert(tmp_0==Z2<K>(m_sample[i]->label));
-    }
-    cout<<"test_additive_share_all_data_function() ended!";
-    
-
-}
 
 void KNN_party_optimized::compute_ESD_for_one_query(int idx_of_test)
 {
@@ -1346,55 +1224,31 @@ void KNN_party_optimized::compute_ESD_for_one_query(int idx_of_test)
     }  
 }
 
+
+
+
 void KNN_party_base::read_meta_and_P0_sample_P1_query()
 {
-    std::ifstream meta_file ("Player-Data/Knn-Data/"+dir+dataset_name+"-data/Knn-meta");
-    meta_file >> num_features;// 特征数
-    meta_file >> num_train_data;
-    meta_file >> num_test_data;
-    meta_file.close();
-    if(playerno==0)
-    {
-        std::ifstream sample_file ("Player-Data/Knn-Data/"+dir+dataset_name+"-data/P0-0-X-Train");//暂时写死为P0
-        for (int i = 0; i < num_train_data; i++)
-        {
-            Sample*sample_ptr=new Sample(num_features);
-            for (int j = 0; j < num_features; j++)
-            {
-                sample_file>>sample_ptr->features[j];
-            }
-            m_sample.push_back(sample_ptr);
-        }
-        sample_file.close();
+    result=load_result_from_file("KmeansRes");
+    
+    // 清空旧的指针数据（如果有的话）
+    m_sample.clear();
+    m_test.clear();
 
-        std::ifstream label_file ("Player-Data/Knn-Data/"+dir+dataset_name+"-data/P0-0-Y-Train");//暂时写死为P0
-        for (int i = 0; i < num_train_data; i++){
-            label_file>>m_sample[i]->label;
+    // 指针指向结构体中的样本
+    if(playerno==0){
+        for (auto& s : result.m_sample) {
+            m_sample.push_back(&s); // 
         }
-        label_file.close();
-        cout<<"P0 read training file end!"<<endl;
     }
-    else
-    {
-        std::ifstream test_file ("Player-Data/Knn-Data/"+dir+dataset_name+"-data/P1-0-X-Test");//暂时写死为P1
-        for (int i = 0; i < num_test_data; i++)
-        {
-            Sample*test_ptr=new Sample(num_features);
-            for (int j = 0; j < num_features; j++)
-            {
-                test_file>>test_ptr->features[j];
-            }
-            m_test.push_back(test_ptr);
+   else{
+        for (auto& t : result.m_test) {
+            m_test.push_back(&t); //
         }
-        test_file.close();
-
-        std::ifstream label_file ("Player-Data/Knn-Data/"+dir+dataset_name+"-data/P1-0-Y-Test");//暂时写死为P1
-        for (int i = 0; i < num_test_data; i++){
-            label_file>>m_test[i]->label;
-        }
-        label_file.close();
-        // cout<<"P1 read testing(query) file end!"<<endl;
-    }
+   }
+    num_features=result.num_features;
+    num_train_data=result.num_train_data;
+    num_test_data=result.num_test_data;
     
 }
 
@@ -1458,93 +1312,6 @@ void KNN_party_optimized::aby2_share_reveal(int x,bool sample_data)
     
 }
 
-void KNN_party_SecKNN::additive_share_all_data()
-{
-    m_train_additive_share_vec.resize(num_train_data);
-    for(int i=0;i<num_train_data;i++) 
-        m_train_additive_share_vec[i].resize(num_features);
-
-    m_test_additive_share_vec.resize(num_test_data);
-    for(int i=0;i<num_test_data;i++)
-        m_test_additive_share_vec[i].resize(num_features);
-
-    m_train_label_additive_share_vec.resize(num_train_data);
-    m_ESD_vec.resize(num_train_data);
-
-    if(playerno==0)
-    {
-        octetStream os;
-        PRNG prng;
-        prng.ReSeed();
-        Z2<K>random_data;
-        for(int i=0;i<num_train_data;i++)
-        {
-            for(int j=0;j<num_features;j++)
-            {   
-                
-                random_data.randomize(prng);
-                m_train_additive_share_vec[i][j]=Z2<K>(m_sample[i]->features[j])-random_data;
-
-                random_data.pack(os);
-
-            }
-
-            random_data.randomize(prng);
-            m_train_label_additive_share_vec[i]=Z2<K>(m_sample[i]->label)-random_data;
-            random_data.pack(os);
-
-        }
-        m_player->send(os);
-        // cout<<"Train data additive_share sending ended!"<<endl;
-
-        os.clear();
-        m_player->receive(os);
-        for(int i=0;i<num_test_data;i++)
-        {
-            for(int j=0;j<num_features;j++)
-            {
-                m_test_additive_share_vec[i][j].unpack(os);
-            }
-        }
-        // cout<<"Test data additive_share receiving ended!"<<endl;
-
-    }
-    else
-    {
-        octetStream os;
-        PRNG prng;
-        prng.ReSeed();
-        Z2<K>random_data;
-
-        m_player->receive(os);
-        for(int i=0;i<num_train_data;i++)
-        {
-            for(int j=0;j<num_features;j++)
-            {
-                m_train_additive_share_vec[i][j].unpack(os);
-            }
-            m_train_label_additive_share_vec[i].unpack(os);
-
-        }
-        cout<<"Train data additive_share receiving ended!"<<endl;
-
-        os.clear();
-        for(int i=0;i<num_test_data;i++)
-        {
-            for(int j=0;j<num_features;j++)
-            {   
-                random_data.randomize(prng);
-                m_test_additive_share_vec[i][j]=Z2<K>(m_test[i]->features[j])-random_data;
-                random_data.pack(os);
-            }
-        }
-
-        m_player->send(os);
-        cout<<"Test data additive_share sending ended!"<<endl;
-
-    } 
-    
-}
 
 
 void KNN_party_base::additive_share_data_vec(vector<Z2<K>>&shares,vector<Z2<K>>data_vec)
@@ -1939,3 +1706,5 @@ void KNN_party_base::test_cmp()
     
 
 }
+
+
