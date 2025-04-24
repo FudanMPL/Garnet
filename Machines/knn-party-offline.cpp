@@ -33,7 +33,7 @@ string dataset_name="chronic";
 
 void read_meta_data()
 {
-    string file_meta_file="./Player-Data/Knn-Data/"+dataset_name+"-data/Knn-meta";
+    string file_meta_file="Player-Data/Knn-Data/"+dataset_name+"-data/Knn-meta";
     if(fileExists(file_meta_file))
     {
         std::ifstream meta_file(file_meta_file);
