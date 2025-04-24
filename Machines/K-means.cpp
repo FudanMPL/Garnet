@@ -13,8 +13,6 @@ using namespace std;
 typedef vector<int> Vec;
 typedef long long ll;
 string dataset_name;
-string dir;
-
 int k_left=5,k_right=30;
 class Sample {
     public:
@@ -58,7 +56,7 @@ class K_means {
     
     
         void read_data() {
-            string base_path = "Player-Data/Knn-Data/" + dir + dataset_name + "-data/";
+            string base_path = "Player-Data/Knn-Data/" + dataset_name + "-data/";
     
             ifstream meta_file(base_path + "Knn-meta");
             meta_file >> num_features >> num_train_data >> num_test_data;
@@ -342,7 +340,6 @@ class K_means {
     }
 
 int main() {
-    dir="knn-1/";
     // vector<string>dataset_name_list={"Iris","Wine","Cancer","Spambase","Adult","Mnist","Dota2Games", "Toxicity", "arcene", "RNA-seq", "PEMS-SF"};
     vector<string>dataset_name_list={"Mnist"};
     for(int i=0;i<dataset_name_list.size();i++){
