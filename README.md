@@ -58,6 +58,8 @@ sudo docker run --cap-add=NET_ADMIN -it garnet bash
 
 ## 历史发布
 
+#### 2025年5月份发布: 
+* [安全ANN协议](./docs/ann.md)
 
 #### 2025年3月份发布: 
 
