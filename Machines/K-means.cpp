@@ -56,9 +56,9 @@ class K_means {
     
     
         void read_data() {
-            string base_path = "Player-Data/Knn-Data/" + dataset_name + "-data/";
+            string base_path = "Player-Data/Ann-Data/"  + dataset_name + "-data/";
     
-            ifstream meta_file(base_path + "Knn-meta");
+            ifstream meta_file(base_path + "Ann-meta");
             meta_file >> num_features >> num_train_data >> num_test_data;
             meta_file.close();
     
@@ -269,13 +269,8 @@ class K_means {
             Kmeans_Result Res(num_features,sze,num_test_data,m_sample_selected,m_test);
             return Res;
         }
-    
-    
     };
-    
-
-
-    
+        
     void save_result_to_file(const Kmeans_Result& result, const string& filename) {
         ofstream out(filename);
         if (!out.is_open()) {
