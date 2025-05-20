@@ -1,0 +1,39 @@
+import ml
+import util
+import math
+import subprocess
+
+if 'trunc_pr' in program.args:
+    program.use_trunc_pr = True
+if 'split' in program.args:
+    program.use_split(3)
+
+program.options.cisc = True
+
+try:
+    n_threads = int(program.args[2])
+except:
+    n_threads = None
+ml.Layer.n_threads = n_threads
+ml.FixConv2d.use_conv2ds = True
+
+sfix.set_precision(12, 31)
+
+layers = []
+named = {}
+
+exec(subprocess.check_output(['Scripts/process-tf.py', program.args[1]]))
+
+opt = ml.Optimizer()
+opt.set_layers_with_inputs(layers)
+layers[0].X.input_from(0)
+for layer in layers:
+    layer.input_from(0, raw='raw' in program.args)
+
+sint(0).reveal().store_in_mem(0)
+
+start_timer(1)
+opt.forward(1, keep_intermediate=False)
+stop_timer(1)
+if isinstance(layers[-1].Y, Array):
+    print_ln('guess %s', layers[-1].Y[0].reveal())

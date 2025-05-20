@@ -1,0 +1,109 @@
+# this trains network D from SecureNN
+# see https://github.com/csiro-mlai/mnist-mpc for data preparation
+
+import ml
+import math
+import re
+import util
+
+program.options_from_args()
+sfix.set_precision_from_args(program, True)
+MultiArray.disable_index_checks()
+
+if 'profile' in program.args:
+    print('Compiling for profiling')
+    N = 1000
+    n_test = 100
+elif 'debug' in program.args:
+    N = 100
+    n_test = 100
+elif 'debug1000' in program.args:
+    N = 1000
+    n_test = 1000
+elif 'debug5000' in program.args:
+    N = 5000
+    n_test = 5000
+else:
+    N = 60000
+    n_test = 10000
+
+n_examples = N
+n_features = 28 ** 2
+
+try:
+    n_epochs = int(program.args[1])
+except:
+    n_epochs = 100
+
+try:
+    batch_size = int(program.args[2])
+except:
+    batch_size = N
+
+assert batch_size <= N
+ml.Layer.back_batch_size = batch_size
+
+try:
+    ml.set_n_threads(int(program.args[3]))
+except:
+    pass
+
+if program.options.ring:
+    assert sfix.f * 4 == int(program.options.ring)
+
+if 'stride1' in program.args:
+    stride = (1, 1)
+else:
+    stride = (2, 2)
+
+if 'valid' in program.args:
+    padding = 'VALID'
+    inner_dim = (28 - 4) // stride[0]
+else:
+    padding = 'SAME'
+    inner_dim = 28 // stride[0]
+
+layers = [
+    ml.FixConv2d([N, 28, 28, 1], (5, 5, 5, 1), (5,),
+                 [N, inner_dim, inner_dim, 5], stride, padding),
+    ml.Relu([N, inner_dim, inner_dim, 5]),
+]
+
+if 'maxpool' in program.args:
+    layers += [ml.MaxPool((N, inner_dim, inner_dim, 5))]
+    inner_dim //= 2
+
+n_inner = inner_dim ** 2 * 5
+
+dropout = 'dropout' in program.args
+
+if '1dense' in program.args:
+    if dropout:
+        layers += [ml.Dropout(N, n_inner)]
+    layers += [ml.Dense(N, n_inner, 10),]
+elif '2dense' in program.args:
+    if dropout:
+        layers += [ml.Dropout(N, n_inner)]
+    layers += [
+        ml.Dense(N, n_inner, 100),
+        ml.Relu([N, 100]),
+        ml.Dense(N, 100, 10),
+    ]
+    if dropout or 'dropout1' in program.args:
+        layers.insert(-1, ml.Dropout(N, 100))
+else:
+    raise Exception('need to specify number of dense layers')
+
+layers += [ml.MultiOutput(N, 10)]
+
+Y = sint.Matrix(n_test, 10)
+X = sfix.Matrix(n_test, n_features)
+
+if not ('no_acc' in program.args and 'no_loss' in program.args):
+    layers[-1].Y.input_from(0)
+    layers[0].X.input_from(0)
+    Y.input_from(0)
+    X.input_from(0)
+
+optim = ml.Optimizer.from_args(program, layers)
+optim.run_by_args(program, n_epochs, batch_size, X, Y)

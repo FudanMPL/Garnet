@@ -1,0 +1,16 @@
+from GFA.presets import sigmoid
+from GFA.presets import tanh
+from GFA.presets import soft_plus
+from GFA.presets import elu
+from GFA.presets import selu
+from GFA.presets import gelu
+from GFA.presets import snormal_dis
+
+sfix.set_precision(44, 96)
+sigmoid(sfix(0))
+tanh(sfix(0))
+soft_plus(sfix(0))
+elu(sfix(0))
+selu(sfix(0))
+gelu(sfix(0))
+snormal_dis(sfix(0))

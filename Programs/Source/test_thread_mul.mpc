@@ -1,0 +1,40 @@
+m,n= 1000,500
+b=4
+x = MultiArray([b,m,n],sfix)
+y=MultiArray([b,n,1],sfix)
+x.assign_all(1)
+y.assign_all(1)
+
+#z=MultiArray([m,1],sfix)
+
+#z=x.dot(y,n_threads=10)
+#z[:]+=x.mm(y.transpose())[:]
+#x.mul_trans_to(y,z,n_threads=10)
+
+#z.print_reveal_nested()
+'''
+a=0
+@for_range(b)
+def _(i):
+    xx=MultiArray([m,n],sfix)
+    yy=MultiArray([n,1],sfix)
+    
+    sfix.direct_matrix_mul
+    @multithread(1,1000)
+    def _(base, size):
+        z.assign_part_vector(xx.get_part(base, size).direct_mul(yy), base)
+        print_ln("Success!")
+    #z=x[i].dot(y[i])
+z.print_reveal_nested()
+'''
+
+a = sint.Array(n)
+x = sint(0)
+@for_range(4)
+def _(i):
+    a[i] = i
+    x.update(x + 1)
+
+a.print_reveal_nested()
+print_ln("%s",x.reveal())
+

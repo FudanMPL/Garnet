@@ -1,0 +1,23 @@
+n = 10 ** 7
+a = regint.Array(n)
+b = regint.Array(n)
+
+for i in range(n):
+    if i > 1000:
+        a[i] = i
+
+    if i < 1000:
+        b[i] = -1
+    else:
+        b[i] = 2 * i
+
+def test(a, index, value):
+    print_ln('expected %s got %s at %s', value, a[index], index)
+    crash(a[index] != value)
+
+test(a, 999, 0)
+test(b, 999, -1)
+test(a, 10000, 10000)
+test(b, 10000, 20000)
+test(a, 1000000, 1000000)
+test(b, 1000000, 2000000)

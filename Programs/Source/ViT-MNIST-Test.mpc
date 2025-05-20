@@ -1,0 +1,29 @@
+program.options_from_args()
+program.use_trunc_pr = True
+program.use_split(3)
+from Compiler import ml
+ml.set_n_threads(5)
+training_samples = MultiArray([1024, 16, 64], sfix)
+training_labels = MultiArray([1024, 10], sint)
+test_samples = MultiArray([1024, 16, 64], sfix)
+test_labels = MultiArray([1024, 10], sint)
+training_labels.input_from(0)
+training_samples.input_from(0)
+test_labels.input_from(0)
+test_samples.input_from(0)
+net=[
+    ml.Basic_Transformer_Block_Single_Head(1024,16,64,64),
+    ml.Dense(128,1024,10),
+    ml.MultiOutput(1024,10)]
+optimizer = ml.SGD(net)
+
+optimizer.fit(
+    training_samples,
+    training_labels,
+    epochs=3,
+    batch_size=128,
+    validation_data=(test_samples, test_labels),
+    program=program,
+    reset=True,
+    print_accuracy=True
+)

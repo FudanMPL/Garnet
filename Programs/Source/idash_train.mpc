@@ -1,0 +1,85 @@
+import ml
+import random
+import re
+import sys
+
+if len(program.args) < 4:
+   print('Usage: %s <n_negative> <n_positive> <n_features>' % program.args[0],
+         file=sys.stderr)
+   print('Refer to https://github.com/mkskeller/idash-submission for '
+         'scripts to run this benchmark.', file=sys.stderr)
+   exit(1)
+
+program.use_trunc_pr = True
+
+sfix.set_precision(16, 31)
+cfix.set_precision(16, 31)
+sfloat.vlen = sfix.f
+
+n_epochs = 100
+
+n_normal = int(program.args[1])
+n_pos = int(program.args[2])
+n_features = int(program.args[3])
+
+if 'approx' in program.args:
+   approx = 3
+elif 'approx5' in program.args:
+   approx = 5
+else:
+   approx = False
+
+if 'split' in program.args:
+   program.use_split(3)
+
+n_threads = None
+
+for arg in program.args:
+   m = re.match('n_threads=(.*)', arg)
+   if m:
+      n_threads = int(m.group(1))
+
+debug = 'debug' in program.args
+
+ml.set_n_threads(n_threads)
+
+n_examples = n_normal + n_pos
+N = max(n_normal, n_pos) * 2
+
+if 'mini' in program.args:
+   batch_size = 32
+else:
+   batch_size = N
+
+ml.Layer.back_batch_size = batch_size
+
+X_normal = sfix.Matrix(n_normal, n_features)
+X_pos = sfix.Matrix(n_pos, n_features)
+
+@for_range_opt_multithread(n_threads, n_features)
+def _(i):
+    @for_range_opt(n_normal)
+    def _(j):
+        X_normal[j][i] = sfix.get_input_from(0)
+    @for_range_opt(n_pos)
+    def _(j):
+        X_pos[j][i] = sfix.get_input_from(0)
+
+dense = ml.Dense(N, n_features, 1)
+layers = [dense, ml.Output(N, approx=approx)]
+
+sgd = ml.SGD(layers, n_epochs, report_loss=debug)
+sgd.reset([X_normal, X_pos])
+sgd.run(batch_size)
+
+if debug:
+    @for_range(N)
+    def _(i):
+        print_ln('%s %s', layers[-1].Y[i].reveal(),
+                 ml.sigmoid(layers[-1].X[i]).reveal())
+
+layers[0].b[0].store_in_mem(0)
+layers[0].W.get_vector().store_in_mem(1)
+
+print_ln('b=%s W[-1]=%s', layers[0].b[0].reveal(),
+         layers[0].W[n_features - 1][0][0].reveal())

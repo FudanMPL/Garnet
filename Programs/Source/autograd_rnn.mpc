@@ -1,0 +1,45 @@
+
+import nn as nn
+from tensor import Tensor,autograd_function
+import optimizer as optim
+import dataloader as dataloader
+import functional as F
+import tensor as TS
+
+
+class RNN(nn.Module):
+    def __init__(self, input_size, hidden_size, output_size):
+        super(RNN, self).__init__()
+
+        self.hidden_size = hidden_size
+
+        self.u = nn.Linear(input_size, hidden_size)
+        self.w = nn.Linear(hidden_size, hidden_size)
+        self.v = nn.Linear(hidden_size, output_size)
+
+        self.tanh = nn.Tanh()
+        self.softmax = nn.Sigmoid()
+        #self.softmax = nn.LogSoftmax(dim=1)
+        self.initHidden()
+
+    def forward(self, inputs, hidden):
+
+        u_x = self.u(inputs)
+
+        hidden = self.w(hidden)
+        hidden = self.tanh(hidden + u_x)
+
+        output = self.softmax(self.v(hidden))
+
+        return output, hidden
+
+    def initHidden(self):
+         self.hidden = Tensor.zeros([1, self.hidden_size])
+
+n_letters = 57 
+n_categories = 20
+n_hidden = 128
+
+rnn = RNN(n_letters, n_hidden, n_categories)
+loss = nn.MSELoss()
+optimizer = optim.SGD(model.parameters(), lr = 0.01)

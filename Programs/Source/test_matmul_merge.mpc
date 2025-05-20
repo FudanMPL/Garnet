@@ -1,0 +1,20 @@
+
+
+#program.use_trunc_pr = True
+
+A = sfix.Matrix(9, 4)
+B = sfix.Matrix(4, 9)
+C = sfix.Matrix(9, 9)
+
+
+for i in range(A.total_size()):
+    A.assign_vector(sfix(i), i)
+
+for i in range(B.total_size()):
+    B.assign_vector(sfix(i), i)
+
+for i in range(C.total_size()):
+    C.assign_vector(sfix(i), i)
+
+
+C.assign_vector(A.direct_mul(B))

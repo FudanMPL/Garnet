@@ -1,0 +1,2 @@
+a = sfix.Matrix(10, 20)
+a.reveal()

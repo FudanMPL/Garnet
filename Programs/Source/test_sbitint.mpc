@@ -1,0 +1,38 @@
+program.options.merge_opens = False
+
+from Compiler.GC.types import *
+
+def test(a, b, value_type=None):
+    try:
+        a = a.reveal()
+    except AttributeError:
+        pass
+    import inspect
+    print_ln('%s: %s %s %s', inspect.currentframe().f_back.f_lineno, \
+             (a ^ cbits(b)).reveal(), a, hex(b))
+
+si32 = sbitint.get_type(32)
+
+test(si32(3) + si32(2), 5)
+test(si32(3) - si32(2), 1)
+test(si32(3) < si32(2), 0)
+test(si32(3) > si32(2), 1)
+test(si32(2) <= si32(2), 1)
+test((si32(0) < si32(1)).if_else(si32(1), si32(2)) + si32(3), 4)
+
+test(si32(3) * si32(2), 6)
+test(3 * si32(2), 6)
+test(si32(3) * 2, 6)
+
+test(si32(-1), 2**32 - 1)
+test(si32(-1) + si32(3), 2)
+test(si32(-1) - si32(-2), 1)
+
+test(si32(1) * 2 * 2, 4)
+
+for i in range(3, 32):
+    t = sbitint.get_type(i)
+    test(t(3) + t(2), 5)
+
+test(abs(si32(-2)), 2)
+test(abs(si32(2)), 2)

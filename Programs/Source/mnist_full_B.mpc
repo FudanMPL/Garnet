@@ -1,0 +1,77 @@
+# this trains network B from SecureNN
+# see https://github.com/csiro-mlai/mnist-mpc for data preparation
+
+import ml
+import math
+import re
+import util
+
+program.options_from_args()
+sfix.set_precision_from_args(program, adapt_ring=True)
+MultiArray.disable_index_checks()
+
+if 'profile' in program.args:
+    print('Compiling for profiling')
+    N = 1000
+    n_test = 100
+elif 'debug' in program.args:
+    N = 100
+    n_test = 100
+elif 'debug1000' in program.args:
+    N = 1000
+    n_test = 1000
+elif 'debug5000' in program.args:
+    N = 5000
+    n_test = 5000
+else:
+    N = 60000
+    n_test = 10000
+
+n_examples = N
+n_features = 28 ** 2
+
+try:
+    n_epochs = int(program.args[1])
+except:
+    n_epochs = 100
+
+try:
+    batch_size = int(program.args[2])
+except:
+    batch_size = N
+
+if 'savemem' in program.args:
+    N = batch_size
+else:
+    N = min(N, 1000)
+
+try:
+    ml.set_n_threads(int(program.args[3]))
+except:
+    pass
+
+layers = [
+    ml.FixConv2d([n_examples, 28, 28, 1], (16, 5, 5, 1), (16,), [n_examples, 24, 24, 16],
+                 (1, 1), 'VALID'),
+    ml.MaxPool([N, 24, 24, 16]),
+    ml.Relu([N, 12, 12, 16]),
+    ml.FixConv2d([N, 12, 12, 16], (16, 5, 5, 16), (16,), [N, 8, 8, 16], (1, 1), 'VALID'),
+    ml.MaxPool([N, 8, 8, 16]),
+    ml.Relu([N, 4, 4, 16]),
+    ml.Dense(N, 256, 100),
+    ml.Relu([N, 100]),
+    ml.Dense(N, 100, 10),
+    ml.MultiOutput(n_examples, 10)
+]
+
+Y = sint.Matrix(n_test, 10)
+X = sfix.Matrix(n_test, n_features)
+
+if not ('no_acc' in program.args and 'no_loss' in program.args):
+    layers[-1].Y.input_from(0)
+    layers[0].X.input_from(0)
+    Y.input_from(0)
+    X.input_from(0)
+
+optim = ml.Optimizer.from_args(program, layers)
+optim.run_by_args(program, n_epochs, batch_size, X, Y, acc_batch_size=N)

@@ -1,0 +1,24 @@
+import random
+
+
+ca = 5
+cb = 15
+cc = 25
+cr = 15
+
+
+
+a = cfix(ca)
+b = cfix(cb)
+c = cfix(cc)
+r = cfix(cr)
+x = sfix(10)
+
+reveal_val = (x+r).reveal()
+f = sfix(-3 * ca * cr + cb)
+g = sfix(3 * ca * cr * cr - 2 * cb * cr + cc)
+h = sfix(- ca * cr * cr * cr + cb * cr * cr - cc * cr)
+
+original = a * x * x * x + b * x * x + c * x
+optimize = a * reveal_val * reveal_val * reveal_val + f * reveal_val * reveal_val + g * reveal_val + h
+print_ln("original is %s, optimize is %s", original.reveal(), optimize.reveal())

@@ -1,0 +1,54 @@
+program.options_from_args()
+program.use_trunc_pr = True
+program.use_split(3)
+
+from Compiler import sorting
+import torch
+import torch.nn as nn
+import os
+from Compiler import ml
+
+tf = ml
+ml.set_n_threads(5)
+
+os.system('pwd')
+modellist=['./Compiler/DL/checkpoint/ckpt_ferplus_lenet.pth']
+namelist=['0.weight', '0.bias', '3.weight', '3.bias', '8.weight', '8.bias', '10.weight', '10.bias']
+
+training_samples = MultiArray([256, 28, 28, 1], sfix)
+training_labels = MultiArray([256, 10], sint)
+test_samples = MultiArray([256, 28, 28, 1], sfix)
+test_labels = MultiArray([256, 10], sint)
+#
+training_labels.input_from(0)
+training_samples.input_from(0)
+test_labels.input_from(0)
+test_samples.input_from(0)
+
+# res = sfix.Tensor([1,12])
+# res.input_from(2)
+
+net=[]
+
+for i in range(len(modellist)):
+    mynet = nn.Sequential(
+        nn.Conv2d(1, 1, 5 ,2,1),
+        nn.Conv2d(1, 1, 1 ,1,1),
+        nn.Flatten(),
+        nn.Linear(225, 10)
+    )
+    mynet(torch.randn([1,28,28]))
+    flag=sfix.from_sint(1)
+    net=ml.layers_from_torch_select(mynet,net,str(i),flag,training_samples.shape, 256, input_via=2)
+
+optimizer = ml.SGD(net)
+optimizer.fit(
+    training_samples,
+    training_labels,
+    epochs=1,
+    batch_size=256,
+    validation_data=(test_samples, test_labels),
+    program=program,
+    reset=False,
+    print_accuracy=True
+)

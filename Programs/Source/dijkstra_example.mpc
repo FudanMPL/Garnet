@@ -1,0 +1,50 @@
+# example code for graph with vertices 0,1,2 and with following weights
+# 0 -> 1: 5
+# 0 -> 2: 20
+# 1 -> 2: 10
+
+# output should be the following
+# from 0 to 0 at cost 0 via vertex 0
+# from 0 to 1 at cost 5 via vertex 0
+# from 0 to 2 at cost 15 via vertex 1
+
+from oram import OptimalORAM
+from dijkstra import dijkstra
+
+# structure for edges
+# contains tuples of form (neighbor, cost, last neighbor bit)
+edges = OptimalORAM(4, # number of edges
+                    entry_size=(2, # enough bits for vertices
+                                5, # enough bits for costs
+                                1) # always one
+)
+
+# first edge from vertex 0
+edges[0] = (1, 5, 0)
+# second and last edge from vertex 0
+edges[1] = (2, 20, 1)
+# edge from vertex 1
+edges[2] = (2, 10, 1)
+# dummy edge from vertex 2 to itself
+edges[3] = (2, 0, 1)
+
+# structure assigning edge list indices to vertices
+e_index = OptimalORAM(3, # number vertices
+                      entry_size=2) # enough bits for edge indices
+
+# edges from 0 start at 0
+e_index[0] = 0
+# edges from 1 start at 2
+e_index[1] = 2
+# edges from 2 start at 3
+e_index[2] = 3
+
+source = sint(0)
+
+res = dijkstra(source, edges, e_index, OptimalORAM)
+
+@for_range(res.size)
+def _(i):
+    import util
+    print_ln('from %s to %s at cost %s via vertex %s', source.reveal(), i,
+             res[i][0].reveal(), res[i][1].reveal())

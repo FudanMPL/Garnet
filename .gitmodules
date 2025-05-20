@@ -1,0 +1,18 @@
+[submodule "SimpleOT"]
+	path = deps/SimpleOT
+	url = https://github.com/mkskeller/SimpleOT
+[submodule "mpir"]
+	path = deps/mpir
+	url = https://github.com/wbhart/mpir
+[submodule "Programs/Circuits"]
+	path = Programs/Circuits
+	url = https://github.com/mkskeller/bristol-fashion
+[submodule "simde"]
+	path = deps/simde
+	url = https://github.com/simd-everywhere/simde
+[submodule "deps/libOTe"]
+	path = deps/libOTe
+	url = https://github.com/mkskeller/softspoken-implementation
+[submodule "deps/SimplestOT_C"]
+	path = deps/SimplestOT_C
+	url = https://github.com/mkskeller/SimplestOT_C

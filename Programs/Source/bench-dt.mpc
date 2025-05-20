@@ -1,0 +1,32 @@
+binary = 'binary' in program.args
+
+program.set_bit_length(32)
+
+n_train = int(program.args[1])
+m = int(program.args[2])
+
+try:
+        n_levels = int(program.args[3])
+except:
+        n_levels = 1
+
+try:
+        n_threads = int(program.args[4])
+except:
+        n_threads = None
+
+train = sint.Array(n_train), sint.Matrix(m, n_train)
+
+import decision_tree, util
+
+decision_tree.max_leaves = 2000
+
+if 'nearest' in program.args:
+   sfix.round_nearest = True
+
+layers = decision_tree.TreeTrainer(
+    train[1], train[0], n_levels, binary=binary, n_threads=n_threads).train()
+
+#decision_tree.output_decision_tree(layers)
+
+#decision_tree.test_decision_tree('foo', layers, *train)

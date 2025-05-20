@@ -1,0 +1,100 @@
+from Compiler.ml import keras
+import Compiler.ml as tf
+
+try:
+    n_epochs = int(program.args[1])
+except (ValueError, IndexError):
+    n_epochs = 10
+
+try:
+    batch_size = int(program.args[2])
+except (ValueError, IndexError):
+    batch_size = 128
+
+try:
+    n_threads = int(program.args[3])
+except (ValueError, IndexError):
+    n_threads = 36
+
+#Instantiation
+AlexNet = []
+
+padding = 'same'
+batchnorm = 'batchnorm' in program.args
+
+#1st Convolutional Layer
+AlexNet.append(keras.layers.Conv2D(filters=96, input_shape=(32,32,3), kernel_size=(11,11), strides=(4,4), padding=9))
+AlexNet.append(keras.layers.Activation('relu'))
+AlexNet.append(keras.layers.MaxPooling2D(pool_size=3, strides=(2,2)))
+if batchnorm:
+    AlexNet.append(keras.layers.BatchNormalization())
+
+#2nd Convolutional Layer
+AlexNet.append(keras.layers.Conv2D(filters=256, kernel_size=(5, 5), strides=(1,1), padding=1))
+AlexNet.append(keras.layers.Activation('relu'))
+if batchnorm:
+    AlexNet.append(keras.layers.BatchNormalization())
+AlexNet.append(keras.layers.MaxPooling2D(pool_size=(2,2), strides=1))
+
+#3rd Convolutional Layer
+AlexNet.append(keras.layers.Conv2D(filters=384, kernel_size=(3,3), strides=(1,1), padding=1))
+AlexNet.append(keras.layers.Activation('relu'))
+
+#4th Convolutional Layer
+AlexNet.append(keras.layers.Conv2D(filters=384, kernel_size=(3,3), strides=(1,1), padding=1))
+AlexNet.append(keras.layers.Activation('relu'))
+
+#5th Convolutional Layer
+AlexNet.append(keras.layers.Conv2D(filters=256, kernel_size=(3,3), strides=(1,1), padding=1))
+AlexNet.append(keras.layers.Activation('relu'))
+
+#Passing it to a Fully Connected layer
+# 1st Fully Connected Layer
+AlexNet.append(keras.layers.Dense(256))
+AlexNet.append(keras.layers.Activation('relu'))
+
+if 'dropout' in program.args:
+    AlexNet.append(keras.layers.Dropout(0.5))
+
+#2nd Fully Connected Layer
+AlexNet.append(keras.layers.Dense(256))
+AlexNet.append(keras.layers.Activation('relu'))
+
+if 'dropout' in program.args:
+    AlexNet.append(keras.layers.Dropout(0.5))
+
+#Output Layer
+AlexNet.append(keras.layers.Dense(10))
+
+
+tf.set_n_threads(n_threads)
+program.options_from_args()
+sfix.set_precision_from_args(program, adapt_ring=True)
+
+training_samples = MultiArray([50000, 32, 32, 3], sfix)
+training_labels = MultiArray([50000, 10], sint)
+
+test_samples = MultiArray([10000, 32, 32, 3], sfix)
+test_labels = MultiArray([10000, 10], sint)
+
+if 'no_acc' not in program.args:
+    training_labels.input_from(0)
+    training_samples.input_from(0)
+
+    test_labels.input_from(0)
+    test_samples.input_from(0)
+
+model = tf.keras.models.Sequential(AlexNet)
+
+model.compile_by_args(program)
+
+model.build(training_samples.sizes)
+model.summary()
+
+opt = model.fit(
+    training_samples,
+    training_labels,
+    epochs=n_epochs,
+    batch_size=batch_size,
+    validation_data=(test_samples, test_labels)
+)

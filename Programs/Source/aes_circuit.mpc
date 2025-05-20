@@ -1,0 +1,8 @@
+from circuit import Circuit
+sb128 = sbits.get_type(128)
+key = sb128(0x2b7e151628aed2a6abf7158809cf4f3c)
+plaintext = sb128(0x6bc1bee22e409f96e93d7e117393172a)
+n = 1000
+aes128 = Circuit('aes_128')
+ciphertexts = aes128(sbitvec([key] * n), sbitvec([plaintext] * n))
+ciphertexts.elements()[n - 1].reveal().print_reg()

@@ -1,0 +1,17 @@
+program.options_from_args()
+i = 3
+j = 3
+k = 5
+training_samples = MultiArray([i, j, k], sfix)
+tmp =1
+for x in range(i):
+    for y in range(j):
+        for z in range(k):
+            indices = (x,y,z)
+            sss = sfix(tmp)
+            training_samples.assign_vector_by_indices(sss, *indices)
+            tmp += 1
+
+training_samples.print_reveal_nested()
+tmp = training_samples.mean(dim = 0)
+tmp.print_reveal_nested()
