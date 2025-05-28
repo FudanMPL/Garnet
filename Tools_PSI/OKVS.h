@@ -69,16 +69,18 @@ public:
    * A hash function that maps a pair of uint64_t to a uint64_t.
    *
    * This function is based on the 64-bit hash function from the article
-   * "Hash Functions" by Thomas Wang (https://www.concentric.net/~Ttwang/tech/inthash.htm).
+   * "Hash Functions" by Thomas Wang
+   * (https://www.concentric.net/~Ttwang/tech/inthash.htm).
    *
-   * The function takes two uint64_t values, x and v, and returns a uint64_t value.
+   * The function takes two uint64_t values, x and v, and returns a uint64_t
+   * value.
    *
    * The hash function first performs a linear combination of x and v using two
-   * large prime numbers, then performs a series of bitwise XOR and multiplication
-   * operations to increase the dispersion of the hash values.
+   * large prime numbers, then performs a series of bitwise XOR and
+   * multiplication operations to increase the dispersion of the hash values.
    *
-   * Finally, the function returns the result modulo m, where m is the output length
-   * in bits.
+   * Finally, the function returns the result modulo m, where m is the output
+   * length in bits.
    */
   uint64_t hash(uint64_t x, uint64_t v) {
     static const uint64_t MIX1 =
@@ -109,6 +111,26 @@ class OKVSSender {
 public:
   OKVSSender(){};
 
+  /**
+   * Generate a table for the OKVS protocol.
+   *
+   * \param X The set of keys
+   * \param Y The set of values
+   * \param n The number of rows in the table
+   * \param results The resulting table
+   * \param nonce1, nonce2, nonce3 The three nonces used in the OKVS protocol
+   *
+   * The function generates a table for the OKVS protocol. It takes as input the
+   * sets of input and output values, X and Y, and the number of rows in the
+   * table, n. It outputs the resulting table and the three nonces used in the
+   * OKVS protocol.
+   *
+   * The function first samples a random nonce v until all hash values H(F(k,
+   * x_i)
+   * ||v) are distinct. Then it generates a random value for each row in the
+   * table and stores it in the results vector. Finally, it replaces the values
+   * in the table with the corresponding output values from Y.
+   */
   static void generateTable(const std::vector<uint64_t> &X,
                             const std::vector<BitVector> &Y, size_t n,
                             std::vector<BitVector> &results, uint64_t &nonce1,
@@ -167,6 +189,111 @@ public:
     nonce2 = v2;
     nonce3 = v3;
   }
+
+  static void generateTNonces(const std::vector<uint64_t> &X, size_t n,
+                              uint64_t &nonce1, uint64_t &nonce2,
+                              uint64_t &nonce3) {
+    PRNG seed;
+    seed.ReSeed();
+    // size_t n = static_cast<int>(std::ceil(std::log2(X.size() + 1)));
+    RandomOracle H(n);
+    // Step : Sample v until all H(F(k, x_i)||v) are distinct
+    uint64_t v1, v2, v3;
+    std::unordered_map<uint64_t, bool> hash_values;
+    bool distinct = false;
+
+    while (!distinct) {
+      hash_values.clear();
+
+      // Generate a random v (64-bit)
+      v1 = seed.get<uint64_t>();
+      v2 = seed.get<uint64_t>();
+      v3 = seed.get<uint64_t>();
+
+      // Check if all hash values are distinct
+      distinct = true;
+      for (const auto &x : X) {
+        int64_t hash_val = H.hash(x, v1, v2, v3);
+
+        if (hash_values.find(hash_val) != hash_values.end()) {
+          // std::cout << "false, hash_val = " << hash_val << std::endl;
+          distinct = false;
+          break;
+        }
+
+        hash_values[hash_val] = true;
+      }
+    }
+    nonce1 = v1;
+    nonce2 = v2;
+    nonce3 = v3;
+  }
+
+  static void generateMbyNonces(const uint64_t ononce1, const uint64_t ononce2,
+                                const uint64_t ononce3,
+                                const std::vector<uint64_t> &X,
+                                const std::vector<BitVector> &Y, size_t n,
+                                std::vector<BitVector> &results,
+                                uint64_t &nonce1, uint64_t &nonce2,
+                                uint64_t &nonce3) {
+    PRNG seed;
+    seed.ReSeed();
+    // size_t n = static_cast<int>(std::ceil(std::log2(X.size() + 1)));
+    RandomOracle H(n);
+    // Step : Sample v until all H(F(k, x_i)||v) are distinct
+    uint64_t v1, v2, v3;
+    std::unordered_map<uint64_t, bool> hash_values;
+    bool distinct = false;
+
+    while (!distinct) {
+      hash_values.clear();
+
+      // Generate a random v (64-bit)
+      v1 = seed.get<uint64_t>();
+      v2 = seed.get<uint64_t>();
+      v3 = seed.get<uint64_t>();
+
+      // Check if all hash values are distinct
+      distinct = true;
+      for (const auto &x : X) {
+        int64_t hash_val = H.hash(x, v1, v2, v3);
+
+        if (hash_values.find(hash_val) != hash_values.end()) {
+          // std::cout << "false, hash_val = " << hash_val << std::endl;
+          distinct = false;
+          break;
+        }
+
+        hash_values[hash_val] = true;
+      }
+    }
+    results.clear();
+    // results.resize(n);
+    uint64_t rand_x[2];
+    BitVector x_bitv;
+    // std::cout << "when okvs \n";
+    for (size_t i = 0; i < n * n; i++) {
+      // results[i] = seed.get<BitVector>();
+      rand_x[0] = seed.get<uint64_t>();
+      rand_x[1] = seed.get<uint64_t>();
+      x_bitv = BitVector(reinterpret_cast<uint8_t *>(rand_x), 128);
+      results.push_back(x_bitv);
+      // std::cout << results[i].str() << std::endl;
+    }
+    for (size_t i = 0; i < X.size(); i++) {
+      uint64_t hash_val = H.hash(X[i], v1, v2, v3);
+      uint64_t ohash_val = H.hash(X[i], ononce1, ononce2, ononce3);
+      results[hash_val * n + ohash_val] = Y[i];
+#ifdef DEBUG
+      std::cout << "hash_val: " << hash_val << ", ohash_val: " << ohash_val
+                << ", index:" << hash_val * n + ohash_val
+                << ", Y[i]: " << Y[i].str() << std::endl;
+#endif
+    }
+    nonce1 = v1;
+    nonce2 = v2;
+    nonce3 = v3;
+  }
 };
 
 class OKVSReceiver {
@@ -175,6 +302,9 @@ private:
   uint64_t nonce;
   int hashtype = 0;
   uint64_t v1, v2, v3;
+  uint64_t ov1, ov2, ov3;
+  bool matrix = false;
+  uint64_t m;
   RandomOracle H;
 
 public:
@@ -186,8 +316,13 @@ public:
   //   }
   OKVSReceiver(const std::vector<BitVector> &results, uint64_t v1, uint64_t v2,
                uint64_t v3, uint64_t m)
-      : results(results), v1(v1), v2(v2), v3(v3), H(m),
-        hashtype(1) {}
+      : results(results), v1(v1), v2(v2), v3(v3), H(m), hashtype(1) {}
+
+  OKVSReceiver(const std::vector<BitVector> &results, uint64_t v1, uint64_t v2,
+               uint64_t v3, uint64_t ov1, uint64_t ov2, uint64_t ov3,
+               uint64_t m)
+      : results(results), ov1(ov1), ov2(ov2), ov3(ov3), v1(v1), v2(v2), v3(v3),
+        H(m), hashtype(1), matrix(true), m(m) {}
 
   uint64_t getIndex(uint64_t x) {
     // uint64_t hash_val = H.hash(x, nonce);
@@ -199,8 +334,21 @@ public:
   BitVector getByIndex(uint64_t idx) { return results[idx]; }
 
   std::pair<uint64_t, BitVector> get(uint64_t x) {
-    uint64_t hash_val = H.hash(x, v1, v2, v3);
-    BitVector y = results[hash_val];
-    return {hash_val, y};
+    if (matrix) {
+      // std::cout << "ov1, ov2, ov3 (from next party), v1, v2, v3 (self):\n"
+      //           << ov1 << " " << ov2 << " " << ov3 << " " << v1 << " " << v2
+      //           << " " << v3 << std::endl;
+      // std::cout << x;
+      uint64_t hash_val = H.hash(x, v1, v2, v3);
+      // std::cout << ", hash_val0: " << hash_val;
+      hash_val = hash_val * m + H.hash(x, ov1, ov2, ov3);
+      // std::cout << ", hash_val: " << hash_val;
+      BitVector y = results[hash_val];
+      return {hash_val, y};
+    } else {
+      uint64_t hash_val = H.hash(x, v1, v2, v3);
+      BitVector y = results[hash_val];
+      return {hash_val, y};
+    }
   }
 };

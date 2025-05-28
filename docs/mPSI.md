@@ -24,6 +24,3 @@ bash Scripts/PSI-Test/run_mpsi.sh c # compile test_psi.mpc
 bash Scripts/PSI-Test/run_mpsi.sh x # compile virtual machine replicated-ring-party.x
 bash Scripts/PSI-Test/run_mpsi.sh i # run test_psi program in rss, i \in {0,1,2}
 ```
-
-### 备注
-可能存在假阳性，即不是交集ID的判断为交集ID，预计4月份更新协议，修复此问题
