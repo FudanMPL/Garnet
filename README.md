@@ -123,3 +123,4 @@ sudo docker run --cap-add=NET_ADMIN -it garnet bash
 
 ## 联系我们
 如果您对项目代码有任何疑问，请在GitHub仓库上创建issue。
+若未能及时处理，请直接联系邮箱: 1015277323@qq.com
