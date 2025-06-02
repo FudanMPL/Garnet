@@ -17,6 +17,7 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+
 using namespace std;
 
 #include "Networking/Player.h"
@@ -26,6 +27,7 @@ using namespace std;
 #include "Tools/octetStream.h"
 #include "Tools/random.h"
 #include "Tools_PSI/OKVS.h"
+#include "Tools_PSI/PRF.h"
 #include "Tools_PSI/SimpleIndex.h"
 #include "cryptoTools/Common/BitVector.h"
 #include "cryptoTools/Common/CuckooIndex.h"
@@ -41,6 +43,8 @@ class Instruction;
 
 #define RECEIVER_P 0
 typedef uint64_t idtype;
+
+// #define DEBUG
 
 /**
  * Base class for replicated three-party protocols
@@ -215,6 +219,9 @@ public:
   }
 
   template <class U> void mpsi(int64_t n, U &proc) {
+    if (n != 3) {
+      throw runtime_error("Only support 3 party PSI");
+    }
     int my_num = proc.P.my_num();
 #ifdef DEBUG
     std::cout << "begin mpsi in rss machine " << n << " num:" << my_num
@@ -237,10 +244,10 @@ public:
     cout << "Total lines read: " << m << endl;
 #endif
     // size_t mm = 1ull << static_cast<size_t>(std::ceil(std::log2(m + 1)));
-#ifdef DEBUG
-    cout << "Bin size: " << mm << endl;
-#endif
-
+    // #ifdef DEBUG
+    //     cout << "Bin size: " << mm << endl;
+    // #endif
+    PRF mprf(100);
     int ssp = 40;
     osuCrypto::CuckooParam params =
         oc::CuckooIndex<>::selectParams(m, ssp, 0, 3);
@@ -264,6 +271,13 @@ public:
     // Names *N = new Names(my_num, portnum_base + 1000 * names_size, names);
 
     // std::cout << proc.P.N.
+    // osuCrypto::block rSeed(10);
+
+    // uint64_t tmp1 = prng.get<uint64_t>();
+    // uint64_t tmp2 = prng.get<uint64_t>();
+    // std::cout << "Random number: " << tmp1 << " " << tmp2 << std::endl;
+
+    uint64_t maxBins = 0;
     if (proc.P.my_num() == RECEIVER_P) {
       int seed = 1024;
       osuCrypto::block cuckooSeed(seed);
@@ -281,9 +295,8 @@ public:
       // std::cout << "receive maxbins" << std::endl;
       octetStream cs_b;
       proc.P.receive_player(my_num + 1, cs_b);
-      uint64_t maxBins;
       cs_b.get(maxBins);
-      std::cout << "update maxBin: " << maxBins << std::endl;
+      // std::cout << "update maxBin: " << maxBins << std::endl;
       mm = maxBins * expand;
     } else if (my_num == 1) {
       octetStream cs0, cs1, cs_v, cs_s;
@@ -293,11 +306,11 @@ public:
       osuCrypto::block cuckooSeed(seed);
       sIdx.init(params.numBins(), m, ssp, 3);
       sIdx.insertItems(ids, cuckooSeed);
-      uint64_t maxBins = 0;
+      // uint64_t maxBins = 0;
       for (unsigned int i = 0; i < params.numBins(); i++) {
         maxBins = max(maxBins, sIdx.mBinSizes[i]);
       }
-      std::cout << "maxBins: " << maxBins << std::endl;
+      // std::cout << "maxBins: " << maxBins << std::endl;
 
       octetStream cs_bs[n - 2];
       for (unsigned int i = 0; i < n - 2; i++) {
@@ -316,7 +329,7 @@ public:
           proc.P.send_to(i, cs_mb);
         }
       }
-      std::cout << "update maxBin: " << maxBins << std::endl;
+      // std::cout << "update maxBin: " << maxBins << std::endl;
       mm = maxBins * expand;
     } else {
       octetStream cs0, cs_b;
@@ -329,26 +342,29 @@ public:
       osuCrypto::block cuckooSeed(seed);
       sIdx.init(params.numBins(), m, ssp, 3);
       sIdx.insertItems(ids, cuckooSeed);
-      uint64_t maxBins = 0;
+      // uint64_t maxBins = 0;
       for (unsigned int i = 0; i < params.numBins(); i++) {
         maxBins = max(maxBins, sIdx.mBinSizes[i]);
         // if (sIdx.mBinSizes[i] > mm) {
         //   cout << "exceed" << endl;
         // }
       }
-      std::cout << "maxBins: " << maxBins << std::endl;
+      // std::cout << "maxBins: " << maxBins << std::endl;
       cs_b.store(maxBins);
       proc.P.send_to(RECEIVER_P + 1, cs_b);
       octetStream cs_mb;
       proc.P.receive_player(RECEIVER_P + 1, cs_mb);
       cs_mb.get(maxBins);
-      std::cout << "update maxBin: " << maxBins << std::endl;
+      // std::cout << "update maxBin: " << maxBins << std::endl;
       mm = maxBins * expand;
     }
+#ifdef DEBUG
+    std::cout << "maxBins: " << maxBins << ", mm: " << mm << std::endl;
+#endif
 
     if (proc.P.my_num() == RECEIVER_P) {
 #ifdef DEBUG
-      cout << "1.OPRF with:" << i << "-----------" << std::endl;
+      cout << "1.OPRF with:\n";
       cout << "(1) begin base ot \n";
 #endif
       // perform OTs with player 1
@@ -362,7 +378,7 @@ public:
       int a = 3;
       cs1.store(a);
       proc.P.send_to(RECEIVER_P + 1, cs1);
-      cout << "send sync" << a << endl;
+      // cout << "send sync" << a << endl;
 
       // convert baseOT selection bits to BitVector
       // (not already BitVector due to legacy PVW code)
@@ -417,14 +433,15 @@ public:
 
       delete ot_ext;
       rP->~RealTwoPartyPlayer();
-      // #ifdef DEBUG
+#ifdef DEBUG
       cout << "2.receive okvs from:" << n - 1 << "-----------" << std::endl;
-      // #endif
+#endif
       octetStream cs_v, cs_s;
       proc.P.receive_player(n - 1, cs_v);
       vector<uint64_t> vs;
       uint64_t v;
-      for (unsigned int i = 0; i < params.numBins() * 3; i++) {
+      int nonce_num = 3 * (n - 1);
+      for (unsigned int i = 0; i < params.numBins() * nonce_num; i++) {
         cs_v.get(v);
         vs.push_back(v);
       }
@@ -434,35 +451,47 @@ public:
       vector<BitVector> S;
       vector<idtype> I; // intersection IDs
       idtype id;
-      uint64_t v1, v2, v3;
+      uint64_t v1, v2, v3, ov1, ov2, ov3;
       for (unsigned int i = 0; i < params.numBins(); i++) {
-        v1 = vs[3 * i];
-        v2 = vs[3 * i + 1];
-        v3 = vs[3 * i + 2];
+        v1 = vs[nonce_num * i];
+        v2 = vs[nonce_num * i + 1];
+        v3 = vs[nonce_num * i + 2];
+        ov1 = vs[nonce_num * i + 3];
+        ov2 = vs[nonce_num * i + 4];
+        ov3 = vs[nonce_num * i + 5];
+
 #ifdef DEBUG
-        cout << "Bin #" << i << endl;
+        std::cout << "Bin #" << i << endl;
+        std::cout << "ov1, ov2, ov3 (from next party), v1, v2, v3 (self):\n"
+                  << ov1 << " " << ov2 << " " << ov3 << " " << v1 << " " << v2
+                  << " " << v3 << std::endl;
 #endif
         S.clear();
         // S.resize(mm);
         BitVector s_tmp;
-        for (unsigned int j = 0; j < mm; j++) {
+        for (unsigned int j = 0; j < mm * mm; j++) {
           s_tmp.unpack(cs_s);
           S.push_back(s_tmp);
         }
 
-        OKVSReceiver okvs_r(S, v1, v2, v3, mm);
+        OKVSReceiver okvs_r(S, v1, v2, v3, ov1, ov2, ov3, mm);
         if (!cuckoo.mBins[i].isEmpty()) {
           id = smallids[cuckoo.mBins[i].idx()];
           // std::cout << i << " " << id << " " << fk_id[i].str() << std::endl;
           idx_tmp = okvs_r.get(id);
+          BitVector id_prf;
+          mprf.compute(id, id_prf);
+          id_prf.add(idx_tmp.second);
 // std::cout << "get from okvs:" << std::endl;
 #ifdef DEBUG
           std::cout << id << "," << idx_tmp.first << "| "
                     << idx_tmp.second.str() << std::endl;
 #endif
-          if (idx_tmp.second.str() == fk_id[i].str()) {
+          if (id_prf.str() == fk_id[i].str()) {
             I.push_back(id);
-            // std::cout << i << " " << id << endl;
+#ifdef DEBUG
+            std::cout << "Success! " << i << " " << id << endl;
+#endif
           }
         }
       }
@@ -477,7 +506,7 @@ public:
         outFile.close();
       }
 
-    } else if (my_num == 1) {
+    } else if (my_num == RECEIVER_P + 1) {
       ot_role = SENDER;
 #ifdef DEBUG
       cout << "Begin base ot \n";
@@ -492,7 +521,7 @@ public:
       proc.P.receive_player(RECEIVER_P, cs1);
       int a;
       cs1.get(a);
-      cout << "Receive sync" << a << endl;
+      // cout << "Receive sync" << a << endl;
 
       BitVector baseReceiverInput = bot.receiver_inputs;
       baseReceiverInput.resize(nbase);
@@ -505,9 +534,9 @@ public:
       // ot_ext.check();
       bot.extend_length();
 
-      // #ifdef DEBUG
+#ifdef DEBUG
       cout << "finish oprf with receiver\n";
-      // #endif
+#endif
 
       BitVector key, temp;
       idtype id;
@@ -516,8 +545,22 @@ public:
       vector<BitVector> Y;
       vector<uint64_t> X;
       std::unordered_set<uint64_t> X_tmp;
-      octetStream cs_s, cs_v;
+      octetStream cs_s, cs_v0, cs_v;
+      vector<uint64_t> vs;
+
+      proc.P.receive_player(my_num + 1, cs_v0);
+      uint64_t v;
+      for (unsigned int i = 0; i < params.numBins() * 3; i++) {
+        cs_v0.get(v);
+        vs.push_back(v);
+      }
+
+      // std::cout << "finish receive randomness of okvs\n";
+      uint64_t ov1, ov2, ov3;
       for (unsigned int i = 0; i < params.numBins(); i++) {
+        ov1 = vs[i * 3];
+        ov2 = vs[i * 3 + 1];
+        ov3 = vs[i * 3 + 2];
 #ifdef DEBUG
         cout << "Bin #" << i << endl;
 #endif
@@ -534,7 +577,7 @@ public:
           std::cout << id << "" << std::endl;
 #endif
           if (!X_tmp.empty() && X_tmp.find(id) != X_tmp.end())
-            break;
+            continue;
           X.push_back(id);
           X_tmp.insert(id);
 #ifdef DEBUG
@@ -557,46 +600,84 @@ public:
         uint64_t v1 = 0;
         uint64_t v2 = 0;
         uint64_t v3 = 0;
-        OKVSSender::generateTable(X, Y, mm, S, v1, v2, v3);
+        // OKVSSender::generateTable(X, Y, mm, S, v1, v2, v3);
+        OKVSSender::generateMbyNonces(ov1, ov2, ov3, X, Y, mm, S, v1, v2, v3);
+#ifdef DEBUG
+        std::cout << "ov1, ov2, ov3 (from next party), v1, v2, v3 (self):\n"
+                  << ov1 << " " << ov2 << " " << ov3 << " " << v1 << " " << v2
+                  << " " << v3 << std::endl;
+#endif
         cs_v.store(v1);
         cs_v.store(v2);
         cs_v.store(v3);
         // if (i % 10000 == 0) {
         //   cout << "finish build okvs " << i << endl;
         // }
-// cs_s.store<BitVector>(s);
-#ifdef DEBUG
-        std::cout << "table, v: " << v1 << " " << v2 << " " << v3 << std::endl;
-#endif
+        // cs_s.store<BitVector>(s);
+        // #ifdef DEBUG
+        //         std::cout << "table, v: " << v1 << " " << v2 << " " << v3 <<
+        //         std::endl;
+        // #endif
         for (auto &s : S) {
           s.pack(cs_s);
-#ifdef DEBUG
-          std::cout << s.str() << std::endl;
-#endif
+          // #ifdef DEBUG
+          //           std::cout << s.str() << std::endl;
+          // #endif
         }
       }
-      std::cout << "begin send okvs\n";
+      // std::cout << "begin send okvs\n";
       proc.P.send_to(my_num + 1, cs_v);
       proc.P.send_to(my_num + 1, cs_s);
       // for (BitVector fk : fs) {
       //   std::cout << fk.str() << std::endl;
       //   // fk.pack(cs2);
       // }
-      std::cout << "finish send okvs\n";
+      // std::cout << "finish send okvs\n";
       delete ot_ext;
       // delete rP;
-
     } else {
-      octetStream cs_v, cs_s;
-      proc.P.receive_player(my_num - 1, cs_v);
+      idtype id;
+      vector<uint64_t> X;
+      vector<uint64_t> vs1, vs2, vs3;
+      std::unordered_set<uint64_t> X_tmp;
+      octetStream cs_s, cs_v0, cs_v, cs_vnew;
+      for (unsigned int i = 0; i < params.numBins(); i++) {
+        X.clear();
+        X_tmp.clear();
+        for (unsigned int k = 0; k < sIdx.mBinSizes[i]; k++) {
+          id = smallids[sIdx.mBins(i, k).idx()];
+          if (!X_tmp.empty() && X_tmp.find(id) != X_tmp.end())
+            continue;
+          X.push_back(id);
+          X_tmp.insert(id);
+        }
+        uint64_t v1 = 0;
+        uint64_t v2 = 0;
+        uint64_t v3 = 0;
+        // OKVSSender::generateTable(X, Y, mm, S, v1, v2, v3);
+        OKVSSender::generateTNonces(X, mm, v1, v2, v3);
+        vs1.push_back(v1);
+        vs2.push_back(v2);
+        vs3.push_back(v3);
+        // std::cout << "v1, v2, v3: " << v1 << " " << v2 << " " << v3
+        //           << std::endl;
+        cs_v0.store(v1);
+        cs_v0.store(v2);
+        cs_v0.store(v3);
+      }
+      // std::cout << "begin send randomness of okvs\n";
+      proc.P.send_to(RECEIVER_P + 1, cs_v0);
+      // std::cout << "finish send randomness of okvs\n";
+
+      proc.P.receive_player(RECEIVER_P + 1, cs_v);
       octetStream cs_snew;
       uint64_t v;
-      uint64_t v1, v2, v3;
-      idtype id;
+      uint64_t v1, v2, v3, ov1, ov2, ov3;
       std::pair<uint64_t, BitVector> idx_tmp;
       vector<BitVector> S;
       vector<BitVector> newS;
       vector<uint64_t> vs;
+      // std::cout << "begin receive okvs\n";
       for (unsigned int i = 0; i < params.numBins() * 3; i++) {
         cs_v.get(v);
         vs.push_back(v);
@@ -612,58 +693,77 @@ public:
       uint64_t rand_x[2];
       BitVector x_bitv;
       for (unsigned int i = 0; i < params.numBins(); i++) {
-        v1 = vs[i * 3];
+        v1 = vs[i * 3]; // from P1
         v2 = vs[i * 3 + 1];
         v3 = vs[i * 3 + 2];
-#ifdef DEBUG
-        cout << "Bin #" << i << ",  v: " << v1 << " " << v2 << " " << v3
-             << endl;
-#endif
+        ov1 = vs1[i]; // from P2
+        ov2 = vs2[i];
+        ov3 = vs3[i];
+
+        cs_vnew.store(v1);
+        cs_vnew.store(v2);
+        cs_vnew.store(v3);
+        cs_vnew.store(ov1);
+        cs_vnew.store(ov2);
+        cs_vnew.store(ov3);
+        // #ifdef DEBUG
+        //         cout << "Bin #" << i << ",  v: " << v1 << " " << v2 << " " <<
+        //         v3
+        //              << endl;
+        // #endif
         S.clear();
         // S.resize(mm);
         BitVector s_tmp;
-        for (unsigned int j = 0; j < mm; j++) {
+        for (unsigned int j = 0; j < mm * mm; j++) {
           // std::cout << j << " ";
           s_tmp.unpack(cs_s);
           // std::cout << s_tmp.str() << std::endl;
           S.push_back(s_tmp);
         }
 
-        OKVSReceiver okvs_r(S, v1, v2, v3, mm);
+        OKVSReceiver okvs_r(S, v1, v2, v3, ov1, ov2, ov3, mm);
 
         newS.clear();
         // newS.resize(mm);
-        for (size_t j = 0; j < mm; j++) {
+        for (size_t j = 0; j < mm * mm; j++) {
           rand_x[0] = prng.get<uint64_t>();
           rand_x[1] = prng.get<uint64_t>();
           // x_128 = prng.get<__m128i>();
-          x_bitv = BitVector(reinterpret_cast<uint8_t *>(rand_x), 16);
+          x_bitv = BitVector(reinterpret_cast<uint8_t *>(rand_x), 128);
           newS.push_back(x_bitv);
           // x_bitv
         }
 #ifdef DEBUG
-        std::cout << "id, idx, s" << std::endl;
+        std::cout << "Bin #" << i << std::endl;
+        std::cout << "ov1, ov2, ov3 (from next party), v1, v2, v3 (self):\n"
+                  << ov1 << " " << ov2 << " " << ov3 << " " << v1 << " " << v2
+                  << " " << v3 << std::endl;
 #endif
         for (unsigned int k = 0; k < sIdx.mBinSizes[i]; k++) { // each bin
           id = smallids[sIdx.mBins(i, k).idx()];
           idx_tmp = okvs_r.get(id);
+          BitVector id_prf;
+          mprf.compute(id, id_prf);
+
 #ifdef DEBUG
-          std::cout << id << "," << idx_tmp.first << "|" << idx_tmp.second.str()
-                    << std::endl;
+          std::cout << "(" << id << "," << idx_tmp.first << ") |"
+                    << idx_tmp.second.str() << std::endl;
 #endif
+          idx_tmp.second.add(id_prf);
           newS[idx_tmp.first] = idx_tmp.second;
+          // newS[idx_tmp.first] = idx_tmp.second;
         }
-#ifdef DEBUG
-        std::cout << "Table:\n";
-#endif
+        // #ifdef DEBUG
+        //         std::cout << "Table size: " << newS.size() << std::endl;
+        // #endif
         for (auto &s : newS) {
           s.pack(cs_snew);
-#ifdef DEBUG
-          std::cout << s.str() << std::endl;
-#endif
+          // #ifdef DEBUG
+          //           std::cout << s.str() << std::endl;
+          // #endif
         }
       }
-      proc.P.send_to((my_num + 1) % n, cs_v);
+      proc.P.send_to((my_num + 1) % n, cs_vnew);
       proc.P.send_to((my_num + 1) % n, cs_snew);
     }
   }
