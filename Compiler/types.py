@@ -4599,10 +4599,10 @@ class _fix(_single):
         assert self.f == other.f
         if isinstance(other, _fix):
             # return sfix.newton_div(self, other)
-            recip = other.compute_reciprocal()
-            return self*recip
-            # v = library.FPDiv(self.v, other.v, self.k, self.f, self.kappa,
-            #                   nearest=self.round_nearest)
+            # recip = other.compute_reciprocal()
+            # return self*recip
+            v = library.FPDiv(self.v, other.v, self.k, self.f, self.kappa,
+                              nearest=self.round_nearest)
         elif isinstance(other, cfix):
             v = library.sint_cint_division(self.v, other.v, self.k, self.f,
                                            self.kappa)
