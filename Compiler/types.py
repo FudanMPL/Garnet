@@ -4620,7 +4620,8 @@ class _fix(_single):
     @vectorize
     def compute_reciprocal(self):
         """ Secret fixed-point reciprocal. """
-        return library.Reciprocal(self)
+        return type(self)(library.FPDiv(cint(2) ** self.f, self.v, self.k,
+                                        self.f, nearest=True))
 
     def reveal(self):
         """ Reveal secret fixed-point number.
