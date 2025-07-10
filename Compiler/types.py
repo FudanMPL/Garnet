@@ -5602,6 +5602,14 @@ class Array(_vectorizable):
         res.assign(tmp)
         return res
 
+    def copy(self):
+        """ Create a copy of the array.
+        :returns: A new :py:class:`Array` instance with the same contents.
+        """
+        res = self.same_shape()
+        res[:] = self[:]
+        return res
+
     def __init__(self, length, value_type, address=None, debug=None, alloc=True):
         value_type = _get_type(value_type)
         self.address = address
@@ -5615,6 +5623,44 @@ class Array(_vectorizable):
         self.sink = None
         if alloc:
             self.alloc()
+
+
+    def mean(self):
+        """Calculate the mean of the array.
+        
+        :returns: Mean value of the array elements.
+        """
+        if not isinstance(self[0], _fix):
+            raise TypeError("Mean can only be caculated for arrays of type _fix (or subtype of _fix).")
+        # Ensure the array is not empty
+        if self.length == 0:
+            raise ValueError("Cannot compute mean of an empty array.")
+        # Get the vector representation of the array
+        vector = self.get_vector()
+        # Sum all elements
+        total_sum = sum(vector)
+        # Compute the mean
+        mean_value = total_sum / self.length
+        return mean_value
+
+    def median(self):
+        """Calculate the median of the array.
+        
+        :returns: Median value of the array elements.
+        """
+        if self.length == 0:
+            raise ValueError("Cannot compute median of an empty array.")
+        sorted_array = self.copy()
+        sorted_array.sort()  # Sort the array in place
+        mid_index = self.length // 2
+        
+        if self.length % 2 == 0 and isinstance(self[0], _fix):
+            median_value = (sorted_array[mid_index - 1] + sorted_array[mid_index]) / 2
+        else:
+            #
+            median_value = sorted_array[mid_index]
+        
+        return median_value
 
     def change_domain(self, k):
         return self.get_vector().change_domain(k)
@@ -5670,6 +5716,65 @@ class Array(_vectorizable):
                 library.print_ln_if(index >= self.length, 'OF:' + self.debug)
                 library.print_ln_if(self.address_cache[program.curr_block, key] >= program.allocated_mem[self.value_type.reg_type], 'AOF:' + self.debug)
         return self.address_cache[program.curr_block, key]
+
+    def mode(self):
+        if self.length == 0:
+            raise ValueError("Cannot compute median of an empty array.")
+        sorted_data = self.copy()
+        sorted_data.sort()  # Sort the array in place
+        n = self.length
+        # 对self排完序后 从头开始遍历 若当前值与前一个值相同，计数加一 当前值与前一个值不同 如果当前计数大于最大计数，更新最大计数并重置众数列表 如果当前计数等于最大计数，将当前值加入众数列表 
+        # Step 2: Initialize group indicator array
+        g = Array(n, sint)
+        g[0] = 1 
+        # Step 3: Create group indicator based on sorted data
+        for i in range(1, n):
+            g[i] = sorted_data[i] != sorted_data[i - 1]  # 如果当前元素与前一个元素不同，则为新组
+        
+        from group_ops import GroupSum
+        # Step 4: Calculate group sums to get frequency of each element
+        count = GroupSum(g, Array(n, sint).assign_all(1))
+        from Compiler.library import print_ln
+        # Step 5: sort with count
+        from sorting import radix_sort
+        radix_sort(count, sorted_data, n_bits=math.ceil(math.log2(n)))
+        mode = sorted_data[n-1]
+        return mode
+    
+    def variance(self):
+        """Calculate the variance of the array.
+        
+        :returns: Variance of the array elements.
+        """
+        if not isinstance(self[0], _fix):
+            raise TypeError("variance can only be executed for arrays of type _fix.")
+        if self.length == 0:
+            raise ValueError("Cannot compute variance of an empty array.")
+        # 计算 X 的平方的均值
+        mean_of_squares = (self*self).mean()
+        # 计算 X 的均值
+        mean_value = self.mean()
+        # 计算均值的平方
+        square_of_mean = mean_value * mean_value
+        # 计算方差
+        variance_value = mean_of_squares - square_of_mean
+        return variance_value
+
+    def std_dev(self):
+        """Calculate the standard deviation of the array.
+        
+        :returns: Standard deviation of the array elements.
+        """
+        if not isinstance(self[0], _fix):
+            raise TypeError("std_dev can only be executed for arrays of type _fix.")
+        if self.length == 0:
+            raise ValueError("Cannot compute standard deviation of an empty array.")
+        # 计算方差
+        variance_value = self.variance()
+        # 计算标准差（平方根）
+        from Compiler.mpc_math import sqrt
+        std_dev_value = sqrt(variance_value)
+        return std_dev_value
 
     def get_slice(self, index):
         if index.stop is None and self.length is None:
@@ -5967,7 +6072,8 @@ class Array(_vectorizable):
                 res = SubMultiArray(value.sizes, value.value_type)
                 return res
         else:        
-            return self.get_vector() * value
+            res_vec = self.get_vector() * value
+            return Array.create_from(res_vec)
 
     def __truediv__(self, value):
         """ Vector division.

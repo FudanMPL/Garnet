@@ -6,15 +6,10 @@
 
 其具体使用方法如下：
 
-### 导入相关的包
-```
-from Compiler.types import Array 
-import joint_statistics
-```
 
 ### 在mpc中调用相关的方法
 
-此处a必须为元素类型为sfix的array
+此处a必须为元素类型为Array
 ```
 a_mean = a.mean().reveal()
 a_median = a.median().reveal()
@@ -27,9 +22,6 @@ a_mode = a.mode().reveal()
 
 ### test_joint_statistics代码
 ```
-from Compiler.types import Array 
-import joint_statistics
-
 a = Array(10, sfix)
 for i in range(10):
     if i < 5:

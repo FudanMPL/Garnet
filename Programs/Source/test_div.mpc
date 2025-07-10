@@ -1,0 +1,5 @@
+s = sfix.get_input_from(0, size=10)
+
+res = s / sum(s)
+
+print_ln("res = %s", res.reveal())
