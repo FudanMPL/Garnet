@@ -4,58 +4,58 @@ from Compiler.group_ops import GroupSum
 from Compiler.types import sfix  
 
     # start point
-def mean(self):
+def mean(arr):
     """Calculate the mean of the array.
     
     :returns: Mean value of the array elements.
     """
-    if not isinstance(self[0], sfix):
+    if not isinstance(arr[0], sfix):
         raise TypeError("This function can only be executed for arrays of type sfix.")
     # Ensure the array is not empty
-    if self.length == 0:
+    if arr.length == 0:
         raise ValueError("Cannot compute mean of an empty array.")
     
     # Get the vector representation of the array
-    vector = self.get_vector()
+    vector = arr.get_vector()
     
     # Sum all elements
     total_sum = sum(vector)
     # Compute the mean
-    mean_value = total_sum/self.length
+    mean_value = total_sum / arr.length
     
     return mean_value
 
-def median(self):
+def median(arr):
     """Calculate the median of the array.
     
     :returns: Median value of the array elements.
     """
-    if not isinstance(self[0], sfix):
+    if not isinstance(arr[0], sfix):
         raise TypeError("This function can only be executed for arrays of type sfix.")
-    if self.length == 0:
+    if arr.length == 0:
         raise ValueError("Cannot compute median of an empty array.")
-    self.sort()
+    arr.sort()
     # vector = self.get_vector()
     # sorted_vector = vector.sort()
-    sorted_vector = self.get_vector()
-    mid_index = self.length // 2
+    sorted_vector = arr.get_vector()
+    mid_index = arr.length // 2
     
-    if self.length % 2 == 0:
+    if arr.length % 2 == 0:
         median_value = (sorted_vector[mid_index - 1] + sorted_vector[mid_index]) / 2
     else:
         median_value = sorted_vector[mid_index]
     
     return median_value
 
-def mode(self):
+def mode(arr):
 
-    if not isinstance(self[0], sfix):
+    if not isinstance(arr[0], sfix):
         raise TypeError("This function can only be executed for arrays of type sfix.")
-    if self.length == 0:
+    if arr.length == 0:
         raise ValueError("Cannot compute median of an empty array.")
-    self.sort()
-    sorted_data = self.get_vector()
-    n = self.length
+    arr.sort()
+    sorted_data = arr.get_vector()
+    n = arr.length
     # 对self排完序后 从头开始遍历 若当前值与前一个值相同，计数加一 当前值与前一个值不同 如果当前计数大于最大计数，更新最大计数并重置众数列表 如果当前计数等于最大计数，将当前值加入众数列表 
     # Step 2: Initialize group indicator array
     g = Array(n, sint)
@@ -81,47 +81,47 @@ def mode(self):
     
     return mode
 
-def square(self):
+def square(arr):
     """Calculate the mean of the array.
     
     :returns: Mean value of the array elements.
     """
-    if not isinstance(self[0], sfix):
+    if not isinstance(arr[0], sfix):
         raise TypeError("This function can only be executed for arrays of type sfix.")
     # Ensure the array is not empty
-    if self.length == 0:
+    if arr.length == 0:
         raise ValueError("Cannot compute mean of an empty array.")
     
     # Get the vector representation of the array
-    vector = self.get_vector()
+    vector = arr.get_vector()
     
     # 计算每个元素的平方
     squared_vector = [x * x for x in vector]
 
-    squared_array = Array(self.length, sfix)
+    squared_array = Array(arr.length, sfix)
 
-    for i in range(self.length):
+    for i in range(arr.length):
         squared_array[i] = squared_vector[i]
     
     return squared_array
 
 
 
-def variance(self):
+def variance(arr):
     """Calculate the variance of the array.
     
     :returns: Variance of the array elements.
     """
-    if not isinstance(self[0], sfix):
+    if not isinstance(arr[0], sfix):
         raise TypeError("This function can only be executed for arrays of type sfix.")
-    if self.length == 0:
+    if arr.length == 0:
         raise ValueError("Cannot compute variance of an empty array.")
     
     # 计算 X 的平方的均值
-    mean_of_squares = self.square().mean()
+    mean_of_squares = arr.square().mean()
     
     # 计算 X 的均值
-    mean_value = self.mean()
+    mean_value = arr.mean()
     
     # 计算均值的平方
     square_of_mean = mean_value * mean_value
@@ -131,18 +131,18 @@ def variance(self):
     
     return variance_value
 
-def std_dev(self):
+def std_dev(arr):
     """Calculate the standard deviation of the array.
     
     :returns: Standard deviation of the array elements.
     """
-    if not isinstance(self[0], sfix):
+    if not isinstance(arr[0], sfix):
         raise TypeError("This function can only be executed for arrays of type sfix.")
-    if self.length == 0:
+    if arr.length == 0:
         raise ValueError("Cannot compute standard deviation of an empty array.")
     
     # 计算方差
-    variance_value = self.variance()
+    variance_value = arr.variance()
     
     # 计算标准差（平方根）
     std_dev_value = variance_value.sqrt(variance_value)

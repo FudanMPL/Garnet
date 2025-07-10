@@ -27,7 +27,7 @@ a_median = a.std_dev().reveal()
 ### test_joint_statistics代码
 ```
 from Compiler.types import Array 
-import joint_statistics2
+import joint_statistics
 
 a = Array(10, sfix)
 for i in range(10):
