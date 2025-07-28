@@ -1,0 +1,47 @@
+# 简化版：训练Iris数据集的神经网络（SecureNN协议）
+print_ln("111111")
+
+import ml
+from Compiler.types import sint, sfix
+program.options_from_args()
+sfix.set_precision_from_args(program, adapt_ring=True)
+ml.use_mux = 'mux' in program.args
+MultiArray.disable_index_checks()
+# 固定参数：Iris 数据集
+n_examples = 120
+n_test = 30
+n_features = 4
+n_classes = 3
+n_epochs = 10
+batch_size = 16
+n_hidden = 8  # 中间层维度
+
+
+
+# 构建模型：输入层 -> 隐藏层 -> 输出层
+layers = [
+    ml.Dense(n_examples, n_features, n_hidden,activation='relu'),
+    ml.Dense(n_examples, n_hidden, n_hidden,activation='relu'),
+    ml.Dense(n_examples, n_hidden, n_classes,),
+    ml.MultiOutput(n_examples, n_classes)
+]
+
+
+
+# 输入张量（特征和标签）
+X = sfix.Matrix(n_test, n_features)
+Y = sint.Matrix(n_test, n_classes)
+
+# 从输入文件中读取数据（输入0号玩家）
+layers[0].X.input_from(0)     
+layers[-1].Y.input_from(0)    
+X.input_from(0)
+Y.input_from(0)
+
+# 优化器：使用默认SGD
+sgd = ml.SGD(layers)
+
+# 执行训练
+# sgd.run(n_epochs, batch_size, X, Y, acc_batch_size=n_examples)
+sgd.run_by_args(program, n_epochs, batch_size,X, Y, acc_batch_size=n_examples)
+

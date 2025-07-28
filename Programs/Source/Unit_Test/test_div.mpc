@@ -1,0 +1,13 @@
+div_array = sfix.Array(14)
+for i in range(14):
+    if i % 2 == 0 :div_array[i] = sfix.get_input_from(0)
+    else: div_array[i] = sfix.get_input_from(1)
+
+div_res_array = sfix.Array(7)
+@for_range(7)
+def _(i):
+    div_res_array[i] = div_array[2 * i] / div_array[2 * i + 1]
+    print_ln("div_res_%s = %s", i, div_res_array[i].reveal())
+
+
+    
