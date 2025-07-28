@@ -90,6 +90,12 @@ public:
         throw not_implemented();
     }
 
+    template <class U> 
+    void mpsi(int64_t n, U &proc)
+    {
+        throw not_implemented();
+    }
+
     template <class U>
     void change_domain(const vector<int> &reg, U &proc);
 

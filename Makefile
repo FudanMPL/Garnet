@@ -60,7 +60,7 @@ DEPS := $(wildcard */*.d */*/*.d)
 .SECONDARY: $(OBJS) $(patsubst %.cpp,%.o,$(wildcard */*.cpp))
 
 
-all: arithmetic binary gen_input online offline externalIO bmr ecdsa
+all: arithmetic binary gen_input online offline externalIO bmr ecdsa conversion
 vm: arithmetic binary
 
 .PHONY: doc
@@ -86,6 +86,8 @@ offline: $(OT_EXE) Check-Offline.x mascot-offline.x cowgear-offline.x mal-shamir
 gen_input: gen_input_f2n.x gen_input_fp.x
 
 externalIO: bankers-bonus-client.x
+
+conversion: rss-with-conversion-party.x semi2k-with-conversion-party.x mal-rss-with-conversion-party.x
 
 bmr: bmr-program-party.x bmr-program-tparty.x
 
@@ -222,6 +224,8 @@ knn-party.x: Machines/knn-party.cpp  $(MINI_OT) $(SHAREDLIB) $(MATH)
 
 tree-inference.x:   Machines/tree-inference.cpp
 replicated-bin-party.x: GC/square64.o
+replicated-ring-party.x: CFLAGS += -D ENABLE_PSI=true
+replicated-ring-party.x: $(TOOLS_PSI) $(OT) $(GC_SEMI)
 replicated-ring-party.x: GC/square64.o
 rss-with-conversion-party.x: GC/square64.o
 replicated-field-party.x: GC/square64.o
@@ -297,7 +301,7 @@ $(LIBSIMPLEOT_ASM): deps/SimpleOT/Makefile
 OT/BaseOT.o: deps/SimpleOT/Makefile
 
 deps/SimpleOT/Makefile:
-	git submodule update --init deps/SimpleOT || git clone https://github.com/mkskeller/SimpleOT deps/SimpleOT
+	git submodule update --init deps/SimpleOT || git clone git@github.com:mkskeller/SimpleOT.git deps/SimpleOT
 endif
 
 $(LIBSIMPLEOT_C): deps/SimplestOT_C/ref10/Makefile
@@ -306,7 +310,7 @@ $(LIBSIMPLEOT_C): deps/SimplestOT_C/ref10/Makefile
 OT/BaseOT.o: deps/SimplestOT_C/ref10/Makefile
 
 deps/SimplestOT_C/ref10/Makefile:
-	git submodule update --init deps/SimplestOT_C || git clone https://github.com/mkskeller/SimplestOT_C deps/SimplestOT_C
+	git submodule update --init deps/SimplestOT_C || git clone git@github.com:mkskeller/SimplestOT_C.git deps/SimplestOT_C
 	cd deps/SimplestOT_C/ref10; PATH=$(CURDIR)/local/bin:$(PATH) cmake .
 
 .PHONY: Programs/Circuits
@@ -401,3 +405,6 @@ clean-deps:
 
 clean: clean-deps
 	-rm -f */*.o *.o */*.d *.d *.x core.* *.a gmon.out */*/*.o static/*.x *.so
+
+clean-intermediate:
+	-rm -f */*.o *.o */*.d *.d */*/*.o

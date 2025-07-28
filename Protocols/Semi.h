@@ -433,6 +433,11 @@ public:
 #endif
   }
 
+  template <class U> void mpsi(int64_t n, U &proc)
+  {
+      throw not_implemented();
+  }
+
   template <class U>
   void psi_align(const vector<typename T::clear> &source, const Instruction &instruction, U &proc)
   {

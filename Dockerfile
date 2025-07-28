@@ -1,11 +1,10 @@
-FROM python:3.10.3-bullseye as buildenv
+FROM python:3.10.3-slim AS buildenv
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update -o Acquire::Retries=3  && apt-get install -y --no-install-recommends \
                 automake \
                 build-essential \
-                clang-11 \
                 yasm \
-		cmake \
+		        cmake \
                 git \
                 libboost-dev \
                 libboost-thread-dev \
@@ -15,28 +14,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
                 libsodium-dev \
                 libssl-dev \
                 libtool \
-                vim \
-                gdb \
                 valgrind \
-                iproute2 \
-                sudo \
-        && rm -rf /var/lib/apt/lists/*
+                texinfo \
+                && rm -rf /var/lib/apt/lists/*
 
-ENV Garnet_HOME /usr/src/Garnet
+ENV Garnet_HOME=/usr/src/Garnet
 WORKDIR $Garnet_HOME
 
 COPY . .
 
+RUN make clean-deps boost libote 
+RUN make -j8 tldr && make -j8 semi2k-party.x semi-party.x sml-party.x replicated-ring-party.x shamir-party.x
+RUN make clean-intermediate
 
-RUN make clean-deps boost libote
+RUN pip install --no-cache-dir -r requirements.txt
 
-RUN apt-get update && apt-get install -y --no-install-recommends texinfo
-
-RUN make clean
-RUN make -j tldr
-RUN make -j
-
-
-RUN pip3 install -r requirements.txt
 
 CMD ["/bin/bash"]

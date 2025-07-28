@@ -1,6 +1,6 @@
 # 明文下的表结构dataframe
 
-我们在Garnet中增加了明文下的表结构`dataframe`，支持的数据类型为`cint/cifx/sint/sfix`。相关数据结构、功能及使用方法如下：
+为了进一步简化数据分析，我们在Garnet中增加了类似于 Python Pandas 的表结构`dataframe`，支持的数据类型为`cint/cifx/sint/sfix`。相关数据结构、功能及使用方法如下：
 
 ## series
 
