@@ -1,0 +1,40 @@
+from Compiler.types import sint, sfix
+from Compiler.library import print_ln, for_range
+
+add_array = sint.Array(14)
+for i in range(14): 
+    if i % 2 == 0: add_array[i] = sint.get_input_from(0)
+    else: add_array[i] = sint.get_input_from(1)
+
+reduce_array = sint.Array(14)
+for i in range(14): 
+    if i % 2 == 0: reduce_array[i] = sint.get_input_from(0)
+    else: reduce_array[i] = sint.get_input_from(1)
+
+mul_array = sint.Array(14)
+for i in range(14): 
+    if i % 2 == 0: mul_array[i] = sint.get_input_from(0)
+    else: mul_array[i] = sint.get_input_from(1)
+
+div_array = sfix.Array(14)
+for i in range(14):
+    if i % 2 == 0 :div_array[i] = sfix.get_input_from(0)
+    else: div_array[i] = sfix.get_input_from(1)
+
+add_res_array = sint.Array(7)
+reduce_res_array = sint.Array(7)
+mul_res_array = sint.Array(7)
+div_res_array = sfix.Array(7)
+@for_range(7)
+def _(i):
+    add_res_array[i] = add_array[2 * i] + add_array[2 * i + 1]
+    reduce_res_array[i] = reduce_array[2 * i] - reduce_array[2 * i + 1]
+    mul_res_array[i] = mul_array[2 * i] * mul_array[2 * i + 1]
+    div_res_array[i] = div_array[2 * i] / div_array[2 * i + 1]
+
+    print_ln("add_res_%s = %s", i, add_res_array[i].reveal())
+    print_ln("reduce_res_%s = %s", i, reduce_res_array[i].reveal())
+    print_ln("mul_res_%s = %s", i, mul_res_array[i].reveal())
+    print_ln("div_res_%s = %s", i, div_res_array[i].reveal())
+    print_ln("-------------------------------------------------")
+
