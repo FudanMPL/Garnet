@@ -60,7 +60,7 @@ DEPS := $(wildcard */*.d */*/*.d)
 .SECONDARY: $(OBJS) $(patsubst %.cpp,%.o,$(wildcard */*.cpp))
 
 
-all: arithmetic binary gen_input online offline externalIO bmr ecdsa
+all: arithmetic binary gen_input online offline externalIO bmr ecdsa conversion
 vm: arithmetic binary
 
 .PHONY: doc
@@ -86,6 +86,8 @@ offline: $(OT_EXE) Check-Offline.x mascot-offline.x cowgear-offline.x mal-shamir
 gen_input: gen_input_f2n.x gen_input_fp.x
 
 externalIO: bankers-bonus-client.x
+
+conversion: rss-with-conversion-party.x semi2k-with-conversion-party.x mal-rss-with-conversion-party.x
 
 bmr: bmr-program-party.x bmr-program-tparty.x
 
