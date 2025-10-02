@@ -49,4 +49,4 @@ The codes of Kona, SecKNN, SecKNN-Triples, and SecKNN-DQBubble mainly locate at 
 
 # Note
 
-Due to file size limit, we only provide one dataset (arcene). To perform more evaluation, you need to download dataset from [UCI repo](https://archive.ics.uci.edu/), put the dataset on the directory "Player-Data/Knn-Data/knn-1/", and modify  "Machines/kona.cpp", "Machines/secknn.cpp", "Machines/optimized-esd.cpp", and "Machines/optimized-top1.cpp" to add the dataset.
+Due to the file size limit, we only provide one dataset (arcene). To perform more evaluation, you need to download dataset from [here]([https://archive.ics.uci.edu/](https://drive.google.com/file/d/1FuE0e81XPd23NYMqtD4zBTPqR0tZms61/view?usp=sharing)), put the dataset in the directory "Player-Data/Knn-Data/knn-1/", and modify  "Machines/kona.cpp", "Machines/secknn.cpp", "Machines/optimized-esd.cpp", and "Machines/optimized-top1.cpp" to add the dataset.
