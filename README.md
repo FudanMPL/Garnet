@@ -4,6 +4,7 @@ requirement: Ubuntu 20.04
 
 ## 1. Deployment Process
 ```sh
+git clone https://github.com/FudanMPL/Garnet.git Kona -b kona
 cd Kona
 make -j8 tldr
 
