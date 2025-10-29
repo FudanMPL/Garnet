@@ -6,7 +6,9 @@ requirement: Ubuntu 20.04
 ```sh
 git clone https://github.com/FudanMPL/Garnet.git Kona -b kona
 cd Kona
-make -j8 tldr
+make clean-deps boost libote
+make clean
+make -j 8 tldr
 
 ```
 
