@@ -4,6 +4,7 @@ requirement: Ubuntu 20.04
 
 ## 1. Deployment Process
 ```sh
+sudo apt-get install automake build-essential cmake git libboost-dev libboost-thread-dev libntl-dev libsodium-dev libssl-dev libtool m4  texinfo yasm
 git clone https://github.com/FudanMPL/Garnet.git Kona -b kona
 cd Kona
 make clean-deps boost libote
