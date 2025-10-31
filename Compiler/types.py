@@ -8183,6 +8183,204 @@ class dataframe:
                 return new_df._ss_groupBy(on=on, party_number=len(obj) + 1, join=join)
             elif on_type is cint or on_type is cfix:
                 return new_df._groupBy(on=on, party_number=len(obj) + 1, join=join)
+            
+    def concat(objs, axis=0):
+        if not isinstance(objs, list) or len(objs) == 0:
+            raise ValueError("objs must be a non-empty list of dataframes")
+    
+        if not all(isinstance(df, dataframe) for df in objs):
+            raise TypeError("All elements in objs must be instances of dataframe.")
+        
+        if axis == 0:
+            first_columns = objs[0].columns
+            first_value_types = objs[0].value_types
+            
+            for i, df in enumerate(objs[1:], 1):
+                if df.columns != first_columns:
+                    raise ValueError(f"All dataframes must have the same columns when axis=0. "
+                                f"Dataframe 0 has columns {first_columns}, "
+                                f"but dataframe {i} has columns {df.columns}")
+                
+                for j, col in enumerate(first_columns):
+                    if df.value_types[j] != first_value_types[j]:
+                        raise TypeError(f"Column '{col}' has inconsistent types across dataframes: "
+                                    f"{first_value_types[j]} vs {df.value_types[j]}")
+            
+            new_data = {col: [] for col in first_columns}
+            new_index = []
+   
+            max_index = max(max(df.index) for df in objs) if objs[0].index else -1
+            for df in objs:
+                for col in first_columns:
+                    new_data[col].extend(df.data[col].data)
+                offset = max_index + 1 if new_index else 0
+                new_index.extend([idx + offset for idx in df.index])
+                max_index = new_index[-1]
+            
+            return dataframe(
+                data=[list(row) for row in zip(*new_data.values())],
+                columns=first_columns,
+                index=new_index
+            )
+        
+        elif axis == 1:
+            first_length = len(objs[0].index)
+            for i, df in enumerate(objs[1:], 1):
+                if len(df.index) != first_length:
+                    raise ValueError(f"All dataframes must have the same number of rows when axis=1. "
+                                f"Dataframe 0 has {first_length} rows, "
+                                f"but dataframe {i} has {len(df.index)} rows")
+            
+            new_columns = []
+            new_value_types = []
+            new_data = {}
+            new_index = objs[0].index
+            
+            for df in objs:
+                for col in df.columns:
+                    if col in new_columns:
+                        raise ValueError(f"Column name '{col}' appears in multiple dataframes. "
+                                    f"Column names must be unique when axis=1.")
+                    
+                    new_columns.append(col)
+                    col_idx = df.columns.index(col)
+                    new_value_types.append(df.value_types[col_idx])
+                    new_data[col] = df.data[col].data
+            
+            return dataframe(
+                data=[list(row) for row in zip(*new_data.values())],
+                columns=new_columns,
+                index=new_index
+            )
+        
+        else:
+            raise ValueError("axis must be either 0 (vertical) or 1 (horizontal)")
+
+    def join(self, other, lsuffix='_left', rsuffix='_right', how='outer', inplace=False):
+        if how not in ['outer', 'inner']:
+            raise ValueError("The join type can only be 'inner' or 'outer'.")
+
+        if not isinstance(other, dataframe):
+            raise TypeError("The other object must be an instance of dataframe.")
+
+        new_columns = []
+        left_columns_map = {}
+        right_columns_map = {}
+        
+        for col in self.columns:
+            if col in other.columns:
+                new_col_name = col + lsuffix
+                left_columns_map[col] = new_col_name
+                new_columns.append(new_col_name)
+            else:
+                left_columns_map[col] = col
+                new_columns.append(col)
+        
+        for col in other.columns:
+            if col in self.columns:
+                new_col_name = col + rsuffix
+                right_columns_map[col] = new_col_name
+                if new_col_name not in new_columns:
+                    new_columns.append(new_col_name)
+            else:
+                right_columns_map[col] = col
+                new_columns.append(col)
+
+        if how == 'outer':
+            new_index = sorted(set(self.index) | set(other.index))
+        else:
+            new_index = sorted(set(self.index) & set(other.index))
+
+        new_value_types = []
+        new_data = {col: [None] * len(new_index) for col in new_columns}
+
+        for col in new_columns:
+            col_types = set()
+            
+            orig_col = None
+            for k, v in left_columns_map.items():
+                if v == col:
+                    orig_col = k
+                    break
+            if orig_col and orig_col in self.columns:
+                col_idx = self.columns.index(orig_col)
+                col_types.add(self.value_types[col_idx])
+            
+            orig_col = None
+            for k, v in right_columns_map.items():
+                if v == col:
+                    orig_col = k
+                    break
+            if orig_col and orig_col in other.columns:
+                col_idx = other.columns.index(orig_col)
+                col_types.add(other.value_types[col_idx])
+            
+            if len(col_types) > 1:
+                if str in col_types:
+                    new_value_types.append(str)
+                else:
+                    non_none_types = [t for t in col_types if t is not type(None)]
+                    if non_none_types:
+                        new_value_types.append(non_none_types[0])
+                    else:
+                        new_value_types.append(object)
+            elif col_types:
+                new_value_types.append(next(iter(col_types)))
+            else:
+                new_value_types.append(object)
+
+        for orig_col, new_col in left_columns_map.items():
+            col_type = new_value_types[new_columns.index(new_col)]
+            for i, idx_val in enumerate(new_index):
+                if idx_val in self.index:
+                    pos = self.index.index(idx_val)
+                    value = self.data[orig_col].data[pos]
+                    if value is not None and not isinstance(value, col_type) and col_type != object:
+                        try:
+                            if col_type == str:
+                                value = str(value)
+                            elif col_type == int:
+                                value = int(value)
+                            elif col_type == float:
+                                value = float(value)
+                        except (ValueError, TypeError):
+                            pass
+                    new_data[new_col][i] = value
+
+        for orig_col, new_col in right_columns_map.items():
+            col_type = new_value_types[new_columns.index(new_col)]
+            for i, idx_val in enumerate(new_index):
+                if idx_val in other.index:
+                    pos = other.index.index(idx_val)
+                    value = other.data[orig_col].data[pos]
+                    if value is not None and not isinstance(value, col_type) and col_type != object:
+                        try:
+                            if col_type == str:
+                                value = str(value)
+                            elif col_type == int:
+                                value = int(value)
+                            elif col_type == float:
+                                value = float(value)
+                        except (ValueError, TypeError):
+                            pass
+                    new_data[new_col][i] = value
+
+        result_data = [list(row) for row in zip(*new_data.values())]
+        
+        try:
+            new_df = dataframe(data=result_data, columns=new_columns, index=new_index)
+        except Exception as e:
+            print(f"警告: 创建dataframe时遇到问题: {e}")
+            raise e
+
+        if inplace:
+            self.index = new_df.index
+            self.columns = new_df.columns
+            self.value_types = new_value_types
+            self.data = {col: series(new_df[col].data, index=new_df.index, name=col) for col in new_columns}
+            return self
+        else:
+            return new_df
 
     def _groupBy(self, on, party_number, join = 'outer'):
         on_type = self.value_types[self.columns.index(on)]
