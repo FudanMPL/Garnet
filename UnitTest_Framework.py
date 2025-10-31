@@ -2,6 +2,18 @@ import unittest
 import subprocess
 import re
 import os
+import sys
+
+# 添加 Compiler 目录到 Python 路径
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Compiler'))
+
+# 从 Compiler.dataframe 导入 DataFrame
+try:
+    from Compiler.dataframe import DataFrame
+    print("成功导入 DataFrame")
+except ImportError as e:
+    print(f"导入 DataFrame 失败: {e}")
+    # 如果仍然失败，尝试其他方法
 
 
 def search_result(line, result_output):
@@ -119,6 +131,166 @@ class Test(unittest.TestCase):
 
         print(" 0irsis测试结束 ")
 
+    def test_concat(self):
+        print("concat测试开始 ")
+        
+        # 测试用例1：正常情况下的纵向连接
+        try:
+            df1 = DataFrame(
+                data=[[1, 'A'], [2, 'B']],
+                columns=['id', 'name']
+            )
+            df2 = DataFrame(
+                data=[[3, 'C'], [4, 'D']],
+                columns=['id', 'name']
+            )
+            
+            result = DataFrame.concat([df1, df2], axis=0)
+            
+            self.assertEqual(result.shape[0], 4, "连接后的数据框行数不正确")
+            self.assertEqual(result.columns, ['id', 'name'], "列名不正确")
+            self.assertEqual(result.value_types, [int, str], "值类型不正确")
+            
+            expected_data = [[1, 'A'], [2, 'B'], [3, 'C'], [4, 'D']]
+            for i in range(result.shape[0]):
+                row_data = [result['id'].data[i], result['name'].data[i]]
+                self.assertEqual(row_data, expected_data[i], f"第{i}行数据不正确")
+                
+        except Exception as e:
+            self.fail(f"测试用例1失败：{str(e)}")
+        
+        # 测试用例2：列名不一致的情况（应该报错）
+        try:
+            df1 = DataFrame(
+                data=[[1, 'A']],
+                columns=['id', 'name']
+            )
+            df2 = DataFrame(
+                data=[[2, 'B']],
+                columns=['ID', 'name']
+            )
+            
+            with self.assertRaises(ValueError):
+                DataFrame.concat([df1, df2], axis=0)
+                
+        except Exception as e:
+            self.fail(f"测试用例2失败：{str(e)}")
+        
+        # 测试用例3：值类型不一致的情况（应该报错）
+        try:
+            df1 = DataFrame(
+                data=[[1, 'A']],
+                columns=['id', 'name']
+            )
+            df2 = DataFrame(
+                data=[[2.5, 'B']],
+                columns=['id', 'name']
+            )
+            
+            with self.assertRaises(TypeError):
+                DataFrame.concat([df1, df2], axis=0)
+                
+        except Exception as e:
+            self.fail(f"测试用例3失败：{str(e)}")
+        
+        # 测试用例4：空列表情况（应该报错）
+        try:
+            with self.assertRaises(ValueError):
+                DataFrame.concat([], axis=0)
+                
+        except Exception as e:
+            self.fail(f"测试用例4失败：{str(e)}")
+        
+        # 测试用例5：包含非dataframe对象的情况（应该报错）
+        try:
+            df1 = DataFrame(
+                data=[[1, 'A']],
+                columns=['id', 'name']
+            )
+            
+            with self.assertRaises(TypeError):
+                DataFrame.concat([df1, "not_a_dataframe"], axis=0)
+                
+        except Exception as e:
+            self.fail(f"测试用例5失败：{str(e)}")
+        
+        print("concat测试结束 ")
+
+    def test_join(self):
+        print(" join测试开始 ")
+        
+        # 测试用例1：基本索引合并
+        try:
+            df1_data = [['Alice', 25], ['Bob', 30]]
+            df1_columns = ['name', 'age']
+            df1_index = [1, 2]
+            
+            df2_data = [['Engineer'], ['Designer']]
+            df2_columns = ['job']
+            df2_index = [1, 2]
+            
+            df1 = DataFrame(data=df1_data, columns=df1_columns, index=df1_index)
+            df2 = DataFrame(data=df2_data, columns=df2_columns, index=df2_index)
+            
+            result = df1.join(df2, lsuffix='_left', rsuffix='_right', how='inner')
+            
+            self.assertEqual(len(result.index), 2, "inner join索引数量不正确")
+            self.assertEqual(len(result.columns), 3, "inner join列数量不正确")
+            self.assertIn('name', result.columns)
+            self.assertIn('age', result.columns)
+            self.assertIn('job', result.columns)
+            
+            expected_index = [1, 2]
+            self.assertEqual(result.index, expected_index, "inner join索引不正确")
+            
+        except Exception as e:
+            self.fail(f"测试用例1失败: {e}")
+        
+        # 测试用例2：列名冲突处理
+        try:
+            df1_data = [['Alice', 25], ['Bob', 30]]
+            df1_columns = ['name', 'value']
+            df1_index = [1, 2]
+            
+            df2_data = [[100], [200]]
+            df2_columns = ['value']
+            df2_index = [1, 2]
+            
+            df1 = DataFrame(data=df1_data, columns=df1_columns, index=df1_index)
+            df2 = DataFrame(data=df2_data, columns=df2_columns, index=df2_index)
+            
+            result = df1.join(df2, lsuffix='_left', rsuffix='_right', how='inner')
+            
+            expected_columns = ['name', 'value_left', 'value_right']
+            self.assertEqual(result.columns, expected_columns, "列名冲突处理不正确")
+                    
+        except Exception as e:
+            self.fail(f"测试用例2失败: {e}")
+        
+        # 测试用例3：原地操作
+        try:
+            df1_data = [['Alice', 25], ['Bob', 30]]
+            df1_columns = ['name', 'age']
+            df1_index = [1, 2]
+            
+            df2_data = [['Engineer'], ['Designer']]
+            df2_columns = ['job']
+            df2_index = [1, 2]
+            
+            df1 = DataFrame(data=df1_data, columns=df1_columns, index=df1_index)
+            df2 = DataFrame(data=df2_data, columns=df2_columns, index=df2_index)
+            
+            original_id = id(df1)
+            result = df1.join(df2, inplace=True)
+            
+            self.assertEqual(id(result), original_id, "原地操作未正确执行")
+            self.assertEqual(len(result.index), 2, "原地操作后数据不正确")
+            
+        except Exception as e:
+            self.fail(f"测试用例3失败: {e}")
+        
+        print(" join测试结束 ")
+
     def test_xgboost_training(self):
         print(" xgboost训练测试开始 ")
 
@@ -217,6 +389,8 @@ if __name__ == '__main__':
     suite.addTest(Test("test_machines"))
     suite.addTest(Test("test_arithmetic"))
     suite.addTest(Test("test_0iris"))
+    suite.addTest(Test("test_concat"))
+    suite.addTest(Test("test_join"))
     suite.addTest(Test("test_xgboost_training"))
     # suite.addTest(Test("test_div"))
 
