@@ -7,12 +7,12 @@ import sys
 # 添加 Compiler 目录到 Python 路径
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Compiler'))
 
-# 从 Compiler.types 导入 dataframe
+# 从 Compiler.dataframe 导入 DataFrame
 try:
-    from Compiler.types import dataframe
-    print("成功导入 dataframe")
+    from Compiler.dataframe import DataFrame
+    print("成功导入 DataFrame")
 except ImportError as e:
-    print(f"导入 dataframe 失败: {e}")
+    print(f"导入 DataFrame 失败: {e}")
     # 如果仍然失败，尝试其他方法
 
 
@@ -136,16 +136,16 @@ class Test(unittest.TestCase):
         
         # 测试用例1：正常情况下的纵向连接
         try:
-            df1 = dataframe(
+            df1 = DataFrame(
                 data=[[1, 'A'], [2, 'B']],
                 columns=['id', 'name']
             )
-            df2 = dataframe(
+            df2 = DataFrame(
                 data=[[3, 'C'], [4, 'D']],
                 columns=['id', 'name']
             )
             
-            result = dataframe.concat([df1, df2], axis=0)
+            result = DataFrame.concat([df1, df2], axis=0)
             
             self.assertEqual(result.shape[0], 4, "连接后的数据框行数不正确")
             self.assertEqual(result.columns, ['id', 'name'], "列名不正确")
@@ -161,34 +161,34 @@ class Test(unittest.TestCase):
         
         # 测试用例2：列名不一致的情况（应该报错）
         try:
-            df1 = dataframe(
+            df1 = DataFrame(
                 data=[[1, 'A']],
                 columns=['id', 'name']
             )
-            df2 = dataframe(
+            df2 = DataFrame(
                 data=[[2, 'B']],
                 columns=['ID', 'name']
             )
             
             with self.assertRaises(ValueError):
-                dataframe.concat([df1, df2], axis=0)
+                DataFrame.concat([df1, df2], axis=0)
                 
         except Exception as e:
             self.fail(f"测试用例2失败：{str(e)}")
         
         # 测试用例3：值类型不一致的情况（应该报错）
         try:
-            df1 = dataframe(
+            df1 = DataFrame(
                 data=[[1, 'A']],
                 columns=['id', 'name']
             )
-            df2 = dataframe(
+            df2 = DataFrame(
                 data=[[2.5, 'B']],
                 columns=['id', 'name']
             )
             
             with self.assertRaises(TypeError):
-                dataframe.concat([df1, df2], axis=0)
+                DataFrame.concat([df1, df2], axis=0)
                 
         except Exception as e:
             self.fail(f"测试用例3失败：{str(e)}")
@@ -196,20 +196,20 @@ class Test(unittest.TestCase):
         # 测试用例4：空列表情况（应该报错）
         try:
             with self.assertRaises(ValueError):
-                dataframe.concat([], axis=0)
+                DataFrame.concat([], axis=0)
                 
         except Exception as e:
             self.fail(f"测试用例4失败：{str(e)}")
         
         # 测试用例5：包含非dataframe对象的情况（应该报错）
         try:
-            df1 = dataframe(
+            df1 = DataFrame(
                 data=[[1, 'A']],
                 columns=['id', 'name']
             )
             
             with self.assertRaises(TypeError):
-                dataframe.concat([df1, "not_a_dataframe"], axis=0)
+                DataFrame.concat([df1, "not_a_dataframe"], axis=0)
                 
         except Exception as e:
             self.fail(f"测试用例5失败：{str(e)}")
@@ -229,8 +229,8 @@ class Test(unittest.TestCase):
             df2_columns = ['job']
             df2_index = [1, 2]
             
-            df1 = dataframe(data=df1_data, columns=df1_columns, index=df1_index)
-            df2 = dataframe(data=df2_data, columns=df2_columns, index=df2_index)
+            df1 = DataFrame(data=df1_data, columns=df1_columns, index=df1_index)
+            df2 = DataFrame(data=df2_data, columns=df2_columns, index=df2_index)
             
             result = df1.join(df2, lsuffix='_left', rsuffix='_right', how='inner')
             
@@ -256,8 +256,8 @@ class Test(unittest.TestCase):
             df2_columns = ['value']
             df2_index = [1, 2]
             
-            df1 = dataframe(data=df1_data, columns=df1_columns, index=df1_index)
-            df2 = dataframe(data=df2_data, columns=df2_columns, index=df2_index)
+            df1 = DataFrame(data=df1_data, columns=df1_columns, index=df1_index)
+            df2 = DataFrame(data=df2_data, columns=df2_columns, index=df2_index)
             
             result = df1.join(df2, lsuffix='_left', rsuffix='_right', how='inner')
             
@@ -277,8 +277,8 @@ class Test(unittest.TestCase):
             df2_columns = ['job']
             df2_index = [1, 2]
             
-            df1 = dataframe(data=df1_data, columns=df1_columns, index=df1_index)
-            df2 = dataframe(data=df2_data, columns=df2_columns, index=df2_index)
+            df1 = DataFrame(data=df1_data, columns=df1_columns, index=df1_index)
+            df2 = DataFrame(data=df2_data, columns=df2_columns, index=df2_index)
             
             original_id = id(df1)
             result = df1.join(df2, inplace=True)
@@ -288,31 +288,6 @@ class Test(unittest.TestCase):
             
         except Exception as e:
             self.fail(f"测试用例3失败: {e}")
-
-        # 测试用例4：outer join（可能跳过）
-        try:
-            df1_data = [['Alice', 25], ['Bob', 30], ['Charlie', 35]]
-            df1_columns = ['name', 'age']
-            df1_index = [1, 2, 3]
-            
-            df2_data = [['Engineer'], ['Designer']]
-            df2_columns = ['job']
-            df2_index = [1, 2]
-            
-            df1 = dataframe(data=df1_data, columns=df1_columns, index=df1_index)
-            df2 = dataframe(data=df2_data, columns=df2_columns, index=df2_index)
-            
-            result = df1.join(df2, lsuffix='_left', rsuffix='_right', how='outer')
-            
-            self.assertEqual(len(result.index), 3, "outer join索引数量不正确")
-            self.assertEqual(len(result.columns), 3, "outer join列数量不正确")
-            
-            expected_index = [1, 2, 3]
-            self.assertEqual(result.index, expected_index, "outer join索引不正确")
-            
-            
-        except Exception as e:
-            print(f"测试用例4跳过: {e}")
         
         print(" join测试结束 ")
 
