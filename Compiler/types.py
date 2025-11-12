@@ -6556,6 +6556,16 @@ class SubMultiArray(_vectorizable):
         return MultiArray([size] + list(self.sizes[1:]), self.value_type,
                           address=self[start].address)
 
+    def concat(self, other):
+        """ Concatenate two multi-arrays of matching dimension. """
+        assert self.sizes[1:] == other.sizes[1:]
+        assert self.value_type == other.value_type
+        res = MultiArray((self.sizes[0] + other.sizes[0],) + self.sizes[1:],
+                         self.value_type)
+        res.assign_vector(self[:])
+        res.assign_part_vector(other[:], self.sizes[0])
+        return res
+
     def input_from(self, player, budget=None, raw=False):
         """ Fill with inputs from player if supported by type.
 
