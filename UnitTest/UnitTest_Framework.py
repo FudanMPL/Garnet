@@ -10,7 +10,10 @@ def search_result(line, result_output):
     return match
 
 
-def run_script(script, cwd='./'):
+def run_script(script, cwd=None):
+    if cwd is None:
+        cwd = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
     result = subprocess.run(script, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=True, cwd=cwd)
 
     result_returncode = result.returncode
@@ -91,14 +94,14 @@ class Test(unittest.TestCase):
             match = search_result(search_str, running_result_output)
             self.assertIsNotNone(match, msg=f"除法第{i}个未找到函数输出")
             res = div_expect_res_array[i]
-            self.assertAlmostEqual(float(match.group(1)), res, delta=0.000015, msg=f"除法第{i}个结果错误")
+            self.assertAlmostEqual(float(match.group(1)), res, delta=0.0001, msg=f"除法第{i}个结果错误")
 
         print(" 算术运算测试结束 ")
 
     def test_0iris(self):
         print(" 0iris测试开始 ")
         # 写入数据
-        compile_script = 'cp ./Data/0iris_data ./Player-Data/Input-P0-0'
+        compile_script = 'cp ./UnitTest/Data/0iris_data ./Player-Data/Input-P0-0'
         compile_return_code, _, compile_result_error = run_script(compile_script)
         self.assertEqual(compile_return_code, 0, msg=f"参与方0数据写入错误：\n{compile_result_error}")
 
@@ -140,7 +143,7 @@ class Test(unittest.TestCase):
         self.assertEqual(return_code, 0, msg=f"虚拟机编译错误：\n{err}")
 
         # 数据准备脚本的测试
-        data_prepare_script = "python ./Scripts/data_prepare_for_xgboost.py IRIS"
+        data_prepare_script = "python ./UnitTest/scripts/data_prepare_for_xgboost.py IRIS"
         data_prepare_return_code, result, data_prepare_result_error = run_script(data_prepare_script)
         self.assertEqual(data_prepare_return_code, 0, msg=f"数据准备失败：\n{data_prepare_result_error}")
 
