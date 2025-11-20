@@ -254,6 +254,8 @@ void Processor<sint, sgf2n>::write_socket(const RegType reg_type,
     socket_stream.store(message_type);
   }
 
+  auto rec_factor = sint::get_rec_factor(P.my_num(), P.num_players());
+
   for (int j = 0; j < size; j++)
   {
     for (int i = 0; i < m; i++)
@@ -264,7 +266,8 @@ void Processor<sint, sgf2n>::write_socket(const RegType reg_type,
         if (send_macs)
           get_Sp_ref(registers[i] + j).pack(socket_stream);
         else
-          get_Sp_ref(registers[i] + j).pack(socket_stream, sint::get_rec_factor(P.my_num(), P.num_players()));
+          // get_Sp_ref(registers[i] + j).pack(socket_stream, sint::get_rec_factor(P.my_num(), P.num_players()));
+          get_Sp_ref(registers[i] + j).pack(socket_stream, rec_factor);
       }
       else if (reg_type == CINT)
       {
