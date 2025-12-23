@@ -568,6 +568,7 @@ void EvalRegister::inputb(GC::Processor<GC::Secret<EvalRegister> >& processor,
 	octetStream& my_os = oss[party.get_id() - 1];
 	vector<InputAccess> accesses;
 	InputArgList a(args);
+	processor.complexity += a.n_input_bits();
 	for (auto x : a)
 	{
 		accesses.push_back({x , processor});
