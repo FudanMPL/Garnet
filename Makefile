@@ -221,6 +221,13 @@ tree-inference.x: Machines/tree-inference.cpp  $(MINI_OT) $(SHAREDLIB)
 knn-party.x: Machines/knn-party.cpp  $(MINI_OT) $(SHAREDLIB) $(MATH)
 	$(CXX)  -o $@ $(CFLAGS) $^ $(LDLIBS)  $(SHAREDLIB)
 
+# ANN 隐私保护近似最近邻检索
+ann-party-offline.x: Machines/ann-party-offline.cpp $(SHAREDLIB) $(MATH)
+	$(CXX) -o $@ $(CFLAGS) $^ $(LDLIBS) $(SHAREDLIB)
+
+ann-party.x: Machines/ann-party.cpp $(MINI_OT) $(SHAREDLIB) $(MATH)
+	$(CXX) -o $@ $(CFLAGS) $^ $(LDLIBS) $(SHAREDLIB)
+
 
 tree-inference.x:   Machines/tree-inference.cpp
 replicated-bin-party.x: GC/square64.o
