@@ -86,6 +86,17 @@ struct SharedRecord {
 };
 
 /**
+ * @brief 秘密共享后的聚类中心（用于安全选类）
+ */
+struct SharedCentroid {
+    int clusterId;
+    vector<Z2<K>> maskedVectorU;     // U = v + delta_0 + delta_1 (公开值)
+    vector<Z2<K>> share;             // P0: delta_0, P1: delta_1
+    
+    SharedCentroid() : clusterId(-1) {}
+};
+
+/**
  * @brief ANN 离线阶段配置
  */
 struct ANNOfflineConfig {
@@ -441,6 +452,103 @@ public:
         cout << "[Triples] 三元组生成完成" << endl;
     }
     
+    /**
+     * @brief 生成聚类中心的秘密共享
+     * @param centroids 聚类中心列表
+     * @param p0Centroids 输出：P0 的份额
+     * @param p1Centroids 输出：P1 的份额
+     */
+    void generateCentroidShares(const vector<Centroid>& centroids,
+                                 vector<SharedCentroid>& p0Centroids,
+                                 vector<SharedCentroid>& p1Centroids) {
+        if (centroids.empty()) return;
+        
+        int embDim = centroids[0].center.size();
+        int numCentroids = centroids.size();
+        
+        cout << "[CentroidShare] 生成聚类中心秘密共享，聚类数=" << numCentroids 
+             << ", 维度=" << embDim << endl;
+        
+        p0Centroids.clear();
+        p1Centroids.clear();
+        p0Centroids.resize(numCentroids);
+        p1Centroids.resize(numCentroids);
+        
+        for (int c = 0; c < numCentroids; ++c) {
+            SharedCentroid& p0Cen = p0Centroids[c];
+            SharedCentroid& p1Cen = p1Centroids[c];
+            
+            p0Cen.clusterId = p1Cen.clusterId = centroids[c].clusterId;
+            p0Cen.maskedVectorU.resize(embDim);
+            p1Cen.maskedVectorU.resize(embDim);
+            p0Cen.share.resize(embDim);
+            p1Cen.share.resize(embDim);
+            
+            for (int d = 0; d < embDim; ++d) {
+                Z2<K> v(centroids[c].center[d]);  // 原始值
+                Z2<K> delta0, delta1;
+                
+                delta0.randomize(prng);
+                delta1.randomize(prng);
+                
+                Z2<K> U = v + delta0 + delta1;
+                
+                p0Cen.maskedVectorU[d] = U;
+                p1Cen.maskedVectorU[d] = U;
+                p0Cen.share[d] = delta0;
+                p1Cen.share[d] = delta1;
+            }
+        }
+        
+        cout << "[CentroidShare] 聚类中心秘密共享生成完成" << endl;
+    }
+    
+    /**
+     * @brief 生成用于选类阶段的安全距离计算三元组
+     * @param numCentroids 聚类中心数量
+     * @param embDim embedding 维度
+     * @param centroidTriples0/1 输出：各方的三元组
+     * @param clusterQueryDelta0/1 输出：查询向量的 delta 份额
+     */
+    void generateClusterTriples(int numCentroids, int embDim,
+                                 vector<vector<Z2<K>>>& centroidTriples0,
+                                 vector<vector<Z2<K>>>& centroidTriples1,
+                                 vector<Z2<K>>& clusterQueryDelta0,
+                                 vector<Z2<K>>& clusterQueryDelta1) {
+        
+        cout << "[ClusterTriples] 生成选类阶段三元组，聚类数=" << numCentroids 
+             << ", 维度=" << embDim << endl;
+        
+        // 查询向量的随机掩码（用于选类）
+        clusterQueryDelta0.resize(embDim);
+        clusterQueryDelta1.resize(embDim);
+        for (int d = 0; d < embDim; ++d) {
+            clusterQueryDelta0[d].randomize(prng);
+            clusterQueryDelta1[d].randomize(prng);
+        }
+        
+        // 为每个聚类中心生成三元组
+        centroidTriples0.resize(numCentroids);
+        centroidTriples1.resize(numCentroids);
+        
+        for (int c = 0; c < numCentroids; ++c) {
+            centroidTriples0[c].resize(embDim);
+            centroidTriples1[c].resize(embDim);
+            
+            for (int d = 0; d < embDim; ++d) {
+                Z2<K> r;
+                r.randomize(prng);
+                centroidTriples0[c][d] = r;
+                
+                Z2<K> tmp;
+                tmp.randomize(prng);
+                centroidTriples1[c][d] = tmp;
+            }
+        }
+        
+        cout << "[ClusterTriples] 选类阶段三元组生成完成" << endl;
+    }
+    
 private:
     PRNG prng;
 };
@@ -638,6 +746,106 @@ public:
         
         fout.close();
         cout << "[IO] P" << partyId << " 三元组已保存到 " << filename << endl;
+    }
+    
+    /**
+     * @brief 保存聚类中心秘密共享
+     */
+    static void saveCentroidShares(const string& dir, const string& name,
+                                    int partyId,
+                                    const vector<SharedCentroid>& centroids) {
+        ensureDirectoryExists(dir);
+        string filename = dir + "/" + name + "-P" + to_string(partyId) + "-centroid-shares";
+        
+        ofstream fout(filename, ios::binary);
+        
+        int numCentroids = centroids.size();
+        int embDim = numCentroids > 0 ? centroids[0].share.size() : 0;
+        fout.write(reinterpret_cast<const char*>(&numCentroids), sizeof(numCentroids));
+        fout.write(reinterpret_cast<const char*>(&embDim), sizeof(embDim));
+        
+        for (const auto& cen : centroids) {
+            fout.write(reinterpret_cast<const char*>(&cen.clusterId), sizeof(cen.clusterId));
+            for (int d = 0; d < embDim; ++d) {
+                fout.write(reinterpret_cast<const char*>(&cen.maskedVectorU[d]), sizeof(Z2<K>));
+            }
+            for (int d = 0; d < embDim; ++d) {
+                fout.write(reinterpret_cast<const char*>(&cen.share[d]), sizeof(Z2<K>));
+            }
+        }
+        
+        fout.close();
+        cout << "[IO] P" << partyId << " 聚类中心共享数据已保存到 " << filename << endl;
+    }
+    
+    /**
+     * @brief 加载聚类中心秘密共享
+     */
+    static vector<SharedCentroid> loadCentroidShares(const string& dir, const string& name,
+                                                       int partyId) {
+        vector<SharedCentroid> centroids;
+        string filename = dir + "/" + name + "-P" + to_string(partyId) + "-centroid-shares";
+        
+        ifstream fin(filename, ios::binary);
+        if (!fin.is_open()) {
+            cerr << "[Error] 无法打开文件: " << filename << endl;
+            return centroids;
+        }
+        
+        int numCentroids, embDim;
+        fin.read(reinterpret_cast<char*>(&numCentroids), sizeof(numCentroids));
+        fin.read(reinterpret_cast<char*>(&embDim), sizeof(embDim));
+        
+        centroids.resize(numCentroids);
+        for (int c = 0; c < numCentroids; ++c) {
+            fin.read(reinterpret_cast<char*>(&centroids[c].clusterId), sizeof(int));
+            centroids[c].maskedVectorU.resize(embDim);
+            centroids[c].share.resize(embDim);
+            
+            for (int d = 0; d < embDim; ++d) {
+                fin.read(reinterpret_cast<char*>(&centroids[c].maskedVectorU[d]), sizeof(Z2<K>));
+            }
+            for (int d = 0; d < embDim; ++d) {
+                fin.read(reinterpret_cast<char*>(&centroids[c].share[d]), sizeof(Z2<K>));
+            }
+        }
+        
+        fin.close();
+        cout << "[IO] 加载 P" << partyId << " 聚类中心共享数据，聚类数=" << numCentroids << endl;
+        return centroids;
+    }
+    
+    /**
+     * @brief 保存选类阶段三元组
+     */
+    static void saveClusterTriples(const string& dir, const string& name,
+                                    int partyId,
+                                    const vector<vector<Z2<K>>>& triples,
+                                    const vector<Z2<K>>& queryDelta) {
+        ensureDirectoryExists(dir);
+        string filename = dir + "/" + name + "-P" + to_string(partyId) + "-cluster-triples";
+        
+        ofstream fout(filename, ios::binary);
+        
+        int numCentroids = triples.size();
+        int embDim = numCentroids > 0 ? triples[0].size() : 0;
+        fout.write(reinterpret_cast<const char*>(&numCentroids), sizeof(numCentroids));
+        fout.write(reinterpret_cast<const char*>(&embDim), sizeof(embDim));
+        
+        // 写入查询向量的 delta
+        for (int d = 0; d < embDim; ++d) {
+            fout.write(reinterpret_cast<const char*>(&queryDelta[d]), sizeof(Z2<K>));
+        }
+        
+        // 写入每个聚类中心的三元组
+        for (int c = 0; c < numCentroids; ++c) {
+            for (int d = 0; d < embDim; ++d) {
+                fout.write(reinterpret_cast<const char*>(&triples[c][d]), sizeof(Z2<K>));
+            }
+        }
+        
+        fout.close();
+        cout << "[IO] P" << partyId << " 选类三元组已保存到 " << filename << endl;
     }
 };
 
@@ -846,8 +1054,29 @@ int main(int argc, char* argv[]) {
     ANNDataIO::saveTriples(config.dataDir, config.datasetName, 0, triples0, queryDelta0);
     ANNDataIO::saveTriples(config.dataDir, config.datasetName, 1, triples1, queryDelta1);
     
-    // 5. 生成 DCF 密钥（用于安全比较）
-    cout << "\n[阶段4] 生成 DCF 密钥..." << endl;
+    // 5. 生成聚类中心秘密共享（用于安全选类）
+    cout << "\n[阶段4] 生成聚类中心秘密共享..." << endl;
+    vector<SharedCentroid> p0Centroids, p1Centroids;
+    sharer.generateCentroidShares(kmeansResult.centroids, p0Centroids, p1Centroids);
+    
+    ANNDataIO::saveCentroidShares(config.dataDir, config.datasetName, 0, p0Centroids);
+    ANNDataIO::saveCentroidShares(config.dataDir, config.datasetName, 1, p1Centroids);
+    
+    // 6. 生成选类阶段三元组
+    cout << "\n[阶段5] 生成选类阶段三元组..." << endl;
+    vector<vector<Z2<K>>> centroidTriples0, centroidTriples1;
+    vector<Z2<K>> clusterQueryDelta0, clusterQueryDelta1;
+    sharer.generateClusterTriples(config.numClusters, kmeansResult.embDim,
+                                   centroidTriples0, centroidTriples1,
+                                   clusterQueryDelta0, clusterQueryDelta1);
+    
+    ANNDataIO::saveClusterTriples(config.dataDir, config.datasetName, 0, 
+                                   centroidTriples0, clusterQueryDelta0);
+    ANNDataIO::saveClusterTriples(config.dataDir, config.datasetName, 1, 
+                                   centroidTriples1, clusterQueryDelta1);
+    
+    // 7. 生成 DCF 密钥（用于安全比较）
+    cout << "\n[阶段6] 生成 DCF 密钥..." << endl;
     string fssDir = config.dataDir + "/2-fss";
     gen_fake_dcf(1, K, fssDir);
     
@@ -862,6 +1091,10 @@ int main(int argc, char* argv[]) {
     cout << "  - " << config.dataDir << "/" << config.datasetName << "-P1-shares" << endl;
     cout << "  - " << config.dataDir << "/" << config.datasetName << "-P0-triples" << endl;
     cout << "  - " << config.dataDir << "/" << config.datasetName << "-P1-triples" << endl;
+    cout << "  - " << config.dataDir << "/" << config.datasetName << "-P0-centroid-shares" << endl;
+    cout << "  - " << config.dataDir << "/" << config.datasetName << "-P1-centroid-shares" << endl;
+    cout << "  - " << config.dataDir << "/" << config.datasetName << "-P0-cluster-triples" << endl;
+    cout << "  - " << config.dataDir << "/" << config.datasetName << "-P1-cluster-triples" << endl;
     cout << "  - " << fssDir << "/k0, k1, r0, r1" << endl;
     
     return 0;

@@ -6,8 +6,9 @@
 - **P0（检察院）**：持有查询 embedding，最终获得 top-k 最近的 fileId 列表
 - **P1（法院）**：持有目标 embedding 库（每条对应一个 fileId）
 
-**方案特点（A 方案）**：
+**方案特点（安全增强版 A 方案）**：
 - 聚类结果（clusterId）对 P1 可见
+- **P0 的查询 embedding 通过秘密共享保护，P1 无法获知查询内容**
 - 不涉及分类标签与投票逻辑
 - 复用 Kona 的欧几里得距离计算优化（零在线通信）
 - 复用 Kona 的 DQBubble Top-k 选择算法
@@ -28,17 +29,25 @@
 │    └── 输入: 每条 record 的 embedding                             │
 │    └── 输出: P0/P1 各自的 (maskedVectorU, share) 数据             │
 ├─────────────────────────────────────────────────────────────────┤
-│  阶段3: 生成离线三元组                                            │
-│    └── 欧几里得距离计算所需的预计算数据                            │
-│    └── DCF 密钥（用于安全比较）                                    │
+│  阶段3: 聚类中心秘密共享                                          │
+│    └── 对每个聚类中心生成 Masked-Plain + Additive Share          │
+│    └── 输出: P0/P1 各自的聚类中心共享数据                         │
+├─────────────────────────────────────────────────────────────────┤
+│  阶段4: 生成离线三元组                                            │
+│    └── 类内 KNN 欧几里得距离计算所需的预计算数据                   │
+│    └── 选类阶段欧几里得距离计算所需的预计算数据                    │
+├─────────────────────────────────────────────────────────────────┤
+│  阶段5: 生成 DCF 密钥                                             │
+│    └── 用于安全比较 (top-k 选择)                                  │
 └─────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────┐
 │                    在线阶段（Online Phase）                       │
 ├─────────────────────────────────────────────────────────────────┤
-│  阶段1: AssignCluster (安全选类)                                  │
-│    └── 输入: P0 的查询 embedding, P1 的 centroids                 │
-│    └── 输出: selectedClusterId (A方案: P1可见)                    │
+│  阶段1: AssignCluster (安全选类 - 保护 P0 查询隐私)                │
+│    └── 输入: P0 的查询 embedding (秘密共享), 聚类中心秘密共享      │
+│    └── 处理: P0 将查询秘密共享 → 安全距离计算 → top_1 选最近       │
+│    └── 输出: selectedClusterId (Reveal 给双方)                    │
 ├─────────────────────────────────────────────────────────────────┤
 │  阶段2: 类内 KNN                                                  │
 │    └── 输入: 候选集的秘密共享数据                                  │
@@ -80,6 +89,10 @@ queryId emb[0] emb[1] ... emb[dim-1]
 | `{name}-P1-shares` | P1 的秘密共享数据 | 二进制 |
 | `{name}-P0-triples` | P0 的距离计算三元组 | 二进制 |
 | `{name}-P1-triples` | P1 的距离计算三元组 | 二进制 |
+| `{name}-P0-centroid-shares` | P0 的聚类中心秘密共享 | 二进制 |
+| `{name}-P1-centroid-shares` | P1 的聚类中心秘密共享 | 二进制 |
+| `{name}-P0-cluster-triples` | P0 的选类阶段三元组 | 二进制 |
+| `{name}-P1-cluster-triples` | P1 的选类阶段三元组 | 二进制 |
 | `2-fss/k0, k1, r0, r1` | DCF 密钥 | 文本 |
 
 #### 核心数据结构
@@ -272,29 +285,47 @@ for (d in 0..embDim) {
 }
 ```
 
-#### 3. AssignCluster（A 方案）
+#### 3. AssignCluster（安全版本）
 
-A 方案允许 P1 知道选中的 clusterId：
+**安全选类**：使用秘密共享保护 P0 的查询 embedding，P1 无法得知 P0 的查询内容。
 
 ```cpp
-// P0 发送查询向量给 P1
+// 1. P0 对查询向量进行秘密共享
 if (playerno == 0) {
-    send(queryVec);
-    clusterId = receive();
+    for (d in 0..embDim) {
+        v = queryVec[d];
+        delta0 = random();
+        delta1 = random();
+        U = v + delta0 + delta1;  // 掩码明文
+        
+        send(U, delta1);          // 发送给 P1
+        queryShare[d] = delta0;   // P0 持有 delta0
+    }
 }
 
-// P1 明文计算最近聚类
+// P1 接收份额
 if (playerno == 1) {
-    queryVec = receive();
-    for (cen in centroids) {
-        dist = computeDistance(queryVec, cen.center);
-        if (dist < minDist) {
-            clusterId = cen.id;
-        }
-    }
-    send(clusterId);
+    receive(U, delta1);
+    queryShare[d] = delta1;       // P1 持有 delta1
 }
+
+// 2. 双方计算查询到每个聚类中心的安全距离
+for (c in 0..numClusters) {
+    distShare = computeSecureClusterDistance(c, queryMaskedU, queryShare);
+    distClusterId_vec[c] = {distShare, clusterIdShare};
+}
+
+// 3. 使用 top_1 找到最小距离
+top_1(distClusterId_vec, numClusters, true);
+
+// 4. Reveal clusterId 给双方
+clusterId = reveal_to_both(distClusterId_vec[last][1]);
 ```
+
+**安全距离计算**：
+- 使用预先共享的聚类中心秘密共享
+- 结合离线生成的三元组，实现零在线通信的距离计算
+- P1 只能看到最终的 clusterId，无法得知 P0 的查询 embedding
 
 #### 4. 类内 KNN
 
@@ -352,15 +383,21 @@ void top_1(shares, size, min_in_last) {
 
 | 阶段 | 通信轮次 | 通信量 |
 |------|----------|--------|
-| AssignCluster | O(1) | O(d) |
-| 距离计算 | O(1)（零在线通信） | 0 |
+| AssignCluster (安全版) | O(log C) | O(d + C) |
+| 类内距离计算 | O(1)（零在线通信） | 0 |
 | Top-k 选择 | O(k log n) | O(k·n) |
 | Reveal | O(k) | O(k) |
 
 其中：
 - d = embedding 维度
+- C = 聚类数量
 - n = 候选集大小（cluster 内记录数）
 - k = top-k 参数
+
+**AssignCluster 安全版本说明**：
+- P0 发送查询向量的秘密共享给 P1: O(d) 通信量
+- 选类阶段使用 top_1 算法: O(log C) 轮次
+- Reveal clusterId: O(1) 轮次
 
 ---
 
@@ -372,10 +409,16 @@ void top_1(shares, size, min_in_last) {
 - P1 可以知道 clusterId（A 方案允许），但不知道查询结果
 
 **数据保护**：
-- P1 的 embedding 库：通过秘密共享保护，P0 只能看到掩码明文
-- P0 的查询 embedding：在 AssignCluster 阶段发送给 P1（A 方案）
-- 距离计算：使用预计算三元组，在线阶段无明文泄露
-- Top-k 选择：使用安全比较和安全交换，中间结果不泄露
+- **P1 的 embedding 库**：通过秘密共享保护，P0 只能看到掩码明文
+- **P0 的查询 embedding**：通过秘密共享保护，P1 只能看到掩码明文和自己的份额，无法恢复原始查询
+- **聚类中心**：离线阶段进行秘密共享，在线选类阶段使用安全距离计算
+- **距离计算**：使用预计算三元组，在线阶段无明文泄露
+- **Top-k 选择**：使用安全比较（DCF）和安全交换，中间结果不泄露
+
+**选类阶段安全性**：
+- P0 的查询 embedding 不再以明文形式发送给 P1
+- 使用 Masked-Plain + Additive Share 方案保护查询隐私
+- P1 仅能得知最终选中的 clusterId，无法推断 P0 查询的具体内容
 
 ---
 

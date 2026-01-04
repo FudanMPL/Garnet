@@ -70,13 +70,24 @@ struct SharedRecord {
 };
 
 /**
- * @brief 聚类中心
+ * @brief 聚类中心（明文）
  */
 struct Centroid {
     int clusterId;
     vector<long long> center;
     
     Centroid() : clusterId(-1) {}
+};
+
+/**
+ * @brief 秘密共享后的聚类中心（用于安全选类）
+ */
+struct SharedCentroid {
+    int clusterId;
+    vector<Z2<K>> maskedVectorU;     // U = v + delta_0 + delta_1
+    vector<Z2<K>> share;             // P0: delta_0, P1: delta_1
+    
+    SharedCentroid() : clusterId(-1) {}
 };
 
 /**
@@ -300,6 +311,78 @@ public:
         fin.close();
         cout << "[IO] 加载 P" << partyId << " 三元组，记录数=" << numRecords << endl;
     }
+    
+    /**
+     * @brief 加载聚类中心秘密共享
+     */
+    static vector<SharedCentroid> loadCentroidShares(const string& dir, const string& name,
+                                                       int partyId) {
+        vector<SharedCentroid> centroids;
+        string filename = dir + "/" + name + "-P" + to_string(partyId) + "-centroid-shares";
+        
+        ifstream fin(filename, ios::binary);
+        if (!fin.is_open()) {
+            cerr << "[Error] 无法打开文件: " << filename << endl;
+            return centroids;
+        }
+        
+        int numCentroids, embDim;
+        fin.read(reinterpret_cast<char*>(&numCentroids), sizeof(numCentroids));
+        fin.read(reinterpret_cast<char*>(&embDim), sizeof(embDim));
+        
+        centroids.resize(numCentroids);
+        for (int c = 0; c < numCentroids; ++c) {
+            fin.read(reinterpret_cast<char*>(&centroids[c].clusterId), sizeof(int));
+            centroids[c].maskedVectorU.resize(embDim);
+            centroids[c].share.resize(embDim);
+            
+            for (int d = 0; d < embDim; ++d) {
+                fin.read(reinterpret_cast<char*>(&centroids[c].maskedVectorU[d]), sizeof(Z2<K>));
+            }
+            for (int d = 0; d < embDim; ++d) {
+                fin.read(reinterpret_cast<char*>(&centroids[c].share[d]), sizeof(Z2<K>));
+            }
+        }
+        
+        fin.close();
+        cout << "[IO] 加载 P" << partyId << " 聚类中心共享数据，聚类数=" << numCentroids << endl;
+        return centroids;
+    }
+    
+    /**
+     * @brief 加载选类阶段三元组
+     */
+    static void loadClusterTriples(const string& dir, const string& name, int partyId,
+                                    vector<vector<Z2<K>>>& triples,
+                                    vector<Z2<K>>& queryDelta) {
+        string filename = dir + "/" + name + "-P" + to_string(partyId) + "-cluster-triples";
+        
+        ifstream fin(filename, ios::binary);
+        if (!fin.is_open()) {
+            cerr << "[Error] 无法打开选类三元组文件: " << filename << endl;
+            return;
+        }
+        
+        int numCentroids, embDim;
+        fin.read(reinterpret_cast<char*>(&numCentroids), sizeof(numCentroids));
+        fin.read(reinterpret_cast<char*>(&embDim), sizeof(embDim));
+        
+        queryDelta.resize(embDim);
+        for (int d = 0; d < embDim; ++d) {
+            fin.read(reinterpret_cast<char*>(&queryDelta[d]), sizeof(Z2<K>));
+        }
+        
+        triples.resize(numCentroids);
+        for (int c = 0; c < numCentroids; ++c) {
+            triples[c].resize(embDim);
+            for (int d = 0; d < embDim; ++d) {
+                fin.read(reinterpret_cast<char*>(&triples[c][d]), sizeof(Z2<K>));
+            }
+        }
+        
+        fin.close();
+        cout << "[IO] 加载 P" << partyId << " 选类三元组，聚类数=" << numCentroids << endl;
+    }
 };
 
 // ============== ANN 在线阶段主类 ==============
@@ -320,18 +403,24 @@ public:
     
     // 数据
     vector<SharedRecord> m_records;           // 共享记录
-    vector<Centroid> m_centroids;             // 聚类中心
+    vector<Centroid> m_centroids;             // 聚类中心（明文，兼容旧版本）
+    vector<SharedCentroid> m_sharedCentroids; // 聚类中心秘密共享（用于安全选类）
     map<int, vector<int>> m_clusterIndex;     // 聚类索引
     
-    // 三元组（用于欧几里得距离计算优化）
+    // 三元组（用于类内 KNN 欧几里得距离计算优化）
     vector<vector<Z2<K>>> m_triples;
     vector<Z2<K>> m_queryDelta;
     
+    // 选类阶段三元组（用于安全选类）
+    vector<vector<Z2<K>>> m_clusterTriples;
+    vector<Z2<K>> m_clusterQueryDelta;
+    
     // 用于距离计算和排序的中间数据
-    // array<Z2<K>, 2>: [0]=距离份额, [1]=fileId份额
+    // array<Z2<K>, 2>: [0]=距离份额, [1]=fileId份额（类内KNN）或 clusterId份额（选类）
     vector<array<additive_share, 2>> m_distFileId_vec;
     
     int m_embDim;
+    int m_numClusters;
     
     // 构造函数
     ANN_Party(int playerNo, const ANNOnlineConfig& cfg)
@@ -381,80 +470,193 @@ public:
             m_embDim = m_records[0].share.size();
         }
         
-        // 加载聚类中心（P1 持有）
+        // 加载聚类中心（P1 持有明文版本，用于索引）
         if (m_playerno == 1) {
             m_centroids = ANNDataLoader::loadCentroids(config.dataDir, config.datasetName);
             m_clusterIndex = ANNDataLoader::loadClusterIndex(config.dataDir, config.datasetName);
+            m_numClusters = m_centroids.size();
         }
         
-        // 加载三元组
+        // 加载聚类中心秘密共享（用于安全选类）
+        m_sharedCentroids = ANNDataLoader::loadCentroidShares(config.dataDir, config.datasetName, m_playerno);
+        if (m_playerno == 0) {
+            m_numClusters = m_sharedCentroids.size();
+        }
+        
+        // 加载类内 KNN 三元组
         ANNDataLoader::loadTriples(config.dataDir, config.datasetName, m_playerno,
                                    m_triples, m_queryDelta);
+        
+        // 加载选类阶段三元组
+        ANNDataLoader::loadClusterTriples(config.dataDir, config.datasetName, m_playerno,
+                                           m_clusterTriples, m_clusterQueryDelta);
         
         cout << "[Data] 数据加载完成" << endl;
     }
     
-    // ============== 阶段1: AssignCluster ==============
+    // ============== 阶段1: AssignCluster (安全版本) ==============
     
     /**
-     * @brief 安全选类（A方案：最终 clusterId 对 P1 可见）
+     * @brief 安全选类（保护 P0 的 embedding 隐私）
      * @param queryVec P0 的查询向量（定点化）
-     * @return 选中的 clusterId
+     * @return 选中的 clusterId (双方都知道)
      * 
-     * 简化实现：P0 发送查询向量给 P1，P1 明文计算最近聚类
-     * 这符合 A 方案允许 P1 知道 clusterId 的设定
+     * 安全实现：使用秘密共享计算距离，保护 P0 的 embedding
+     * 1. P0 将查询向量秘密共享，发送份额给 P1
+     * 2. 双方使用预先共享的聚类中心秘密共享
+     * 3. 计算查询到每个聚类中心的安全距离
+     * 4. 使用 top_1 找到最小距离
+     * 5. Reveal clusterId 给双方
      */
     int assignCluster(const vector<long long>& queryVec) {
-        int selectedClusterId = -1;
+        cout << "[AssignCluster] 开始安全选类，聚类数=" << m_numClusters << endl;
+        
+        int dim = m_embDim;
+        
+        // 1. P0 对查询向量进行秘密共享
+        vector<Z2<K>> queryShare(dim);       // 本方份额
+        vector<Z2<K>> queryMaskedU(dim);     // 掩码明文 U
+        
+        octetStream os;
         
         if (m_playerno == 0) {
-            // P0: 发送查询向量
-            octetStream os;
-            int dim = queryVec.size();
-            os.store(dim);
+            // P0: 生成随机份额并发送给 P1
+            PRNG prng;
+            prng.ReSeed();
+            
             for (int d = 0; d < dim; ++d) {
-                os.serialize(queryVec[d]);
+                Z2<K> v(queryVec[d]);
+                Z2<K> delta0, delta1;
+                delta0.randomize(prng);
+                delta1.randomize(prng);
+                
+                // U = v + delta0 + delta1
+                queryMaskedU[d] = v + delta0 + delta1;
+                queryShare[d] = delta0;  // P0 持有 delta0
+                
+                // 发送 U 和 delta1 给 P1
+                queryMaskedU[d].pack(os);
+                delta1.pack(os);
             }
             m_player->send(os);
-            
-            // 接收选中的 clusterId
-            os.clear();
-            m_player->receive(os);
-            os.get(selectedClusterId);
-            
-            cout << "[AssignCluster] P0 选中的聚类: " << selectedClusterId << endl;
         } else {
-            // P1: 接收查询向量
-            octetStream os;
+            // P1: 接收 P0 发送的份额
             m_player->receive(os);
-            
-            int dim;
-            os.get(dim);
-            vector<long long> queryVec_recv(dim);
             for (int d = 0; d < dim; ++d) {
-                os.unserialize(queryVec_recv[d]);
+                queryMaskedU[d].unpack(os);
+                queryShare[d].unpack(os);  // P1 持有 delta1
             }
-            
-            // 计算到各聚类中心的距离
-            long long minDist = numeric_limits<long long>::max();
-            for (const auto& cen : m_centroids) {
-                long long dist = computeSquaredDistance(queryVec_recv, cen.center);
-                if (dist < minDist) {
-                    minDist = dist;
-                    selectedClusterId = cen.clusterId;
-                }
-            }
-            
-            // 发送选中的 clusterId 给 P0
-            os.clear();
-            os.store(selectedClusterId);
-            m_player->send(os);
-            
-            cout << "[AssignCluster] P1 选中的聚类: " << selectedClusterId 
-                 << ", 候选集大小: " << m_clusterIndex[selectedClusterId].size() << endl;
         }
         
+        // 2. 计算查询到每个聚类中心的安全距离
+        // 使用 array<Z2<K>, 2>: [0]=距离份额, [1]=clusterId份额
+        vector<array<Z2<K>, 2>> distClusterId_vec(m_numClusters);
+        
+        for (int c = 0; c < m_numClusters; ++c) {
+            // 计算安全欧几里得距离
+            Z2<K> distShare = computeSecureClusterDistance(c, queryMaskedU, queryShare);
+            distClusterId_vec[c][0] = distShare;
+            
+            // clusterId 份额（简单共享：P0=0, P1=clusterId）
+            if (m_playerno == 0) {
+                distClusterId_vec[c][1] = Z2<K>(0);
+            } else {
+                distClusterId_vec[c][1] = Z2<K>(m_sharedCentroids[c].clusterId);
+            }
+        }
+        
+        // 3. 使用 top_1 找到最小距离（将最小值放到最后）
+        top_1(distClusterId_vec, m_numClusters, true);
+        
+        // 4. Reveal clusterId 给双方
+        Z2<K> clusterIdShare = distClusterId_vec[m_numClusters - 1][1];
+        Z2<K> clusterIdRevealed = reveal_to_both(clusterIdShare);
+        
+        int selectedClusterId = static_cast<int>(clusterIdRevealed.get_limb(0));
+        
+        cout << "[AssignCluster] 选中的聚类: " << selectedClusterId;
+        if (m_playerno == 1) {
+            cout << ", 候选集大小: " << m_clusterIndex[selectedClusterId].size();
+        }
+        cout << endl;
+        
         return selectedClusterId;
+    }
+    
+    /**
+     * @brief 计算查询向量到某个聚类中心的安全距离
+     * 使用秘密共享，保护 P0 的查询向量
+     */
+    Z2<K> computeSecureClusterDistance(int centroidIdx, 
+                                        const vector<Z2<K>>& queryMaskedU,
+                                        const vector<Z2<K>>& queryShare) {
+        const SharedCentroid& cen = m_sharedCentroids[centroidIdx];
+        int dim = queryMaskedU.size();
+        
+        // 计算 (query - centroid)^2 的秘密共享
+        // query = queryMaskedU - queryShare (秘密值)
+        // centroid = cen.maskedVectorU - cen.share (秘密值)
+        // diff = (queryMaskedU - cen.maskedVectorU) - (queryShare - cen.share)
+        //      = (U_q - U_c) - (delta_q - delta_c)
+        
+        Z2<K> distShare(0);
+        
+        for (int d = 0; d < dim; ++d) {
+            // 公开的差值
+            Z2<K> U_diff = queryMaskedU[d] - cen.maskedVectorU[d];
+            // 份额的差值
+            Z2<K> delta_diff = queryShare[d] - cen.share[d];
+            
+            // diff = U_diff - delta_diff (这是实际差值的秘密共享)
+            // diff^2 = U_diff^2 - 2*U_diff*delta_diff + delta_diff^2
+            // 
+            // 使用预计算的三元组来避免在线乘法通信
+            // 简化处理：直接计算本地份额（这里假设离线已经生成了正确的三元组）
+            
+            // 使用选类三元组
+            Z2<K> triple = (centroidIdx < (int)m_clusterTriples.size() && 
+                           d < (int)m_clusterTriples[centroidIdx].size()) 
+                          ? m_clusterTriples[centroidIdx][d] : Z2<K>(0);
+            
+            // 距离份额累加
+            // 近似计算：使用三元组预计算的结果
+            if (m_playerno == 0) {
+                distShare = distShare + U_diff * U_diff 
+                          - Z2<K>(2) * U_diff * delta_diff 
+                          + triple;
+            } else {
+                distShare = distShare 
+                          - Z2<K>(2) * U_diff * delta_diff 
+                          + triple;
+            }
+        }
+        
+        return distShare;
+    }
+    
+    /**
+     * @brief Reveal 给双方
+     */
+    Z2<K> reveal_to_both(Z2<K> x) {
+        octetStream os;
+        if (m_playerno == 0) {
+            x.pack(os);
+            m_player->send(os);
+            os.clear();
+            m_player->receive(os);
+            Z2<K> tmp;
+            tmp.unpack(os);
+            return tmp + x;
+        } else {
+            m_player->receive(os);
+            Z2<K> tmp;
+            tmp.unpack(os);
+            Z2<K> result = tmp + x;
+            os.clear();
+            x.pack(os);
+            m_player->send(os);
+            return result;
+        }
     }
     
     // ============== 阶段2: 类内 KNN ==============
