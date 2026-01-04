@@ -185,7 +185,7 @@ make -j8 ann-party.x
 ./Scripts/setup-ssl.sh 2
 ```
 
-#### 5. 运行在线阶段
+#### 5. 运行在线阶段（本地测试）
 
 打开两个终端窗口：
 
@@ -198,6 +198,112 @@ make -j8 ann-party.x
 ```bash
 ./ann-party.x 1 -pn 11126 -h localhost -d ./Player-Data/ANN-Data/ -n test -k 5
 ```
+
+---
+
+### 分布式部署（跨服务器执行）
+
+当 P0 和 P1 在不同服务器上时，需要按照以下流程执行：
+
+#### 环境假设
+
+| 角色 | 服务器 IP | 数据目录 | 数据文件 |
+|------|-----------|----------|----------|
+| P1（法院） | 10.176.34.171 | /home/zkx/DAVEX/Core/output | 14_20251231174325-P1-embeddings |
+| P0（检察院） | 10.176.37.50 | /disk/zkx/DAVEX/Core/output | 14_20251231174325-P0-queries |
+
+#### 执行流程
+
+##### 步骤1：在 P1 服务器（10.176.34.171）上执行离线阶段
+
+```bash
+# 进入 Garnet 目录
+cd /home/zkx/Garnet
+
+# 执行离线阶段（KMeans + 秘密共享生成）
+./ann-party-offline.x --data-dir /home/zkx/DAVEX/Core/output/ \
+    --dataset 14_20251231174325 --clusters 10
+```
+
+这将生成以下文件：
+- `14_20251231174325-meta`
+- `14_20251231174325-centroids`
+- `14_20251231174325-cluster-index`
+- `14_20251231174325-P0-shares`
+- `14_20251231174325-P1-shares`
+- `14_20251231174325-P0-triples`
+- `14_20251231174325-P1-triples`
+- `14_20251231174325-P0-centroid-shares`
+- `14_20251231174325-P1-centroid-shares`
+- `14_20251231174325-P0-cluster-triples`
+- `14_20251231174325-P1-cluster-triples`
+- `2-fss/k0, k1, r0, r1`
+
+##### 步骤2：将 P0 的数据文件传输到 P0 服务器
+
+在 P1 服务器上执行：
+```bash
+# 传输 P0 所需的数据文件到 P0 服务器
+scp /home/zkx/DAVEX/Core/output/14_20251231174325-P0-shares \
+    /home/zkx/DAVEX/Core/output/14_20251231174325-P0-triples \
+    /home/zkx/DAVEX/Core/output/14_20251231174325-P0-centroid-shares \
+    /home/zkx/DAVEX/Core/output/14_20251231174325-P0-cluster-triples \
+    /home/zkx/DAVEX/Core/output/14_20251231174325-meta \
+    zkx@10.176.37.50:/disk/zkx/DAVEX/Core/output/
+
+# 传输 DCF 密钥
+scp -r /home/zkx/DAVEX/Core/output/2-fss \
+    zkx@10.176.37.50:/disk/zkx/DAVEX/Core/output/
+```
+
+##### 步骤3：生成并分发 SSL 证书
+
+在 P1 服务器上生成证书：
+```bash
+cd /home/zkx/Garnet
+./Scripts/setup-ssl.sh 2
+
+# 将证书传输到 P0 服务器
+scp Player-Data/*.pem Player-Data/*.key \
+    zkx@10.176.37.50:/disk/zkx/Garnet/Player-Data/
+```
+
+##### 步骤4：同时启动在线阶段
+
+**在 P1 服务器（10.176.34.171）上：**
+```bash
+cd /home/zkx/Garnet
+./ann-party.x 1 -pn 11126 -h 10.176.37.50 \
+    -d /home/zkx/DAVEX/Core/output/ \
+    -n 14_20251231174325 -k 5
+```
+
+**在 P0 服务器（10.176.37.50）上：**
+```bash
+cd /disk/zkx/Garnet
+./ann-party.x 0 -pn 11126 -h 10.176.34.171 \
+    -d /disk/zkx/DAVEX/Core/output/ \
+    -n 14_20251231174325 -k 5
+```
+
+> **注意**：`-h` 参数指定的是**对方**的 IP 地址。
+
+#### 网络要求
+
+1. 两台服务器之间需要网络互通
+2. 确保端口 11126 未被防火墙阻挡
+3. 如需使用其他端口，通过 `-pn` 参数指定
+
+#### 数据分布总结
+
+| 服务器 | 持有的数据 |
+|--------|------------|
+| P0 (10.176.37.50) | 查询文件 `-P0-queries`<br>P0 份额 `-P0-shares`<br>P0 三元组 `-P0-triples`<br>P0 聚类中心共享 `-P0-centroid-shares`<br>P0 选类三元组 `-P0-cluster-triples`<br>DCF 密钥 `2-fss/r0, k0` |
+| P1 (10.176.34.171) | Embedding 库 `-P1-embeddings`<br>P1 份额 `-P1-shares`<br>P1 三元组 `-P1-triples`<br>P1 聚类中心共享 `-P1-centroid-shares`<br>P1 选类三元组 `-P1-cluster-triples`<br>DCF 密钥 `2-fss/r1, k1`<br>聚类中心 `-centroids`<br>聚类索引 `-cluster-index` |
+
+#### 执行结果
+
+在线阶段完成后，**仅 P0（10.176.37.50）** 获得 top-k 最近的 fileId 列表。P1 不知道查询结果，也不知道 P0 的查询 embedding 内容。
 
 输出示例（P0）：
 ```
