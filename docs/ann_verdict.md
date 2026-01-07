@@ -209,8 +209,8 @@ make -j8 ann-party.x
 
 | 角色 | 服务器 IP | 数据目录 | 数据文件 |
 |------|-----------|----------|----------|
-| P1（法院） | 10.176.34.171 | /home/zkx/DAVEX/Core/output | 14_20251231174325-P1-embeddings |
-| P0（检察院） | 10.176.37.50 | /disk/zkx/DAVEX/Core/output | 14_20251231174325-P0-queries |
+| P1（法院） | 10.176.34.171 | /home/zkx/DAVEX/Core/output/20_20260104101525 | 20_20260104101525-P1-embeddings |
+| P0（检察院） | 10.176.37.50 | /disk/zkx/DAVEX/Core/output/20_20260104101525 | 20_20260104101525-P0-queries |
 
 #### 执行流程
 
@@ -221,22 +221,22 @@ make -j8 ann-party.x
 cd /home/zkx/Garnet
 
 # 执行离线阶段（KMeans + 秘密共享生成）
-./ann-party-offline.x --data-dir /home/zkx/DAVEX/Core/output/ \
-    --dataset 14_20251231174325 --clusters 10
+./ann-party-offline.x --data-dir /home/zkx/DAVEX/Core/output/20_20260104101525 \
+    --dataset 20_20260104101525 --clusters 10
 ```
 
 这将生成以下文件：
-- `14_20251231174325-meta`
-- `14_20251231174325-centroids`
-- `14_20251231174325-cluster-index`
-- `14_20251231174325-P0-shares`
-- `14_20251231174325-P1-shares`
-- `14_20251231174325-P0-triples`
-- `14_20251231174325-P1-triples`
-- `14_20251231174325-P0-centroid-shares`
-- `14_20251231174325-P1-centroid-shares`
-- `14_20251231174325-P0-cluster-triples`
-- `14_20251231174325-P1-cluster-triples`
+- `20_20260104101525-meta`
+- `20_20260104101525-centroids`
+- `20_20260104101525-cluster-index`
+- `20_20260104101525-P0-shares`
+- `20_20260104101525-P1-shares`
+- `20_20260104101525-P0-triples`
+- `20_20260104101525-P1-triples`
+- `20_20260104101525-P0-centroid-shares`
+- `20_20260104101525-P1-centroid-shares`
+- `20_20260104101525-P0-cluster-triples`
+- `20_20260104101525-P1-cluster-triples`
 - `2-fss/k0, k1, r0, r1`
 
 ##### 步骤2：将 P0 的数据文件传输到 P0 服务器
@@ -244,16 +244,16 @@ cd /home/zkx/Garnet
 在 P1 服务器上执行：
 ```bash
 # 传输 P0 所需的数据文件到 P0 服务器
-scp /home/zkx/DAVEX/Core/output/14_20251231174325-P0-shares \
-    /home/zkx/DAVEX/Core/output/14_20251231174325-P0-triples \
-    /home/zkx/DAVEX/Core/output/14_20251231174325-P0-centroid-shares \
-    /home/zkx/DAVEX/Core/output/14_20251231174325-P0-cluster-triples \
-    /home/zkx/DAVEX/Core/output/14_20251231174325-meta \
-    zkx@10.176.37.50:/disk/zkx/DAVEX/Core/output/
+scp /home/zkx/DAVEX/Core/output/20_20260104101525/20_20260104101525-P0-shares \
+    /home/zkx/DAVEX/Core/output/20_20260104101525/20_20260104101525-P0-triples \
+    /home/zkx/DAVEX/Core/output/20_20260104101525/20_20260104101525-P0-centroid-shares \
+    /home/zkx/DAVEX/Core/output/20_20260104101525/20_20260104101525-P0-cluster-triples \
+    /home/zkx/DAVEX/Core/output/20_20260104101525/20_20260104101525-meta \
+    zkx@10.176.37.50:/disk/zkx/DAVEX/Core/output/20_20260104101525
 
 # 传输 DCF 密钥
-scp -r /home/zkx/DAVEX/Core/output/2-fss \
-    zkx@10.176.37.50:/disk/zkx/DAVEX/Core/output/
+scp -r /home/zkx/DAVEX/Core/output/20_20260104101525/2-fss \
+    zkx@10.176.37.50:/disk/zkx/DAVEX/Core/output/20_20260104101525
 ```
 
 ##### 步骤3：生成并分发 SSL 证书
@@ -274,16 +274,16 @@ scp Player-Data/*.pem Player-Data/*.key \
 ```bash
 cd /home/zkx/Garnet
 ./ann-party.x 1 -pn 11126 -h 10.176.37.50 \
-    -d /home/zkx/DAVEX/Core/output/ \
-    -n 14_20251231174325 -k 5
+    -d /home/zkx/DAVEX/Core/output/20_20260104101525 \
+    -n 20_20260104101525 -k 5
 ```
 
 **在 P0 服务器（10.176.37.50）上：**
 ```bash
 cd /disk/zkx/Garnet
 ./ann-party.x 0 -pn 11126 -h 10.176.34.171 \
-    -d /disk/zkx/DAVEX/Core/output/ \
-    -n 14_20251231174325 -k 5
+    -d /disk/zkx/DAVEX/Core/output/20_20260104101525 \
+    -n 20_20260104101525 -k 5
 ```
 
 > **注意**：`-h` 参数指定的是**对方**的 IP 地址。

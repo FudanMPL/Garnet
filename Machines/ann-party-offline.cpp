@@ -607,6 +607,11 @@ public:
         
         // 保存元数据
         ofstream metaFile(basePath + "-meta");
+        if (!metaFile.is_open()) {
+            cerr << "[Error] 无法写入文件 " << basePath << "-meta" << endl;
+            cerr << "[Error] 请检查目录权限: " << dir << endl;
+            throw runtime_error("无法写入文件，请检查目录权限");
+        }
         metaFile << result.embDim << " " << result.records.size() 
                  << " " << result.numClusters << endl;
         for (int c = 0; c < result.numClusters; ++c) {
@@ -649,6 +654,10 @@ public:
         string filename = dir + "/" + name + "-P" + to_string(partyId) + "-shares";
         
         ofstream fout(filename, ios::binary);
+        if (!fout.is_open()) {
+            cerr << "[Error] 无法写入文件 " << filename << endl;
+            throw runtime_error("无法写入文件，请检查目录权限");
+        }
         
         // 写入记录数和维度
         int numRecords = records.size();
