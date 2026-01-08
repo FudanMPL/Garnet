@@ -187,17 +187,19 @@ make -j8 ann-party.x
 
 #### 5. 运行在线阶段（本地测试）
 
-打开两个终端窗口：
+打开两个终端窗口，**先启动 P0，再启动 P1**：
 
-**终端1（P0 - 检察院）：**
+**终端1（P0 - 检察院，先启动）：**
 ```bash
 ./ann-party.x 0 -pn 11126 -h localhost -d ./Player-Data/ANN-Data/ -n test -k 5
 ```
 
-**终端2（P1 - 法院）：**
+**终端2（P1 - 法院，后启动）：**
 ```bash
 ./ann-party.x 1 -pn 11126 -h localhost -d ./Player-Data/ANN-Data/ -n test -k 5
 ```
+
+> **注意**：`-h` 参数是服务端（P0）的地址，本地测试时两边都填 `localhost`。
 
 ---
 
@@ -268,9 +270,17 @@ scp Player-Data/*.pem Player-Data/*.key \
     zkx@10.176.37.50:/disk/zkx/Garnet/Player-Data/
 ```
 
-##### 步骤4：同时启动在线阶段
+##### 步骤4：启动在线阶段（先 P0 后 P1）
 
-**在 P1 服务器（10.176.34.171）上：**
+**首先，在 P0 服务器（10.176.37.50）上启动（服务端，监听连接）：**
+```bash
+cd /disk/zkx/Garnet
+./ann-party.x 0 -pn 11126 -h 10.176.37.50 \
+    -d /disk/zkx/DAVEX/Core/output/20_20260104101525 \
+    -n 20_20260104101525 -k 5
+```
+
+**然后，在 P1 服务器（10.176.34.171）上启动（客户端，连接到 P0）：**
 ```bash
 cd /home/zkx/Garnet
 ./ann-party.x 1 -pn 11126 -h 10.176.37.50 \
@@ -278,15 +288,10 @@ cd /home/zkx/Garnet
     -n 20_20260104101525 -k 5
 ```
 
-**在 P0 服务器（10.176.37.50）上：**
-```bash
-cd /disk/zkx/Garnet
-./ann-party.x 0 -pn 11126 -h 10.176.34.171 \
-    -d /disk/zkx/DAVEX/Core/output/20_20260104101525 \
-    -n 20_20260104101525 -k 5
-```
-
-> **注意**：`-h` 参数指定的是**对方**的 IP 地址。
+> **注意**：
+> - `-h` 参数指定的是 **P0（服务端）** 的 IP 地址，两边都填 P0 的地址
+> - **必须先启动 P0**，等待其监听端口后，再启动 P1
+> - 确保 P0 服务器的防火墙开放了端口 11126
 
 #### 网络要求
 
