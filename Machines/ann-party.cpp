@@ -49,6 +49,7 @@ int k_topk = 5;             // top-k 的 k 值
 int playerno;
 ez::ezOptionParser opt;
 RealTwoPartyPlayer* player;
+string g_dataDir;  // 全局数据目录，用于 evaluate 函数读取 DCF 密钥
 
 // 用于性能统计
 long long call_evaluate_time = 0;
@@ -65,6 +66,7 @@ struct SharedRecord {
     int clusterId;
     vector<Z2<K>> maskedVectorU;     // U = v + delta_0 + delta_1
     vector<Z2<K>> share;             // P0: delta_0, P1: delta_1
+    Z2<K> fileIdShare;               // fileId 的加法秘密共享：P0 持有 (fileId - r), P1 持有 r
     
     SharedRecord() : recordIndex(-1), fileId(-1), clusterId(-1) {}
 };
@@ -86,6 +88,7 @@ struct SharedCentroid {
     int clusterId;
     vector<Z2<K>> maskedVectorU;     // U = v + delta_0 + delta_1
     vector<Z2<K>> share;             // P0: delta_0, P1: delta_1
+    Z2<K> clusterIdShare;            // clusterId 的加法秘密共享：P0 持有 (clusterId - r), P1 持有 r
     
     SharedCentroid() : clusterId(-1) {}
 };
@@ -232,6 +235,9 @@ public:
             for (int d = 0; d < embDim; ++d) {
                 fin.read(reinterpret_cast<char*>(&records[i].share[d]), sizeof(Z2<K>));
             }
+            
+            // 读取 fileIdShare（加法秘密共享）
+            fin.read(reinterpret_cast<char*>(&records[i].fileIdShare), sizeof(Z2<K>));
         }
         
         fin.close();
@@ -342,6 +348,8 @@ public:
             for (int d = 0; d < embDim; ++d) {
                 fin.read(reinterpret_cast<char*>(&centroids[c].share[d]), sizeof(Z2<K>));
             }
+            // 读取 clusterIdShare（加法秘密共享）
+            fin.read(reinterpret_cast<char*>(&centroids[c].clusterIdShare), sizeof(Z2<K>));
         }
         
         fin.close();
@@ -418,6 +426,10 @@ public:
     // 用于距离计算和排序的中间数据
     // array<Z2<K>, 2>: [0]=距离份额, [1]=fileId份额（类内KNN）或 clusterId份额（选类）
     vector<array<additive_share, 2>> m_distFileId_vec;
+    
+    // 查询向量的秘密共享（在 assignCluster 中生成，在 executeKNN 中使用）
+    vector<Z2<K>> m_queryShare;      // 查询份额
+    vector<Z2<K>> m_queryMaskedU;    // 查询掩码明文
     
     int m_embDim;
     int m_numClusters;
@@ -513,9 +525,9 @@ public:
         
         int dim = m_embDim;
         
-        // 1. P0 对查询向量进行秘密共享
-        vector<Z2<K>> queryShare(dim);       // 本方份额
-        vector<Z2<K>> queryMaskedU(dim);     // 掩码明文 U
+        // 1. P0 对查询向量进行秘密共享（保存到成员变量，供 executeKNN 使用）
+        m_queryShare.resize(dim);
+        m_queryMaskedU.resize(dim);
         
         octetStream os;
         
@@ -531,11 +543,11 @@ public:
                 delta1.randomize(prng);
                 
                 // U = v + delta0 + delta1
-                queryMaskedU[d] = v + delta0 + delta1;
-                queryShare[d] = delta0;  // P0 持有 delta0
+                m_queryMaskedU[d] = v + delta0 + delta1;
+                m_queryShare[d] = delta0;  // P0 持有 delta0
                 
                 // 发送 U 和 delta1 给 P1
-                queryMaskedU[d].pack(os);
+                m_queryMaskedU[d].pack(os);
                 delta1.pack(os);
             }
             m_player->send(os);
@@ -543,35 +555,62 @@ public:
             // P1: 接收 P0 发送的份额
             m_player->receive(os);
             for (int d = 0; d < dim; ++d) {
-                queryMaskedU[d].unpack(os);
-                queryShare[d].unpack(os);  // P1 持有 delta1
+                m_queryMaskedU[d].unpack(os);
+                m_queryShare[d].unpack(os);  // P1 持有 delta1
             }
         }
         
         // 2. 计算查询到每个聚类中心的安全距离
-        // 使用 array<Z2<K>, 2>: [0]=距离份额, [1]=clusterId份额
+        // 使用 top_1 安全选择最小距离，只 reveal clusterId
         vector<array<Z2<K>, 2>> distClusterId_vec(m_numClusters);
         
         for (int c = 0; c < m_numClusters; ++c) {
             // 计算安全欧几里得距离
-            Z2<K> distShare = computeSecureClusterDistance(c, queryMaskedU, queryShare);
+            Z2<K> distShare = computeSecureClusterDistance(c, m_queryMaskedU, m_queryShare);
             distClusterId_vec[c][0] = distShare;
             
-            // clusterId 份额（简单共享：P0=0, P1=clusterId）
-            if (m_playerno == 0) {
-                distClusterId_vec[c][1] = Z2<K>(0);
-            } else {
-                distClusterId_vec[c][1] = Z2<K>(m_sharedCentroids[c].clusterId);
-            }
+            // 使用预生成的 clusterId 秘密共享（标准加法秘密共享）
+            // P0 持有 (clusterId - r), P1 持有 r
+            distClusterId_vec[c][1] = m_sharedCentroids[c].clusterIdShare;
         }
         
-        // 3. 使用 top_1 找到最小距离（将最小值放到最后）
-        top_1(distClusterId_vec, m_numClusters, true);
+        // 调试：输出距离份额以验证正确性
+        #ifdef DEBUG_DISTANCES
+        cout << "[DEBUG] 距离份额（top_1 之前）:" << endl;
+        int minClusterU = 0, minClusterS = 0;
+        unsigned long long minDistU = ULLONG_MAX;
+        long long minDistS = LLONG_MAX;
+        for (int c = 0; c < m_numClusters; ++c) {
+            Z2<K> distRevealed = reveal_to_both(distClusterId_vec[c][0]);
+            Z2<K> clusterIdRevealed = reveal_to_both(distClusterId_vec[c][1]);
+            unsigned long long distValU = distRevealed.get_limb(0);
+            long long distValS = static_cast<long long>(distValU);
+            int clusterId = static_cast<int>(clusterIdRevealed.get_limb(0));
+            if (m_playerno == 0) {
+                cout << "  Cluster " << clusterId 
+                     << ": distU=" << distValU << " distS=" << distValS << endl;
+            }
+            if (distValU < minDistU) {
+                minDistU = distValU;
+                minClusterU = clusterId;
+            }
+            if (distValS < minDistS) {
+                minDistS = distValS;
+                minClusterS = clusterId;
+            }
+        }
+        if (m_playerno == 0) {
+            cout << "[DEBUG] 无符号最小: Cluster " << minClusterU << endl;
+            cout << "[DEBUG] 有符号最小: Cluster " << minClusterS << endl;
+        }
+        #endif
         
-        // 4. Reveal clusterId 给双方
+        // 3. 使用 top_1 安全选择最小距离（将最小值放到数组末尾）
+        top_1(distClusterId_vec, m_numClusters, true);  // true: 最小值放到末尾
+        
+        // 4. Reveal clusterId 给双方（只 reveal clusterId，不 reveal 距离）
         Z2<K> clusterIdShare = distClusterId_vec[m_numClusters - 1][1];
         Z2<K> clusterIdRevealed = reveal_to_both(clusterIdShare);
-        
         int selectedClusterId = static_cast<int>(clusterIdRevealed.get_limb(0));
         
         cout << "[AssignCluster] 选中的聚类: " << selectedClusterId;
@@ -587,48 +626,54 @@ public:
      * @brief 计算查询向量到某个聚类中心的安全距离
      * 使用秘密共享，保护 P0 的查询向量
      */
+    /**
+     * @brief 使用在线乘法计算安全距离（保证正确性）
+     * 
+     * 距离公式：(query - centroid)^2 = sum_d (U_diff[d] - delta_diff[d])^2
+     * 展开：sum_d (U_diff^2 - 2*U_diff*delta_diff + delta_diff^2)
+     * 
+     * 使用在线乘法计算 delta_diff^2 部分
+     */
     Z2<K> computeSecureClusterDistance(int centroidIdx, 
                                         const vector<Z2<K>>& queryMaskedU,
                                         const vector<Z2<K>>& queryShare) {
         const SharedCentroid& cen = m_sharedCentroids[centroidIdx];
         int dim = queryMaskedU.size();
         
-        // 计算 (query - centroid)^2 的秘密共享
-        // query = queryMaskedU - queryShare (秘密值)
-        // centroid = cen.maskedVectorU - cen.share (秘密值)
-        // diff = (queryMaskedU - cen.maskedVectorU) - (queryShare - cen.share)
-        //      = (U_q - U_c) - (delta_q - delta_c)
-        
         Z2<K> distShare(0);
+        Z2<K> U_diff_sq_sum(0);  // 公开值平方和
         
+        // 收集所有维度的 delta_diff 用于批量乘法
+        vector<Z2<K>> delta_diffs(dim);
         for (int d = 0; d < dim; ++d) {
             // 公开的差值
             Z2<K> U_diff = queryMaskedU[d] - cen.maskedVectorU[d];
             // 份额的差值
-            Z2<K> delta_diff = queryShare[d] - cen.share[d];
+            delta_diffs[d] = queryShare[d] - cen.share[d];
             
-            // diff = U_diff - delta_diff (这是实际差值的秘密共享)
-            // diff^2 = U_diff^2 - 2*U_diff*delta_diff + delta_diff^2
-            // 
-            // 使用预计算的三元组来避免在线乘法通信
-            // 简化处理：直接计算本地份额（这里假设离线已经生成了正确的三元组）
+            // 累加公开值平方
+            U_diff_sq_sum = U_diff_sq_sum + U_diff * U_diff;
             
-            // 使用选类三元组
-            Z2<K> triple = (centroidIdx < (int)m_clusterTriples.size() && 
-                           d < (int)m_clusterTriples[centroidIdx].size()) 
-                          ? m_clusterTriples[centroidIdx][d] : Z2<K>(0);
-            
-            // 距离份额累加
-            // 近似计算：使用三元组预计算的结果
-            if (m_playerno == 0) {
-                distShare = distShare + U_diff * U_diff 
-                          - Z2<K>(2) * U_diff * delta_diff 
-                          + triple;
-            } else {
-                distShare = distShare 
-                          - Z2<K>(2) * U_diff * delta_diff 
-                          + triple;
-            }
+            // 累加线性项
+            distShare = distShare - Z2<K>(2) * U_diff * delta_diffs[d];
+        }
+        
+        // 使用在线乘法计算 sum_d(delta_diff[d]^2)
+        // 批量计算所有维度的平方
+        vector<Z2<K>> delta_sq(dim);
+        mul_vector_additive(delta_diffs, delta_diffs, delta_sq, false);
+        
+        // 累加平方项
+        Z2<K> delta_sq_sum(0);
+        for (int d = 0; d < dim; ++d) {
+            delta_sq_sum = delta_sq_sum + delta_sq[d];
+        }
+        
+        // P0 加上公开值平方，两方都加上 delta^2 的份额
+        if (m_playerno == 0) {
+            distShare = distShare + U_diff_sq_sum + delta_sq_sum;
+        } else {
+            distShare = distShare + delta_sq_sum;
         }
         
         return distShare;
@@ -707,6 +752,7 @@ public:
                 candidateRecords[i].maskedVectorU = m_records[recIdx].maskedVectorU;
                 candidateRecords[i].share = m_records[recIdx].share;
                 candidateRecords[i].clusterId = clusterId;
+                candidateRecords[i].fileIdShare = m_records[recIdx].fileIdShare;  // 加载 fileId 秘密共享
             }
             
             cout << "[Prepare] P0 收到 " << numCandidates << " 条候选记录" << endl;
@@ -743,6 +789,16 @@ public:
      * @brief 在候选集上执行 KNN，返回 top-k fileId
      * payload 从 label 改为 fileId，去掉投票逻辑
      */
+    /**
+     * @brief 执行类内 KNN（安全版本）
+     * 
+     * 使用正确的加法秘密共享和 top_1 安全选择，不泄露距离
+     * - 距离份额：通过 computeEuclideanDistance 计算
+     * - fileId 份额：使用离线阶段预生成的加法秘密共享
+     *   - P0 持有: fileId - r
+     *   - P1 持有: r
+     * - Top-k 选择：使用 top_1 安全选择，不泄露中间结果
+     */
     vector<int> executeKNN(const vector<SharedRecord>& candidates,
                            const vector<Z2<K>>& queryShare) {
         vector<int> topKFileIds;
@@ -755,50 +811,44 @@ public:
         
         int k = min(k_topk, numCandidates);
         
-        // 初始化距离-fileId 数组
-        // m_distFileId_vec[i][0] = 距离份额
-        // m_distFileId_vec[i][1] = fileId 份额
-        m_distFileId_vec.resize(numCandidates);
-        
         cout << "[KNN] 计算 " << numCandidates << " 条候选的距离..." << endl;
+        
+        // 初始化 distFileId_vec: [0]=距离份额, [1]=fileId份额
+        // 使用离线阶段预生成的 fileIdShare（标准加法秘密共享）
+        m_distFileId_vec.resize(numCandidates);
         
         for (int i = 0; i < numCandidates; ++i) {
             // 计算距离份额
             m_distFileId_vec[i][0] = computeEuclideanDistance(candidates[i], queryShare);
             
-            // fileId 秘密共享：P1 持有原值，P0 持有随机份额
-            if (m_playerno == 1) {
-                // P1: 生成随机份额并发送给 P0
-                Z2<K> r;
-                PRNG prng;
-                prng.ReSeed();
-                r.randomize(prng);
-                m_distFileId_vec[i][1] = Z2<K>(candidates[i].fileId) - r;
-                
-                // 注意：这里简化处理，实际应该批量发送
-            } else {
-                m_distFileId_vec[i][1] = Z2<K>(0);  // P0 的份额后面会收到
-            }
+            // 使用预生成的 fileId 秘密共享（标准加法秘密共享）
+            // P0 持有 (fileId - r), P1 持有 r
+            m_distFileId_vec[i][1] = candidates[i].fileIdShare;
         }
         
-        // 交换 fileId 份额
-        exchangeFileIdShares(candidates);
-        
-        // 执行 top-k 选择（DQBubble 算法）
+        // 使用 top_1 安全选择 Top-k
+        // 每次 top_1 将最小值放到数组末尾
         cout << "[KNN] 执行 top-" << k << " 选择..." << endl;
+        
         for (int i = 0; i < k; ++i) {
-            top_1(m_distFileId_vec, numCandidates - i, true);
+            top_1(m_distFileId_vec, numCandidates - i, true);  // true: 最小值放到末尾
         }
         
         // Reveal top-k 的 fileId 给 P0
+        // top-k 元素在数组的最后 k 个位置
         cout << "[KNN] Reveal top-" << k << " fileId 给 P0..." << endl;
+        
         for (int i = 0; i < k; ++i) {
-            int idx = numCandidates - 1 - i;
-            Z2<K> fileIdRevealed = reveal_to_P0(m_distFileId_vec[idx][1]);
+            // 从后往前取，最近的先取
+            Z2<K> fileIdShare = m_distFileId_vec[numCandidates - 1 - i][1];
+            
+            // Reveal 给 P0
+            Z2<K> fileIdRevealed = reveal_to_P0(fileIdShare);
             
             if (m_playerno == 0) {
-                int fid = static_cast<int>(fileIdRevealed.get_limb(0));
-                topKFileIds.push_back(fid);
+                // 提取 fileId 值
+                int fileId = static_cast<int>(fileIdRevealed.get_limb(0));
+                topKFileIds.push_back(fileId);
             }
         }
         
@@ -1190,9 +1240,8 @@ public:
             vector<SharedRecord> candidates;
             prepareCandidates(selectedClusterId, candidates);
             
-            // 阶段3: 执行类内 KNN
-            vector<Z2<K>> queryShare(m_embDim);  // 简化：使用零份额
-            vector<int> topKFileIds = executeKNN(candidates, queryShare);
+            // 阶段3: 执行类内 KNN（使用 assignCluster 中保存的查询份额）
+            vector<int> topKFileIds = executeKNN(candidates, m_queryShare);
             
             // 输出结果（仅 P0）
             if (m_playerno == 0) {
@@ -1228,7 +1277,12 @@ bigint evaluate(Z2<K> x, int n, int playerID) {
     int b = playerID, xi;
     int lambda_bytes = 16;
     
-    k_in.open("Player-Data/2-fss/k" + to_string(playerID), ios::in);
+    // 首先尝试从数据目录读取 DCF 密钥（与 secure_compare 使用的路径一致）
+    string keyPath = g_dataDir + "/2-fss/k" + to_string(playerID);
+    k_in.open(keyPath, ios::in);
+    if (!k_in.is_open()) {
+        k_in.open("Player-Data/2-fss/k" + to_string(playerID), ios::in);
+    }
     if (!k_in.is_open()) {
         k_in.open("./Player-Data/ANN-Data/2-fss/k" + to_string(playerID), ios::in);
     }
@@ -1311,6 +1365,9 @@ int main(int argc, const char** argv) {
     opt.get("-d")->getString(config.dataDir);
     opt.get("-n")->getString(config.datasetName);
     config.topK = k_topk;
+    
+    // 设置全局数据目录，供 evaluate 函数使用
+    g_dataDir = config.dataDir;
     
     cout << "========================================" << endl;
     cout << "  两方隐私保护 ANN 检索 - P" << playerno << endl;

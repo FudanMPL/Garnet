@@ -77,10 +77,11 @@ struct KMeansResult {
  */
 struct SharedRecord {
     int recordIndex;
-    int fileId;
+    int fileId;                      // 原始 fileId（仅 P1 持有完整值，P0 为 0）
     int clusterId;
     vector<Z2<K>> maskedVectorU;     // U = v + delta_0 + delta_1 (公开值)
     vector<Z2<K>> share;             // P0: delta_0, P1: delta_1
+    Z2<K> fileIdShare;               // fileId 的加法秘密共享：P0 持有 (fileId - r), P1 持有 r
     
     SharedRecord() : recordIndex(-1), fileId(-1), clusterId(-1) {}
 };
@@ -92,6 +93,7 @@ struct SharedCentroid {
     int clusterId;
     vector<Z2<K>> maskedVectorU;     // U = v + delta_0 + delta_1 (公开值)
     vector<Z2<K>> share;             // P0: delta_0, P1: delta_1
+    Z2<K> clusterIdShare;            // clusterId 的加法秘密共享：P0 持有 (clusterId - r), P1 持有 r
     
     SharedCentroid() : clusterId(-1) {}
 };
@@ -398,6 +400,13 @@ public:
                 p1Rec.share[d] = delta1;
             }
             
+            // 生成 fileId 的加法秘密共享（标准方式）
+            // P0 持有: fileId - r, P1 持有: r
+            Z2<K> fileIdRandom;
+            fileIdRandom.randomize(prng);
+            p0Rec.fileIdShare = Z2<K>(rec.fileId) - fileIdRandom;  // P0: fileId - r
+            p1Rec.fileIdShare = fileIdRandom;                       // P1: r
+            
             p0Records.push_back(p0Rec);
             p1Records.push_back(p1Rec);
         }
@@ -498,6 +507,13 @@ public:
                 p0Cen.share[d] = delta0;
                 p1Cen.share[d] = delta1;
             }
+            
+            // 生成 clusterId 的加法秘密共享（标准方式）
+            // P0 持有: clusterId - r, P1 持有: r
+            Z2<K> clusterIdRandom;
+            clusterIdRandom.randomize(prng);
+            p0Cen.clusterIdShare = Z2<K>(centroids[c].clusterId) - clusterIdRandom;  // P0: clusterId - r
+            p1Cen.clusterIdShare = clusterIdRandom;                                   // P1: r
         }
         
         cout << "[CentroidShare] 聚类中心秘密共享生成完成" << endl;
@@ -678,6 +694,9 @@ public:
             for (int d = 0; d < embDim; ++d) {
                 fout.write(reinterpret_cast<const char*>(&rec.share[d]), sizeof(Z2<K>));
             }
+            
+            // 写入 fileIdShare（加法秘密共享）
+            fout.write(reinterpret_cast<const char*>(&rec.fileIdShare), sizeof(Z2<K>));
         }
         
         fout.close();
@@ -717,6 +736,9 @@ public:
             for (int d = 0; d < embDim; ++d) {
                 fin.read(reinterpret_cast<char*>(&records[i].share[d]), sizeof(Z2<K>));
             }
+            
+            // 读取 fileIdShare（加法秘密共享）
+            fin.read(reinterpret_cast<char*>(&records[i].fileIdShare), sizeof(Z2<K>));
         }
         
         fin.close();
@@ -781,6 +803,8 @@ public:
             for (int d = 0; d < embDim; ++d) {
                 fout.write(reinterpret_cast<const char*>(&cen.share[d]), sizeof(Z2<K>));
             }
+            // 写入 clusterIdShare（加法秘密共享）
+            fout.write(reinterpret_cast<const char*>(&cen.clusterIdShare), sizeof(Z2<K>));
         }
         
         fout.close();
@@ -817,6 +841,8 @@ public:
             for (int d = 0; d < embDim; ++d) {
                 fin.read(reinterpret_cast<char*>(&centroids[c].share[d]), sizeof(Z2<K>));
             }
+            // 读取 clusterIdShare（加法秘密共享）
+            fin.read(reinterpret_cast<char*>(&centroids[c].clusterIdShare), sizeof(Z2<K>));
         }
         
         fin.close();

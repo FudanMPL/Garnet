@@ -105,6 +105,15 @@ struct SharedRecord {
     int clusterId;                // 所属聚类ID
     vector<Z2<K>> maskedVectorU;  // U = v + delta_0 + delta_1 (公开值)
     vector<Z2<K>> share;          // P0: delta_0, P1: delta_1
+    Z2<K> fileIdShare;            // fileId 加法秘密共享: P0 持有 (fileId-r), P1 持有 r
+};
+
+// 秘密共享聚类中心
+struct SharedCentroid {
+    int clusterId;                // 聚类ID
+    vector<Z2<K>> maskedVectorU;  // U = v + delta_0 + delta_1 (公开值)
+    vector<Z2<K>> share;          // P0: delta_0, P1: delta_1
+    Z2<K> clusterIdShare;         // clusterId 加法秘密共享: P0 持有 (clusterId-r), P1 持有 r
 };
 
 // 距离-FileId 对（用于 Top-k 选择）
@@ -398,7 +407,7 @@ for (d in 0..embDim) {
 
 #### 3. AssignCluster（安全版本）
 
-**安全选类**：使用秘密共享保护 P0 的查询 embedding，P1 无法得知 P0 的查询内容。
+**安全选类**：使用秘密共享保护 P0 的查询 embedding，使用 top_1 安全选择最近的聚类中心。
 
 ```cpp
 // 1. P0 对查询向量进行秘密共享
@@ -421,51 +430,66 @@ if (playerno == 1) {
 }
 
 // 2. 双方计算查询到每个聚类中心的安全距离
+// clusterId 使用预生成的加法秘密共享（P0: clusterId-r, P1: r）
 for (c in 0..numClusters) {
     distShare = computeSecureClusterDistance(c, queryMaskedU, queryShare);
-    distClusterId_vec[c] = {distShare, clusterIdShare};
+    distClusterId_vec[c] = {distShare, sharedCentroids[c].clusterIdShare};
 }
 
-// 3. 使用 top_1 找到最小距离
-top_1(distClusterId_vec, numClusters, true);
+// 3. 使用 top_1 安全选择最小距离（不泄露距离）
+top_1(distClusterId_vec, numClusters, true);  // 最小值放到末尾
 
-// 4. Reveal clusterId 给双方
-clusterId = reveal_to_both(distClusterId_vec[last][1]);
+// 4. 只 Reveal clusterId 给双方
+clusterIdShare = distClusterId_vec[numClusters - 1][1];
+selectedClusterId = reveal_to_both(clusterIdShare);
 ```
 
-**安全距离计算**：
-- 使用预先共享的聚类中心秘密共享
-- 结合离线生成的三元组，实现零在线通信的距离计算
-- P1 只能看到最终的 clusterId，无法得知 P0 的查询 embedding
+**安全性说明**：
+- **距离不泄露**：使用 top_1 安全选择，距离值保持秘密共享状态
+- **clusterId 标准共享**：离线阶段预生成，P0 持有 (clusterId - r), P1 持有 r
+- **只 reveal clusterId**：双方只知道最终选中的 clusterId，不知道到各聚类的距离
+- P0 的查询向量通过 Masked-Plain + Additive Share 保护，P1 无法恢复原始值
 
-#### 4. 类内 KNN
+#### 4. 类内 KNN（安全版本）
 
-基于 Kona 的实现进行改造：
+基于 Kona 的实现进行改造，使用安全的 Top-k 选择：
 
 **关键改动**：
 - payload 从 label 改为 fileId
 - 去掉多数投票逻辑（label_compute）
-- Reveal 阶段只将 top-k 的 fileId 打开给 P0
+- **fileId 使用标准加法秘密共享**（离线阶段预生成）
+- **使用 top_1 安全选择 Top-k，不泄露距离**
+- 只向 P0 reveal 最终的 top-k fileId
 
 ```cpp
-// 距离计算（复用 Kona 的零在线通信优化）
+// 离线阶段：生成 fileId 的加法秘密共享
+// P0 持有: fileId - r, P1 持有: r
+fileIdShare_P0 = fileId - random;
+fileIdShare_P1 = random;
+
+// 在线阶段：距离计算 + 安全 Top-k 选择
 for (candidate in candidates) {
     distShare = computeEuclideanDistance(candidate, queryShare);
-    fileIdShare = secretShare(candidate.fileId);
-    distFileId_vec.push_back({distShare, fileIdShare});
+    distFileId_vec[i] = {distShare, candidate.fileIdShare};  // 使用预生成的份额
 }
 
-// Top-k 选择（DQBubble 算法）
+// 使用 top_1 安全选择 Top-k（不泄露距离）
 for (i in 0..k) {
-    top_1(distFileId_vec, size - i, true);
+    top_1(distFileId_vec, numCandidates - i, true);  // 最小值放到末尾
 }
 
-// Reveal top-k fileId 给 P0
+// 只 Reveal top-k 的 fileId 给 P0
 for (i in 0..k) {
-    fileId = reveal_to_P0(distFileId_vec[size-1-i][1]);
-    topKFileIds.push_back(fileId);
+    fileIdShare = distFileId_vec[numCandidates - 1 - i][1];
+    fileId = reveal_to_P0(fileIdShare);  // P0 得到真实 fileId
 }
 ```
+
+**安全性说明**：
+- **距离不泄露**：使用 top_1 + SS_vec 安全选择，中间距离值保持秘密共享状态
+- **fileId 标准共享**：P0 持有 (fileId - r), P1 持有 r，两份额相加得到真实值
+- **只 reveal fileId**：P0 只得知最终的 top-k fileId，不知道距离或其他候选信息
+- **P1 不知道结果**：P1 不知道哪些 fileId 被选中
 
 #### 5. DQBubble Top-k 选择
 
@@ -492,12 +516,12 @@ void top_1(shares, size, min_in_last) {
 
 ### 通信复杂度分析
 
-| 阶段 | 通信轮次 | 通信量 |
-|------|----------|--------|
-| AssignCluster (安全版) | O(log C) | O(d + C) |
-| 类内距离计算 | O(1)（零在线通信） | 0 |
-| Top-k 选择 | O(k log n) | O(k·n) |
-| Reveal | O(k) | O(k) |
+| 阶段 | 通信轮次 | 通信量 | 说明 |
+|------|----------|--------|------|
+| AssignCluster | O(log C) | O(d + C) | 查询共享 + top_1 选择 |
+| 类内距离计算 | O(1) | 0 | 零在线通信（使用预计算三元组） |
+| Top-k 选择 | O(k log n) | O(k·n) | k 次 top_1 调用 |
+| Reveal fileId | O(k) | O(k) | 只 reveal top-k 个 fileId |
 
 其中：
 - d = embedding 维度
@@ -505,10 +529,17 @@ void top_1(shares, size, min_in_last) {
 - n = 候选集大小（cluster 内记录数）
 - k = top-k 参数
 
-**AssignCluster 安全版本说明**：
-- P0 发送查询向量的秘密共享给 P1: O(d) 通信量
-- 选类阶段使用 top_1 算法: O(log C) 轮次
-- Reveal clusterId: O(1) 轮次
+**安全版本说明**：
+- **选类阶段**：
+  - P0 发送查询向量的秘密共享给 P1: O(d) 通信量
+  - 使用 top_1 安全选择最近聚类: O(log C) 轮次
+  - Reveal clusterId 给双方: O(1) 轮次
+  - **距离不泄露**
+- **KNN 阶段**：
+  - 使用预生成的 fileId 秘密共享
+  - k 次 top_1 调用: O(k log n) 轮次
+  - 只 reveal top-k 的 fileId: O(k) 通信量
+  - **距离不泄露**
 
 ---
 
@@ -516,20 +547,28 @@ void top_1(shares, size, min_in_last) {
 
 **半诚实安全模型**：
 - 假设双方遵循协议但可能尝试从收到的消息中推断额外信息
-- P0 只能获得最终的 top-k fileId，无法得知候选集的其他信息
-- P1 可以知道 clusterId（A 方案允许），但不知道查询结果
+- P0 只能获得最终的 top-k fileId，无法得知候选集的距离或其他信息
+- P1 可以知道 clusterId（A 方案允许），但不知道查询结果和哪些 fileId 被选中
 
 **数据保护**：
 - **P1 的 embedding 库**：通过秘密共享保护，P0 只能看到掩码明文
 - **P0 的查询 embedding**：通过秘密共享保护，P1 只能看到掩码明文和自己的份额，无法恢复原始查询
 - **聚类中心**：离线阶段进行秘密共享，在线选类阶段使用安全距离计算
 - **距离计算**：使用预计算三元组，在线阶段无明文泄露
-- **Top-k 选择**：使用安全比较（DCF）和安全交换，中间结果不泄露
+- **距离值**：**不泄露**，使用 top_1 安全选择，距离保持秘密共享状态
+- **Top-k 选择**：使用安全比较（DCF）和安全交换（SS_vec），中间结果不泄露
 
 **选类阶段安全性**：
 - P0 的查询 embedding 不再以明文形式发送给 P1
 - 使用 Masked-Plain + Additive Share 方案保护查询隐私
-- P1 仅能得知最终选中的 clusterId，无法推断 P0 查询的具体内容
+- **距离不泄露**：使用 top_1 安全选择最近的聚类中心
+- P1 仅能得知最终选中的 clusterId，无法推断 P0 查询的具体内容或到各聚类的距离
+
+**类内 KNN 阶段安全性**：
+- 使用离线阶段预生成的 fileId 加法秘密共享
+- **距离不泄露**：使用 top_1 + SS_vec 安全选择 Top-k
+- P0 只得知最终的 top-k fileId，不知道距离
+- P1 不知道哪些 fileId 被选中作为结果
 
 ---
 
