@@ -1,0 +1,167 @@
+"""
+ANN ORAM - 使用 Garnet 内置 ORAM 的隐私保护近似最近邻检索
+
+方案: 对每个 embedding word 使用独立的 ORAM 存储
+- 优点: 简单直接，利用 OptimalORAM 的 polylog 复杂度
+- 缺点: 需要多次 ORAM 读取
+
+复杂度: O(K·d) + O(nprobe·b_read·d·log M) + O(M_cand·d)
+"""
+
+from Compiler.oram import OptimalORAM
+from Compiler.library import *
+from Compiler.types import *
+
+# ============== 配置参数 ==============
+K = 10           # 聚类数
+b_max = 20       # 每类最大块数
+d = 8            # embedding 维度（减小测试用）
+nprobe = 2       # 探查聚类数
+b_read = 5       # 每类读取块数
+top_k = 3        # 返回 top-k 结果
+N_queries = 1    # 查询数量
+
+M = K * b_max    # 总块数
+M_cand = nprobe * b_read  # 候选数
+
+print_ln("ANN ORAM 配置:")
+print_ln("  K=%s, b_max=%s, M=%s", K, b_max, M)
+print_ln("  d=%s, nprobe=%s, b_read=%s, M_cand=%s", d, nprobe, b_read, M_cand)
+print_ln("  top_k=%s", top_k)
+
+# ============== 数据结构 ==============
+
+# 聚类中心存储
+centroids = Matrix(K, d, sint)
+
+# 为每个 embedding 维度创建单独的 ORAM
+# ORAM[dim] 存储所有记录第 dim 维的值
+# 还需要 ORAM 存储 fileId 和 valid
+
+def main():
+    """主函数"""
+    print_ln("========================================")
+    print_ln("  ANN ORAM 隐私保护近似最近邻检索")
+    print_ln("========================================")
+    
+    # 加载聚类中心（从 P1 输入）
+    print_ln("加载聚类中心...")
+    for c in range(K):
+        for dim in range(d):
+            centroids[c][dim] = sint.get_input_from(1)
+        _ = sint.get_input_from(1)  # 跳过 clusterId
+    
+    # 创建多个 ORAM - 每个维度一个，加上 fileId 和 valid
+    print_ln("初始化 ORAM (M=%s, d+2=%s 个 ORAM)...", M, d + 2)
+    
+    # 嵌入向量的每一维
+    emb_orams = [OptimalORAM(M, value_type=sint, entry_size=32) for _ in range(d)]
+    # fileId
+    fileid_oram = OptimalORAM(M, value_type=sint, entry_size=32)
+    # valid flag
+    valid_oram = OptimalORAM(M, value_type=sint, entry_size=32)
+    
+    # 从 P1 输入加载数据到 ORAM
+    print_ln("加载 Block 数据...")
+    for addr in range(M):
+        # 读取 embedding
+        for dim in range(d):
+            val = sint.get_input_from(1)
+            emb_orams[dim].write(sint(addr), val)
+        # 读取 fileId
+        fid = sint.get_input_from(1)
+        fileid_oram.write(sint(addr), fid)
+        # 读取 valid
+        v = sint.get_input_from(1)
+        valid_oram.write(sint(addr), v)
+    
+    print_ln("ORAM 初始化完成")
+    
+    # 候选数据存储
+    cand_emb = Matrix(M_cand, d, sint)
+    cand_fileid = Array(M_cand, sint)
+    cand_valid = Array(M_cand, sint)
+    
+    # 处理查询
+    for q in range(N_queries):
+        print_ln("\n--- 查询 %s ---", q)
+        
+        # P0 输入查询向量
+        query_emb = Array(d, sint)
+        for dim in range(d):
+            query_emb[dim] = sint.get_input_from(0)
+        
+        # ========== 阶段 1: 安全选类 ==========
+        print_ln("  阶段1: 安全选类")
+        
+        cluster_pairs = Matrix(K, 2, sint)
+        for c in range(K):
+            dist = sint(0)
+            for dim in range(d):
+                diff = query_emb[dim] - centroids[c][dim]
+                dist = dist + diff * diff
+            cluster_pairs[c][0] = dist
+            cluster_pairs[c][1] = sint(c)
+        
+        # 排序
+        cluster_pairs.sort((0,))
+        
+        # 取前 nprobe 个聚类 ID
+        selected_ids = Array(nprobe, sint)
+        for t in range(nprobe):
+            selected_ids[t] = cluster_pairs[t][1]
+        
+        print_ln("  选类完成 (私密)")
+        
+        # ========== 阶段 2: ORAM 读取候选块 ==========
+        print_ln("  阶段2: ORAM 读取候选")
+        
+        for t in range(nprobe):
+            cluster_id = selected_ids[t]
+            for bi in range(b_read):
+                # 私密地址
+                secret_addr = cluster_id * b_max + bi
+                cand_idx = t * b_read + bi
+                
+                # ORAM 读取每个维度 (使用 __getitem__ 接口)
+                for dim in range(d):
+                    cand_emb[cand_idx][dim] = emb_orams[dim][secret_addr]
+                
+                # 读取 fileId 和 valid
+                cand_fileid[cand_idx] = fileid_oram[secret_addr]
+                cand_valid[cand_idx] = valid_oram[secret_addr]
+        
+        print_ln("  ORAM 读取完成")
+        
+        # ========== 阶段 3: 候选集 KNN ==========
+        print_ln("  阶段3: 候选集 KNN")
+        
+        LARGE_DIST = sint(1 << 40)
+        knn_pairs = Matrix(M_cand, 2, sint)
+        
+        for i in range(M_cand):
+            dist = sint(0)
+            for dim in range(d):
+                diff = query_emb[dim] - cand_emb[i][dim]
+                dist = dist + diff * diff
+            
+            # 掩码无效块
+            masked_dist = dist + (sint(1) - cand_valid[i]) * LARGE_DIST
+            
+            knn_pairs[i][0] = masked_dist
+            knn_pairs[i][1] = cand_fileid[i]
+        
+        # 排序
+        knn_pairs.sort((0,))
+        
+        # Reveal 结果给 P0
+        print_ln("  结果 (Top-%s):", top_k)
+        for i in range(top_k):
+            fileId = knn_pairs[i][1].reveal_to(0)
+            print_ln_to(0, "    #%s: fileId=%s", i + 1, fileId)
+    
+    print_ln("\n========================================")
+    print_ln("  ANN ORAM 查询完成")
+    print_ln("========================================")
+
+main()

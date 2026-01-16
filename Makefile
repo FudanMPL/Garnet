@@ -228,6 +228,17 @@ ann-party-offline.x: Machines/ann-party-offline.cpp $(SHAREDLIB) $(MATH)
 ann-party.x: Machines/ann-party.cpp $(MINI_OT) $(SHAREDLIB) $(MATH)
 	$(CXX) -o $@ $(CFLAGS) $^ $(LDLIBS) $(SHAREDLIB)
 
+# ANN ORAM 版本（隐藏 clusterId）
+ann-party-oram-offline.x: Machines/ann-party-oram-offline.cpp $(SHAREDLIB) $(MATH)
+	$(CXX) -o $@ $(CFLAGS) $^ $(LDLIBS) $(SHAREDLIB)
+
+ann-party-oram.x: Machines/ann-party-oram.cpp $(MINI_OT) $(SHAREDLIB) $(MATH)
+	$(CXX) -o $@ $(CFLAGS) $^ $(LDLIBS) $(SHAREDLIB)
+
+# ANN Kona + ORAM 混合方案
+ann-party-oram-kona.x: Machines/ann-party-oram-kona.cpp $(MINI_OT) $(SHAREDLIB) $(MATH)
+	$(CXX) -o $@ $(CFLAGS) $^ $(LDLIBS) $(SHAREDLIB)
+
 
 tree-inference.x:   Machines/tree-inference.cpp
 replicated-bin-party.x: GC/square64.o
