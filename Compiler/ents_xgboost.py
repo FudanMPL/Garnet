@@ -135,14 +135,7 @@ class XGBoost:
             self.trees = []
 
     def input_from(self, pid):
-        # write meta data in file for using tree-inference.x
-        f = open("Player-Data/xgboost-meta", 'w')
-        f.write(str(self.tree_number) + "\n")
-        f.write(str(self.h) + "\n")
-        f.write(str(self.attribute_number) + "\n")
-        f.write(str(self.test_sample_number) + "\n")
-        f.write(" ".join(str(self.attribute_max_values[i]) for i in range(self.attribute_number)))
-        f.close()
+        # No file I/O: only read model from party input.
         for i in range(self.tree_number):
             tree = XGBoostTree(h=self.h, attribute_number=self.attribute_number, attribute_max_values=self.attribute_max_values)
             tree.input_from(pid)

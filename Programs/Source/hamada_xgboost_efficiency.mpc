@@ -1,0 +1,61 @@
+program.use_trunc_pr=True
+program.use_split(3)
+
+import hamada_xgboost, util
+
+n_threads = 4
+h = 6
+tree_number = 5
+learning_rate = 0.5
+
+if len(program.args) > 2:
+    h = int(program.args[2])
+if len(program.args) > 3:
+    tree_number = int(program.args[3])
+if len(program.args) > 4:
+    learning_rate = float(program.args[4])
+
+dataset = program.args[1]
+
+print_ln("hamada_xgboost dataset=%s h=%s trees=%s lr=%s", dataset, h, tree_number, learning_rate)
+if dataset == "iris":
+    m = 4
+    n_train = 150
+elif dataset == "cancer":
+    m = 30
+    n_train = 569
+elif dataset == "diagnosis":
+    m = 6
+    n_train = 120
+elif dataset == "adult":
+    m = 14
+    n_train = 48842
+elif dataset == "kohkiloyeh":
+    m = 5
+    n_train = 100
+elif dataset == "tic-tac-toe":
+    m = 9
+    n_train = 958
+elif dataset == "digits":
+    m = 64
+    n_train = 1203
+elif dataset == "wine":
+    m = 13
+    n_train = 178
+elif dataset == "skin-segmentation":
+    m = 3
+    n_train = 245057
+elif dataset == "sepsis_survival":
+    m = 3
+    n_train = 129392
+else:
+    print("please include %s in hamada_xgboost_efficiency.mpc", dataset)
+
+train = sfix.Array(n_train), sint.Matrix(m, n_train)
+for x in train:
+    x.input_from(0)
+
+model = hamada_xgboost.XGBoost(train[1], train[0], h=h, tree_number=tree_number,
+                               learning_rate=learning_rate, n_threads=n_threads)
+model.fit()
+
