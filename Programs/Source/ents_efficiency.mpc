@@ -10,13 +10,6 @@ if len(program.args) > 2:
     h = int(program.args[2])
 
 
-
-
-
-
-
-
-
 dataset = program.args[1]
 
 print_ln("ents dataset=%s h=%s", dataset, h)

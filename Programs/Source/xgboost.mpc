@@ -8,6 +8,7 @@ n_threads = 4 # 最大线程数
 learning_rate = 0.5 # 学习率
 
 program.use_trunc_pr=True
+
 import xgboost, util, math
 
 xgboost.learning_rate = learning_rate

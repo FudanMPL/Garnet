@@ -48,6 +48,14 @@ def VectMax(key, *data):
 MIN_VALUE = -10000
 
 
+def newton_div(x, y):
+    n = 2 ** (sfix.f / 2)
+    z = sfix(1 / n, size=y.size)
+    for i in range(util.log2(n) + 3):
+        z = 2 * z - y * z * z
+    return x * z
+
+
 def FormatLayer(h, g, *a):
     return CropLayer(h, *FormatLayer_without_crop(g, *a))
 
@@ -499,7 +507,7 @@ class XGBoostTree:
         H_r_128 = H_r.change_domain_from_to(32, 128)
         G_l_128_square = G_l_128 * G_l_128
         G_r_128_square = G_r_128 * G_r_128
-        res = G_l_128_square / (H_l_128 + self.lamb) + G_r_128_square / (H_r_128 + self.lamb)
+        res = G_l_128_square * newton_div(1, sfix(H_l_128 + self.lamb)).v + G_r_128_square * newton_div(1, sfix(H_r_128 + self.lamb)).v
         n = len(y)
         res = res * 2 ** (31 - sfix.f - math.ceil(math.log(n)))
         res = res.v.round(128, sfix.f)

@@ -242,19 +242,7 @@ class RandomForest:
             max_votes = is_better.if_else(votes[label], max_votes)
         return best_label
 
-    def test(self, x, y, set_name="test"):
-        """Test the random forest."""
-        print_ln("test for %s set", set_name)
-        y_pred = self.predict(x)
-        pred_res = y_pred.reveal()
-        y_true = y.reveal()
-        print_ln("true y = %s", y_true)
-        print_ln("pred y = %s", pred_res)
-        n = len(y)
-        right = 0
-        for i in range(n):
-            right = right + (y_true[i] == pred_res[i])
-        print_ln("accuracy: %s/%s", right, n)
+
 
     def reveal_to(self, pid):
         """Reveal trees to a specific party."""
@@ -306,11 +294,7 @@ class RandomForestTree:
             self.tree_id = tree_id
             # Generate random permutation for each attribute
             self.perms = Matrix(self.m, self.n, sint)
-            if base_perms is None:
-                self.gen_perm_for_attrbutes()
-            else:
-                # copy, because each tree updates perms during training
-                self.perms = Matrix.create_from(base_perms)
+            self.perms = Matrix.create_from(base_perms)
             # Random feature selection: select max_features random features for this tree
             self.selected_features = self.select_random_features()
 
@@ -416,7 +400,7 @@ class RandomForestTree:
 
     @method_block
     def train_internal_layer(self, k):
-        print_ln("training %s-th layer", k)
+        # print_ln("training %s-th layer", k)
         if single_thread:
             start_timer(105)
         n = len(self.spnd)
@@ -643,39 +627,3 @@ def run_randomforest_tree(layers, data):
     return pick(bits, layers[h][1])
 
 
-def test_randomforest(name, forest, y, x, n_threads=None):
-    """Test random forest against test data."""
-    start_timer(100)
-    n = len(y)
-    x = x.transpose().reveal()
-    y = y.reveal()
-    guess = regint.Array(n)
-    truth = regint.Array(n)
-    layers_list = [[Matrix.create_from(util.reveal(layer)) for layer in tree.layers] 
-                   for tree in forest.trees]
-
-    @for_range(n)
-    def _(i):
-        # Collect predictions from all trees
-        votes = regint.Array(label_number)
-        votes.assign_all(0)
-        for tree_layers in layers_list:
-            pred = run_randomforest_tree([[part[:] for part in layer]
-                                         for layer in tree_layers], x[i]).reveal()
-            votes[pred] = votes[pred] + 1
-        # Find label with maximum votes
-        max_votes = regint(0)
-        best_label = regint(0)
-        for label in range(label_number):
-            if votes[label] > max_votes:
-                max_votes = votes[label]
-                best_label = label
-        guess[i] = best_label
-        truth[i] = y[i].reveal()
-
-    correct = 0
-    for i in range(n):
-        correct = correct + (guess[i] == truth[i])
-    print_ln('%s for height %s: %s/%s', name, forest.h,
-             sum(correct), n)
-    stop_timer(100)

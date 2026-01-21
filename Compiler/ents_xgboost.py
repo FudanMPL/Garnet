@@ -48,6 +48,14 @@ def VectMax(key, *data):
 MIN_VALUE = -10000
 
 
+def newton_div(x, y):
+    n = 2 ** (sfix.f / 2)
+    z = sfix(1 / n, size=y.size)
+    for i in range(util.log2(n) + 3):
+        z = 2 * z - y * z * z
+    return x * z
+
+
 def FormatLayer(h, g, *a):
     return CropLayer(h, *FormatLayer_without_crop(g, *a))
 
@@ -69,7 +77,7 @@ def CropLayer(k, *v):
 
 
 def TrainLeafNodes(h, g, y, y_pred, NID, lamb=0.1):
-    print_ln("training %s-th layer (leaf layer)", h)
+    # print_ln("training %s-th layer (leaf layer)", h)
     assert len(g) == len(y)
     assert len(g) == len(NID)
     gradients = SquareLoss.gradient(y, y_pred)
@@ -79,7 +87,7 @@ def TrainLeafNodes(h, g, y, y_pred, NID, lamb=0.1):
     change_machine_domain(128)
     G_128 = G.change_domain_from_to(32, 128)
     H_128 = H.change_domain_from_to(32, 128)
-    Label_128 = G_128 / (H_128 + lamb)
+    Label_128 = G_128 * newton_div(1, sfix(H_128 + lamb)).v
     # print_ln("Label_128 = %s", Label_128.reveal())
     Label_128 = Label_128 * learning_rate
     # print_ln("Label_128 * learning_rate = %s", Label_128.reveal())
@@ -134,19 +142,7 @@ class XGBoost:
             self.learning_rate = learning_rate
             self.trees = []
 
-    def input_from(self, pid):
-        # write meta data in file for using tree-inference.x
-        f = open("Player-Data/xgboost-meta", 'w')
-        f.write(str(self.tree_number) + "\n")
-        f.write(str(self.h) + "\n")
-        f.write(str(self.attribute_number) + "\n")
-        f.write(str(self.test_sample_number) + "\n")
-        f.write(" ".join(str(self.attribute_max_values[i]) for i in range(self.attribute_number)))
-        f.close()
-        for i in range(self.tree_number):
-            tree = XGBoostTree(h=self.h, attribute_number=self.attribute_number, attribute_max_values=self.attribute_max_values)
-            tree.input_from(pid)
-            self.trees.append(tree)
+
 
 
     def fit(self):
@@ -163,7 +159,7 @@ class XGBoost:
             y_pred = y_pred + update_pred
             self.trees.append(tree)
 
-        self.test(self.x, self.y, "train")
+ 
 
     def predict(self, x):
         datas = x.transpose()
@@ -182,19 +178,7 @@ class XGBoost:
             y_pred = y_pred + tree.predict(x)
         return y_pred
 
-    def test(self, x, y, set_name="test"):
-        print_ln("test for %s set", set_name)
-        y_pred = self.predict(x)
-        pred_res = y_pred.get_vector().v.round(32, sfix.f, nearest=True).reveal()
-        y_true = y.reveal()
-        print_ln("true y = %s", y_true)
-        print_ln("pred y = %s", pred_res)
-        print_ln("pred y = %s (not round)", y_pred.reveal())
-        n = len(y)
-        right = 0
-        for i in range(n):
-            right = right + (y_true[i] == pred_res[i])
-        print_ln("*** accuracy: %s/%s", right, n)
+
 
 
     def gen_perm_for_attrbutes(self):
@@ -499,7 +483,7 @@ class XGBoostTree:
         H_r_128 = H_r.change_domain_from_to(32, 128)
         G_l_128_square = G_l_128 * G_l_128
         G_r_128_square = G_r_128 * G_r_128
-        res = G_l_128_square / (H_l_128 + self.lamb) + G_r_128_square / (H_r_128 + self.lamb)
+        res = G_l_128_square * newton_div(1, sfix(H_l_128 + self.lamb)).v + G_r_128_square * newton_div(1, sfix(H_r_128 + self.lamb)).v
         n = len(y)
         res = res * 2 ** (31 - sfix.f - math.ceil(math.log(n)))
         res = res.v.round(128, sfix.f)
