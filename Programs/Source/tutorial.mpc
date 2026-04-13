@@ -1,13 +1,11 @@
-import Compiler.mpc_math
-from Compiler.types import sfix, sint
 # sint: secret integers
+# see also https://mp-spdz.readthedocs.io/en/latest/Compiler.html#Compiler.types.sint
 
 # you can assign public numbers to sint
 
 a = sint(1)
 b = sint(2)
 
-@buildingblock("test")
 def test(actual, expected):
 
     # you can reveal a number in order to print it
@@ -17,6 +15,7 @@ def test(actual, expected):
 
 # private inputs are read from Player-Data/Input-P<i>-0
 # or from standard input if using command-line option -I
+# see https://mp-spdz.readthedocs.io/en/latest/io.html for more options
 
 for i in 0, 1:
     print_ln('got %s from player %s', sint.get_input_from(i).reveal(), i)
@@ -50,22 +49,10 @@ test((a < b).if_else(b, a), 2)
 # arrays and loops work as follows
 
 a = Array(100, sint)
-x = sint(0)
-mm = a*x
-mm2 = a*x
-n=10
 
-ww = Array(100, sint)
-dd = Array(100, sint)
-ss = [sint(i) for i in range(n)] 
-ss1 = [sint(i+1) for i in range(n)]
-ss2 = [sint(i+1) for i in range(n)]
-sd = sint.dot_product(ww, dd)
-sd1 = sint.dot_product(ss, ss2)
 @for_range(100)
 def f(i):
     a[i] = sint(i) * sint(i - 1)
-    x.update(x+1)
 
 test(a[99], 99 * 98)
 
@@ -77,6 +64,7 @@ test(a[99], 99 * 98)
 # test(a, 99)
 
 # sfix: fixed-point numbers
+# see also https://mp-spdz.readthedocs.io/en/latest/Compiler.html#Compiler.types.sfix
 
 # set the precision after the dot and in total
 
@@ -149,22 +137,3 @@ M[1][1] = 0
 M = data * M
 test(M[0][0], data[0][1].reveal())
 test(M[1][1], data[1][0].reveal())
-
-print_ln('EXP TEST')
-exp=sfix.Array(4)
-
-exp[0] = 1
-exp[1] = 2
-exp[2] = 3
-exp[3] = 4
-
-print_ln('ERROR WITHIN 0.2')
-test(Compiler.mpc_math.exp_fx(exp.get_vector())[3],53.8)
-
-print_ln('LOGSUM TEST')
-
-logsum=sfix.Array(2)
-logsum[0]=0.5
-logsum[1]=0.5
-
-test(Compiler.mpc_math.logsum(logsum),1.193)
