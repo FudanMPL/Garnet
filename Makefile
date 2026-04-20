@@ -301,7 +301,7 @@ $(LIBSIMPLEOT_ASM): deps/SimpleOT/Makefile
 OT/BaseOT.o: deps/SimpleOT/Makefile
 
 deps/SimpleOT/Makefile:
-	git submodule update --init deps/SimpleOT || git clone git@github.com:mkskeller/SimpleOT.git deps/SimpleOT
+	git submodule update --init deps/SimpleOT || { rm -rf deps/SimpleOT && git clone https://github.com/mkskeller/SimpleOT deps/SimpleOT; }
 endif
 
 $(LIBSIMPLEOT_C): deps/SimplestOT_C/ref10/Makefile
@@ -310,17 +310,17 @@ $(LIBSIMPLEOT_C): deps/SimplestOT_C/ref10/Makefile
 OT/BaseOT.o: deps/SimplestOT_C/ref10/Makefile
 
 deps/SimplestOT_C/ref10/Makefile:
-	git submodule update --init deps/SimplestOT_C || git clone git@github.com:mkskeller/SimplestOT_C.git deps/SimplestOT_C
+	git submodule update --init deps/SimplestOT_C || { rm -rf deps/SimplestOT_C && git clone https://github.com/mkskeller/SimplestOT_C deps/SimplestOT_C; }
 	cd deps/SimplestOT_C/ref10; PATH=$(CURDIR)/local/bin:$(PATH) cmake .
 
 .PHONY: Programs/Circuits
 Programs/Circuits:
-	git submodule update --init Programs/Circuits
+	git submodule update --init Programs/Circuits || { rm -rf Programs/Circuits && git clone https://github.com/mkskeller/bristol-fashion Programs/Circuits; }
 
 .PHONY: mpir-setup mpir-global
 mpir-setup: deps/mpir/Makefile
 deps/mpir/Makefile:
-	git submodule update --init deps/mpir || git clone https://github.com/wbhart/mpir deps/mpir
+	git submodule update --init deps/mpir || { rm -rf deps/mpir && git clone https://github.com/wbhart/mpir deps/mpir; }
 	cd deps/mpir; \
 	autoreconf -i; \
 	autoreconf -i
@@ -339,7 +339,7 @@ local/lib/libmpirxx.so: deps/mpir/Makefile
 	$(MAKE) -C deps/mpir install
 
 deps/libOTe/libOTe:
-	git submodule update --init --recursive deps/libOTe || git clone --recurse-submodules https://github.com/mkskeller/softspoken-implementation deps/libOTe
+	git submodule update --init --recursive deps/libOTe || { rm -rf deps/libOTe && git clone --recurse-submodules https://github.com/mkskeller/softspoken-implementation deps/libOTe; }
 boost: deps/libOTe/libOTe
 	cd deps/libOTe; \
 	python3 build.py --setup --boost --install=$(CURDIR)/local
@@ -352,7 +352,7 @@ else
 OTE = $(STATIC_OTE)
 endif
 
-libote:
+libote: deps/libOTe/libOTe
 	rm $(STATIC_OTE) $(SHARED_OTE)* 2>/dev/null; true
 	$(MAKE) $(OTE)
 
@@ -397,7 +397,7 @@ linux-machine-setup:
 endif
 
 deps/simde/simde:
-	git submodule update --init deps/simde || git clone https://github.com/simd-everywhere/simde deps/simde
+	git submodule update --init deps/simde || { rm -rf deps/simde && git clone https://github.com/simd-everywhere/simde deps/simde; }
 
 
 clean-deps:
