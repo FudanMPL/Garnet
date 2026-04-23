@@ -124,6 +124,7 @@ tldr: libote
 
 ifeq ($(ARM), 1)
 Tools/intrinsics.h: deps/simde/simde
+tldr: deps/simde/simde
 endif
 
 shamir: shamir-party.x malicious-shamir-party.x atlas-party.x galois-degree.x
