@@ -123,8 +123,8 @@ tldr: libote
 	mkdir Player-Data 2> /dev/null; true
 
 ifeq ($(ARM), 1)
-Tools/intrinsics.h: deps/simde/simde
-tldr: deps/simde/simde
+$(patsubst %.cpp,%.o,$(wildcard */*.cpp */*/*.cpp)): deps/simde/simde deps/sse2neon/sse2neon.h
+tldr: deps/simde/simde deps/sse2neon/sse2neon.h
 endif
 
 shamir: shamir-party.x malicious-shamir-party.x atlas-party.x galois-degree.x
@@ -399,6 +399,9 @@ endif
 
 deps/simde/simde:
 	git submodule update --init deps/simde || { rm -rf deps/simde && git clone https://github.com/simd-everywhere/simde deps/simde; }
+
+deps/sse2neon/sse2neon.h:
+	git submodule update --init deps/sse2neon || { rm -rf deps/sse2neon && git clone https://github.com/DLTcollab/sse2neon deps/sse2neon; }
 
 
 clean-deps:
