@@ -10,6 +10,8 @@ RUN apt-get update -o Acquire::Retries=3  && apt-get install -y --no-install-rec
                 libboost-thread-dev \
                 libclang-dev \
                 libgmp-dev \
+                libmpfr-dev \
+                libmpc-dev \
                 libntl-dev \
                 libsodium-dev \
                 libssl-dev \
